@@ -1,0 +1,18 @@
+{
+  "name": "sacha-orchestra",
+  "version": "0.1.20",
+  "description": "Codex deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework.",
+  "author": {
+    "name": "Sacha Orchestra"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sacha Orchestra",
+    "shortDescription": "Route work across Planner, Executor, and Reviewer.",
+    "longDescription": "Provides platform-neutral workflow and Artifact contracts, independent Runtime adapters, three production Role Skills, Manager coordination, Feedback intake, explicit Clarify, and Schema v3 project setup. It selects the lightest valid route while preserving authorization, single writer, original evidence, independent review, and recoverable handoff.",
+    "developerName": "Sacha Orchestra",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": "Route this task through the lightest Sacha Orchestra Role path that preserves scope, evidence, and authorization."
+  }
+}
