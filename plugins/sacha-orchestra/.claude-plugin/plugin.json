@@ -1,0 +1,9 @@
+{
+  "name": "sacha-orchestra",
+  "version": "0.1.20",
+  "description": "Claude Code deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework. Provides platform-neutral Core contracts, an independent Claude Code Runtime Adapter, three production Role Skills, Manager coordination, Feedback intake, explicit Clarify, and Schema v3 project setup.",
+  "author": {
+    "name": "Sacha Orchestra"
+  },
+  "license": "MIT"
+}

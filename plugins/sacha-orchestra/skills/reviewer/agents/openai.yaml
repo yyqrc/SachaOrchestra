@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sacha Orchestra Reviewer（复核）"
+  short_description: "独立核对批准 Scope、真实实现与原始证据并给出裁决"
+  default_prompt: "使用 $sacha-orchestra:reviewer 按批准 Scope 独立核对此实现及原始证据。"

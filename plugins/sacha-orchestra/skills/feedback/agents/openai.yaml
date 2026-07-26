@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sacha Orchestra Feedback（流程反馈）"
+  short_description: "调查 Sacha 流程或 plugin 偏差并路由到唯一责任 owner"
+  default_prompt: "使用 $sacha-orchestra:feedback 调查这个 Sacha 流程或 plugin 偏差并路由责任 owner。"

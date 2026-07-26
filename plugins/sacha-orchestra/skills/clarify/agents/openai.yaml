@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sacha Orchestra Clarify（需求澄清）"
+  short_description: "显式澄清模糊目标、边界与验收，形成 Planner 可用输入"
+  default_prompt: "使用 $sacha-orchestra:clarify 澄清这个目标、关键边界与验收点。"
+
+policy:
+  allow_implicit_invocation: false

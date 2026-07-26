@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sacha Orchestra Project Setup（项目接入）"
+  short_description: "显式发现并生成当前项目的 Sacha Binding，保护冲突与回滚"
+  default_prompt: "使用 $sacha-orchestra:setup-project 发现并安全生成当前项目的 Sacha Binding。"
+
+policy:
+  allow_implicit_invocation: false

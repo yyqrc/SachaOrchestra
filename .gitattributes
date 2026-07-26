@@ -1,0 +1,10 @@
+* text=auto
+
+# Preserve accepted 0.1.0 evidence byte-for-byte. Their recorded SHA-256 values
+# refer to the original Windows workspace files and must not be EOL-normalized.
+/spec.md -text
+/execution-report.md -text
+/review.md -text
+/docs/architecture/evolution.md -text
+/docs/migrations/2026-07-12-workspace-relocation.md -text
+

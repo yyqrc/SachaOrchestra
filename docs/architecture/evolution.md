@@ -1,0 +1,267 @@
+# Sacha Orchestra 演进路线图
+
+> 当前 release：`0.1.20` Runtime Adapter and contract normalization
+> 当前 source candidate：无
+> 当前主线：Managed Parallel
+> 发布边界：`0.1.20` 已完成 source release；未执行安装、refresh、source/cache parity、fresh discovery 或 Runtime behavior 验证；SH3 与 `1.0.0` 仍未满足
+> 本文只定义方向和门槛，不授权实现、安装或发布
+
+Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
+
+## 1. 权威边界
+
+| 内容 | 权威来源 |
+| --- | --- |
+| 当前开发方向、版本门槛、self-hosting | 本文 |
+| Role、Gate、lifecycle、repair | `plugins/sacha-orchestra/core/workflow-contract.md` |
+| Artifact 与九字段 Handoff | `plugins/sacha-orchestra/core/artifact-protocol.md` |
+| Codex task、subagent、Goal、安装和恢复映射 | `plugins/sacha-orchestra/adapters/codex/runtime-adapter.md` |
+| 当前任务的批准 Scope | Human 明确目标或适用 Spec |
+| 项目命令、领域证据和局部约束 | Project AGENTS / Domain Skill |
+
+路线图只保留当前有效方向。已结束过程由 Git 和既有 Spec、Execution Report、Review 保存，不在本文重复累计。
+
+## 2. 当前状态
+
+| 里程碑 | 状态 | 已交付能力 | 边界 |
+| --- | --- | --- | --- |
+| Foundation | 已完成 | Core、Artifact Protocol、Planner/Executor/Reviewer、Codex Adapter、plugin 与 marketplace | `0.1.0` 是种子，不是正式版 |
+| 首个 Project Integration | 已完成 | RenderDocAnalysis 接入、项目规则与 Core/Adapter 分层 | 历史接入不继续扩写 |
+| Stage 2 maturity intake | 已收口 | 暴露了累计 Report、重复 Handoff 和人工 Checkpoint 的成本 | 不恢复矩阵、Checkpoint 或主动证据摄取 |
+| Lean Hybrid | 已完成候选实现 | Direct、Plan、Assure、Full assurance、Goal-first、Project setup、Human-confirmed serial dispatch、Direct plugin development | `0.1.9` 的 bounded source changes 已验收；不代表 SH3 或 `1.0.0` |
+| Managed Parallel | 已接受源码并安装 `0.1.10` | Manager Gate、Work Packet、真实并行运行时断言、自动反馈与迭代路由 | 当前 task 的 Skill locator 仍漂移，fresh-context 与真实并行行为未验证 |
+| Subagent context/report budget | `0.1.11` 已安装、未发布 | additive report contract、Codex 最小 context、Manager 去重聚合、`report_limited` 与定向 follow-up | 独立 Final re-review 为 `Reject — Needs Evidence`；raw fidelity 与 natural `report_limited` 路径未通过 |
+| Autonomous Goal Completion | `0.1.12` released | 根 workflow owner、subagent completion join、独立 Role callback、runtime transition assertions、自动返修/补证据/re-review 与 Human stop gate | source/static R3 `Accepted with follow-up`；fresh-installed §8.2 runtime re-review `Accepted`，最终 `goal_complete` |
+| Workflow Feedback Intake | `0.1.13` released | Transport/Identity/Progress 三层断言、完整 deviation packet、显式 feedback intake/transport 与自动修复 callback | 已完成 source 验收并精确安装；不单独宣称 Project Binding 行为 |
+| Project Binding v2 | `0.1.14` released | SCM/rule/Skill root 有界发现、Schema v1→v2 安全迁移、事务保护与 Role 渐进消费 | source/static 独立 Review `Accepted`；安装与 source/cache parity 已验证，真实消费项目写入仍需单独授权 |
+| Setup Project Capability Mapping v3 | `0.1.15` released | `$setup-project [query ...]`、current-context 有界模糊解析、confirmed capability mapping、Schema v1/v2→v3 迁移与 managed capability 对账 | source/static R2 `Accepted`；exact installation、`19/19` parity、fresh `$setup-project` discovery 与 read-only query runtime smoke 已验证；真实消费项目写入仍不在发布 Scope，provider 仍为可选 |
+| Workflow Hardening and Evidence Semantics | `0.1.16` released | review snapshot 双校验、bounded progress/liveness、AC 反例追踪、五态人工验收 canonical 与 legacy fallback provenance | source/static R3 `Accepted`；cgame-unity `0.3.3` source contract hash 已对账；exact installation、`19/19` parity 与 fresh-context Reviewer discovery 已验证 |
+| Owner-Joined Terminal Return | `0.1.17` released | root owner 以 `wait_threads` 消费 formal Role terminal payload；message-only wake 退出 owner-restoration 路径；identity/dedup 后唯一 next transition | source/static、精确安装与 `19/19` parity 已通过；真实 Runtime 无 Human 消息地完成一次 `Needs Fix → 同一原 Executor → 同一 Reviewer Accepted` |
+| Progressive Workflow and Layered Acceptance | `0.1.18` released | 八个维度分别选择最低足够强度；单一 Baseline、evidence-only scoped re-review、局部 blocker、Gate 失效与 Agent/Human evidence 隔离 | source/static 独立 Review `Accepted`；安装、source/cache parity、fresh discovery 与真实 Runtime 行为未在本 release Scope 执行 |
+| 验收选择去重（ITER-04） | `0.1.19` released | 删除独立 `L0`～`L3` 分层验收 Profile：验收由谁判断只由 Reviewer Gate 决定，执行哪些检查由 `V0`～`V4` 独立选择；check-level 人工 overlay 绑定具体 `check_id` | source/static 独立 Review `Accepted with follow-up`；Core §2.2 规范性语义改变（breaking）；九字段 Handoff 与权威顺序未动，但同批为 Plan Artifact 新增权威段/推荐段结构；Workflow Contract 升 `Contract Version: 2`（Human 决策，不为无消费方的旧 L0～L3 写 migration 对照），Artifact Protocol 维持 1 |
+| 减重与能力接入（批次0/1a/2） | `0.1.19` released | 路由入口 `S0 Sacha Direct` 改名 `D0` 消歧；入口歧义区主动询问（琐碎默认 L0、高风险强制、歧义区问一次）；新增 explicit-only `clarify` 需求澄清 Skill；能力消费证据胶囊规范可核对轨迹 | source/static 独立 Review `Accepted with follow-up`；plugin 安装、fresh discovery 与真实 Runtime 行为未在本 release Scope 执行 |
+| Runtime Adapter and contract normalization | `0.1.20` released | Adapter 独立映射；Workflow Contract 4 去除单 Skill taxonomy 和重复 Conformance；Role Skills 只保留 Runtime-neutral 最小 procedure；停止旧字段、旧 Schema 和 Role alias 兼容 | source/static 验证通过并完成 source release；runtime promotion 未执行 |
+
+## 3. 不变量
+
+1. 生产 Role 只有 Planner、Executor、Reviewer；Manager 是控制面，不是第四个生产 Role。
+2. Planner、Reviewer、Manager Gate 独立；默认从 Executor 开始。
+3. 简单、明确、局部、可逆且可完整验证的任务保持 Direct。
+4. 同一写入 Scope 同时只有一个 owner；并行写入必须可证明不重叠。
+5. Human 保留 Scope、高影响动作和 workspace 外状态变更的最终授权。
+6. Core 保持 platform-neutral、project-neutral；Codex 机制只进入 Adapter 或 Role-local Skill。
+7. Goal 是 task 的执行载体，不是第二份 Scope；存在 Spec 时以 Spec 为 Scope 权威。
+8. Artifact 按持久化和交接需要渐进生成；简单任务不制造 Spec、Report、Review 或 Handoff。
+9. Reviewer 独立性由 provenance 判断，不由 task 名称判断。
+10. 报告、Handoff 和 Agent 自报只索引事实；真实文件、Diff、运行状态和命令输出才是完成证据。
+11. 不建立 Runtime Registry、数据库、后台服务、自动授权或完整会话采集。
+12. 已通过的 self-hosting 能力成为后续同类工作的默认路线；无法使用时必须说明真实缺口。
+13. 非 Direct 流程由根 workflow owner 持续推进到 `goal_complete`；Role/subagent completion 和同 Scope 返修/复验不是 Human checkpoint。
+
+改变生产 Role、Gate、九字段 Handoff、权威边界或用户授权属于 Core breaking change，必须有兼容/迁移方案和独立 Review。
+
+## 4. 当前主线：Managed Parallel
+
+目标：当任务确实存在可同时推进的独立工作单元时，由 Manager 控制面使用 Codex 原生 subagent 并行执行；没有并行条件时保持 Lean Hybrid 快速路径。
+
+### 4.1 Manager Gate
+
+以下事实之一可开启 Manager Gate：
+
+- 至少两个可独立推进的工作单元；
+- 明确依赖图或安全并发分支；
+- 多个环境或执行实例需要协调；
+- 需要集中处理取消、失败、恢复、去重或单一写入者约束。
+
+困难、耗时、多文件或“想用更多 Agent”本身不打开 Manager Gate。
+
+Manager 只负责：
+
+- 核对已批准 Scope 和 Work Packet；
+- 判断 ready 状态、依赖、owner 和并行窗口；
+- 启动、等待、中断和汇总 subagent；
+- 维持单一写入者和授权边界；
+- 在运行行为与自身判断不一致时触发自分析或插件迭代。
+
+Manager 不设计方案、不写实现、不做独立验收，也不扩大授权。
+
+### 4.2 Work Packet
+
+可并行 Work Packet 至少明确：
+
+- owner；
+- read/write Scope；
+- dependency；
+- input/output；
+- verification；
+- stop condition。
+
+只读 Packet 可以并行。写入 Packet 只有在 exact write Scope 静态不重叠时才能并行。共享生成物、公共 Schema、Git 操作和整体验证由单一 integration owner 串行完成。
+
+### 4.3 运行时断言
+
+当下列条件同时成立：
+
+- Manager Gate 已开启；
+- 至少两个 Work Packet 已 ready；
+- Scope 不重叠；
+- 依赖、授权和 Runtime 槽位允许并行；
+
+则形成断言：
+
+```text
+parallel_expected == true
+-> before_first_wait_or_join_spawned_agents >= 2
+```
+
+结果只分三类：
+
+| 结果 | 含义 | 动作 |
+| --- | --- | --- |
+| `parallel_started` | 首次 wait/join 前已启动至少两个 subagent | 继续聚合 |
+| `parallel_blocked` | Runtime、槽位、依赖、Scope 或授权出现真实阻塞 | 报告阻塞和恢复条件 |
+| `parallel_dispatch_missed` | 条件满足但没有实际启动并行 | 立即自分析并进入反馈或迭代路线 |
+
+Manager Gate 开启但不足两个 ready Packet 时保持 managed serial，不伪装成并行遗漏。
+
+### 4.4 自分析与自动迭代
+
+`parallel_dispatch_missed` 不能静默降级为串行成功。当前任务必须先生成最小分析：
+
+- 为什么判定应该并行；
+- 哪些 Packet 已 ready；
+- 预期与实际 spawn 数；
+- Runtime、Scope、依赖和授权状态；
+- 责任层属于 Manager Skill、Runtime Adapter、Project Integration 还是 Runtime；
+- 对当前任务的影响和可定位证据。
+
+若责任层属于 Sacha Orchestra plugin，自动查询现有 Codex task，并判断是否存在合格插件迭代目标。合格目标必须同时满足：
+
+- cwd 精确属于 Sacha Orchestra plugin 源码 workspace；
+- 当前用途是插件实现、迭代或缺陷修复，不是 Planner-only、Reviewer-only、历史安装或已关闭发布；
+- Goal/Scope 与 Manager、并行、Runtime Adapter、Role Skill 或通用 workflow defect 相容；
+- task 可接收消息，且没有 unfinished Goal、活跃写入 owner 或 Scope 冲突。
+
+只有唯一合格目标存在时才直接转发分析包，并携带 runtime-only 根 return address。转发只进入目标 task 的 intake，不扩大其写入、安装、Git 或外部动作授权；Manager 不监控目标 task，目标完成后 callback 根 workflow owner 并继续 objective loop。
+
+没有合格目标、存在多个候选、责任层不属于 plugin 或发送失败时，在当前任务输出可直接转发的分析包，并说明未转发原因。不得为了反馈自动创建新 task。
+
+若当前任务本身就是已授权的插件迭代 Scope，且修复不改变批准合同，则保持同一 Task ID 直接迭代；出现新架构、Scope、授权、外部写入或验收变化时返回 Planner/Human。
+
+这是一条运行时断言和修复闭环，不是案例收集系统。只有真实任务触发时才运行，不主动制造失败、不累计案例、不建立 Registry。
+
+### 4.5 开发与验证方式
+
+Managed Parallel 先实现并安装 candidate，然后直接用于真实开发任务：
+
+1. 在真实任务中评估 Manager Gate 和 ready Packet；
+2. 应并行时实际启动 subagent；
+3. 运行时断言失败则自分析、直接迭代或转发；
+4. 修复后重装 candidate；
+5. 后续真实任务继续使用。
+
+官方 Skill/plugin validator、JSON/YAML/Markdown 引用和边界检查只证明 packaging/static 正确，不能代替真实并行行为。并行能力不以 synthetic behavior fixture、固定样本数、矩阵或主动制造任务验收。
+
+### 4.6 已安装但独立 Review 拒绝：Subagent 上下文与报告预算
+
+Human 已授权按 `docs/plans/2026-07-16-subagent-context-report-budget/spec.md` 实现并发布 `0.1.11`。精确安装和 source/cache parity 已完成，但 Final re-review 判定 controlled raw payload fidelity 与自然超限 `report_limited`/follow-up 路径仍缺证据，因此 `0.1.11` 未发布。该 Review 保留为历史判断，不由 `0.1.12` 改写。
+
+### 4.7 当前实施：Autonomous Goal Completion
+
+`docs/plans/2026-07-16-completion-return-routing/spec.md` 冻结 `0.1.12`：根 workflow owner 对用户 objective 负责，自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout。Manager 必须在父 lifecycle 消费 required subagent completion；独立 Role 通过 runtime-only 根 return address 主动 callback。只有重大方案决策、Plan/实际不相容、新高影响授权、不可消歧冲突，或证据冲突已使下一步无法诚信判断且继续写入有覆盖用户工作/制造错误完成声明的风险，或外部/Runtime 无法恢复才暂停给 Human。
+
+该能力不建立后台服务、Runtime Registry 或第四生产 Role，不修改九字段 Handoff，也不扩大安装/Git/发布授权。`0.1.12` 已在精确安装且 source/cache `16/16` parity 的 fresh context 中完成真实 child join、独立 task callback、`Needs Evidence`→原 Executor 补证→同 Reviewer re-review、Accepted callback、duplicate/错误身份拒绝、invalid-owner `completion_return_blocked` 与根 `goal_complete`；同一独立 Reviewer接受 runtime evidence。该结论不代表 SH3 或 `1.0.0` 已完成。
+
+### 4.8 已发布：Workflow Feedback Intake
+
+`docs/plans/2026-07-16-workflow-feedback-intake/spec.md` 冻结 `0.1.13`：沿用 `0.1.12` 唯一 runtime transition assertion 机制，将其正式整理为 Transport、Identity、Progress 三层，并锁定可恢复的 runtime deviation packet。新增 `sacha-orchestra:feedback` 作为 intake、补充调查与 transport 入口，不改变三个生产 Role，也不是 Manager、assertion owner 或授权层。
+
+显式 feedback 可以在真实 task/project 状态唯一时复用或创建唯一 SachaOrchestra 修复 task；自动 runtime deviation 没有唯一既有目标时不得创建。两者都把 bounded packet 送入现有 Planner→Executor→独立 Reviewer→repair/evidence→re-review 路线，并 callback 原 feedback workflow owner。该 release 不新增 hook、MCP、App、后台服务、Runtime Registry、硬编码项目注册表，也不隐含安装、Git 或发布授权。
+
+### 4.9 已发布：Project Binding v2
+
+`docs/plans/2026-07-16-project-binding-v2/spec.md` 冻结 `0.1.14` 的 Project Integration schema 升级：`setup-project` 从 Project AGENTS 开始执行最多两跳的规则发现，探测根级 Git/SVN 证据和 Skill root 候选，并由 Human 分别确认 rule binding、authority/mirror/independent/ignore 与 Legacy alias 决策。generated Binding 只保存项目相对定位和关系，不复制规则正文、不保存扫描 hash、不猜测领域能力。
+
+Schema v1 默认只 dry-run 展示 v2 planned content、preimage/planned SHA-256 与迁移动作；写入继续要求显式授权、matching expected hash、完整决定、marker/并发保护和补偿恢复。Planner、Executor、Reviewer 只在需要项目定位时渐进读取 confirmed Binding；Binding/v2/provider 缺失时保留 Project AGENTS、Domain Skill 和 Executor-only fallback。该 release 不包含 Capability Mapping 自动生成、真实消费项目迁移或必选领域 provider。
+
+### 4.10 已发布：Setup Project Capability Mapping v3
+
+`docs/plans/2026-07-17-setup-capability-mapping-v3/spec.md` 冻结 `0.1.15` 的 `setup-project` 迭代：Human 可直接输入 `$setup-project cgame_unity custom-review` 一类宽松查询，Skill 从当前 Codex context 组织显式 catalog，由纯 resolver 执行确定性候选匹配，并在集中确认后只把 canonical capability binding 交给生成器。项目根默认从当前 workspace、Project AGENTS/confirmed Binding 与 SCM root 推断；仍有多个有效根时才请求消歧。
+
+Schema v3 只保存 capability id、canonical Skill、最小 load policy 与 fallback，不保存查询词、分数、provider 正文、版本、机器路径或 discovery hash。再次 setup 对 managed capability 执行 `keep/add/replace/remove/warning` 对账；当前 context 暂时不可见不构成自动删除理由。Schema v1/v2 仍先 dry-run，写入继续沿用 expected hash、marker、并发保护、补偿恢复和 `partial_write` 证据。Provider 是可选能力来源，不拥有 Role、Gate、Scope、Artifact、授权或 verdict；mapping/provider 缺失时保留 Project AGENTS、可发现 Domain Skill 与 Role 原生 fallback。
+
+该 release 不修改 Core，不引入必选领域 plugin，也不包含真实消费项目写入。`0.1.15` 已精确安装并完成 source/cache `19/19` parity；fresh `$setup-project` 简写调用解析到安装 cache `0.1.15`，read-only query smoke 自动推断当前项目，把 `cgame_unity` 解析为 `cgame-unity` 并展开五项能力，同时将无唯一候选的 `custom-review` 保持 unresolved、阻止写入。该 smoke 不等于真实消费项目写入验收。
+
+### 4.11 已发布：Workflow Hardening and Evidence Semantics
+
+`docs/plans/2026-07-17-self-hosting-workflow-hardening/spec.md` 冻结 `0.1.16` 的 review snapshot、required-child first-progress/liveness、validator isolation、测试 consumer 推导、AC 反例追踪、最长 60 秒用户可见进度，以及 Human-explicit 独立 Executor 配置边界。R3 独立 Review 保留 R1/R2 provenance，并裁决 source/static 为 `Accepted`。
+
+验收证据语义以 `human_assistance_state = not_required | pending | completed_passed | completed_failed | completed_inconclusive` 为 canonical；人工项只允许后四态，canonical 存在时优先于冲突的三态投影，缺失时才使用 `observed_outcome` legacy fallback 并记录 provenance。`completed_inconclusive` 表示人工已完成但证据不足，进入 `Needs Evidence`。该跨插件契约曾以 cgame-unity `0.3.3` source hash 完成对账；原 repo-local fixture 无现行消费者，不再作为当前 Gate。Provider 仍不拥有 Reviewer verdict。`0.1.16` 已精确安装并完成 source/cache `19/19` parity；ephemeral fresh context 将 `$sacha-orchestra:reviewer` 直接解析到安装 cache `0.1.16`。
+
+### 4.12 Released：Owner-Joined Terminal Return
+
+`docs/plans/2026-07-23-runtime-owner-restoration/spec.md` 处理已确认的 `Progress` 偏差：Reviewer 已产生完整 `Needs Fix` verdict，旧 Adapter 却让 Source turn 结束并依赖 `send_message_to_thread` 唤醒 idle root；真实 Runtime 只投递了消息，没有恢复 owner，直到 Human 再发消息才继续。
+
+`0.1.17` 的冻结修复保持 Core、Artifact Protocol、Role/Gate 和授权模型不变。root owner 在 formal dispatch 后保持当前 phase，以 target thread/host 调用 `wait_threads`；Target 在 final terminal output 提供一次短 callback payload。owner 对 Task ID、Scope、revision、owner、Source/Target Role 与 dedup 完成验证后，从实际 task 工具结果启动唯一 next transition。timeout 只产生 bounded progress 并继续 event wait；Manager required subagent 仍使用 `wait_agent`。
+
+### 4.13 Released：Progressive Workflow and Layered Acceptance
+
+`docs/plans/2026-07-23-layered-acceptance-review-delta/spec.md` 冻结并发布 `0.1.18`：对 Planning、Artifact、Coordination、Verification、Runtime evidence、Context/report、Feedback 与 Project setup 分别选择最低足够强度，不形成总分或固定流水线；`L0`～`L3` 验收 Profile 使 Direct 与普通工程任务避免无事实的完整 Review，风险工作继续由既有 Reviewer Gate 独立保证。
+
+正式 Review 只维护一个实现 Baseline。相同 Scope、Baseline 与 `acceptance_revision` 下的 evidence-only delta 以稳定 `changed_check_ids` scoped re-review，并在既有 Review Artifact append Entry；不新增 Evidence/Verdict Revision Artifact。局部 blocker 只暂停冲突范围，存在安全且已授权 ready branch 时根 workflow owner 继续推进。Scope、验收、owner、交付、安全/权限或依赖图的实质变化使旧 Gate 判断失效，但证据 locator、结果或文案变化不自动打开 Gate。Agent-observed evidence 不替代 Human-confirmed canonical check。
+
+该 release 保持三个生产 Role、三个 Gate、Artifact Protocol 精确九字段 Handoff、single writer、Human 授权、Reviewer provenance、callback identity/dedup、历史证据和 owner-joined terminal return；不修改 Binding/Setup schema、resolver/generator，不新增 Registry、后台服务、hook、MCP 或 App。source/static 独立 Review 已通过；安装、fresh-context runtime 与真实行为仍是后续独立授权层。
+
+### 4.14 Released：Progressive Acceptance + Clarify + Multi-Runtime
+
+`0.1.19` 已完成 source release，独立 Review 为 `Accepted with follow-up`；本次不改变安装授权，也不宣称 runtime promotion 已完成。Evolution 是 current release、source candidate 与验证层级的唯一权威；manifest 表示当前源码版本，Git annotated tag 表示已发布版本，其他 README、Adapter 与项目规则只链接该 authority。
+
+收尾分为 `source release` 与 `runtime promotion`：前者在 source/static Accepted 后只做一致性检查、精确暂存、commit、tag 与原子 push；后者需要 Human 对精确版本另行授权安装/refresh 后取得 R2～R4 证据。新增 release coherence validator 检查 source/release 状态、版本和 tag identity；历史 Artifact Protocol 保护改为比较真实 Git preimage，避免过期硬编码 hash 制造无关发布红灯。
+
+### 4.15 Released：Runtime Adapter and contract normalization
+
+`0.1.20` 将两个 Runtime Adapter 收敛为相同骨架的独立映射：它们只引用 Core/Artifact Protocol，不互相引用，不维护 release、验证或迭代历史。Workflow Contract 4 只保留跨 Role 的协作语义与四个共享强度维度；单 Skill taxonomy、Runtime transport、重复 Conformance 和展示规则不再占用 Core。Role Skill 只保留 trigger、最小 procedure 和暂停/路由。
+
+该 release 停止 `source_thread_id`、`observed_outcome`、Goal 路线 taxonomy、非 Schema v3 Project Binding 与 Role alias 兼容。历史说明保留在 README、Evolution、冻结 Spec/Report/Review 和 Git 中，不进入当前 Core、Adapter 或 Skill。source/static 验证已通过；本次不执行安装、refresh、source/cache parity、fresh discovery 或 Runtime behavior 验证。
+
+## 5. `1.0.0` 门槛
+
+`0.1.y` 保持为 `1.0.0` 前的 candidate line。发布 `1.0.0` 必须同时满足：
+
+- Lean Hybrid 快速路径保持可用；
+- Manager Gate 与 Managed Parallel 已实现并安装；
+- 至少一个真实开发任务在断言成立时实际启动并行并完成结果聚合；
+- 至少一个真实非 Direct objective 在没有 Human 搬运 Role completion 的情况下自动完成 Plan/Execute/Review/返修或补证据/re-review，并到达 `goal_complete`；
+- 真实发生的断言失败均完成自分析，并直接迭代、转发或明确报告；没有真实失败时不制造失败样本；
+- Sacha Orchestra 使用自身完成一次包含 Managed Parallel 的非平凡升级；
+- Scope、单一写入者、provenance、Artifact 可达性和 Human 授权没有回退；
+- 安装后验证和独立 Reviewer 验收通过。
+
+满足这些条件后，才单独执行 `1.0.0` 版本、安装和发布收尾。Manager、并行和 SH3 是 `1.0.0` 前置条件；Advanced coordination 和 Portability 不是。
+
+## 6. Self-hosting
+
+| 等级 | 状态与能力 |
+| --- | --- |
+| SH0 Seed | 已完成：外部流程建立种子 |
+| SH1 Read/Plan | 已完成：已安装 Role 可读取并规划 Sacha Orchestra |
+| SH2 Change | 已完成：自身 Planner、Executor、Reviewer 已完成有界 Framework 修改和返修 |
+| SH3 Managed Upgrade | 待完成：自身使用 Managed Parallel 完成非平凡升级、真实并行、独立 Review 和安装后验证 |
+
+## 7. `1.0.0` 之后
+
+只有真实需求出现后再评估：
+
+- Advanced coordination：跨仓库依赖、复杂取消/恢复、动态并行度和更大规模 Work Packet；
+- Portability：第二项目或其他 Agent Runtime 的 Adapter 审计。
+
+不得为证明通用性预建第四生产 Role、Agent OS、全局状态机、数据库、后台服务或跨项目特例。
+
+## 8. 变更方式
+
+- 涉及本文长期架构、成熟度 Stage、self-hosting、`1.0.0`、Manager、并行、alias removal 或 Core breaking change 的任何修改，只有 Human 明确确认具体改动后才可写入；该确认本身不要求额外 Spec。
+- 需要比较实质方案、冻结新实现 Scope、跨 context 恢复、改变 Core contract 或执行 breaking migration 时，才创建 Planner Spec。
+- 普通 plugin change/fix/iterate 保持 Direct；路径遗漏和同目标验证失败在原 Scope 内修复。
+- 安装、外部项目写入、commit、push、tag 和发布仍需 Human 对具名动作明确授权。
+
+路线图复审只在当前主线完成、Runtime 能力实质变化、开始 `1.0.0` 发布、启动第二 Runtime/项目或提出 Core breaking change 时进行。
