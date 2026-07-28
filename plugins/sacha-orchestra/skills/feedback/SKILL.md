@@ -12,8 +12,9 @@ Feedback 是 deviation intake，不是生产 Role 或修复 owner。
 1. 显式 Feedback 视为接受该窄 Scope；自动调用须有现存 deviation。读取 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 和当前 Adapter 的调查/return 映射。
 2. 只读核对真实 task/project、Skill locator、Task ID、Scope、Handoff、lifecycle、失败和原始 evidence；用户已描述问题时不重复提问。
 3. 补全 expected/actual、责任层、影响、授权、evidence locator、唯一 repair/re-verification entry、return address 和 dedup key；不猜测缺失事实。
-4. 同 Scope 且责任明确时交给当前 owner 修正；存在唯一合格 repair owner 时发送 bounded packet；目标、Scope、授权或 owner 无法消歧时请求 Human。
-5. 按 Adapter 消费一次 terminal result，验证 identity/revision 后返回原 workflow owner。
+4. 按 project/workspace、Task ID/Scope、repair objective、owner/Role、revision/provenance 和可续发状态筛选 repair target；同 cwd、仓库、Skill、owner 或标题相近均不足。只有唯一完整匹配才复用。
+5. 无匹配且 objective、Scope、owner 唯一时，显式 Feedback 创建一个独立 repair task/context 并发送 bounded packet；自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建。多项完整匹配或任一项无法消歧时请求 Human。新 task/context 只继承 packet 已有授权，不扩大源码写入、安装、Git、发布或外部动作。
+6. Source owner 按 Adapter join 并消费一次 terminal result，验证 identity/revision 后返回原 workflow owner；不得向其他 task 发送 packet、result 或 follow-up。
 
 ## 边界
 

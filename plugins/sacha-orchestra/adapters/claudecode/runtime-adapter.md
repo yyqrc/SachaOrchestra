@@ -46,7 +46,19 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 
 Target completion 保留 Core notice、Task/Scope、Handoff locator/revision、Source/Target、Outcome 和 dedup。错误、陈旧或重复结果不产生额外 transition。
 
-模型 override 仅来自 Human 当前明确指定或批准 Scope 的精确配置；否则使用 Runtime 默认。Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation packet，本 Adapter 只补 agent/task、前后台模式、notification/return、工具错误和恢复入口。
+正式跨 context dispatch 先应用 Human 本次或批准 Scope 的精确配置，否则按 Role/risk 选择：
+
+| Target | Model | 条件 |
+| --- | --- | --- |
+| Planner | `opus` | 需要冻结实质方案 |
+| Executor | `opus` | 安全、权限、持久数据、breaking、不可逆外部动作或广泛兼容/发布风险 |
+| Executor | `sonnet` | Scope/验收已冻结、实现与验证明确且不属于高风险 |
+| Reviewer | `opus` | 独立验收 |
+| bounded read-only helper | `haiku` | 自包含调查，不取得 Role verdict |
+
+模型强度不替代 Planner/Reviewer/Manager Gate；普通 Executor 只有输入自包含时使用 `sonnet`。Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime default。owner 核对并记录 requested/effective model 与宿主覆盖原因；旧写入者 terminal/cancelled 前不得以其他模型启动同 Scope 写入。Direct/current context 不改变模型或宣称路由已应用。
+
+Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation packet；本 Adapter 只补 agent/task、前后台模式、notification/return、工具错误和恢复入口。
 
 Human 输出遵循 Core 技术紧凑顺序；liveness 由当前前台调用或后台 completion/cancel 状态证明，timeout 不替代 terminal/cancel/完成证据。
 

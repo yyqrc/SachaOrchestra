@@ -177,6 +177,86 @@ def main() -> int:
     check("source candidate" not in codex_adapter and "source candidate" not in claude_adapter, "Adapter still owns candidate state")
     check("../codex/runtime-adapter.md" not in claude_adapter, "Claude Code Adapter references Codex Adapter")
     check("../claudecode/runtime-adapter.md" not in codex_adapter, "Codex Adapter references Claude Code Adapter")
+    codex_model_contract = (
+        "`gpt-5.6-sol` / `xhigh`",
+        "`gpt-5.6-sol` / `high`",
+        "`gpt-5.6-sol` / `medium`",
+        "`gpt-5.6-terra` / `xhigh`",
+        "`gpt-5.6-terra` / `high`",
+        "`fork_turns=none`、`model` 和 `reasoning_effort`",
+        "requested/effective",
+        "Direct/current context",
+    )
+    claude_model_contract = (
+        "| Planner | `opus` |",
+        "| Executor | `opus` |",
+        "| Executor | `sonnet` |",
+        "| Reviewer | `opus` |",
+        "| bounded read-only helper | `haiku` |",
+        "requested/effective",
+        "Direct/current context",
+    )
+    check(all(marker in codex_adapter for marker in codex_model_contract), "Codex role-aware model routing contract is incomplete")
+    check(all(marker in claude_adapter for marker in claude_model_contract), "Claude Code role-aware model routing contract is incomplete")
+    check("gpt-5.6-" not in claude_adapter, "Claude Code Adapter leaks Codex model configuration")
+    feedback_routing_contract = (
+        "project/workspace、Task ID/Scope、repair objective、owner/Role、revision/provenance 和可续发状态",
+        "同 cwd、仓库、Skill、owner 或标题相近均不足",
+        "只有唯一完整匹配才复用",
+        "显式 Feedback 创建一个独立 repair task/context",
+        "并发送 bounded packet",
+        "自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建",
+        "多项完整匹配或任一项无法消歧时请求 Human",
+        "只继承 packet 已有授权",
+        "消费一次 terminal result",
+        "不得向其他 task 发送 packet、result 或 follow-up",
+    )
+    check(
+        all(marker in skill_documents_by_name["feedback"] for marker in feedback_routing_contract),
+        "Feedback repair-target isolation contract is incomplete",
+    )
+    codex_feedback_routing_contract = (
+        "workspace/project、Task ID/Scope、repair objective、owner/Role、revision/provenance、可续发状态",
+        "同 cwd/仓库/Skill/owner/近似标题均不足",
+        "显式 Feedback 创建隔离 repair task 并 dispatch bounded packet",
+        "自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建",
+        "其他情况请求 Human",
+        "新 task 只继承 packet 授权",
+        "Source owner 只 join/消费一次其 terminal result",
+        "不得发送到或写入其他 task",
+    )
+    check(
+        all(marker in codex_adapter for marker in codex_feedback_routing_contract),
+        "Codex Feedback repair-task routing contract is incomplete",
+    )
+    setup_confirmation_contract = (
+        "等待 Human 明确确认",
+        "历史 Binding 只作默认候选，不是本轮写入授权",
+        "`planned_delta_sha256`",
+        "`--confirmed-planned-delta-sha256`",
+    )
+    check(
+        all(
+            marker in skill_documents_by_name["setup-project"]
+            for marker in setup_confirmation_contract
+        ),
+        "Setup Project configuration-confirmation contract is incomplete",
+    )
+    setup_confirmation_generator = (
+        '"write_confirmation"',
+        '"planned_delta_sha256"',
+        "--confirmed-planned-delta-sha256",
+        "confirmed_planned_delta != planned_delta_sha256",
+    )
+    check(
+        all(marker in setup_generator for marker in setup_confirmation_generator),
+        "Setup Project write-confirmation guard is incomplete",
+    )
+    runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
+    check(
+        all(marker not in content for marker in runtime_model_markers for content in (intake, core, assurance, coordination, artifact, *role_skill_documents.values())),
+        "Runtime model policy leaks into Core or Role Skills",
+    )
     check(
         len(intake.splitlines()) <= 80 and len(intake) <= 3200,
         "Intake Contract exceeds the bounded Core surface",

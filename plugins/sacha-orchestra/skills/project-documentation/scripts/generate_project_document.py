@@ -76,11 +76,30 @@ def _section(text: str, heading: str) -> str:
     return match.group(1).strip()
 
 
+def _optional_section(text: str, heading: str) -> str | None:
+    match = re.search(
+        rf"(?ms)^{re.escape(heading)}\s*\r?\n(.*?)(?=^### |\Z)",
+        text,
+    )
+    return None if match is None else match.group(1).strip()
+
+
 def _field(section: str, label: str) -> str:
     match = re.search(rf"(?m)^- {re.escape(label)} = `([^`\r\n]+)`\r?$", section)
     if match is None:
         raise DocumentError(f"Project documentation field is missing: {label}")
     return match.group(1)
+
+
+def _compact_root(root: str) -> tuple[str, str]:
+    external = bool(
+        re.match(r"^(?:[A-Za-z]:[\\/]|\\\\|//|/)", root)
+    )
+    return (
+        ("external-absolute", "non-portable")
+        if external
+        else ("project-relative", "portable")
+    )
 
 
 def parse_project_integration(data: bytes) -> dict[str, str | None]:
@@ -90,10 +109,43 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
         raise DocumentError("Project Integration must be UTF-8") from exc
     if INTEGRATION_GENERATOR not in text or INTEGRATION_SCHEMA not in text:
         raise DocumentError("Project Integration is not a confirmed managed Schema v3 file")
-    if _section(text, "### Unresolved") != "- 无":
+    unresolved = _optional_section(text, "### Unresolved")
+    if unresolved not in {None, "- 无"}:
         raise DocumentError("Project Integration has unresolved decisions")
-    if _section(text, "### Conflicts") != "- 无":
+    conflicts = _optional_section(text, "### Conflicts")
+    if conflicts not in {None, "- 无"}:
         raise DocumentError("Project Integration has conflicts")
+
+    compact = re.search(
+        r"(?m)^- 项目文档：`([^`]+)`"
+        r"(?: -> `([^`]+)`；write = `([^`]+)`)?\r?$",
+        text,
+    )
+    if compact:
+        policy, root, authorization = compact.groups()
+        if policy == "disabled":
+            return {
+                "policy": policy,
+                "root_kind": None,
+                "root": None,
+                "portability": "not-applicable",
+                "write_authorization": None,
+            }
+        if root is None or authorization is None:
+            raise DocumentError("enabled Project documentation is incomplete")
+        root_kind, portability = _compact_root(root)
+        result = {
+            "policy": policy,
+            "root_kind": root_kind,
+            "root": root,
+            "portability": portability,
+            "write_authorization": authorization,
+        }
+        if policy not in POLICIES or policy == "disabled":
+            raise DocumentError("Project documentation policy is invalid")
+        if authorization not in WRITE_AUTHORIZATIONS:
+            raise DocumentError("Project documentation write authorization is invalid")
+        return result
 
     documentation = _section(text, "### Project documentation")
     document_types = re.search(

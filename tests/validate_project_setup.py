@@ -78,6 +78,62 @@ class ProjectSetupTests(unittest.TestCase):
         values.update(overrides)
         return generator.SetupConfig(**values)
 
+    def confirmed_setup(self, config, **kwargs):
+        dry_run = generator.run_setup(config)
+        self.assertEqual("ready", dry_run["status"], dry_run["conflicts"])
+        return generator.run_setup(
+            config,
+            write=True,
+            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+            **kwargs,
+        )
+
+    @staticmethod
+    def create_project_skill(
+        project: Path,
+        name: str,
+        body: str,
+        *,
+        root: str = ".agents/skills",
+    ) -> Path:
+        skill = project / root / name / "SKILL.md"
+        skill.parent.mkdir(parents=True, exist_ok=True)
+        skill.write_text(
+            "\n".join(
+                (
+                    "---",
+                    f"name: {name}",
+                    "description: Project-local test Skill.",
+                    "---",
+                    "",
+                    body.strip(),
+                    "",
+                )
+            ),
+            encoding="utf-8",
+        )
+        return skill
+
+    @staticmethod
+    def project_skill_evidence(
+        project: Path,
+        skill: Path,
+        units: list[dict[str, object]],
+        *,
+        skill_sha256: str | None = None,
+    ) -> str:
+        return json.dumps(
+            {
+                "skill": skill.parent.name,
+                "skill_path": skill.relative_to(project).as_posix(),
+                "skill_sha256": skill_sha256 or digest(skill),
+                "units": units,
+            },
+            ensure_ascii=False,
+        )
+
     @staticmethod
     def document_input(**overrides):
         sections = {
@@ -113,7 +169,7 @@ class ProjectSetupTests(unittest.TestCase):
             document_root = Path(documentation_root)
         document_root.mkdir(parents=True, exist_ok=True)
         (document_root / "changes").mkdir(exist_ok=True)
-        result = generator.run_setup(
+        result = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
@@ -122,7 +178,6 @@ class ProjectSetupTests(unittest.TestCase):
                 documentation_root=documentation_root,
                 documentation_write_authorization=authorization,
             ),
-            write=True,
         )
         self.assertEqual("committed", result["transaction"])
         return project, document_root
@@ -135,7 +190,37 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual("dry_run", dry_run["transaction"])
         self.assertEqual([], list(project.iterdir()))
 
-        committed = generator.run_setup(self.config(project), write=True)
+        missing_confirmation = generator.run_setup(self.config(project), write=True)
+        self.assertEqual(
+            ("refused", "no_write"),
+            (
+                missing_confirmation["status"],
+                missing_confirmation["transaction"],
+            ),
+        )
+        self.assertEqual([], list(project.iterdir()))
+
+        changed_config = self.config(project, plan_root="plans")
+        stale_confirmation = generator.run_setup(
+            changed_config,
+            write=True,
+            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+        )
+        self.assertEqual(
+            ("refused", "no_write"),
+            (stale_confirmation["status"], stale_confirmation["transaction"]),
+        )
+        self.assertEqual([], list(project.iterdir()))
+
+        committed = generator.run_setup(
+            self.config(project),
+            write=True,
+            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+        )
         self.assertEqual("committed", committed["transaction"])
         self.assertTrue((project / "docs" / "workflow-rule.md").is_file())
         self.assertTrue((project / "AGENTS.md").is_file())
@@ -153,6 +238,143 @@ class ProjectSetupTests(unittest.TestCase):
         )
         self.assertEqual("no_changes", repeated["transaction"])
 
+    def test_setup_cli_requires_exact_planned_delta_confirmation(self) -> None:
+        project = self.root / "confirmation-cli"
+        project.mkdir()
+        command = (
+            sys.executable,
+            "-B",
+            str(SETUP_SCRIPT),
+            "--project-root",
+            str(project),
+            "--scm-provider",
+            "none",
+            "--plan-root-kind",
+            "project-relative",
+            "--plan-root",
+            "docs/plans",
+            "--documentation-policy",
+            "disabled",
+        )
+
+        dry_run_process = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(0, dry_run_process.returncode, dry_run_process.stderr)
+        dry_run = json.loads(dry_run_process.stdout)
+        self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
+        self.assertEqual(
+            {
+                "plan_storage": None,
+                "documentation": None,
+            },
+            dry_run["write_confirmation"]["current"],
+        )
+        self.assertEqual("docs/plans", dry_run["write_confirmation"]["planned"]["plan_storage"]["root"])
+        self.assertEqual([], list(project.iterdir()))
+
+        unconfirmed_process = subprocess.run(
+            (*command, "--write"),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(2, unconfirmed_process.returncode)
+        unconfirmed = json.loads(unconfirmed_process.stdout)
+        self.assertEqual(
+            ("refused", "no_write"),
+            (unconfirmed["status"], unconfirmed["transaction"]),
+        )
+        self.assertEqual([], list(project.iterdir()))
+
+        confirmed_process = subprocess.run(
+            (
+                *command,
+                "--write",
+                "--confirmed-planned-delta-sha256",
+                dry_run["write_confirmation"]["planned_delta_sha256"],
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(0, confirmed_process.returncode, confirmed_process.stderr)
+        confirmed = json.loads(confirmed_process.stdout)
+        self.assertEqual(("ok", "committed"), (confirmed["status"], confirmed["transaction"]))
+        self.assertTrue((project / "docs" / "workflow-rule.md").is_file())
+
+    def test_setup_cli_accepts_body_assessed_project_skill(self) -> None:
+        project = self.root / "project-skill-cli"
+        skill = self.create_project_skill(
+            project,
+            "local-check",
+            """
+# Local check
+
+Inspect project state and return a bounded report.
+""",
+        )
+        evidence = self.project_skill_evidence(
+            project,
+            skill,
+            [{
+                "id": "project.check",
+                "goal": "Inspect current project state.",
+                "kind": "inspect",
+                "admission": "schedulable",
+                "side_effect": "read_only",
+                "load_policy": "on-demand",
+                "evidence": ["8"],
+                "required_paths": [],
+                "runtime_prerequisites": [],
+                "reason": "The body defines a bounded inspection and report.",
+            }],
+        )
+        process = subprocess.run(
+            (
+                sys.executable,
+                "-B",
+                str(SETUP_SCRIPT),
+                "--project-root",
+                str(project),
+                "--scm-provider",
+                "none",
+                "--plan-root-kind",
+                "project-relative",
+                "--plan-root",
+                "docs/plans",
+                "--documentation-policy",
+                "disabled",
+                "--skill-root-binding",
+                ".agents/skills::authority",
+                "--assess-project-skills",
+                "--visible-project-skill",
+                "local-check",
+                "--project-skill-evidence",
+                evidence,
+                "--reconcile-capabilities",
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+
+        self.assertEqual(0, process.returncode, process.stderr)
+        result = json.loads(process.stdout)
+        self.assertEqual(("ready", "dry_run"), (result["status"], result["transaction"]))
+        self.assertEqual(
+            ["project.check"],
+            [item["id"] for item in result["project_capability_candidates"]],
+        )
+        self.assertFalse((project / "docs" / "workflow-rule.md").exists())
+
     def test_documentation_policy_is_explicit_and_external_root_is_preserved(self) -> None:
         project = self.root / "documentation"
         project.mkdir()
@@ -168,7 +390,7 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual("refused", missing_policy["status"])
         self.assertIn("documentation_policy", missing_policy["conflicts"][0])
 
-        configured = generator.run_setup(
+        configured = self.confirmed_setup(
             self.config(
                 project,
                 documentation_policy="required-at-closeout",
@@ -176,7 +398,6 @@ class ProjectSetupTests(unittest.TestCase):
                 documentation_root=str(external),
                 documentation_write_authorization="bounded-closeout",
             ),
-            write=True,
         )
         self.assertEqual("committed", configured["transaction"])
         self.assertFalse(external.exists())
@@ -201,11 +422,11 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual("no_changes", preserved["transaction"])
         self.assertEqual(str(external), preserved["documentation"]["root"])
         self.assertIn(
-            "- policy = `required-at-closeout`",
+            "- 项目文档：`required-at-closeout`",
             workflow.read_text(encoding="utf-8"),
         )
         self.assertIn(
-            "- write authorization = `bounded-closeout`",
+            "write = `bounded-closeout`",
             workflow.read_text(encoding="utf-8"),
         )
 
@@ -227,7 +448,7 @@ class ProjectSetupTests(unittest.TestCase):
         project.mkdir()
         external_plan = self.root / "iwiki" / "docs"
         external_plan.mkdir(parents=True)
-        configured = generator.run_setup(
+        configured = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
@@ -238,7 +459,6 @@ class ProjectSetupTests(unittest.TestCase):
                 documentation_root="docs/archive",
                 documentation_write_authorization="per-write-confirmation",
             ),
-            write=True,
         )
         self.assertEqual("committed", configured["transaction"])
         self.assertEqual(str(external_plan), configured["plan_storage"]["root"])
@@ -250,12 +470,8 @@ class ProjectSetupTests(unittest.TestCase):
         )
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
-        self.assertIn("### Plan storage", content)
-        self.assertIn(f"- root = `{external_plan}`", content)
-        self.assertIn(
-            "- directory pattern = `<YYYY-MM-DD>-<short-slug>/`",
-            content,
-        )
+        self.assertIn("### Storage", content)
+        self.assertIn(f"- Plan：`{external_plan}`", content)
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -344,22 +560,34 @@ class ProjectSetupTests(unittest.TestCase):
     def test_generated_documents_only_add_project_integration_data(self) -> None:
         project = self.root / "document-boundary"
         project.mkdir()
+        (project / "TEAM.md").write_text("# Compatibility pointer\n", encoding="utf-8")
 
-        result = generator.run_setup(self.config(project), write=True)
+        result = self.confirmed_setup(
+            self.config(project, ignored_rule_candidates=("TEAM.md",)),
+        )
         self.assertEqual("committed", result["transaction"])
 
         workflow = (project / "docs" / "workflow-rule.md").read_text(encoding="utf-8")
         agents = (project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("- SCM：未配置", workflow)
+        self.assertIn("- Setup 忽略：`TEAM.md`", workflow)
         for heading in (
-            "## 项目值",
             "## 项目绑定",
+            "### Storage",
+        ):
+            self.assertIn(heading, workflow)
+        for redundant_content in (
+            "## 项目值",
             "### Unresolved",
             "### Conflicts",
             "### Fallback",
-            "### Project documentation",
             "## Canonical locators",
+            "Ignored rule candidates",
+            "fallback = `discoverable-domain-skill-or-native-role`",
+            "Workflow rule：",
+            "Human Guide：未配置",
         ):
-            self.assertIn(heading, workflow)
+            self.assertNotIn(redundant_content, workflow)
         for duplicated_contract in (
             "## 简明操作模板",
             "`L0 Local Direct`",
@@ -370,15 +598,6 @@ class ProjectSetupTests(unittest.TestCase):
         ):
             self.assertNotIn(duplicated_contract, workflow)
             self.assertNotIn(duplicated_contract, agents)
-        self.assertIn("默认入口：`sacha-orchestra:using-sacha`", workflow)
-        self.assertIn("Intake Core：plugin `core/intake-contract.md`", workflow)
-        self.assertIn("Workflow Kernel：plugin `core/workflow-contract.md`", workflow)
-        self.assertIn("Assurance Core：plugin `core/assurance-contract.md`", workflow)
-        self.assertIn("Coordination Core：plugin `core/coordination-contract.md`", workflow)
-        self.assertIn(
-            "Project Documentation：`sacha-orchestra:project-documentation`",
-            workflow,
-        )
         self.assertIn("`sacha-orchestra:using-sacha`", agents)
         self.assertIn("Human 接受 Sacha 后", agents)
         self.assertIn("plugin canonical contract", agents)
@@ -442,9 +661,8 @@ class ProjectSetupTests(unittest.TestCase):
             if index == 1:
                 raise OSError("injected second replacement failure")
 
-        result = generator.run_setup(
+        result = self.confirmed_setup(
             self.config(project),
-            write=True,
             _test_hooks={"before_replace": fail_second},
         )
         self.assertEqual("rolled_back", result["transaction"])
@@ -672,7 +890,7 @@ class ProjectSetupTests(unittest.TestCase):
             "change.review::old-plugin:legacy-review::review-only",
             "legacy.extra::old-plugin:extra::on-demand",
         )
-        first = generator.run_setup(
+        first = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
@@ -680,7 +898,6 @@ class ProjectSetupTests(unittest.TestCase):
                 capability_bindings=initial,
                 reconcile_capabilities=True,
             ),
-            write=True,
         )
         self.assertEqual("committed", first["transaction"])
 
@@ -693,11 +910,40 @@ class ProjectSetupTests(unittest.TestCase):
             project,
             manage_agents=False,
             scm_provider=None,
+            plan_root_kind=None,
+            plan_root=None,
+            documentation_policy=None,
             capability_bindings=desired,
             reconcile_capabilities=True,
             expected_workflow_sha256=digest(workflow),
         )
-        updated = generator.run_setup(updated_config, write=True)
+        before_update = workflow.read_bytes()
+        update_preview = generator.run_setup(updated_config)
+        self.assertEqual(
+            {
+                "plan_storage": "existing-binding",
+                "documentation": "existing-binding",
+            },
+            update_preview["write_confirmation"]["sources"],
+        )
+        self.assertEqual(
+            "docs/plans",
+            update_preview["write_confirmation"]["current"]["plan_storage"]["root"],
+        )
+        unconfirmed = generator.run_setup(updated_config, write=True)
+        self.assertEqual(
+            ("refused", "no_write"),
+            (unconfirmed["status"], unconfirmed["transaction"]),
+        )
+        self.assertEqual(before_update, workflow.read_bytes())
+
+        updated = generator.run_setup(
+            updated_config,
+            write=True,
+            confirmed_planned_delta_sha256=update_preview["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+        )
         content = workflow.read_text(encoding="utf-8")
         self.assertEqual("committed", updated["transaction"])
         self.assertNotIn("old-plugin", content)
@@ -735,6 +981,351 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual([], list(project.iterdir()))
         self.assertIn("load-policy", result["conflicts"][0])
 
+    def test_project_skill_mapping_requires_body_assessment(self) -> None:
+        project = self.root / "project-skill-unassessed"
+        skill = self.create_project_skill(
+            project,
+            "architecture-health",
+            """
+# Architecture health
+
+Read dependency boundaries and report structural risks without writing files.
+""",
+        )
+        config = self.config(
+            project,
+            manage_agents=False,
+            skill_root_bindings=(".agents/skills::authority",),
+            assess_project_skills=True,
+            visible_project_skills=("architecture-health",),
+        )
+
+        result = generator.run_setup(config)
+
+        self.assertEqual(("refused", "no_write"), (result["status"], result["transaction"]))
+        self.assertEqual(
+            [skill.relative_to(project).as_posix()],
+            result["unassessed_project_skills"],
+        )
+        self.assertEqual([], result["project_capability_candidates"])
+
+        guessed = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                skill_root_bindings=(".agents/skills::authority",),
+                capability_bindings=(
+                    "architecture.health::architecture-health::on-demand",
+                ),
+                reconcile_capabilities=True,
+            )
+        )
+        self.assertEqual("refused", guessed["status"])
+        self.assertTrue(
+            any("project Skill evidence" in item for item in guessed["conflicts"]),
+            guessed["conflicts"],
+        )
+
+    def test_project_skill_body_can_admit_multiple_capabilities(self) -> None:
+        project = self.root / "project-skill-composite"
+        (project / "tools").mkdir(parents=True)
+        (project / "tools" / "static.py").write_text("# static\n", encoding="utf-8")
+        (project / "tools" / "remote.py").write_text("# remote\n", encoding="utf-8")
+        skill = self.create_project_skill(
+            project,
+            "renderdoc-rdc-analysis",
+            """
+# RenderDoc analysis
+
+## Static capture analysis
+Run `tools/static.py` and return a structured capture report.
+
+## Android remote replay
+Run `tools/remote.py` against an explicitly selected device.
+""",
+        )
+        evidence = self.project_skill_evidence(
+            project,
+            skill,
+            [
+                {
+                    "id": "renderdoc.capture.analyze",
+                    "goal": "Analyze an RDC capture without changing runtime state.",
+                    "kind": "inspect",
+                    "admission": "schedulable",
+                    "side_effect": "read_only",
+                    "load_policy": "on-demand",
+                    "evidence": ["8-9"],
+                    "required_paths": ["tools/static.py"],
+                    "runtime_prerequisites": [],
+                    "reason": "The body defines a bounded static analysis workflow and output.",
+                },
+                {
+                    "id": "renderdoc.android.replay",
+                    "goal": "Replay a capture on an explicitly selected Android device.",
+                    "kind": "operate",
+                    "admission": "schedulable",
+                    "side_effect": "runtime_state",
+                    "load_policy": "after-write-authorization",
+                    "evidence": ["11-12"],
+                    "required_paths": ["tools/remote.py"],
+                    "runtime_prerequisites": ["selected Android device"],
+                    "reason": "The body defines a separate remote replay workflow.",
+                },
+            ],
+        )
+        config = self.config(
+            project,
+            manage_agents=False,
+            skill_root_bindings=(".agents/skills::authority",),
+            assess_project_skills=True,
+            visible_project_skills=("renderdoc-rdc-analysis",),
+            project_skill_evidence=(evidence,),
+            reconcile_capabilities=True,
+        )
+
+        preview = generator.run_setup(config)
+
+        self.assertEqual("ready", preview["status"], preview["conflicts"])
+        self.assertEqual([], preview["unassessed_project_skills"])
+        self.assertEqual([], preview["project_policy_decisions_required"])
+        self.assertEqual(
+            [
+                "renderdoc.android.replay",
+                "renderdoc.capture.analyze",
+            ],
+            [
+                item["id"]
+                for item in preview["project_capability_candidates"]
+            ],
+        )
+        self.assertEqual(
+            [
+                {"id": "renderdoc.android.replay", "after": {
+                    "id": "renderdoc.android.replay",
+                    "skill": "renderdoc-rdc-analysis",
+                    "load_policy": "after-write-authorization",
+                }},
+                {"id": "renderdoc.capture.analyze", "after": {
+                    "id": "renderdoc.capture.analyze",
+                    "skill": "renderdoc-rdc-analysis",
+                    "load_policy": "on-demand",
+                }},
+            ],
+            preview["capability_reconciliation"]["add"],
+        )
+
+        written = self.confirmed_setup(config)
+        workflow = (project / "docs" / "workflow-rule.md").read_text(encoding="utf-8")
+        self.assertEqual("committed", written["transaction"])
+        self.assertIn(
+            "`after-write-authorization`：`renderdoc.android.replay` -> "
+            "`renderdoc-rdc-analysis`",
+            workflow,
+        )
+        self.assertIn(
+            "`on-demand`：`renderdoc.capture.analyze` -> `renderdoc-rdc-analysis`",
+            workflow,
+        )
+
+    def test_project_skill_policy_and_runtime_visibility_are_gates(self) -> None:
+        project = self.root / "project-skill-gates"
+        skill = self.create_project_skill(
+            project,
+            "local-build",
+            """
+# Local build
+
+Run the project wrapper and report compile and link results.
+""",
+        )
+        unit = {
+            "id": "project.build",
+            "goal": "Build the current project through its wrapper.",
+            "kind": "build",
+            "admission": "schedulable",
+            "side_effect": "project_generated_state",
+            "evidence": ["8"],
+            "required_paths": [],
+            "runtime_prerequisites": [],
+            "reason": "The body defines an executable build goal.",
+        }
+        evidence = self.project_skill_evidence(project, skill, [unit])
+        common = {
+            "manage_agents": False,
+            "skill_root_bindings": (".agents/skills::authority",),
+            "assess_project_skills": True,
+            "project_skill_evidence": (evidence,),
+            "reconcile_capabilities": True,
+        }
+
+        invisible = generator.run_setup(self.config(project, **common))
+        self.assertEqual("refused", invisible["status"])
+        self.assertTrue(
+            any("not visible" in item for item in invisible["conflicts"]),
+            invisible["conflicts"],
+        )
+
+        undecided = generator.run_setup(
+            self.config(
+                project,
+                **common,
+                visible_project_skills=("local-build",),
+            )
+        )
+        self.assertEqual("refused", undecided["status"])
+        self.assertEqual(
+            [{
+                "id": "project.build",
+                "skill": "local-build",
+                "side_effect": "project_generated_state",
+            }],
+            undecided["project_policy_decisions_required"],
+        )
+        self.assertEqual([], undecided["capability_reconciliation"]["add"])
+
+        unavailable_evidence = self.project_skill_evidence(
+            project,
+            skill,
+            [{
+                "goal": "Build the current project through its wrapper.",
+                "kind": "build",
+                "admission": "unavailable",
+                "side_effect": "project_generated_state",
+                "evidence": ["8"],
+                "required_paths": ["tools/missing-build-wrapper.py"],
+                "runtime_prerequisites": [],
+                "reason": "The body goal exists, but its required static entrypoint is absent.",
+            }],
+        )
+        unavailable = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                skill_root_bindings=(".agents/skills::authority",),
+                assess_project_skills=True,
+                project_skill_evidence=(unavailable_evidence,),
+                reconcile_capabilities=True,
+            )
+        )
+        self.assertEqual("ready", unavailable["status"], unavailable["conflicts"])
+        self.assertEqual([], unavailable["project_capability_candidates"])
+        self.assertEqual(
+            ["tools/missing-build-wrapper.py"],
+            unavailable["project_skill_assessments"][0]["units"][0][
+                "missing_required_paths"
+            ],
+        )
+
+    def test_project_skill_evidence_must_match_body_and_required_paths(self) -> None:
+        project = self.root / "project-skill-evidence"
+        skill = self.create_project_skill(
+            project,
+            "local-verify",
+            """
+# Local verify
+
+Run `tools/verify.py` and return its pass/fail evidence.
+""",
+        )
+        unit = {
+            "id": "project.verify",
+            "goal": "Verify the current project through its local entrypoint.",
+            "kind": "verify",
+            "admission": "schedulable",
+            "side_effect": "read_only",
+            "load_policy": "on-demand",
+            "evidence": ["8"],
+            "required_paths": [],
+            "runtime_prerequisites": [],
+            "reason": "The body defines a bounded verification goal and output.",
+        }
+        stale = self.project_skill_evidence(
+            project,
+            skill,
+            [unit],
+            skill_sha256="0" * 64,
+        )
+        frontmatter = self.project_skill_evidence(
+            project,
+            skill,
+            [{**unit, "evidence": ["2"]}],
+        )
+        missing_path = self.project_skill_evidence(
+            project,
+            skill,
+            [{**unit, "required_paths": ["tools/verify.py"]}],
+        )
+        common = {
+            "manage_agents": False,
+            "skill_root_bindings": (".agents/skills::authority",),
+            "assess_project_skills": True,
+            "visible_project_skills": ("local-verify",),
+            "reconcile_capabilities": True,
+        }
+
+        for label, evidence, expected in (
+            ("stale", stale, "SHA-256 is stale"),
+            ("frontmatter", frontmatter, "body, not frontmatter"),
+            ("missing-path", missing_path, "required path is missing"),
+        ):
+            with self.subTest(label=label):
+                result = generator.run_setup(
+                    self.config(
+                        project,
+                        **common,
+                        project_skill_evidence=(evidence,),
+                    )
+                )
+                self.assertEqual("refused", result["status"])
+                self.assertEqual([], result["project_capability_candidates"])
+                self.assertTrue(
+                    any(expected in item for item in result["conflicts"]),
+                    result["conflicts"],
+                )
+
+    def test_support_only_project_skill_is_assessed_without_mapping(self) -> None:
+        project = self.root / "project-skill-support"
+        skill = self.create_project_skill(
+            project,
+            "handoff",
+            """
+# Handoff helper
+
+Format evidence for another workflow; this is not a standalone execution goal.
+""",
+        )
+        evidence = self.project_skill_evidence(
+            project,
+            skill,
+            [{
+                "goal": "Format supporting handoff context.",
+                "kind": "coordinate",
+                "admission": "support_only",
+                "side_effect": "read_only",
+                "evidence": ["8"],
+                "required_paths": [],
+                "runtime_prerequisites": [],
+                "reason": "The body explicitly describes a helper, not a schedulable goal.",
+            }],
+        )
+
+        result = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                skill_root_bindings=(".agents/skills::authority",),
+                assess_project_skills=True,
+                project_skill_evidence=(evidence,),
+                reconcile_capabilities=True,
+            )
+        )
+
+        self.assertEqual("ready", result["status"], result["conflicts"])
+        self.assertEqual([], result["unassessed_project_skills"])
+        self.assertEqual([], result["project_capability_candidates"])
+        self.assertEqual([], result["capability_reconciliation"]["add"])
+
     def test_invalid_root_git_marker_uses_valid_ancestor_marker(self) -> None:
         repository = self.root / "repository"
         project = repository / "nested-project"
@@ -756,7 +1347,7 @@ class ProjectSetupTests(unittest.TestCase):
     def test_project_documentation_policy_trigger_and_authorization(self) -> None:
         disabled = self.root / "documents-disabled"
         disabled.mkdir()
-        generator.run_setup(self.config(disabled, manage_agents=False), write=True)
+        self.confirmed_setup(self.config(disabled, manage_agents=False))
         refused = document_generator.generate_project_document(
             project_root=disabled,
             workflow_rule_path="docs/workflow-rule.md",
@@ -914,7 +1505,7 @@ class ProjectSetupTests(unittest.TestCase):
         project = self.root / "documents-unreachable"
         project.mkdir()
         missing = self.root / "missing-publication-root"
-        setup = generator.run_setup(
+        setup = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
@@ -923,7 +1514,6 @@ class ProjectSetupTests(unittest.TestCase):
                 documentation_root=str(missing),
                 documentation_write_authorization="per-write-confirmation",
             ),
-            write=True,
         )
         self.assertEqual("committed", setup["transaction"])
         unreachable = document_generator.generate_project_document(
@@ -955,9 +1545,9 @@ class ProjectSetupTests(unittest.TestCase):
             with self.subTest(unsafe_root=unsafe_root):
                 workflow.write_text(
                     original.replace(
-                        "- root kind = `project-relative`\n- root = `docs/archive`",
-                        f"- root kind = `external-absolute`\n- root = `{unsafe_root}`",
-                    ).replace("- portability = `portable`", "- portability = `non-portable`"),
+                        "-> `docs/archive`",
+                        f"-> `{unsafe_root}`",
+                    ),
                     encoding="utf-8",
                 )
                 refused = document_generator.generate_project_document(
@@ -1005,7 +1595,10 @@ class ProjectSetupTests(unittest.TestCase):
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
         workflow.write_text(
-            content.replace("### Unresolved\n\n- 无", "### Unresolved\n\n- documentation policy"),
+            content.replace(
+                "### Storage",
+                "### Unresolved\n\n- documentation policy\n\n### Storage",
+            ),
             encoding="utf-8",
         )
         unresolved = document_generator.generate_project_document(

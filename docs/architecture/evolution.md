@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.2.3` Direct Iteration and Adaptive Runtime Rules
+> 当前 release：`0.3.3` Project Skill Capability Admission
 > 当前 source candidate：无
-> 当前主线：Direct 插件迭代、自适应 Runtime 编排与真实反馈驱动
-> 发布边界：`0.2.3` 打包调查/收尾 helper，并把过度刚性的入口、调度、超时、预算、终态与 Handoff 规则改为安全默认和能力感知降级；Intake 2、Workflow 7、Coordination 2、Artifact 2 为 breaking contract，Role/Gate 与授权语义不变。source/static 独立 Review 为 `Accepted with follow-up`；安装后发现与目标项目调用未验证
+> 当前主线：Project Skill capability admission
+> 发布边界：`0.3.3` 让 setup 完整读取目标项目 authority/independent Skill 正文，按 goal unit 判定可调度性后再生成 capability mapping，并以正文行、SHA-256、静态入口、Runtime 可见性和 load policy 阻止猜测式绑定；setup 行为测试 27/27、Skill/plugin validator 与 cpTools/RenderDocAnalysis 只读 dry-run 已通过，安装、fresh Runtime discovery 与真实消费项目写入未验证
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -47,6 +47,10 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Context Budget Hardening | `0.2.1` released | 精简 discovery metadata/Project AGENTS；D0 延迟 Adapter；工具/Artifact/transport 预算；Workflow 按需拆层；Manager 管理 Clarify 研究；Provider Catalog Schema v2；独立 Plan/发布文档根 | source/static 独立 Review 均为 `Accepted with follow-up`、阻塞 finding `0`；精确安装与 `35/35` parity 已通过；fresh discovery、真实 Planner/closeout 消费、Research Packet 调度和无效 catalog fallback 未验证 |
 | Runtime Adapter Boundary Cleanup | `0.2.2` released | 删除 Codex Adapter 的插件发布维护段；移除两个 Adapter 无消费者的安装加载条件；压缩 Claude Code Adapter 重复授权枚举 | source/static、精确安装与 source/cache `33/33` parity 已通过；fresh discovery 与 Runtime 行为未验证 |
 | Direct Iteration and Adaptive Runtime Rules | `0.2.3` released | 归档预设举证；打包 helper；清晰任务直执行、单 helper 直管、能力感知 transport、自适应 timeout/budget、扩展 Handoff 与完整终态 | breaking migration 已记录；source/static 独立 Review `Accepted with follow-up`，安装后发现与目标项目调用未验证 |
+| Role-Aware Model Routing | `0.3.0` released | Codex 按 Planner/Executor 风险选择 `sol/terra` 与推理强度；Claude Code 按 Role/risk 选择 `opus/sonnet/haiku`；精确配置优先并记录 fallback | Core/Skill/Handoff 不变；source/static 已通过，安装与真实 Runtime dispatch 未验证 |
+| Project Integration Compression | `0.3.1` released | 聚合 Rule/Capability load policy，删除空节点、重复 fallback/locator 与可推导 Storage 字段 | Schema v3 项目值与授权语义不变；setup/project-documentation 解析和 LookDev 幂等 dry-run 已通过，安装与真实 Runtime 消费未验证 |
+| Setup Confirmation and Repair Isolation | `0.3.2` released | setup planned-delta 确认 guard；Feedback full-identity 复用、隔离 dispatch 与单次 terminal join 合同 | setup 行为测试与 Skill/plugin static 已通过；安装与真实 Runtime 自动建 task/join 未验证 |
+| Project Skill Capability Admission | `0.3.3` released | setup 完整读取 authority/independent 项目 Skill 正文，拆分 goal unit 并只映射可调度能力 | 正文证据与 deterministic guard、真实项目只读 dry-run 已通过；安装、fresh Runtime discovery 与消费项目写入未验证 |
 
 ## 3. 不变量
 
@@ -263,6 +267,14 @@ source/static、精确安装和 source/cache `33/33` parity 已通过；fresh di
 同一 release 归档 CGame 能力接入设计，补充 Provider、Plan storage、Project Documentation 与 experience candidate 的边界，取消以真实案例、SH3 或安装后验收作为 `1.0.0` 举证门槛，并刷新根/Plugin README。跨会话规律和高频步骤接口记录在 [`maintenance-tooling.md`](maintenance-tooling.md)。
 
 `context_probe.ps1` 与 `change_closeout.ps1` 作为 plugin package 内的确定性 helper，由 Codex Adapter 提供 locator、Executor 按需消费。默认/显式 summary 一次返回后续决策所需统计、失败、异常与 locator；`-Details` 才展开逐项数组，完整日志保留在目标项目 `.temp/`。无 `rg` 或 `diff_digest` 时降级，不硬编码领域 provider。helper 不拥有 Scope、授权、构建选择或 verdict；Core、schema 与 Role/Gate 不变。
+
+### 4.20 Released：Role-Aware Model Routing
+
+Human 批准 `0.3.0 Role-Aware Model Routing Spec`：Codex 正式跨 context dispatch 使用原生 subagent 的 `model`/`reasoning_effort`，Planner 选择 `gpt-5.6-sol high/xhigh`，普通 Executor 选择 `gpt-5.6-terra high/xhigh`，高风险 Executor 选择 `gpt-5.6-sol medium/high`；Claude Code 独立映射 `opus/sonnet/haiku`。
+
+精确 Human/Scope 配置优先；自动配置不可用时回退 Runtime default 并记录 requested/effective，显式配置不可用时暂停。Direct/current context 不切模型，模型强度不替代 Gate，旧写入者结束前不得以其他配置启动同 Scope 写入。该 candidate 不修改 Core、Skill、九个 Handoff 核心字段、Manager 并行条件或授权语义。
+
+本轮 Project Setup tests `20/20`、官方 plugin validator、`0.3.0` candidate release coherence 与 `git diff --check` 已通过。未安装 source candidate，因此 fresh discovery、自动档位选择、requested/effective model 和 terminal join 的真实 Runtime 行为未验证。
 
 ## 5. `1.0.0` 决策
 

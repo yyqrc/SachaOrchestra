@@ -94,7 +94,12 @@ git diff --check
 
 `plugin-eval` 可用于结构、描述和 token budget 诊断，但不是必跑 Gate，也不能替代官方 validator、真实 schema、代码测试或 runtime smoke。不得仅为提高评分添加无权威依据的 manifest 字段、英文触发词、reference 或其他产品内容；评估器输入兼容问题使用 task-local 等价镜像并报告限制，不修改安装 cache 或正式源码迁就工具。
 
-仅发布收尾运行 metadata coherence：
+发布分两种模式：
+
+- Human 说“快速发版”时，默认递增 patch 版本；只核对两个 deployment manifest、Evolution 的 release/candidate 版本、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 runtime。
+- Human 说“发版”时，运行风险对应的普通验证与完整 metadata coherence；安装和 runtime 仍按明确授权与发布目标决定。
+
+普通发版收尾运行 metadata coherence：
 
 ```powershell
 python -B tests/validate_release_coherence.py --version <version> --phase candidate

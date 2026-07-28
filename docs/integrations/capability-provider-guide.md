@@ -7,7 +7,8 @@
 
 - Provider catalog：稳定 capability id、canonical Skill、副作用上界。
 - Canonical `SKILL.md`：触发、前置、具体副作用、步骤、输出与领域证据。
-- Setup/Binding：候选解析、Human 确认的 load policy、对账与写入。
+- Project-local `SKILL.md`：无 provider catalog 时，正文拥有可拆分 goal 与是否可独立调用的证据。
+- Setup/Binding：候选解析、项目 Skill 正文评估、Human 确认的 load policy、对账与写入。
 - Sacha：Intake、Gate、Scope、授权、Role 路由与 verdict。
 
 Catalog、Binding 或 Skill 可见性均不证明安装或运行正确，也不授予写入、运行时操作或外部动作。
@@ -43,11 +44,13 @@ Catalog 不保存 summary、触发、前置、具体影响或输出；这些事�
 
 ## Setup 消费
 
-1. Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 locator 时定点读取同 plugin 的 catalog。
-2. Resolver 校验 schema、provider identity、ID 格式与重复、canonical/当前可见 Skill、side-effect 上界。无效 catalog 回退 metadata 并报告准确 warning，不把文件存在视为安装证明。
-3. Provider query 展开 catalog；Skill query 只选择当前可见 Skill。零匹配、歧义、冲突或未确认 policy 均保持 `needs_decision`，不得写入。
-4. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
-5. Binding 只保存 `capability id → canonical Skill + load policy`；不保存 catalog 正文、provider 版本、路径、query、前置或输出。
+1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 locator 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；无效 catalog 回退 metadata 并 warning。
+2. Project-local Skill：Setup 只扫描目标项目内已确认的 authority/independent root，完整读取每个 `SKILL.md` 正文；mirror 复用 authority，ignore 不消费。仅在正文声明为调用必需时读取项目内直接 locator。
+3. 项目 Skill 的 id、目录名、frontmatter name/description 和关键词只用于定位，不得推导 capability。Setup 从正文拆分零到多个 goal unit，记录 goal、类型、副作用、静态入口、运行时前置、reason、覆盖步骤/输出的正文行与 Skill SHA-256，并判定 `schedulable`、`support_only` 或 `unavailable`。
+4. 只有正文定义可独立交付的有界目标、Skill 在当前 Runtime 可见且必需静态入口存在的 unit 才可进入候选；capability id 在该判定后分配。support/helper/reference/maintenance-only 或不可用 unit 不生成 mapping。
+5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
+6. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
+7. Binding 只保存 `capability id → canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、路径、query、前置或输出，rerun 重新读取。
 
 Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换 mapping。
 
@@ -57,7 +60,7 @@ Setup 分别确认三类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
-| Capability bindings | Provider catalog、Setup/Human | capability id、canonical Skill、load policy | Plan/文档路径、写入授权 |
+| Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Plan/文档路径、写入授权 |
 | Plan storage | Setup/Human、Planner 消费 | 独立 root、portability、任务目录模式 | 是否需要持久 Plan、发布文档 |
 | Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization | Plan/Review/Handoff 权威、provider mapping |
 

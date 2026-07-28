@@ -46,6 +46,8 @@ dispatch 前先读取当前可用能力和宿主授权，不假定 `threadId`、
 4. Source 发送最小 route intent、owner、Task/Scope、expected Role、Handoff revision 和 callback policy。
 5. owner 使用 transport 对应的 `wait_agent`/`wait_threads` 等 terminal join。定点 list/read 可诊断 identity 或工具异常，不得忙轮询；一种 transport 不可用时尝试同 Scope 安全替代，全部耗尽才进入 `completion_return_blocked`。
 
+Feedback target 须同时匹配 workspace/project、Task ID/Scope、repair objective、owner/Role、revision/provenance、可续发状态；同 cwd/仓库/Skill/owner/近似标题均不足。唯一完整匹配才复用；无匹配且 objective/Scope/owner 唯一时，显式 Feedback 创建隔离 repair task 并 dispatch bounded packet，自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建；其他情况请求 Human。新 task 只继承 packet 授权，不扩大源码写入、安装、Git、发布或外部动作。Source owner 只 join/消费一次其 terminal result；不得发送到或写入其他 task。
+
 ### 3.2 Terminal return
 
 Target 先完成必要的 Artifact/Handoff，再在 final 输出当前 revision 的 terminal callback：completion notice、delegation identity、Handoff locator/revision、Outcome、route intent；随后结束，不发消息唤醒/监控 owner。更正使用新 revision。
@@ -54,7 +56,20 @@ Owner 从 terminal payload 核对 Task/Scope/revision/owner/Source/Target/snapsh
 
 ### 3.3 Configuration、progress、failure
 
-创建 task/subagent 时仅在 Human 当前明确指定，或批准 Scope 原样保存精确配置时传模型/推理/context override；否则使用 Runtime/default。能力不支持时报告真实错误，不自行替换。
+正式跨 context dispatch 的配置优先级为 Human 本次精确配置、批准 Scope 的精确配置、下表自动路由、Runtime default：
+
+| Target | Model / reasoning_effort | 首个命中条件 |
+| --- | --- | --- |
+| Planner | `gpt-5.6-sol` / `xhigh` | breaking contract/schema、跨 Runtime/系统、难逆决策、耦合方案或验收冲突 |
+| Planner | `gpt-5.6-sol` / `high` | 其他需要冻结实质方案的规划 |
+| Executor | `gpt-5.6-sol` / `high` | 安全、权限、持久数据、breaking、不可逆外部动作或广泛兼容/发布风险，同时涉及跨系统、长依赖链、复杂迁移/集成或多阶段昂贵验证 |
+| Executor | `gpt-5.6-sol` / `medium` | 其他路径与直接验证已确定的高风险实施 |
+| Executor | `gpt-5.6-terra` / `xhigh` | 多模块、长依赖链、复杂调试/集成或多阶段验证，且不属于高风险 |
+| Executor | `gpt-5.6-terra` / `high` | 其他 Scope/验收已冻结、模式既有且验证明确的实施 |
+
+高风险优先于普通 Executor，复杂高风险优先于普通高风险；模型强度不替代 Planner Gate。普通 Executor 输入不自包含时不套用 `terra`。自包含 Packet 使用 `spawn_agent` 的 `fork_turns=none`、`model` 和 `reasoning_effort`；只有缺少未落盘 Human 决定时传最少 turns。不得为模型覆盖创建用户可见 task；必须继承完整 context 时使用继承模型并报告未应用。Direct/current context 不改变模型或宣称路由已应用。
+
+Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime default。owner 记录 requested/effective 配置和 fallback 原因；旧写入者 terminal/cancelled 前不得以其他配置启动同 Scope 写入。
 
 单次 wait/join 最长 `60s`，timeout 只触发 bounded progress 和 liveness 检查。根据最近事件、活跃工具/构建、任务类型与 Runtime 状态决定继续等待或取消；存在可证明的活动时不得仅按墙钟中断。只有失活、越界、用户取消或继续会产生双写/风险时才中断，并确认 terminal/cancelled 后接管。
 
@@ -87,6 +102,6 @@ Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`�
 
 `agents/openai.yaml` 只定义 metadata。Setup/Clarify explicit-only；Documentation 受 confirmed policy/授权约束；生产 Role 须显式调用或经 Intake 接受。
 
-Setup Project 只使用当前 context 暴露的 metadata 生成 Schema v3 Binding；不扫描 cache、全局目录、marketplace、网络或任意 workspace。generated Binding 只在接受 Sacha 后按需读取。
+Setup Project 只在目标项目内扫描已配置或约定的 Skill root；完整读取 authority/independent `SKILL.md` 及其声明为调用必需的项目内 locator，mirror 不重复评估。Skill 文件存在不证明当前 Runtime 可调用；须另以当前 context metadata 核对可见性。不得扫描 cache、全局目录、marketplace、网络或其他 workspace。generated Schema v3 Binding 只在接受 Sacha 后按需读取。
 
-Codex 只允许 Setup 从当前 context 已知的 Skill locator 定点读取同 plugin 的 provider catalog。Role 仅在任务确需某 capability 时读取对应 binding 和 Skill；mapping 不触发预加载、不证明安装、不授予副作用，也不把 Gate、Scope 或 verdict 交给 provider。
+Codex 只允许 Setup 从当前 context 已知的 plugin Skill locator 定点读取同 plugin 的 provider catalog。项目 Skill 必须先由 Setup 按正文证据判定 `schedulable`，再由 Human 确认 load policy；id、目录名和 metadata 不得替代正文判定。Role 仅在任务确需某 capability 时读取对应 binding 和 Skill；mapping 不触发预加载、不证明安装、不授予副作用，也不把 Gate、Scope 或 verdict 交给 provider。

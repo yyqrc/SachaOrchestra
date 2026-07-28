@@ -17,11 +17,11 @@ flowchart TD
 
 实线是默认处理流程，虚线是按需辅助或返修。单个有界 helper 由当前 owner 直接管理；多个独立单元才交给 Manager。共享工作树不并行写同一文件，隔离 patch/候选实现可并行并由集成负责人串行应用；Git 和整体验证仍串行。详细进入条件见[入口规则](core/intake-contract.md)和[工作流规则](core/workflow-contract.md)，复核见[验收规则](core/assurance-contract.md)，任务协调见[协调规则](core/coordination-contract.md)。
 
-高级用户可直接调用 `planner`、`executor`、`reviewer`、`manager` 或 `feedback`；这表示同意使用 Sacha，但不会扩大写入、安装、Git 或发布授权。`clarify` 与 `setup-project` 只在明确调用时运行。
+高级用户可直接调用 `planner`、`executor`、`reviewer`、`manager` 或 `feedback`；这表示同意使用 Sacha，但不会扩大写入、安装、Git 或发布授权。`clarify` 与 `setup-project` 只在明确调用时运行。正式跨 context dispatch 由目标 Runtime Adapter 按 Role、风险和能力选择模型；Human/Scope 精确配置优先，Direct/current context 不伪装模型切换。具体映射见 [Codex](adapters/codex/runtime-adapter.md) 与 [Claude Code](adapters/claudecode/runtime-adapter.md)。
 
 ## 项目接入与运行环境
 
-`setup-project` 先预演改动、确认选择并核对预期文件指纹，再以回滚保护生成项目接入配置；`project-documentation` 根据已确认的策略输出自包含的变更存档或系统指南，不替代正式任务记录。项目命令和领域规则仍由项目规则与领域能力所有。
+`setup-project` 先预演改动；无 provider catalog 的项目 Skill 只有在完整正文证明可独立调用、当前 Runtime 可见且依赖成立后，才成为待确认的 capability mapping。确认选择并核对预期文件指纹后，它以回滚保护生成项目接入配置；`project-documentation` 根据已确认的策略输出自包含的变更存档或系统指南，不替代正式任务记录。项目命令和领域规则仍由项目规则与领域能力所有。
 
 ```mermaid
 flowchart TD
