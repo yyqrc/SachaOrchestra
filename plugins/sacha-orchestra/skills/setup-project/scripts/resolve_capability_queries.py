@@ -11,6 +11,14 @@ from pathlib import Path
 from typing import Any
 
 
+CAPABILITY_LOAD_POLICIES = {"on-demand", "after-write-authorization", "review-only", "risk-matched"}
+PROVIDER_CATALOG_SCHEMA_VERSION = "2"
+PROVIDER_SIDE_EFFECTS = {"read_only", "project_generated_state"}
+CAPABILITY_ID_PATTERN = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
+PLUGIN_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
+CANONICAL_SKILL_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*")
+
+
 class CatalogError(RuntimeError):
     """The explicit catalog cannot be consumed safely."""
 
@@ -67,6 +75,82 @@ def _score(query: str, candidate: dict[str, Any]) -> tuple[int, str]:
     return 0, "no_match"
 
 
+def _canonical_skill(value: Any, label: str) -> str:
+    if not isinstance(value, str) or CANONICAL_SKILL_PATTERN.fullmatch(value) is None:
+        raise CatalogError(f"{label} must be a canonical <plugin>:<skill> identity")
+    return value
+
+
+def validate_provider_catalog(
+    value: Any,
+    *,
+    expected_provider: str,
+    visible_skills: tuple[str, ...],
+) -> tuple[dict[str, str], ...]:
+    """Validate and normalize a provider-owned Schema v2 capability catalog."""
+    if PLUGIN_NAME_PATTERN.fullmatch(expected_provider) is None:
+        raise CatalogError("context provider must be a canonical lowercase plugin identity")
+    if not isinstance(value, dict):
+        raise CatalogError("provider catalog root must be an object")
+    expected_root_keys = {"schema_version", "provider", "capabilities"}
+    if set(value) != expected_root_keys:
+        raise CatalogError(
+            f"provider catalog fields must be exactly {sorted(expected_root_keys)}"
+        )
+    if value.get("schema_version") != PROVIDER_CATALOG_SCHEMA_VERSION:
+        raise CatalogError(
+            f"provider catalog schema_version must be {PROVIDER_CATALOG_SCHEMA_VERSION!r}"
+        )
+    if value.get("provider") != expected_provider:
+        raise CatalogError("provider catalog identity must match the context provider")
+
+    visible = {
+        _canonical_skill(skill, "visible_skills item")
+        for skill in visible_skills
+    }
+    capabilities = value.get("capabilities")
+    if not isinstance(capabilities, list):
+        raise CatalogError("provider catalog capabilities must be an array")
+    parsed: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    expected_capability_keys = {"id", "skill", "side_effect"}
+    for index, item in enumerate(capabilities):
+        label = f"provider catalog capabilities[{index}]"
+        if not isinstance(item, dict):
+            raise CatalogError(f"{label} must be an object")
+        if set(item) != expected_capability_keys:
+            raise CatalogError(
+                f"{label} fields must be exactly {sorted(expected_capability_keys)}"
+            )
+        capability_id = item.get("id")
+        if (
+            not isinstance(capability_id, str)
+            or CAPABILITY_ID_PATTERN.fullmatch(capability_id) is None
+        ):
+            raise CatalogError(
+                f"{label}.id must use canonical lowercase letters, digits, dots or hyphens"
+            )
+        if capability_id in seen_ids:
+            raise CatalogError(f"duplicate provider capability id: {capability_id}")
+        seen_ids.add(capability_id)
+        skill = _canonical_skill(item.get("skill"), f"{label}.skill")
+        if not skill.startswith(f"{expected_provider}:"):
+            raise CatalogError(f"{label}.skill must belong to the context provider")
+        if skill not in visible:
+            raise CatalogError(f"{label}.skill is not visible in the current context: {skill}")
+        side_effect = item.get("side_effect")
+        if side_effect not in PROVIDER_SIDE_EFFECTS:
+            raise CatalogError(
+                f"{label}.side_effect must be one of {sorted(PROVIDER_SIDE_EFFECTS)}"
+            )
+        parsed.append({
+            "id": capability_id,
+            "skill": skill,
+            "side_effect": side_effect,
+        })
+    return tuple(parsed)
+
+
 def _capabilities(value: Any, label: str) -> tuple[dict[str, str], ...]:
     if value is None:
         return ()
@@ -82,7 +166,10 @@ def _capabilities(value: Any, label: str) -> tuple[dict[str, str], ...]:
             raise CatalogError(f"{label}[{index}].id must be a non-empty string")
         if not isinstance(skill, str) or not skill.strip():
             raise CatalogError(f"{label}[{index}].skill must be a non-empty string")
-        parsed.append({"id": capability_id.strip(), "skill": skill.strip()})
+        parsed.append({
+            "id": capability_id.strip(),
+            "skill": skill.strip(),
+        })
     return tuple(parsed)
 
 
@@ -104,6 +191,27 @@ def _candidates(catalog: dict[str, Any]) -> tuple[dict[str, Any], ...]:
             description = item.get("description", "")
             if not isinstance(description, str):
                 raise CatalogError(f"{key}[{index}].description must be a string")
+            if "catalog" in item:
+                if kind != "provider":
+                    raise CatalogError("provider catalog is only valid on provider candidates")
+                if "capabilities" in item:
+                    raise CatalogError(
+                        f"{key}[{index}] must not combine catalog and capabilities"
+                    )
+                visible_skills = _strings(
+                    item.get("visible_skills"),
+                    f"{key}[{index}].visible_skills",
+                )
+                capabilities = validate_provider_catalog(
+                    item["catalog"],
+                    expected_provider=canonical.strip(),
+                    visible_skills=visible_skills,
+                )
+            else:
+                capabilities = _capabilities(
+                    item.get("capabilities"),
+                    f"{key}[{index}].capabilities",
+                )
             candidates.append({
                 "kind": kind,
                 "canonical": canonical.strip(),
@@ -111,7 +219,7 @@ def _candidates(catalog: dict[str, Any]) -> tuple[dict[str, Any], ...]:
                 "description": description.strip(),
                 "aliases": _strings(item.get("aliases"), f"{key}[{index}].aliases"),
                 "keywords": _strings(item.get("keywords"), f"{key}[{index}].keywords"),
-                "capabilities": _capabilities(item.get("capabilities"), f"{key}[{index}].capabilities"),
+                "capabilities": capabilities,
             })
     return tuple(candidates)
 
@@ -146,11 +254,17 @@ def resolve_project_root(
     return {"status": "needs_decision", "source": None, "project_root": None, "candidates": []}
 
 
-def resolve_queries(catalog: dict[str, Any], queries: tuple[str, ...]) -> dict[str, Any]:
+def resolve_queries(
+    catalog: dict[str, Any],
+    queries: tuple[str, ...],
+    *,
+    load_policies: dict[str, str] | None = None,
+) -> dict[str, Any]:
     candidates = _candidates(catalog)
     results: list[dict[str, Any]] = []
     selected: list[dict[str, Any]] = []
-    proposed: dict[str, str] = {}
+    proposed: dict[str, dict[str, str]] = {}
+    policy_required: dict[str, dict[str, str]] = {}
     warnings: list[str] = []
     for raw_query in queries:
         query = raw_query.strip()
@@ -178,31 +292,83 @@ def resolve_queries(catalog: dict[str, Any], queries: tuple[str, ...]) -> dict[s
             if selected_item["kind"] == "provider" and not selected_item["capabilities"]:
                 warnings.append(f"provider_capabilities_missing:{selected_item['canonical']}")
             for capability in selected_item["capabilities"]:
+                load_policy = (load_policies or {}).get(capability["id"])
                 existing = proposed.get(capability["id"])
-                if existing is not None and existing != capability["skill"]:
-                    warnings.append(f"capability_conflict:{capability['id']}:{existing}:{capability['skill']}")
+                proposed_value = {
+                    "skill": capability["skill"],
+                }
+                if existing is not None and existing != proposed_value:
+                    warnings.append(
+                        f"capability_conflict:{capability['id']}:{existing['skill']}:{capability['skill']}"
+                    )
                 else:
-                    proposed[capability["id"]] = capability["skill"]
+                    proposed[capability["id"]] = proposed_value
+                    if load_policy is None:
+                        policy_required[capability["id"]] = {
+                            "skill": capability["skill"],
+                            **(
+                                {"side_effect": capability["side_effect"]}
+                                if "side_effect" in capability
+                                else {}
+                            ),
+                        }
+                    else:
+                        if load_policy not in CAPABILITY_LOAD_POLICIES:
+                            raise CatalogError(
+                                f"load policy for {capability['id']} must be one of "
+                                f"{sorted(CAPABILITY_LOAD_POLICIES)}"
+                            )
         results.append({"query": query, "resolution": resolution, "candidates": ranked})
+    unknown_policy_ids = sorted(set(load_policies or {}) - set(proposed))
+    if unknown_policy_ids:
+        raise CatalogError(
+            f"load policy has no selected capability: {', '.join(unknown_policy_ids)}"
+        )
     status = "resolved" if all(item["resolution"] == "resolved" for item in results) and not any(
         warning.startswith("capability_conflict:") for warning in warnings
-    ) else "needs_decision"
+    ) and not policy_required else "needs_decision"
     return {
         "status": status,
         "queries": results,
         "selected": selected,
         "proposed_capability_bindings": [
-            {"id": capability_id, "skill": proposed[capability_id]}
+            {
+                "id": capability_id,
+                "skill": proposed[capability_id]["skill"],
+                "load_policy": (load_policies or {})[capability_id],
+            }
             for capability_id in sorted(proposed)
+            if capability_id in (load_policies or {})
+        ],
+        "policy_decisions_required": [
+            {
+                "id": capability_id,
+                **policy_required[capability_id],
+            }
+            for capability_id in sorted(policy_required)
         ],
         "warnings": sorted(set(warnings)),
     }
+
+
+def _load_policy_args(values: list[str]) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for value in values:
+        parts = value.split("::")
+        if len(parts) != 2 or not all(part.strip() for part in parts):
+            raise CatalogError("load policy must be <capability-id>::<policy>")
+        capability_id, policy = (part.strip() for part in parts)
+        if capability_id in parsed:
+            raise CatalogError(f"duplicate load policy: {capability_id}")
+        parsed[capability_id] = policy
+    return parsed
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Resolve loose setup-project provider and Skill queries.")
     parser.add_argument("--catalog", required=True, type=Path)
     parser.add_argument("--query", action="append", default=[])
+    parser.add_argument("--load-policy", action="append", default=[])
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -210,7 +376,11 @@ def main() -> int:
         data = json.loads(args.catalog.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise CatalogError("catalog root must be an object")
-        result = resolve_queries(data, tuple(args.query))
+        result = resolve_queries(
+            data,
+            tuple(args.query),
+            load_policies=_load_policy_args(args.load_policy),
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, CatalogError) as exc:
         result = {"status": "refused", "error": str(exc)}
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))

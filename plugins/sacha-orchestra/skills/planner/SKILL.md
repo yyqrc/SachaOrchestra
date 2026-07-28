@@ -1,19 +1,20 @@
 ---
 name: planner
-description: 当目标、验收、owner 或实现路径存在实质不确定性，或需要冻结持久 Scope 时使用；基于已验证事实产出 Executor 可直接实施的方案。仅获规划授权时不得实施修改。
+description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使用；冻结可执行 Scope/验收。未 Intake 或仅任务大、耗时、多文件时不接管。
 ---
 
 # Planner（规划）
 
 ## 工作流
 
-1. 读取 [Workflow Contract](../../core/workflow-contract.md)，核对目标、授权、当前状态、owner、入口、约束和验证面；需要项目能力时按需读取 confirmed Project Binding 及其指向的真实规则或 Domain Skill。
-2. 独立评估三个 Gate。目标或验收仍模糊时使用 `sacha-orchestra:clarify`；路径已经唯一时不重复澄清或制造 Plan。
-3. 只比较实质不同的方案，明确已验证事实、假设、取舍和冻结理由。
-4. 选择最低 Planning 强度。Inline Plan 足够时不创建文件；只有批准、恢复、跨 context 或 breaking contract 确实需要时才创建持久 Spec。
-5. 使 Executor 无需重新设计：定义 Scope、Non-goals、依赖、允许/禁止修改、暂停条件、回退边界和可证伪验收。验收项使用稳定 ID，并绑定预期结果、失败路线和 evidence locator。
-6. 需要持久 Artifact 或正式 Handoff 时读取 [Artifact Protocol](../../core/artifact-protocol.md)。正式 Handoff 使用精确九字段 Envelope。
-7. Plan 完成后按当前 Runtime Adapter 返回 workflow owner，由 owner 进入唯一 Executor 路线；Planner 不创建执行实例。
+1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 核对 Planner Gate、目标、授权、owner、约束与验证面；两者皆无时不规划。
+2. 独立评估三个 Gate。目标或验收仍模糊时使用 `sacha-orchestra:clarify`；Clarify 需要隔离研究时按 [Coordination Contract](../../core/coordination-contract.md) 交给 Manager，路径唯一时不重复澄清或制造 Plan。
+3. mapping policy 允许才用 Skill；缺 Binding、目标 mapping 或可用 Skill 时回退 AGENTS/Domain Skill/原生路线，不调用 Setup。
+4. 只比较实质不同方案，区分已验证事实、假设、取舍和冻结理由。
+5. 选择最低 Planning 强度。Inline Plan 足够时不创建文件；只有批准、恢复、跨 context 或 breaking contract 确实需要时才创建持久 Spec。创建时优先消费 confirmed Project Integration 的 Plan storage；未配置则按 Project AGENTS/现有项目约定，不调用 Setup。
+6. 使 Executor 无需重设计：定义 Scope、Non-goals、依赖、边界、暂停/回退和可证伪验收；稳定 ID 绑定预期、失败路线与 locator。
+7. 需要持久 Artifact 或正式 Handoff 时读取 [Artifact Protocol](../../core/artifact-protocol.md)。正式 Handoff 保留九个核心字段；确有消费者时附 namespaced `Extensions`。
+8. Plan 完成后按当前 Runtime Adapter 返回 workflow owner，由 owner 进入唯一 Executor 路线；Planner 不创建执行实例。
 
 ## 暂停与路由
 

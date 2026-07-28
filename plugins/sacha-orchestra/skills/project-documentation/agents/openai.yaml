@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Documentation"
+  short_description: "按项目策略生成自包含、可发布的变更存档与系统使用指南。"
+  default_prompt: "使用 $sacha-orchestra:project-documentation 按已确认的项目策略生成自包含存档。"

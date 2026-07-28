@@ -23,6 +23,11 @@ CONVENTIONAL_SKILL_ROOTS = (".agents/skills", ".codex/skills", ".claude/skills")
 CONVENTIONAL_RULE_NAMES = ("TEAM.md", "PROJECT.md", "EditorTools.md")
 LOAD_POLICIES = {"always", "role-entry", "on-demand"}
 CAPABILITY_LOAD_POLICIES = {"on-demand", "after-write-authorization", "review-only", "risk-matched"}
+DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
+DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
+DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
+PLAN_ROOT_KINDS = {"project-relative", "external-absolute"}
+PLAN_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
 MAX_DISCOVERY_FILES = 256
 MAX_DISCOVERY_FILE_BYTES = 256 * 1024
@@ -41,8 +46,13 @@ class SetupConfig:
     project_root: Path
     agents_path: str = "AGENTS.md"
     workflow_rule_path: str = "docs/workflow-rule.md"
-    artifact_root: str = "docs/plans/<YYYY-MM-DD>-<short-slug>/"
+    plan_root_kind: str | None = None
+    plan_root: str | None = None
     human_guide: str | None = None
+    documentation_policy: str | None = None
+    documentation_root_kind: str | None = None
+    documentation_root: str | None = None
+    documentation_write_authorization: str | None = None
     rule_paths: tuple[str, ...] = ()
     skill_roots: tuple[str, ...] = ()
     scm_provider: str | None = None
@@ -71,6 +81,45 @@ def _file_state(path: Path) -> tuple[bool, bytes | None, str | None]:
     return True, data, sha256_bytes(data)
 
 
+def _is_valid_git_marker(path: Path) -> bool:
+    try:
+        if path.is_dir():
+            return (path / "HEAD").is_file() and (
+                (path / "objects").is_dir() or (path / "commondir").is_file()
+            )
+        if not path.is_file() or path.stat().st_size > 4096:
+            return False
+        text = path.read_text(encoding="utf-8").strip()
+        if not text.casefold().startswith("gitdir:"):
+            return False
+        git_dir = Path(text.split(":", 1)[1].strip())
+        if not git_dir.is_absolute():
+            git_dir = path.parent / git_dir
+        git_dir = git_dir.resolve()
+        return git_dir.is_dir() and (git_dir / "HEAD").is_file() and (
+            (git_dir / "objects").is_dir() or (git_dir / "commondir").is_file()
+        )
+    except (OSError, UnicodeError):
+        return False
+
+
+def _discover_git_marker(root: Path) -> Path | None:
+    root_marker = root / ".git"
+    if _is_valid_git_marker(root_marker):
+        return root_marker
+    if not root_marker.exists():
+        return None
+    for parent in root.parents:
+        candidate = parent / ".git"
+        if _is_valid_git_marker(candidate):
+            return candidate
+    return None
+
+
+def _relative_marker_source(root: Path, marker: Path) -> str:
+    return Path(os.path.relpath(marker, root)).as_posix()
+
+
 def _normalize_relative_path(root: Path, raw: str, label: str) -> tuple[Path, str]:
     normalized = raw.replace("\\", "/").strip()
     pure = PurePosixPath(normalized)
@@ -89,24 +138,6 @@ def _normalize_relative_path(root: Path, raw: str, label: str) -> tuple[Path, st
     except ValueError as exc:
         raise SetupError(f"{label} escapes project root") from exc
     return candidate, pure.as_posix()
-
-
-def _normalize_pattern(raw: str, label: str) -> str:
-    normalized = raw.replace("\\", "/").strip()
-    trailing_slash = normalized.endswith("/")
-    pure = PurePosixPath(normalized)
-    if (
-        not normalized
-        or pure.is_absolute()
-        or re.match(r"^[A-Za-z]:", normalized)
-        or normalized.startswith("//")
-        or any(part in {"", ".", ".."} for part in pure.parts)
-        or "\n" in normalized
-        or "\r" in normalized
-    ):
-        raise SetupError(f"{label} must be a normalized relative project pattern")
-    result = pure.as_posix()
-    return result + "/" if trailing_slash and not result.endswith("/") else result
 
 
 def _normalize_hash(value: str | None, label: str) -> str | None:
@@ -129,6 +160,137 @@ def _normalize_scm_provider(value: str | None) -> str | None:
     if normalized not in {"git", "svn", "none"}:
         raise SetupError("scm_provider must be git, svn or none")
     return normalized
+
+
+def _normalize_documentation(
+    root: Path,
+    *,
+    policy: str | None,
+    root_kind: str | None,
+    documentation_root: str | None,
+    write_authorization: str | None,
+) -> tuple[dict[str, str | None], list[dict[str, str]]]:
+    if policy not in DOCUMENTATION_POLICIES:
+        raise SetupError(
+            "documentation_policy must be disabled, on-request or required-at-closeout"
+        )
+    if policy == "disabled":
+        if any(value is not None for value in (root_kind, documentation_root, write_authorization)):
+            raise SetupError("disabled documentation must not define a root or write authorization")
+        return {
+            "policy": policy,
+            "root_kind": None,
+            "root": None,
+            "portability": "not-applicable",
+            "write_authorization": None,
+        }, []
+    if root_kind not in DOCUMENTATION_ROOT_KINDS:
+        raise SetupError(
+            "enabled documentation requires root_kind project-relative or external-absolute"
+        )
+    if write_authorization not in DOCUMENTATION_WRITE_AUTHORIZATIONS:
+        raise SetupError(
+            "enabled documentation requires write authorization bounded-closeout or per-write-confirmation"
+        )
+    if documentation_root is None:
+        raise SetupError("enabled documentation requires documentation_root")
+    location, warnings = _normalize_storage_root(
+        root,
+        root_kind=root_kind,
+        configured_root=documentation_root,
+        label="documentation_root",
+    )
+    return {
+        "policy": policy,
+        **location,
+        "write_authorization": write_authorization,
+    }, warnings
+
+
+def _normalize_storage_root(
+    root: Path,
+    *,
+    root_kind: str,
+    configured_root: str,
+    label: str,
+) -> tuple[dict[str, str], list[dict[str, str]]]:
+    warnings: list[dict[str, str]] = []
+    if root_kind == "project-relative":
+        _, normalized_root = _normalize_relative_path(
+            root, configured_root, label
+        )
+        return {
+            "root_kind": root_kind,
+            "root": normalized_root,
+            "portability": "portable",
+        }, warnings
+
+    raw_root = configured_root.strip()
+    if raw_root != configured_root or any(
+        token in raw_root for token in ("\n", "\r", "`")
+    ):
+        raise SetupError(
+            f"external {label} must be single-line without surrounding whitespace"
+        )
+    external = Path(raw_root)
+    if not external.is_absolute():
+        raise SetupError(f"external {label} must be an absolute path")
+    lexical_external = Path(os.path.abspath(raw_root))
+    if lexical_external == Path(lexical_external.anchor):
+        raise SetupError(f"external {label} must not be a filesystem or drive root")
+    resolved_external = external.resolve(strict=False)
+    if resolved_external == Path(resolved_external.anchor):
+        raise SetupError(f"external {label} must not resolve to a filesystem or drive root")
+    try:
+        resolved_external.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        raise SetupError(
+            f"{label} inside the project must use root_kind project-relative"
+        )
+    try:
+        if not external.is_dir():
+            warnings.append({
+                "kind": f"{label}_unreachable",
+                "path": raw_root,
+                "reason": f"external {label} is absent or not a directory",
+            })
+    except OSError:
+        warnings.append({
+            "kind": f"{label}_unreachable",
+            "path": raw_root,
+            "reason": f"external {label} cannot be inspected",
+        })
+    return {
+        "root_kind": root_kind,
+        "root": raw_root,
+        "portability": "non-portable",
+    }, warnings
+
+
+def _normalize_plan_storage(
+    root: Path,
+    *,
+    root_kind: str | None,
+    plan_root: str | None,
+) -> tuple[dict[str, str], list[dict[str, str]]]:
+    if root_kind not in PLAN_ROOT_KINDS:
+        raise SetupError(
+            "plan_root_kind must be project-relative or external-absolute"
+        )
+    if plan_root is None:
+        raise SetupError("plan_root is required")
+    location, warnings = _normalize_storage_root(
+        root,
+        root_kind=root_kind,
+        configured_root=plan_root,
+        label="plan_root",
+    )
+    return {
+        **location,
+        "directory_pattern": PLAN_DIRECTORY_PATTERN,
+    }, warnings
 
 
 def _parse_rule_bindings(root: Path, values: tuple[str, ...]) -> tuple[dict[str, str], ...]:
@@ -209,11 +371,11 @@ def _parse_capability_bindings(values: tuple[str, ...]) -> tuple[dict[str, str],
     parsed: dict[str, dict[str, str]] = {}
     for value in values:
         parts = value.split("::")
-        if len(parts) not in {2, 3}:
-            raise SetupError("capability_binding must be <capability-id>::<canonical-skill>[::<load-policy>]")
+        if len(parts) != 3:
+            raise SetupError("capability_binding must be <capability-id>::<canonical-skill>::<load-policy>")
         capability_id = _normalize_capability_id(parts[0])
         skill = _normalize_skill_identity(parts[1])
-        policy = "on-demand" if len(parts) == 2 else parts[2]
+        policy = parts[2]
         if policy != policy.strip() or policy != policy.casefold():
             raise SetupError("capability load policy must already be canonical lowercase without surrounding whitespace")
         if policy not in CAPABILITY_LOAD_POLICIES:
@@ -359,10 +521,31 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
                 "skill": match.group(2),
                 "load_policy": match.group(3),
             })
+    documentation: dict[str, str | None] = {}
+    documentation_section = re.search(
+        r"(?ms)^### Project documentation\s*\n(.*?)(?=^### |^## )",
+        text,
+    )
+    if documentation_section:
+        for key, value in re.findall(
+            r"(?m)^- (policy|root kind|root|portability|write authorization) = `([^`]+)`\r?$",
+            documentation_section.group(1),
+        ):
+            documentation[key.replace(" ", "_")] = None if value == "none" else value
+    plan_storage: dict[str, str | None] = {}
+    plan_section = re.search(
+        r"(?ms)^### Plan storage\s*\n(.*?)(?=^### |^## )",
+        text,
+    )
+    if plan_section:
+        for key, value in re.findall(
+            r"(?m)^- (root kind|root|portability|directory pattern) = `([^`]+)`\r?$",
+            plan_section.group(1),
+        ):
+            plan_storage[key.replace(" ", "_")] = value
     return {
         "schema_version": schema_version,
         "agents_path": backtick_value("Project AGENTS"),
-        "artifact_root": backtick_value("Artifact 根模式"),
         "human_guide": backtick_value("Human Guide"),
         "scm_provider": scm_provider,
         "rule_bindings": tuple(rule_bindings),
@@ -370,6 +553,8 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
         "skill_root_bindings": tuple(skill_root_bindings),
         "capability_bindings": tuple(capability_bindings),
         "capability_dirty": tuple(capability_dirty),
+        "documentation": documentation,
+        "plan_storage": plan_storage,
     }
 
 
@@ -553,10 +738,12 @@ def _discover_project_integration(
                 unresolved.append({"kind": "skill", "path": skill_path.relative_to(root).as_posix(), "reason": f"skill_scan_failed:{type(exc).__name__}"})
 
     scm_evidence = []
-    for provider, marker in (("git", ".git"), ("svn", ".svn")):
-        marker_path = root / marker
-        if (provider == "git" and marker_path.exists()) or (provider == "svn" and marker_path.is_dir()):
-            scm_evidence.append({"provider": provider, "source": marker})
+    git_marker = _discover_git_marker(root)
+    if git_marker is not None:
+        scm_evidence.append({"provider": "git", "source": _relative_marker_source(root, git_marker)})
+    svn_marker = root / ".svn"
+    if svn_marker.is_dir():
+        scm_evidence.append({"provider": "svn", "source": ".svn"})
     evidence_providers = {item["provider"] for item in scm_evidence}
     selected_provider = scm_provider
     if selected_provider is None and len(evidence_providers) == 1:
@@ -731,10 +918,11 @@ def _reconcile_capabilities(
 def render_workflow_rule(
     agents_path: str,
     workflow_rule_path: str,
-    artifact_root: str,
+    plan_storage: Mapping[str, str],
     human_guide: str | None,
     discovery: Mapping[str, object],
     capability_bindings: tuple[dict[str, str], ...],
+    documentation: Mapping[str, str | None],
 ) -> bytes:
     guide = (
         f"`{human_guide}`（只读引用；setup 不管理正文）"
@@ -762,6 +950,8 @@ def render_workflow_rule(
         f"- `{item['id']}` -> `{item['skill']}`；load policy = `{item['load_policy']}`；fallback = `discoverable-domain-skill-or-native-role`"
         for item in capability_bindings
     ] or ["- 无"]
+    documentation_root = documentation["root"] or "none"
+    documentation_authorization = documentation["write_authorization"] or "none"
     unresolved_lines = [
         f"- {item.get('kind', 'unknown')}：`{item.get('path', '.')}`（{item.get('reason', 'unresolved')}）"
         for item in discovery["unresolved"]
@@ -784,7 +974,6 @@ def render_workflow_rule(
 
 - Project AGENTS：`{agents_path}`
 - Workflow rule：`{workflow_rule_path}`
-- Artifact 根模式：`{artifact_root}`
 - Human Guide：{guide}
 
 ## 项目绑定
@@ -810,6 +999,22 @@ def render_workflow_rule(
 
 {chr(10).join(capability_lines)}
 
+### Plan storage
+
+- root kind = `{plan_storage["root_kind"]}`
+- root = `{plan_storage["root"]}`
+- portability = `{plan_storage["portability"]}`
+- directory pattern = `{plan_storage["directory_pattern"]}`
+
+### Project documentation
+
+- policy = `{documentation["policy"]}`
+- root kind = `{documentation["root_kind"] or "none"}`
+- root = `{documentation_root}`
+- portability = `{documentation["portability"]}`
+- write authorization = `{documentation_authorization}`
+- document types = `change-archive`、`system-guide`
+
 ### Unresolved
 
 {chr(10).join(unresolved_lines)}
@@ -820,14 +1025,19 @@ def render_workflow_rule(
 
 ### Fallback
 
-- Binding、provider 或能力未配置时，回退到 Project AGENTS、可发现的 Domain Skill 和当前 Role 原生流程；不得阻断合法的 Direct 或 Executor-only 路线。
+- Binding、provider 或能力未配置时，回退到 Project AGENTS、可发现的 Domain Skill 和当前合法路线；不得阻断本地任务或已接受的 Executor-only 路线。
 - 已配置 capability mapping 时只把 canonical Skill 关系作为按需定位输入；若同一 Skill 已被当前 context 选中则复用并去重，仍须读取对应 Domain Skill 正文。
 
 ## Canonical locators
 
+- 默认入口：`sacha-orchestra:using-sacha`
 - Skills：`sacha-orchestra:planner`、`sacha-orchestra:executor`、`sacha-orchestra:reviewer`、`sacha-orchestra:manager`、`sacha-orchestra:feedback`、`sacha-orchestra:clarify`
-- Workflow Core：plugin `core/workflow-contract.md`
+- Intake Core：plugin `core/intake-contract.md`
+- Workflow Kernel：plugin `core/workflow-contract.md`
+- Assurance Core：plugin `core/assurance-contract.md`
+- Coordination Core：plugin `core/coordination-contract.md`
 - Artifact Protocol：plugin `core/artifact-protocol.md`
+- Project Documentation：`sacha-orchestra:project-documentation`
 - Codex Runtime Adapter：plugin `adapters/codex/runtime-adapter.md`
 
 项目命令、领域知识、证据等级和验证规则仍由 Project AGENTS 或 Domain Skill 所有。
@@ -839,8 +1049,8 @@ def render_agents_block(workflow_rule_path: str) -> bytes:
     text = f"""{AGENTS_BEGIN}
 ## Sacha Orchestra 接入
 
-- 普通局部任务不因 plugin 存在而强制进入 Sacha；直接遵循本 Project AGENTS。
-- Sacha 入口事实成立后读取 `{workflow_rule_path}` 获取项目绑定；入口、Gate 和 Role 路由仍以 plugin canonical contract 为准。
+- 潜在 Sacha 任务先由 `sacha-orchestra:using-sacha` 感知；本地路线只遵循适用 Project AGENTS。
+- Human 接受 Sacha 后才读取 `{workflow_rule_path}` 获取项目绑定；入口、Gate 和 Role 路由仍以 plugin canonical contract 为准。
 {AGENTS_END}"""
     return text.encode("utf-8")
 
@@ -881,6 +1091,7 @@ def _base_result(
         "restored": [],
         "restore_failed": [],
         "conflicts": [],
+        "warnings": [],
         "recovery_steps": [],
         "cleanup_failed": [],
         "targets": {},
@@ -980,14 +1191,42 @@ def run_setup(
         if config.agents_path == "AGENTS.md" and existing_values.get("agents_path"):
             effective_agents_path = str(existing_values["agents_path"])
         agents_path, agents_rel = _normalize_relative_path(root, effective_agents_path, "agents_path")
-        effective_artifact_root = config.artifact_root
-        if config.artifact_root == "docs/plans/<YYYY-MM-DD>-<short-slug>/" and existing_values.get("artifact_root"):
-            effective_artifact_root = str(existing_values["artifact_root"])
-        artifact_root = _normalize_pattern(effective_artifact_root, "artifact_root")
         human_guide = None
         effective_human_guide = config.human_guide or existing_values.get("human_guide")
         if effective_human_guide:
             _, human_guide = _normalize_relative_path(root, str(effective_human_guide), "human_guide")
+        if config.documentation_policy is None:
+            existing_documentation = existing_values.get("documentation", {})
+            documentation_policy = existing_documentation.get("policy")
+            documentation_root_kind = existing_documentation.get("root_kind")
+            documentation_root = existing_documentation.get("root")
+            documentation_write_authorization = existing_documentation.get(
+                "write_authorization"
+            )
+        else:
+            documentation_policy = config.documentation_policy
+            documentation_root_kind = config.documentation_root_kind
+            documentation_root = config.documentation_root
+            documentation_write_authorization = config.documentation_write_authorization
+        documentation, documentation_warnings = _normalize_documentation(
+            root,
+            policy=documentation_policy,
+            root_kind=documentation_root_kind,
+            documentation_root=documentation_root,
+            write_authorization=documentation_write_authorization,
+        )
+        if config.plan_root_kind is None:
+            existing_plan_storage = existing_values.get("plan_storage", {})
+            plan_root_kind = existing_plan_storage.get("root_kind")
+            plan_root = existing_plan_storage.get("root")
+        else:
+            plan_root_kind = config.plan_root_kind
+            plan_root = config.plan_root
+        plan_storage, plan_warnings = _normalize_plan_storage(
+            root,
+            root_kind=plan_root_kind,
+            plan_root=plan_root,
+        )
         expected_agents = _normalize_hash(config.expected_agents_sha256, "expected_agents_sha256")
         expected_workflow = _normalize_hash(config.expected_workflow_sha256, "expected_workflow_sha256")
         effective_scm_provider = config.scm_provider
@@ -1048,13 +1287,23 @@ def run_setup(
         configured_skill_root_bindings=skill_root_bindings,
     )
     result["discovery"] = discovery
+    result["documentation"] = documentation
+    result["warnings"].extend(documentation_warnings)
+    result["plan_storage"] = plan_storage
+    result["warnings"].extend(plan_warnings)
     result["capability_reconciliation"] = capability_reconciliation
     discovery_blocked = discovery["status"] != "complete"
     targets: list[dict[str, object]] = []
     try:
         workflow_existed, workflow_preimage, workflow_hash = _file_state(workflow_path)
         workflow_generated = render_workflow_rule(
-            agents_rel, workflow_rel, artifact_root, human_guide, discovery, effective_capabilities
+            agents_rel,
+            workflow_rel,
+            plan_storage,
+            human_guide,
+            discovery,
+            effective_capabilities,
+            documentation,
         )
         workflow_action = "unchanged" if workflow_preimage == workflow_generated else ("update" if workflow_existed else "create")
         result["workflow_rule"] = {
@@ -1267,8 +1516,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--agents-path", default="AGENTS.md")
     parser.add_argument("--workflow-rule-path", default="docs/workflow-rule.md")
-    parser.add_argument("--artifact-root", default="docs/plans/<YYYY-MM-DD>-<short-slug>/")
+    parser.add_argument("--plan-root-kind", choices=tuple(sorted(PLAN_ROOT_KINDS)))
+    parser.add_argument("--plan-root")
     parser.add_argument("--human-guide")
+    parser.add_argument("--documentation-policy", choices=tuple(sorted(DOCUMENTATION_POLICIES)))
+    parser.add_argument("--documentation-root-kind", choices=tuple(sorted(DOCUMENTATION_ROOT_KINDS)))
+    parser.add_argument("--documentation-root")
+    parser.add_argument(
+        "--documentation-write-authorization",
+        choices=tuple(sorted(DOCUMENTATION_WRITE_AUTHORIZATIONS)),
+    )
     parser.add_argument("--rule-path", action="append", default=[])
     parser.add_argument("--skill-root", action="append", default=[])
     parser.add_argument("--scm-provider", choices=("git", "svn", "none"))
@@ -1294,8 +1551,13 @@ def main() -> int:
         project_root=args.project_root,
         agents_path=args.agents_path,
         workflow_rule_path=args.workflow_rule_path,
-        artifact_root=args.artifact_root,
+        plan_root_kind=args.plan_root_kind,
+        plan_root=args.plan_root,
         human_guide=args.human_guide,
+        documentation_policy=args.documentation_policy,
+        documentation_root_kind=args.documentation_root_kind,
+        documentation_root=args.documentation_root,
+        documentation_write_authorization=args.documentation_write_authorization,
         rule_paths=tuple(args.rule_path),
         skill_roots=tuple(args.skill_root),
         scm_provider=args.scm_provider,

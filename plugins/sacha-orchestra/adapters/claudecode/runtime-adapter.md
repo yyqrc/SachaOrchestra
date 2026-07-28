@@ -1,85 +1,69 @@
 # Claude Code Runtime Adapter
 
-> Implements: Workflow Contract 4；Artifact Protocol 1
+> Implements: Intake Contract 2；Workflow Contract 7；Assurance Contract 1；Coordination Contract 2；Artifact Protocol 2
 > Status: Normative Claude Code mapping
 
-## 1. Responsibility boundary
+## 1. Boundary
 
-本文只把 Sacha Orchestra Core 映射到 Claude Code 原生能力。稳定协作语义来自：
+本文只映射 Claude Code 原生能力。以下是可选 owner locator，不是预加载清单：
 
+- [Intake Contract](../../core/intake-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
+- [Assurance Contract](../../core/assurance-contract.md)
+- [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-本 Adapter 不定义 Role、Gate、生命周期、Artifact、Handoff、项目命令、证据等级或发布流程。Project rules 和 Domain Skills 拥有项目知识；Skill/agent definition 拥有 Role-local procedure；Evolution 拥有版本与验证状态。
+Adapter 不定义入口、Role、Gate、Artifact、项目知识或发布状态。Project rules/Domain Skills、Role Skill/agent definition 与 Evolution 分别拥有本层信息。
 
-## 2. Role、owner 与 context
+## 2. Intake、Role 与 context
 
 | Core responsibility | Claude Code mapping |
 | --- | --- |
-| Planner | 独立 `Agent` context 装载 Planner 指令，只接收目标、可读事实与必要约束 |
-| Executor | 一个明确 owner 的主对话或独立 `Agent` context 执行批准 Scope |
-| Reviewer | 未参与当前方案或实现的独立 `Agent` context 装载 Reviewer 指令 |
-| Manager | 主对话或明确控制面的 `Agent` context 协调已批准 Work Packet |
-| Workflow owner | 接收用户 objective 的主对话；持有当前 phase 并持续推进到 Core 根终态 |
+| Intake/Route owner | 主对话通过正式 Skill discovery 装载 `using-sacha` |
+| Planner | 独立 `Agent` context 装载 Planner 指令 |
+| Executor | 明确 owner 的主对话或独立 `Agent` context |
+| Reviewer | 未参与方案/实现的独立 `Agent` context |
+| Manager | 主对话或控制面 `Agent` 协调 Work/Research Packet |
+| Workflow owner | Human 接受后的主对话，持续推进到根终态 |
 
-独立性由输入与参与历史的 provenance 判断，不由 agent 名称或标识符判断。Runtime agent/task id 只用于当前调度，不写入 Core Artifact 或九字段 Handoff。
+Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；L0 不读取生产 Core/Role/Binding。显式 using-sacha、明确 Sacha 请求或 direct canonical Role 调用视为接受；Clarify/Setup 只授权 narrow scope。
 
-正式 Role dispatch 只有在目标 context 能直接到达 canonical Role 指令和批准 Artifact 时才允许执行；不可达时记录真实缺口，不用临时提示模拟缺失的 Role contract。
+同一主对话的 Executor-only D0 若不使用 Agent dispatch/return、恢复或 Runtime 验证，不读取本 Adapter。首次出现对应 consumer 时再加载所需章节，不因已接受 Sacha 预加载。
 
-## 3. Formal Role transition
+独立性由参与历史/input provenance 判断，不由 agent 名称判断。Runtime id 只用于调度。若 canonical entry/Role/Artifact 不可达，报告真实 discovery 缺口，不用临时长提示模拟合同。
 
-### 3.1 Dispatch
+## 3. Transition 与 return
 
-每次 transition：
+每次 transition 先核对 Runtime 可用能力，不假定特定 Agent 模式存在：
 
-1. 根据 Task ID、Scope Reference、目标 Role、Artifact 可达性、provenance 和 owner 核对目标 context。
-2. Source 只传 route intent、批准 Scope/Handoff locator、必要约束和 runtime-only identity；不复制长报告或隐藏会话历史。
-3. 需要独立 provenance 时创建新的 `Agent` context；同一 Task ID/Scope 的 repair、补证据和 re-review 保持原 owner 连续性。
-4. 无法唯一确定 owner、目标 Role 或 return path 时进入 Core 对应阻塞路线。
+1. 核对 Task/Scope、Role、Artifact 可达性、provenance、owner 和 return path。
+2. 不要求独立 provenance 的同 context 工作保持主对话；一个有界 helper 可由 owner 直接管理。正式 Role transition 才选择可保留 identity/terminal 的 Agent transport。
+3. Source 只传 route intent、Scope/Handoff locator、必要约束与 runtime identity，不复制长报告/隐藏历史。
+4. 独立 Review 使用新 `Agent` context；同 Task/Scope 的 repair、补证据和 re-review 保持原 owner。
+5. 当前 transport 不可用时先尝试同 Scope 安全替代；owner/Role/return 仍无法唯一确定才进入 Core 阻塞路线。
 
-### 3.2 Completion consumption
+前台执行由主对话消费 terminal result；后台执行由 owner 保持 phase，以正式 completion notification 和 identity 消费一次结果，不留给 Human 唤醒，也不因启动成功提前结束。
 
-Claude Code 暴露前台或后台执行时，均须满足 Core 的 Transport、Identity 和 Progress：
+Target completion 保留 Core notice、Task/Scope、Handoff locator/revision、Source/Target、Outcome 和 dedup。错误、陈旧或重复结果不产生额外 transition。
 
-- 前台执行：主对话在当前调用完成时消费 terminal result，验证 identity 后立即执行唯一下一 transition。
-- 后台执行：workflow owner 保持当前 phase，以 Runtime completion notification 和 agent/task identity 消费一次 terminal result；不得把通知留给 Human 触发，也不得因后台启动成功提前结束流程。
+模型 override 仅来自 Human 当前明确指定或批准 Scope 的精确配置；否则使用 Runtime 默认。Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation packet，本 Adapter 只补 agent/task、前后台模式、notification/return、工具错误和恢复入口。
 
-Target completion 包含 Core completion notice、Task ID、Scope Reference、Handoff locator/revision、Source/Target Role、Outcome 和 dedup key。错误、陈旧或重复结果不产生额外 dispatch、写入或 terminal transition。
+Human 输出遵循 Core 技术紧凑顺序；liveness 由当前前台调用或后台 completion/cancel 状态证明，timeout 不替代 terminal/cancel/完成证据。
 
-### 3.3 Model configuration
+搜索、diff、日志和列表以 `80` 行/`6000` 字符为默认 soft budget，按消费者、风险和信号密度扩展。大原文已有消费者时写入 task-local 文件或既有 Artifact，否则保留在工具结果并定向读取；不为限额制造文件，截断不得隐藏失败、warning、未验证、Scope 偏离或授权阻塞。
 
-`Agent` 使用 Runtime 实际暴露的模型参数。只有 Human 当前明确指定，或批准 Scope 原样保存了 Human 的精确配置时才传覆盖值；否则省略覆盖并使用 Runtime 默认配置。工具不支持显式配置时报告真实错误，不自行替换或降级。
+## 4. Manager 与 Artifact
 
-### 3.4 Progress and failure
+单个职责内有界 helper 不打开 Manager Gate。Manager Gate 开启后，每个 ready Packet 使用独立 `Agent` context；`parallel_expected` 成立时在消费 completion 前启动至少两个实例。共享工作树同一文件/输出不并行写；隔离 patch/候选实现可并行，由 integration owner 串行应用并处理共享生成物、Git 与整体验证。
 
-前台调用由当前调用生命周期提供 liveness；后台调用由 completion notification、Runtime 状态和取消能力提供 liveness。具体窗口由当前 Runtime 能力与项目规则限定，但任何 timeout 都不能替代 terminal result、取消确认或 Core 完成证据。
+completion 按 Packet revision/dedup 聚合；Packet report/notice 分别以 `20` 行/`3500` 字符和 `12` 行/`2000` 字符为 soft budget，按消费者和风险扩展，不为限额强制落 Artifact。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。
 
-Transport、Identity 或 Progress 失败时，按 Core schema 生成 runtime deviation packet。Claude Code 只补充真实 agent/task identity、前台/后台模式、notification/return 状态、工具错误和可执行 repair/re-verification entry。
+Agent context 通过稳定 locator 读取 Scope、Artifact、原始 evidence、九个 Handoff 核心字段及可选 `Extensions`。恢复先核对 Task/Scope/Handoff revision/Entry Condition，不从隐藏历史猜测；不可达时停止 transition并记录唯一入口。
 
-## 4. Manager and parallel mapping
+## 5. Discovery 与 Hook 边界
 
-Manager Gate 由 Core 或批准 Scope 决定。Gate 开启后：
+项目规则、`using-sacha`、canonical Role 和 Domain Skill 必须由当前 Runtime 的正式 discovery/加载机制暴露。发现只证明入口可达；lifecycle、并行、恢复与验收需要真实行为证据。
 
-1. 每个 ready Work Packet 使用一个独立 `Agent` context。
-2. `parallel_expected` 成立时，在消费任何 completion 前启动至少两个实例。
-3. 只读 Packet 可并行；写入 Packet 只有 exact write scope 静态不重叠时并行。
-4. completion 由 workflow owner/Manager 按 Packet revision 和 dedup key 聚合；共享生成物、Git 动作和整体验证由单一 integration owner 串行完成。
-5. Runtime、槽位、依赖、Scope 或授权阻塞记录为 `parallel_blocked`；条件满足却未启动记录为 `parallel_dispatch_missed`。
+SessionStart Hook 仅在 Human 另行授权且项目正式配置时预加载环境信息；不得接受 Sacha、替代 `using-sacha`、扩大授权、恢复 owner 或成为正确性前提。正式 discovery 不能稳定暴露入口时报告该 Runtime 未支持，不扫描 cache 或静默改用 Hook。
 
-## 5. Artifact reachability and recovery
-
-Agent context 通过文件系统或 Runtime 提供的稳定 locator 读取批准 Scope、必要 Artifact、原始 evidence locators 和完整九字段 Handoff。恢复先核对 Task ID、Scope Reference、Handoff revision 和 Entry Condition，不从主对话隐藏历史猜测。
-
-Artifact、canonical Role 指令或 return identity 不可达时停止对应 transition，记录影响和唯一恢复入口。
-
-## 6. Project rules and discovery
-
-项目规则、canonical Role 指令和 Domain Skills 必须通过当前 Claude Code context 的正式 discovery/加载机制可达。SessionStart hook 只在 Human 明确授权且项目正式配置时作为加载机制；Adapter 不把 hook 当作默认前提，也不定义项目专属注入内容。
-
-发现成功只证明入口可达；真实 Role lifecycle、并行、恢复和验收仍须由对应 Runtime 行为证据证明。
-
-## 7. Authorization and failure handling
-
-- 安装、hook、Git、push、发布或其他 workspace 外动作必须有 Human 对精确动作的明确授权。
-- `Agent`、模型参数、completion notification、取消或 discovery 能力不可用时记录真实错误，不静默换成不完整路线。
-- Core 与本 Adapter 冲突时停止相关写入；Adapter 不修改 Core 迁就平台限制。
+Hook 或 workspace 外动作需要精确授权。Runtime 能力不可用时记录原始错误，不静默换成不完整路线；平台限制不得通过修改 Core 掩盖。
