@@ -1,22 +1,22 @@
 ---
 name: using-sacha
-description: Sacha 默认入口。显式 Sacha，或任务确需跨 context owner、冻结 Scope、独立验收/协调时使用；清晰已授权任务直接执行，仅在编排会实质改变执行方式时询问一次。
+description: Sacha 默认入口。显式 Sacha，或关键澄清/Spec、跨 context 恢复、难回退跨 owner 决策、正式协调/独立验收会改变执行方式时使用；任务演变时重评估，仅复杂/耗时/多文件保持 Direct。
 ---
 
 # Using Sacha（智能入口）
 
 ## 工作流
 
-1. 核对当前 objective/Scope、适用项目规则和显式接受事实，读取 [Intake Contract](../../core/intake-contract.md)。
-2. 目标、授权和验收清晰且当前 context 可安全完成时保持 `L0`，直接执行；文件数、耗时或持续验证不构成 candidate。
-3. 只有持久 owner、跨 context 恢复、正式协调或冻结方案会实质改变执行方式时判断 `D0 candidate`/`Planner candidate`；L0 不加载生产 Core、Artifact、Project Integration 或 Role。
-4. Candidate 说明新增能力、成本、下游 Gate 与主要影响，只询问一次。显式 using-sacha、明确使用 Sacha 或直接 canonical Role 调用视为已接受。
-5. 接受后读取 [Workflow Contract](../../core/workflow-contract.md) 与目标 Role；仅有 discovery、transport、恢复或外部状态 consumer 时读取当前 Runtime Adapter，项目绑定确有消费方时才读取 confirmed Project Integration。root owner 推进到合法终态。
-6. 拒绝后保持 L0；只有 objective、Scope、Acceptance、风险、授权或交付模型实质变化才重评估，不持久化拒绝状态。
-7. Intake 不创建 Goal、Artifact 或 Handoff，不授权写入、安装、Git、发布、远程资源或高影响动作，也不依赖 Hook。
+1. 读取 [Intake Contract](../../core/intake-contract.md)，核对目标、Scope、授权、验收和项目规则。
+2. 初次判断及 Direct 执行期间都检查语义转折；预计实施前需要关键 Human 澄清、先冻结/持久化 Spec、跨 context owner/恢复、正式协调/独立验收，或出现难回退的跨 owner 决策时，按当前事实重评估，不沿用旧 L0。
+3. 复杂调试、耗时、文件多、多平台或持续验证本身仍保持 Direct；只有上述事实会实质改变执行方式时才建议 Sacha。用一句技术说明收益、成本和推荐，同一 candidate 只问一次。
+4. 显式 using-sacha、明确使用 Sacha 或直接调用 canonical Role 视为接受。接受后读取 [Workflow Contract](../../core/workflow-contract.md) 与目标 Role；只有 transport、恢复或外部状态需要时才读 Adapter。
+5. 拒绝后按当前事实直接处理；目标、Scope、验收、风险、授权或交付模型实质变化可形成新 candidate，locator、日志或进度变化不得触发重问。
 
 ## 路由
 
-- Scope/Acceptance/owner/路径存在实质不确定性 → Planner；否则接受后 → Executor。
+- 关键澄清、Spec 冻结/持久化或难回退跨 owner 决策会改变实现边界 → Planner；接受后由 Planner 按需使用 Clarify。
+- Scope/验收已明确但需跨 context owner/恢复或正式协调 → Executor，再按事实打开 downstream Gate。
 - Reviewer/Manager 只作为 downstream Gate；打开后分别按 Assurance/Coordination Contract 执行。
 - Clarify/Setup Project 保持 explicit-only narrow capability；完成后新的开发目标重新 Intake。
+- Intake 不创建 Goal、Artifact 或 Handoff，也不授权写入、安装、Git、发布、远程资源或高影响动作。

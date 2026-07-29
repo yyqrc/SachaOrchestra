@@ -20,6 +20,7 @@ COORDINATION = PLUGIN / "core" / "coordination-contract.md"
 ARTIFACT = PLUGIN / "core" / "artifact-protocol.md"
 CODEX_ADAPTER = PLUGIN / "adapters" / "codex" / "runtime-adapter.md"
 CLAUDE_ADAPTER = PLUGIN / "adapters" / "claudecode" / "runtime-adapter.md"
+CLAUDE_ONCE = PLUGIN / "scripts" / "claude_once.ps1"
 SETUP_GENERATOR = PLUGIN / "skills" / "setup-project" / "scripts" / "generate_project_integration.py"
 PROJECT_DOCUMENTATION = PLUGIN / "skills" / "project-documentation"
 DOCUMENTATION_GENERATOR = (
@@ -135,11 +136,11 @@ def main() -> int:
     check(coordination_version is not None, "Coordination Contract version is missing")
     check(artifact_version is not None, "Artifact Protocol version is missing")
     check(
-        intake_version is not None and intake_version.group(1) == "2",
+        intake_version is not None and intake_version.group(1) == "3",
         "Intake Contract schema is not current",
     )
     check(
-        core_version is not None and core_version.group(1) == "7",
+        core_version is not None and core_version.group(1) == "9",
         "Workflow Contract schema is not current",
     )
     check(
@@ -147,11 +148,11 @@ def main() -> int:
         "Assurance Contract schema is not current",
     )
     check(
-        coordination_version is not None and coordination_version.group(1) == "2",
+        coordination_version is not None and coordination_version.group(1) == "3",
         "Coordination Contract schema is not current",
     )
     check(
-        artifact_version is not None and artifact_version.group(1) == "2",
+        artifact_version is not None and artifact_version.group(1) == "3",
         "Artifact Protocol schema changed",
     )
     expected_mapping = (
@@ -199,39 +200,110 @@ def main() -> int:
     check(all(marker in codex_adapter for marker in codex_model_contract), "Codex role-aware model routing contract is incomplete")
     check(all(marker in claude_adapter for marker in claude_model_contract), "Claude Code role-aware model routing contract is incomplete")
     check("gpt-5.6-" not in claude_adapter, "Claude Code Adapter leaks Codex model configuration")
+    check(CLAUDE_ONCE.is_file(), "Claude CLI one-shot helper is missing")
+    if CLAUDE_ONCE.is_file():
+        claude_once = text(CLAUDE_ONCE)
+        check(
+            all(
+                marker in claude_once
+                for marker in (
+                    "'-p'",
+                    "'--safe-mode'",
+                    "'--no-session-persistence'",
+                    "'--permission-mode', 'dontAsk'",
+                    "'--output-format', 'json'",
+                    "'--tools', 'Read,Edit,Write'",
+                    '"Read($permissionPath)"',
+                    '"Edit($permissionPath)"',
+                    "scope_violations",
+                    "ignored_scope_violations",
+                    "git_metadata_changed",
+                    "head_before",
+                    "head_after",
+                    "capabilities_verified",
+                )
+            ),
+            "Claude CLI one-shot helper containment/transport markers are incomplete",
+        )
+        check(
+            "--dangerously-skip-permissions" not in claude_once,
+            "Claude CLI one-shot helper bypasses permissions",
+        )
+        check(
+            "AllowedBash" not in claude_once
+            and "@('Read', 'Glob', 'Grep', 'Edit', 'Write')" not in claude_once,
+            "Claude CLI one-shot helper exposes broad or subprocess tools",
+        )
+    fixed_dispatch_markers = (
+        "Packet 至少包含",
+        "C1 Managed Serial",
+        "C2 Managed Parallel",
+        "空核心字段写",
+    )
+    check(
+        all(marker not in coordination + artifact for marker in fixed_dispatch_markers),
+        "Current contracts still require retired fixed dispatch formatting",
+    )
     feedback_routing_contract = (
-        "project/workspace、Task ID/Scope、repair objective、owner/Role、revision/provenance 和可续发状态",
-        "同 cwd、仓库、Skill、owner 或标题相近均不足",
         "只有唯一完整匹配才复用",
-        "显式 Feedback 创建一个独立 repair task/context",
-        "并发送 bounded packet",
-        "自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建",
-        "多项完整匹配或任一项无法消歧时请求 Human",
-        "只继承 packet 已有授权",
+        "新 context 不扩权",
         "消费一次 terminal result",
-        "不得向其他 task 发送 packet、result 或 follow-up",
     )
     check(
         all(marker in skill_documents_by_name["feedback"] for marker in feedback_routing_contract),
         "Feedback repair-target isolation contract is incomplete",
     )
     codex_feedback_routing_contract = (
-        "workspace/project、Task ID/Scope、repair objective、owner/Role、revision/provenance、可续发状态",
-        "同 cwd/仓库/Skill/owner/近似标题均不足",
-        "显式 Feedback 创建隔离 repair task 并 dispatch bounded packet",
-        "自动 Feedback 仅在已接受 lifecycle 允许 transport 时创建",
-        "其他情况请求 Human",
-        "新 task 只继承 packet 授权",
-        "Source owner 只 join/消费一次其 terminal result",
-        "不得发送到或写入其他 task",
+        "唯一匹配才复用",
+        "新 task 不扩权",
+        "Source 只 join 一次",
     )
     check(
         all(marker in codex_adapter for marker in codex_feedback_routing_contract),
         "Codex Feedback repair-task routing contract is incomplete",
     )
+    intake_reassessment_contract = (
+        "初次判断及 Direct 执行期间",
+        "关键 Human 澄清",
+        "先冻结/持久化可执行 Spec",
+        "难回退跨 owner 决策",
+        "只有复杂、耗时、多文件或多平台仍保持 L0",
+        "实质变化形成新 candidate 时可再推荐一次",
+    )
+    check(
+        all(marker in intake for marker in intake_reassessment_contract),
+        "Intake task-evolution reassessment contract is incomplete",
+    )
+    using_sacha_reassessment_contract = (
+        "Direct 执行期间",
+        "关键 Human 澄清",
+        "先冻结/持久化 Spec",
+        "跨 context owner/恢复",
+        "正式协调/独立验收",
+        "难回退的跨 owner 决策",
+        "复杂调试、耗时、文件多、多平台或持续验证本身仍保持 Direct",
+    )
+    check(
+        all(
+            marker in skill_documents_by_name["using-sacha"]
+            for marker in using_sacha_reassessment_contract
+        ),
+        "using-sacha task-evolution procedure is incomplete",
+    )
+    planner_reassessment_contract = (
+        "实施前需关键 Human 澄清",
+        "需冻结/持久化 Spec",
+        "难回退跨 owner 决策",
+        "复杂、文件多、耗时、多平台、无分歧修改",
+        "Direct 或 active workflow",
+    )
+    check(
+        all(marker in core for marker in planner_reassessment_contract),
+        "Planner Gate task-evolution alignment is incomplete",
+    )
     setup_confirmation_contract = (
         "等待 Human 明确确认",
-        "历史 Binding 只作默认候选，不是本轮写入授权",
+        "历史 Binding 不是本轮写入授权",
         "`planned_delta_sha256`",
         "`--confirmed-planned-delta-sha256`",
     )
@@ -311,7 +383,7 @@ def main() -> int:
             skill_documents_by_name["using-sacha"],
             skill_documents_by_name["executor"],
         )) <= 9000,
-        "Executor-only D0 active surface exceeds the progressive-loading budget",
+        "Direct Executor active surface exceeds the progressive-loading budget",
     )
     for path, content in role_skill_documents.items():
         lines = content.splitlines()
@@ -410,8 +482,7 @@ def main() -> int:
         runtime_allowed_links = set(allowed_adapter_links)
         if runtime == "Codex":
             runtime_allowed_links.update({
-                "../../scripts/context_probe.ps1",
-                "../../scripts/change_closeout.ps1",
+                "../../scripts/claude_once.ps1",
             })
         check(
             adapter_links <= runtime_allowed_links,

@@ -8,14 +8,12 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 工作流
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 接受事实、目标/Scope、授权、Entry Condition 和写入边界；两者皆无时不执行。
-2. `D0` 保持单 Executor，不创建无消费者的 Plan、Artifact、Review 或 Handoff；Gate、Role 和生命周期遵循 [Workflow Contract](../../core/workflow-contract.md)。
-3. mapping policy 允许才用 Skill；缺 Binding/mapping/Skill 时回退 AGENTS、Domain Skill 或原生路线，不调用 Setup。
-4. 保护用户和无关改动，维持 single writer，按依赖顺序做最小修改；不重设计冻结决策或增加未来能力。
-5. Adapter 提供确定性 helper 时，机械调查/收尾优先默认 summary；缺少决策字段才读 details/locator。helper 不替代规则、Scope、领域验证或授权。
-6. 按风险验证，读取退出状态、错误、warning 和失败计数；区分通过、失败、未验证和跳过。
-7. 记录 delta、验证、偏离、风险和恢复入口；仅持久消费者/正式 Review 创建 Execution Report。合法 closeout 时才按 confirmed Project Integration 调用 `project-documentation`。
-8. Reviewer Gate 打开时读取 [Assurance Contract](../../core/assurance-contract.md)；Manager Gate 打开时读取 [Coordination Contract](../../core/coordination-contract.md)。
-9. 持久 Artifact/Handoff 才读取 [Artifact Protocol](../../core/artifact-protocol.md)。按当前 Runtime Adapter 返回 workflow owner；Executor 不实现 transport。
+2. 按 [Workflow Contract](../../core/workflow-contract.md) 直接实施；无消费者时不创建 Plan、Artifact、Review 或 Handoff。
+3. mapping 可用才调用对应 Skill；缺 Binding/mapping 时用 AGENTS、Domain Skill 或原生路线，不调用 Setup。
+4. 保护用户改动并维持 single writer，按依赖做最小修改。helper 只处理有界机械工作，不替代规则、授权和领域验证。
+5. 按风险验证并读取退出状态、错误、warning 和失败计数；区分通过、失败、未验证和跳过。
+6. 只记录消费者需要的 delta、验证、偏离、风险和恢复入口。Reviewer/Manager Gate 打开时分别读取 [Assurance Contract](../../core/assurance-contract.md) 或 [Coordination Contract](../../core/coordination-contract.md)。
+7. 持久记录或正式恢复时才读取 [Artifact Protocol](../../core/artifact-protocol.md)，然后按 Adapter 返回 workflow owner。
 
 ## 暂停与路由
 

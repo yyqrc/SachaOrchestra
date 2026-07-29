@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter
 
-> Implements: Intake Contract 2；Workflow Contract 7；Assurance Contract 1；Coordination Contract 2；Artifact Protocol 2
+> Implements: Intake Contract 3；Workflow Contract 9；Assurance Contract 1；Coordination Contract 3；Artifact Protocol 3
 > Status: Normative Claude Code mapping
 
 ## 1. Boundary
@@ -23,12 +23,12 @@ Adapter 不定义入口、Role、Gate、Artifact、项目知识或发布状态�
 | Planner | 独立 `Agent` context 装载 Planner 指令 |
 | Executor | 明确 owner 的主对话或独立 `Agent` context |
 | Reviewer | 未参与方案/实现的独立 `Agent` context |
-| Manager | 主对话或控制面 `Agent` 协调 Work/Research Packet |
+| Manager | 主对话或控制面 `Agent` 协调独立任务 |
 | Workflow owner | Human 接受后的主对话，持续推进到根终态 |
 
-Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；L0 不读取生产 Core/Role/Binding。显式 using-sacha、明确 Sacha 请求或 direct canonical Role 调用视为接受；Clarify/Setup 只授权 narrow scope。
+Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；直接任务不读取生产 Core/Role/Binding。显式 using-sacha、明确 Sacha 请求或 direct canonical Role 调用视为接受；Clarify/Setup 只授权 narrow scope。
 
-同一主对话的 Executor-only D0 若不使用 Agent dispatch/return、恢复或 Runtime 验证，不读取本 Adapter。首次出现对应 consumer 时再加载所需章节，不因已接受 Sacha 预加载。
+同一主对话直接执行且不使用 Agent dispatch/return、恢复或 Runtime 验证时，不读取本 Adapter。首次出现 consumer 时再加载所需章节。
 
 独立性由参与历史/input provenance 判断，不由 agent 名称判断。Runtime id 只用于调度。若 canonical entry/Role/Artifact 不可达，报告真实 discovery 缺口，不用临时长提示模拟合同。
 
@@ -44,7 +44,7 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 
 前台执行由主对话消费 terminal result；后台执行由 owner 保持 phase，以正式 completion notification 和 identity 消费一次结果，不留给 Human 唤醒，也不因启动成功提前结束。
 
-Target completion 保留 Core notice、Task/Scope、Handoff locator/revision、Source/Target、Outcome 和 dedup。错误、陈旧或重复结果不产生额外 transition。
+Target completion 返回结果/delta、实际验证、阻塞/风险和必要 locator；原生 notification 未携带且消歧必需时才补 route identity/revision/dedup。错误、陈旧或重复结果不产生额外 transition。
 
 正式跨 context dispatch 先应用 Human 本次或批准 Scope 的精确配置，否则按 Role/risk 选择：
 
@@ -58,19 +58,19 @@ Target completion 保留 Core notice、Task/Scope、Handoff locator/revision、S
 
 模型强度不替代 Planner/Reviewer/Manager Gate；普通 Executor 只有输入自包含时使用 `sonnet`。Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime default。owner 核对并记录 requested/effective model 与宿主覆盖原因；旧写入者 terminal/cancelled 前不得以其他模型启动同 Scope 写入。Direct/current context 不改变模型或宣称路由已应用。
 
-Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation packet；本 Adapter 只补 agent/task、前后台模式、notification/return、工具错误和恢复入口。
+Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation；本 Adapter 只补原生结果未携带且恢复必需的 agent/task、前后台模式、notification/return、工具错误和恢复入口。
 
 Human 输出遵循 Core 技术紧凑顺序；liveness 由当前前台调用或后台 completion/cancel 状态证明，timeout 不替代 terminal/cancel/完成证据。
 
-搜索、diff、日志和列表以 `80` 行/`6000` 字符为默认 soft budget，按消费者、风险和信号密度扩展。大原文已有消费者时写入 task-local 文件或既有 Artifact，否则保留在工具结果并定向读取；不为限额制造文件，截断不得隐藏失败、warning、未验证、Scope 偏离或授权阻塞。
+搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文已有消费者时写入 task-local 文件或既有 Artifact，否则保留工具 locator；不为限额制造文件，截断不得隐藏失败、warning、未验证、Scope 偏离或授权阻塞。
 
 ## 4. Manager 与 Artifact
 
-单个职责内有界 helper 不打开 Manager Gate。Manager Gate 开启后，每个 ready Packet 使用独立 `Agent` context；`parallel_expected` 成立时在消费 completion 前启动至少两个实例。共享工作树同一文件/输出不并行写；隔离 patch/候选实现可并行，由 integration owner 串行应用并处理共享生成物、Git 与整体验证。
+单个职责内有界 helper 不打开 Manager Gate。Manager Gate 开启后，每个 ready 单元使用独立 `Agent` context；`parallel_expected` 成立时在消费 completion 前启动至少两个实例。共享工作树同一文件/输出不并行写；隔离 patch/候选实现可并行，由 integration owner 串行应用并处理共享生成物、Git 与整体验证。
 
-completion 按 Packet revision/dedup 聚合；Packet report/notice 分别以 `20` 行/`3500` 字符和 `12` 行/`2000` 字符为 soft budget，按消费者和风险扩展，不为限额强制落 Artifact。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。
+completion 只在 transport 需要时核对 revision/dedup；结果按消费者和风险保留必要 delta，不为格式强制落 Artifact。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。
 
-Agent context 通过稳定 locator 读取 Scope、Artifact、原始 evidence、九个 Handoff 核心字段及可选 `Extensions`。恢复先核对 Task/Scope/Handoff revision/Entry Condition，不从隐藏历史猜测；不可达时停止 transition并记录唯一入口。
+Agent context 通过稳定 locator 读取 Scope、Artifact、原始 evidence 和当前 consumer 所需 Handoff 语义。恢复先核对可用 route identity、Scope、revision 与 Entry Condition，不从隐藏历史猜测；不可达时停止 transition 并记录唯一入口。
 
 ## 5. Discovery 与 Hook 边界
 

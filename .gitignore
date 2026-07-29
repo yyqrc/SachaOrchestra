@@ -9,3 +9,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# 仅保留在本机的项目记录，不进入公开仓库。
+/CPTOOLS-CAPABILITY-INTEGRATION.md
+/ITERATION-ROADMAP-PROPOSAL.md
+/docs/history/
+/docs/migrations/

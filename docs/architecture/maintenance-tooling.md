@@ -1,6 +1,6 @@
 # 会话驱动的维护工具方向
 
-> 状态：`context_probe.ps1`、`change_closeout.ps1` 已随 `0.2.3` 发布；其余为后续方向
+> 状态：Codex 本地检查已收敛到 FastCtx、`diff_digest.ps1` 和项目具名验证；其余为后续方向
 > 位置边界：被 Runtime/Role 直接消费的通用 helper 随 plugin 部署；项目或领域工具归对应项目/Provider；Core 不拥有脚本
 
 ## 1. 会话规律
@@ -12,10 +12,10 @@
 | 现象 | 结果 | 对应方向 |
 | --- | --- | --- |
 | 模型与工具往返 | 319 个模型回合、3075 次工具调用 | 合并同一阶段的机械调用 |
-| `functions.exec` 聚合不足 | 2380 次 `exec` 中 92.6% 只调用一个内部工具 | 用脚本一次完成稳定步骤，而不是只给单命令套 `exec` |
-| 读与搜索高频 | 读文件占 46.3%，搜索占 38.9%；`read + search` 组合出现 244 次 | 首先实现查询、计数、anchor 展开一体化 |
+| `functions.exec` 聚合不足 | 2380 次 `exec` 中 92.6% 只调用一个内部工具 | 独立步骤并行调用；重复且稳定的项目动作再脚本化 |
+| 读与搜索高频 | 读文件占 46.3%，搜索占 38.9%；`read + search` 组合出现 244 次 | FastCtx 先 grep，再局部 read |
 | 大输出集中 | 超过 6000 字符的输出占 30.5%，却占 86.7% 输出字符 | 默认摘要，原文落 `.temp/` 并返回 locator |
-| 项目侧重复 | LookDev/Client 频繁重复 status、diff、Unity 状态和同步检查 | 分别提供 change closeout、Unity probe 和 compact sync |
+| 项目侧重复 | LookDev/Client 频繁重复 status、diff、Unity 状态和同步检查 | `diff_digest.ps1`、领域 Unity probe 和 compact sync 各自处理 |
 
 另取最近 18 个 Sacha 会话作为维护流程对照：188 个模型回合、2300 次工具调用、27 次 compaction；`read + search` 组合 80 次，`diff + validate` 组合 77 次。Sacha 的首要重复项是候选版本收尾，不是再增加流程文档。
 
@@ -40,62 +40,15 @@
 - 输出长度分布和大输出来源；
 - JSON 摘要；不输出用户消息、代码正文或命令原文。
 
-### 2.2 `context_probe.ps1`
+### 2.2 当前本地检查
 
-把项目摸底阶段反复出现的 list、search、count、read anchor 和 VCS 状态合成一次只读调用。
+- 文件定位和读取：FastCtx `grep → read 30～100 行 → 必要时全文`。
+- Git/SVN 状态和 patch：全局 `diff_digest.ps1`。
+- 测试、validator、build 和 runtime：Project AGENTS/Domain Skill 选择最窄入口。
 
-实现：[plugin script](../../plugins/sacha-orchestra/scripts/context_probe.ps1)。默认输出与显式 `-Summary` 使用同一 summary 路径；`-Details` 才返回逐文件与逐 match 数组，两者不得同时指定。
+不再用第二层聚合脚本包装这些已有入口。
 
-输入：
-
-- `-Root`；
-- `-Query`、`-Path`、`-Anchor`；
-- include/exclude；
-- `-MaxLines`、`-MaxChars`。
-
-行为：
-
-- 并行执行文件清单、命中计数、目标符号搜索和 VCS 摘要；
-- 只有命中唯一或调用方指定 anchor 时才展开行段；
-- 适用 `AGENTS.md`、Skill 和规则文件只返回 locator，仍由模型按要求完整读取；
-- 原始结果写入 `.temp/context-probe/<run-id>/`。
-
-stdout 只返回一个 JSON：
-
-```json
-{
-  "status": "ok",
-  "files": 12,
-  "matches": 37,
-  "changed": 3,
-  "snippets": [],
-  "warnings": [],
-  "raw_dir": ".temp/context-probe/<run-id>"
-}
-```
-
-### 2.3 `change_closeout.ps1`
-
-把修改后的 status、diff 摘要、格式检查、链接检查和既有 validator 合成一次收尾。
-
-实现：[plugin script](../../plugins/sacha-orchestra/scripts/change_closeout.ps1)。默认输出与显式 `-Summary` 使用同一 summary 路径；`-Details` 才展开逐检查信息，两者不得同时指定。
-
-输入：
-
-- `-Root`；
-- `-Profile docs|plugin|unity|engine`；
-- `-ChangedPath`；
-- 可选的明确 build wrapper，不自行猜测构建命令。
-
-行为：
-
-- 复用 `diff_digest.ps1 -Mode Summary`；
-- 批量运行互不依赖的只读/static checks；Markdown 链接始终扫描全仓入链；
-- 完整日志写 `.temp/change-closeout/<run-id>/`；
-- 返回每项 `passed|failed|skipped`、退出码、失败摘要和 locator；存在跳过项时顶层为 `partial`；
-- 不执行 stage、commit、push、安装、Unity Refresh 或构建，除非调用方显式选择对应动作且已有授权。
-
-### 2.4 Unity `state_probe`
+### 2.3 Unity `state_probe`
 
 LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具拥有，不在 Sacha 复制 C#。
 
@@ -108,7 +61,7 @@ LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具�
 
 默认只读、不 Refresh、不切 PlayMode、不改对象。stdout 返回有界 JSON；完整日志、截图和对象清单只返回 locator。固定查询成熟后再落为项目 Editor helper。
 
-### 2.5 `sync_to_client.py` compact mode
+### 2.4 `sync_to_client.py` compact mode
 
 复用 LookDevProject 已有脚本，不另建同步实现。增加：
 
@@ -119,7 +72,7 @@ LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具�
 
 该模式只减少输出；不自动执行 SVN add/delete/commit，也不把格式差异误报为功能漂移。
 
-### 2.6 `task_handoff.ps1`
+### 2.5 `task_handoff.ps1`
 
 在调查已结束、目标和 locator 已冻结后生成短交接，供新 task 使用。
 
@@ -127,10 +80,9 @@ LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具�
 
 ## 3. 实现顺序
 
-1. 已实现：`context_probe.ps1` 覆盖三个重点项目最高频的 read/search 往返。
-2. 已实现：`change_closeout.ps1` 覆盖 Sacha 与 Client 的 diff/status/validate 收尾。
-3. 下一项：`sync_to_client.py --format json` 在现有安全同步路径上直接减输出。
-4. Unity `state_probe` 由 cgame-unity/消费项目根据真实重复 query 固化。
-5. `session_usage_digest.py` 与 `task_handoff.ps1` 分别用于持续发现高频模式和阶段切换。
+1. 已完成：FastCtx 负责本地 read/search，`diff_digest.ps1` 负责 VCS diff。
+2. 下一项：`sync_to_client.py --format json` 在现有安全同步路径上直接减输出。
+3. Unity `state_probe` 由 cgame-unity/消费项目根据真实重复 query 固化。
+4. `session_usage_digest.py` 与 `task_handoff.ps1` 分别用于持续发现高频模式和阶段切换。
 
 每个工具只在步骤已经稳定且跨会话重复时实现。仍需模型判断的方案、Scope、风险和授权不写进脚本。

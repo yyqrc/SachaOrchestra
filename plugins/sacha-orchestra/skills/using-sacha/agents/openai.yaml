@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "清晰任务直接执行，仅在编排实质改变执行方式时进入 Sacha"
-  default_prompt: "使用 $sacha-orchestra:using-sacha 直接执行清晰任务，仅在编排实质改变执行方式时建议 Sacha 路线。"
+  short_description: "清晰任务直接执行，任务演变改变执行方式时重新建议 Sacha"
+  default_prompt: "使用 $sacha-orchestra:using-sacha 直接执行清晰任务，并在任务演变会改变执行方式时重新建议 Sacha。"

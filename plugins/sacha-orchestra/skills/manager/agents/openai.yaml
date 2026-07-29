@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra Manager（并行协调）"
-  short_description: "在 Manager Gate 开启时组织安全并发并聚合 Work Packet 结果"
-  default_prompt: "使用 $sacha-orchestra:manager 在已开启的 Manager Gate 下组织 Work Packet 并聚合结果。"
+  short_description: "在 Manager Gate 开启时协调多个独立任务并安全聚合结果"
+  default_prompt: "使用 $sacha-orchestra:manager 协调已就绪的独立任务并聚合结果。"
