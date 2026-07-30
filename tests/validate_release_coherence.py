@@ -156,7 +156,7 @@ def main() -> int:
         "Intake Contract schema is not current",
     )
     check(
-        core_version is not None and core_version.group(1) == "9",
+        core_version is not None and core_version.group(1) == "10",
         "Workflow Contract schema is not current",
     )
     check(
@@ -168,7 +168,7 @@ def main() -> int:
         "Coordination Contract schema is not current",
     )
     check(
-        artifact_version is not None and artifact_version.group(1) == "3",
+        artifact_version is not None and artifact_version.group(1) == "4",
         "Artifact Protocol schema changed",
     )
     expected_mapping = (
