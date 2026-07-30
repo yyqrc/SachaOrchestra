@@ -295,23 +295,67 @@ def main() -> int:
         all(marker not in coordination + artifact for marker in fixed_dispatch_markers),
         "Current contracts still require retired fixed dispatch formatting",
     )
-    feedback_routing_contract = (
-        "只有唯一完整匹配才复用",
-        "新 context 不扩权",
-        "消费一次 terminal result",
+    feedback_skill = skill_documents_by_name["feedback"]
+    check(
+        all(
+            marker in feedback_skill + codex_adapter
+            for marker in (
+                "创建恰好一个 owner workspace 的 repair context",
+                "只调用一次 `create_thread`",
+                "在 owner workspace 创建一个 repair task",
+                "`wait_threads`",
+                "terminal join并消费一次结果",
+            )
+        ),
+        "Feedback unique owner with no match must create exactly one owner repair task and join",
     )
     check(
-        all(marker in skill_documents_by_name["feedback"] for marker in feedback_routing_contract),
-        "Feedback repair-target isolation contract is incomplete",
-    )
-    codex_feedback_routing_contract = (
-        "唯一匹配才复用",
-        "新 task 不扩权",
-        "Source 只 join 一次",
+        "只有唯一完整匹配才复用且不得重复创建" in feedback_skill
+        and "唯一匹配就复用且不调用 `create_thread`" in codex_adapter,
+        "Feedback unique matching target must be reused without duplicate creation",
     )
     check(
-        all(marker in codex_adapter for marker in codex_feedback_routing_contract),
-        "Codex Feedback repair-task routing contract is incomplete",
+        all(
+            marker in feedback_skill + codex_adapter
+            for marker in (
+                "helper 仍属于 Source",
+                "不能替代目标 workspace/context",
+                "Source-local helper",
+                "不能充当 repair target",
+            )
+        ),
+        "Feedback Source-local investigation helper must not satisfy repair-target identity",
+    )
+    check(
+        "无法消歧就问 Human" in feedback_skill and "不唯一请 Human 决定" in codex_adapter,
+        "Feedback ambiguous repair target must require Human decision",
+    )
+    check(
+        "Source 不设计或实施修复" in feedback_skill
+        and "不修改 repair source" in codex_adapter,
+        "Feedback Source must not modify repair source",
+    )
+    check(
+        "缺少授权时由 Target 暂停" in feedback_skill
+        and "Target 独立核对写入、Git、安装、发布授权" in codex_adapter,
+        "Feedback Target must independently stop on missing implementation or external-action authorization",
+    )
+    check(
+        "不得要求 Human 为创建同一目标再次授权" in feedback_skill
+        and "新 context 不扩权" in feedback_skill
+        and "新 task 不扩权" in codex_adapter,
+        "Feedback routing authority must not be confused with Target implementation authority",
+    )
+    coordination_feedback_contract = (
+        "显式 Feedback 的窄授权包含只读取证和完成 repair route",
+        "创建恰好一个 owner context并消费 terminal",
+        "不能以调查报告或再次询问同一目标的创建授权结束",
+        "investigation helper 不取得 repair owner、Role 或 identity",
+        "Target 独立核对实施与外部副作用授权",
+    )
+    check(
+        all(marker in coordination for marker in coordination_feedback_contract),
+        "Coordination Feedback deviation/return contract is incomplete",
     )
     intake_reassessment_contract = (
         "初次判断及 Direct 执行期间",

@@ -29,6 +29,8 @@ Clarify 先使用当前 context 可达事实；一个有界只读 helper 足够�
 
 Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/Role 对同一 revision 只返回一次结果、实际验证、阻塞/风险和必要 locator；原生 transport 无法消歧时才补 Task/Scope revision、Source/Target、owner 或 dedup。更正使用新 revision。
 
+显式 Feedback 的窄授权包含只读取证和完成 repair route。当 repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配的 owner context，或在无匹配时创建恰好一个 owner context并消费 terminal；不能以调查报告或再次询问同一目标的创建授权结束。Source 的只读 investigation helper 不取得 repair owner、Role 或 identity，不能充当 repair target。Target 独立核对实施与外部副作用授权。
+
 同一 payload 兼作 report/completion 时不重复内容；完整 report/evidence 仅在有消费者时落 Artifact。面向 Human 的 final 不是 transport，不展示内部字段表。
 
 根终态及结果：

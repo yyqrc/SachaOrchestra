@@ -44,7 +44,11 @@ dispatch 前先读取当前可用能力和宿主授权，不假定 `threadId`、
 4. Source 只发送目标/交付、允许范围、完成检查/停止条件和必要 locator；依赖、隔离、route identity 或 revision 只在当前 transport/consumer 需要时增加。
 5. owner 使用 transport 对应的 `wait_agent`/`wait_threads` 等 terminal join。定点 list/read 可诊断 identity 或工具异常，不得忙轮询；一种 transport 不可用时尝试同 Scope 安全替代，全部耗尽才进入 `completion_return_blocked`。
 
-Feedback target 按 workspace/project、Task/Scope、repair objective、owner/Role、revision/provenance 和可续发状态消歧；近似 cwd/仓库/标题不足。唯一匹配才复用；显式创建还要求 objective/Scope/owner 唯一，自动创建还要求已接受 lifecycle。新 task 不扩权；Source 只 join 一次且不写其他 task。
+Feedback Source-local helper 只读补证，不取得 target workspace、owner/Role 或 repair identity，不能充当 repair target。
+
+按 Skill identity 消歧：唯一匹配就复用且不调用 `create_thread`；不唯一请 Human 决定。显式修复、目标唯一、transport 可用且无匹配时，Source 只调用一次 `create_thread`，在 owner workspace 创建一个 repair task。自动 Feedback 还需已接受 lifecycle。新 task 不扩权；Target 独立核对写入、Git、安装、发布授权，缺少时暂停。
+
+Source 用 `wait_threads` terminal join并消费一次结果；`send_message_to_thread`、helper 或报告不能替代；且不修改 repair source、不重复创建或写其他 task。
 
 ### 3.2 Terminal return
 
