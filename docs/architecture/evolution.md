@@ -1,7 +1,7 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.5.0` Pi One-shot External Executor
-> 当前 source candidate：`0.6.0` Spec Artifact and Feedback Repair
+> 当前 release：`0.6.0` Spec Artifact and Feedback Repair
+> 当前 source candidate：无
 > 当前主线：Spec Artifact and owner-routed Feedback repair
 > 发布边界：`0.6.0` 统一 Spec Artifact/Spec storage，并要求显式 Feedback 对唯一 owner repair task 完成创建或复用与 terminal join；验证状态见 4.25
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
@@ -54,7 +54,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Lean Dispatch and Claude CLI One-shot | `0.4.0` released | Codex 管理 Claude CLI 单次候选实现；dispatch/return/Handoff 只提供消费者需要的信息 | source/static R5 `Accepted with follow-up`；精确安装、`40/40` parity 与 fresh discovery 已通过 |
 | Tooling Cleanup and Fable Routing | `0.4.1` released | Claude CLI helper 接受自定义 `fable` 模型；删除无消费者的本地读取和聚合验证脚本 | 快速发版；普通回归、安装、fresh discovery 与 runtime 未执行 |
 | Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
-| Spec Artifact and Feedback Repair | `0.6.0` source candidate | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
+| Spec Artifact and Feedback Repair | `0.6.0` released | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
 
 ## 3. 不变量
 
@@ -303,7 +303,7 @@ helper 固定关闭 session、自动 extension、Skill、prompt template 与 con
 
 guard、巡检器与 fake Pi 正反例已通过；四个当时可用的配置模型都经 `pi_once.ps1` 在独立 linked worktree 完成 `read → edit → read → sacha_result`，均为 `candidate/completed`、只修改目标文件且内容正确，耗时 `76.126s`、`21.448s`、`14.580s`、`14.013s`。该次本机清单只作 Runtime 证据，不进入源码。Project Setup `29/29`、setup Skill、官方 plugin validator、`0.5.0` candidate coherence 与 `git diff --check` 已通过。`sacha-orchestra@sacha` 已精确安装为 `0.5.0`，source/cache `40/40`、缺失/多余/hash mismatch 均为 `0`；fresh task 从安装 cache 加载 `using-sacha`，确认版本并保持 Direct。
 
-### 4.25 Source candidate：Spec Artifact 与 owner-routed Feedback
+### 4.25 Released：Spec Artifact 与 owner-routed Feedback
 
 `docs/plans/2026-07-30-spec-artifact-storage-repair/spec.md` 冻结由 `G:\COD\Client` 真实消费偏差触发的修复：持久 Scope 权威只称 `Spec Artifact`，Planner 需要持久化时在任务目录默认生成 `spec.md`；`Plan` 只保留为 lifecycle 中按需规划活动或 `inline plan`。
 
