@@ -1,6 +1,6 @@
 # Workflow Contract
 
-> Contract Version: 9
+> Contract Version: 10
 > Status: Normative Core kernel
 
 ## 1. 范围
@@ -16,7 +16,7 @@ Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 
 - 原始文件、外部状态和命令结果决定事实；Artifact/报告/自报只索引。
 - workflow owner 推进到根终态；Role/helper completion 只是中间结果。
 - 授权、Reviewer provenance、single writer、return identity/dedup、安全、Handoff 必要语义与原始证据权威不可降级。
-- 能在当前 context 完成就不持久化计划；只有批准、breaking 或恢复需要才写 Spec。没有消费者就不建 Artifact。
+- 能在当前 context 完成就不持久化；只有批准、breaking 或恢复需要才写 Spec Artifact。Plan 只表示按需规划活动或 inline plan，没有消费者就不建 Artifact。
 - 单个 Executor 或有界 helper 足够时不启用 Manager；多个独立单元、依赖图或多环境才协调。验证按真实风险从 diff/parse 扩到集成、发布或真实环境，不按固定套餐联动。
 - 三个 Gate 全关且无需恢复时，Executor 在当前 context 完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 

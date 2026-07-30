@@ -8,7 +8,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 工作流
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 接受事实、目标/Scope、授权、Entry Condition 和写入边界；两者皆无时不执行。
-2. 按 [Workflow Contract](../../core/workflow-contract.md) 直接实施；无消费者时不创建 Plan、Artifact、Review 或 Handoff。
+2. 按 [Workflow Contract](../../core/workflow-contract.md) 直接实施；无消费者时不创建 Spec Artifact、Review 或 Handoff。
 3. mapping 可用才调用对应 Skill；缺 Binding/mapping 时用 AGENTS、Domain Skill 或原生路线，不调用 Setup。
 4. 保护用户改动并维持 single writer，按依赖做最小修改。helper 只处理有界机械工作，不替代规则、授权和领域验证。
 5. 按风险验证并读取退出状态、错误、warning 和失败计数；区分通过、失败、未验证和跳过。

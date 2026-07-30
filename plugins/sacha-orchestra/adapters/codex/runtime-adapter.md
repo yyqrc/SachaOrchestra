@@ -1,6 +1,6 @@
 # Codex Runtime Adapter
 
-> Implements: Intake Contract 3；Workflow Contract 9；Assurance Contract 1；Coordination Contract 3；Artifact Protocol 3
+> Implements: Intake Contract 3；Workflow Contract 10；Assurance Contract 1；Coordination Contract 3；Artifact Protocol 4
 > Status: Normative Codex mapping
 
 ## 1. Boundary

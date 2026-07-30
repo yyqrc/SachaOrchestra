@@ -1,7 +1,7 @@
 # Sacha Orchestra 演进路线图
 
 > 当前 release：`0.5.0` Pi One-shot External Executor
-> 当前 source candidate：无
+> 当前 source candidate：Spec Artifact / Spec storage repair（产品版本未冻结）
 > 当前主线：Pi one-shot external executor
 > 发布边界：`0.5.0` 用带工具前置路径 guard 与事后 Git/ignored 检查的 Pi 单次执行替代 Codex 下的 Claude CLI helper；验证状态见 4.24
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
@@ -54,6 +54,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Lean Dispatch and Claude CLI One-shot | `0.4.0` released | Codex 管理 Claude CLI 单次候选实现；dispatch/return/Handoff 只提供消费者需要的信息 | source/static R5 `Accepted with follow-up`；精确安装、`40/40` parity 与 fresh discovery 已通过 |
 | Tooling Cleanup and Fable Routing | `0.4.1` released | Claude CLI helper 接受自定义 `fable` 模型；删除无消费者的本地读取和聚合验证脚本 | 快速发版；普通回归、安装、fresh discovery 与 runtime 未执行 |
 | Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
+| Spec Artifact terminology repair | 已批准本地源码修复 | 持久权威统一为 Spec Artifact；Planner 默认 `spec.md`；Project Integration 只使用 Spec storage | 产品版本、manifest、安装、Git 与发布未授权；无旧 Plan storage 读取或迁移 |
 
 ## 3. 不变量
 
@@ -71,7 +72,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 12. 已通过的 self-hosting 能力成为后续同类工作的默认路线；无法使用时必须说明真实缺口。
 13. 非 Direct 流程由根 workflow owner 持续推进到与真实结果匹配的合法根终态；Role/subagent completion 和同 Scope 返修/复验不是 Human checkpoint。
 
-改变生产 Role、Gate、Handoff 必要语义、扩展边界、权威边界或用户授权属于 Core breaking change，必须有迁移方案和独立 Review。
+改变生产 Role、Gate、Handoff 必要语义、扩展边界、权威边界或用户授权属于 Core breaking change，必须由 Spec 冻结兼容/迁移决定（可以明确为无兼容迁移）并保留独立 Review 边界。
 
 ## 4. 核心能力：Managed Parallel
 
@@ -242,7 +243,7 @@ Workflow Contract 5 从 Intake acceptance 开始；三个生产 Role、三个 Ga
 
 `0.2.1` 在不改变 Role、Gate、授权、九字段 Handoff 或证据权威的前提下减少 Codex active context：压缩常驻 Skill description；Executor-only D0 不预加载 Runtime Adapter；大工具输出使用摘要、计数、关键片段与 locator；Plan、Execution Report、Packet report 和 completion notice 使用可超限但不得丢失失败/风险的 soft budget；Sacha workspace 的常驻 AGENTS 只保留当前 authority、维护和验证纪律；release coherence 只检查机器可判定边界，不以自然语言 marker 代替语义 Review。
 
-同一 candidate 为 Schema v3 Project Integration 增加 Human-confirmed 文档策略、可移植或 non-portable 根及 bounded closeout 授权，并新增可执行的自包含 `change-archive`/`system-guide` generator/parser。Plan storage 与发布文档根独立配置，支持项目相对或外部绝对根；持久 Spec 才渐进消费 Plan storage，Setup 不创建目标根。发布型项目文档不属于 Artifact，不复制 Scope、Role 状态或证据权威。
+同一 candidate 为 Schema v3 Project Integration 增加 Human-confirmed 文档策略、可移植或 non-portable 根及 bounded closeout 授权，并新增可执行的自包含 `change-archive`/`system-guide` generator/parser。Spec storage 与发布文档根独立配置，支持项目相对或外部绝对根；持久 Spec 才渐进消费 Spec storage，Setup 不创建目标根。发布型项目文档不属于 Artifact，不复制 Scope、Role 状态或证据权威。
 
 ### 4.18 Released：Runtime Adapter Boundary Cleanup
 
@@ -260,7 +261,7 @@ source/static、精确安装和 source/cache `33/33` parity 已通过；fresh di
 
 能力具备可执行 owner 和入口后即可投入使用；真实运行失败用于收紧边界、补充案例并防止回归，不再单独建立“证明能够运行”的举证工程。历史 verdict 只保留在归档，不转写为当前待办。
 
-同一 release 归档 CGame 能力接入设计，补充 Provider、Plan storage、Project Documentation 与 experience candidate 的边界，取消以真实案例、SH3 或安装后验收作为 `1.0.0` 举证门槛，并刷新根/Plugin README。跨会话规律和高频步骤接口记录在 [`maintenance-tooling.md`](maintenance-tooling.md)。
+同一 release 归档 CGame 能力接入设计，补充 Provider、Spec storage、Project Documentation 与 experience candidate 的边界，取消以真实案例、SH3 或安装后验收作为 `1.0.0` 举证门槛，并刷新根/Plugin README。跨会话规律和高频步骤接口记录在 [`maintenance-tooling.md`](maintenance-tooling.md)。
 
 Codex 本地读取使用 FastCtx，VCS diff 使用全局 `diff_digest.ps1`，项目验证由 Project AGENTS/Domain Skill 选择。
 
@@ -301,6 +302,12 @@ Intake 3 与 Workflow 9 对齐 Planner candidate/Gate 和动态返回条件；�
 helper 固定关闭 session、自动 extension、Skill、prompt template 与 context file，只启用 `read,edit,write,sacha_result`。显式 `pi_guard.mjs` 在工具执行前拒绝越界、控制目录、symlink/junction 与多链接写目标；owner 仍在执行后核对 ignored 文件、Git metadata、HEAD、JSONL 终态和真实 diff。该应用层 guard 不声明 Windows OS sandbox。
 
 guard、巡检器与 fake Pi 正反例已通过；四个当时可用的配置模型都经 `pi_once.ps1` 在独立 linked worktree 完成 `read → edit → read → sacha_result`，均为 `candidate/completed`、只修改目标文件且内容正确，耗时 `76.126s`、`21.448s`、`14.580s`、`14.013s`。该次本机清单只作 Runtime 证据，不进入源码。Project Setup `29/29`、setup Skill、官方 plugin validator、`0.5.0` candidate coherence 与 `git diff --check` 已通过。`sacha-orchestra@sacha` 已精确安装为 `0.5.0`，source/cache `40/40`、缺失/多余/hash mismatch 均为 `0`；fresh task 从安装 cache 加载 `using-sacha`，确认版本并保持 Direct。
+
+### 4.25 Approved source repair：Spec Artifact 与 Spec storage
+
+`docs/plans/2026-07-30-spec-artifact-storage-repair/spec.md` 冻结由 `G:\COD\Client` 真实消费偏差触发的修复：持久 Scope 权威只称 `Spec Artifact`，Planner 需要持久化时在任务目录默认生成 `spec.md`；`Plan` 只保留为 lifecycle 中按需规划活动或 `inline plan`。
+
+Project Integration 的公开配置、生成器 Python API/JSON/CLI 与新输出统一为 `Spec storage`、`spec_storage`、`spec_root*`、`--spec-root*` 和 `- Spec：...`。本 repair 明确不读取或迁移旧 Plan storage 形态，也不修改外部消费项目文件。Artifact Contract 4 与 Workflow Contract 10 承载当前语义；产品版本和 deployment manifest 尚未冻结，安装、Git、tag、发布与 cache 均不在授权范围。
 
 ## 5. `1.0.0` 决策
 

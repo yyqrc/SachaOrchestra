@@ -71,8 +71,8 @@ class ProjectSetupTests(unittest.TestCase):
             "project_root": project,
             "manage_agents": True,
             "scm_provider": "none",
-            "plan_root_kind": "project-relative",
-            "plan_root": "docs/plans",
+            "spec_root_kind": "project-relative",
+            "spec_root": "docs/plans",
             "documentation_policy": "disabled",
         }
         values.update(overrides)
@@ -200,7 +200,7 @@ class ProjectSetupTests(unittest.TestCase):
         )
         self.assertEqual([], list(project.iterdir()))
 
-        changed_config = self.config(project, plan_root="plans")
+        changed_config = self.config(project, spec_root="plans")
         stale_confirmation = generator.run_setup(
             changed_config,
             write=True,
@@ -249,9 +249,9 @@ class ProjectSetupTests(unittest.TestCase):
             str(project),
             "--scm-provider",
             "none",
-            "--plan-root-kind",
+            "--spec-root-kind",
             "project-relative",
-            "--plan-root",
+            "--spec-root",
             "docs/plans",
             "--documentation-policy",
             "disabled",
@@ -269,12 +269,38 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
         self.assertEqual(
             {
-                "plan_storage": None,
+                "spec_storage": None,
                 "documentation": None,
             },
             dry_run["write_confirmation"]["current"],
         )
-        self.assertEqual("docs/plans", dry_run["write_confirmation"]["planned"]["plan_storage"]["root"])
+        self.assertEqual("docs/plans", dry_run["write_confirmation"]["planned"]["spec_storage"]["root"])
+        self.assertEqual(
+            "spec.md",
+            dry_run["write_confirmation"]["planned"]["spec_storage"]["file_name"],
+        )
+        self.assertEqual([], list(project.iterdir()))
+
+        legacy_noun = "pla" + "n"
+        rejected_legacy_cli = subprocess.run(
+            (
+                sys.executable,
+                "-B",
+                str(SETUP_SCRIPT),
+                "--project-root",
+                str(project),
+                f"--{legacy_noun}-root-kind",
+                "project-relative",
+                f"--{legacy_noun}-root",
+                "docs/plans",
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(2, rejected_legacy_cli.returncode)
+        self.assertIn("unrecognized arguments", rejected_legacy_cli.stderr)
         self.assertEqual([], list(project.iterdir()))
 
         unconfirmed_process = subprocess.run(
@@ -345,9 +371,9 @@ Inspect project state and return a bounded report.
                 str(project),
                 "--scm-provider",
                 "none",
-                "--plan-root-kind",
+                "--spec-root-kind",
                 "project-relative",
-                "--plan-root",
+                "--spec-root",
                 "docs/plans",
                 "--documentation-policy",
                 "disabled",
@@ -430,8 +456,8 @@ Inspect project state and return a bounded report.
             workflow.read_text(encoding="utf-8"),
         )
 
-    def test_plan_storage_is_explicit_separate_and_preserved(self) -> None:
-        missing_project = self.root / "plan-missing"
+    def test_spec_storage_is_explicit_separate_and_preserved(self) -> None:
+        missing_project = self.root / "spec-missing"
         missing_project.mkdir()
         missing = generator.run_setup(
             generator.SetupConfig(
@@ -442,18 +468,18 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", missing["status"])
-        self.assertIn("plan_root_kind", missing["conflicts"][0])
+        self.assertIn("spec_root_kind", missing["conflicts"][0])
 
-        project = self.root / "plan-storage"
+        project = self.root / "spec-storage"
         project.mkdir()
-        external_plan = self.root / "iwiki" / "docs"
-        external_plan.mkdir(parents=True)
+        external_spec = self.root / "iwiki" / "docs"
+        external_spec.mkdir(parents=True)
         configured = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
-                plan_root_kind="external-absolute",
-                plan_root=str(external_plan),
+                spec_root_kind="external-absolute",
+                spec_root=str(external_spec),
                 documentation_policy="on-request",
                 documentation_root_kind="project-relative",
                 documentation_root="docs/archive",
@@ -461,17 +487,18 @@ Inspect project state and return a bounded report.
             ),
         )
         self.assertEqual("committed", configured["transaction"])
-        self.assertEqual(str(external_plan), configured["plan_storage"]["root"])
-        self.assertEqual("non-portable", configured["plan_storage"]["portability"])
+        self.assertEqual(str(external_spec), configured["spec_storage"]["root"])
+        self.assertEqual("non-portable", configured["spec_storage"]["portability"])
+        self.assertEqual("spec.md", configured["spec_storage"]["file_name"])
         self.assertEqual("docs/archive", configured["documentation"]["root"])
         self.assertNotEqual(
-            configured["plan_storage"]["root"],
+            configured["spec_storage"]["root"],
             configured["documentation"]["root"],
         )
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
         self.assertIn("### Storage", content)
-        self.assertIn(f"- Plan：`{external_plan}`", content)
+        self.assertIn(f"- Spec：`{external_spec}`", content)
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -483,32 +510,63 @@ Inspect project state and return a bounded report.
             write=True,
         )
         self.assertEqual("no_changes", preserved["transaction"])
-        self.assertEqual(str(external_plan), preserved["plan_storage"]["root"])
+        self.assertEqual(str(external_spec), preserved["spec_storage"]["root"])
         self.assertEqual("docs/archive", preserved["documentation"]["root"])
 
-        missing_external = self.root / "missing-plan-root"
+        missing_external = self.root / "missing-spec-root"
         warned = generator.run_setup(
             self.config(
-                self.root / "plan-storage",
+                self.root / "spec-storage",
                 manage_agents=False,
-                plan_root_kind="external-absolute",
-                plan_root=str(missing_external),
+                spec_root_kind="external-absolute",
+                spec_root=str(missing_external),
             )
         )
         self.assertEqual("ready", warned["status"])
         self.assertFalse(missing_external.exists())
-        self.assertEqual("plan_root_unreachable", warned["warnings"][0]["kind"])
+        self.assertEqual("spec_root_unreachable", warned["warnings"][0]["kind"])
 
         unsafe = generator.run_setup(
             self.config(
-                self.root / "plan-storage",
+                self.root / "spec-storage",
                 manage_agents=False,
-                plan_root_kind="external-absolute",
-                plan_root="G:\\",
+                spec_root_kind="external-absolute",
+                spec_root="G:\\",
             )
         )
         self.assertEqual("refused", unsafe["status"])
-        self.assertIn("plan_root", unsafe["conflicts"][0])
+        self.assertIn("spec_root", unsafe["conflicts"][0])
+
+        legacy_project = self.root / "legacy-storage"
+        legacy_rule = legacy_project / "docs" / "workflow-rule.md"
+        legacy_rule.parent.mkdir(parents=True)
+        legacy_label = "Pla" + "n"
+        legacy_rule.write_text(
+            "\n".join(
+                (
+                    generator.GENERATOR_MARKER,
+                    generator.SCHEMA_MARKER,
+                    "# Sacha Orchestra 项目接入",
+                    "",
+                    "### Storage",
+                    "",
+                    f"- {legacy_label}：`docs/plans`",
+                    "- 项目文档：`disabled`",
+                    "",
+                )
+            ),
+            encoding="utf-8",
+        )
+        ignored_legacy_storage = generator.run_setup(
+            generator.SetupConfig(
+                project_root=legacy_project,
+                manage_agents=False,
+                scm_provider="none",
+                documentation_policy="disabled",
+            )
+        )
+        self.assertEqual("refused", ignored_legacy_storage["status"])
+        self.assertIn("spec_root_kind", ignored_legacy_storage["conflicts"][0])
 
     def test_pi_model_routing_is_setup_confirmed_and_preserved(self) -> None:
         project = self.root / "pi-model-routing"
@@ -1002,8 +1060,8 @@ Inspect project state and return a bounded report.
             project,
             manage_agents=False,
             scm_provider=None,
-            plan_root_kind=None,
-            plan_root=None,
+            spec_root_kind=None,
+            spec_root=None,
             documentation_policy=None,
             capability_bindings=desired,
             reconcile_capabilities=True,
@@ -1013,14 +1071,14 @@ Inspect project state and return a bounded report.
         update_preview = generator.run_setup(updated_config)
         self.assertEqual(
             {
-                "plan_storage": "existing-binding",
+                "spec_storage": "existing-binding",
                 "documentation": "existing-binding",
             },
             update_preview["write_confirmation"]["sources"],
         )
         self.assertEqual(
             "docs/plans",
-            update_preview["write_confirmation"]["current"]["plan_storage"]["root"],
+            update_preview["write_confirmation"]["current"]["spec_storage"]["root"],
         )
         unconfirmed = generator.run_setup(updated_config, write=True)
         self.assertEqual(

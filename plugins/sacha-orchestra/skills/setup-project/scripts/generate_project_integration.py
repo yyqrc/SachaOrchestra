@@ -35,8 +35,9 @@ PROJECT_SKILL_SIDE_EFFECTS = {
 DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
 DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
 DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
-PLAN_ROOT_KINDS = {"project-relative", "external-absolute"}
-PLAN_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
+SPEC_ROOT_KINDS = {"project-relative", "external-absolute"}
+SPEC_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
+SPEC_FILE_NAME = "spec.md"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
 PI_MODEL_ROUTES = {"standard", "pro", "lite"}
 MAX_DISCOVERY_FILES = 256
@@ -56,8 +57,8 @@ class SetupConfig:
     project_root: Path
     agents_path: str = "AGENTS.md"
     workflow_rule_path: str = "docs/workflow-rule.md"
-    plan_root_kind: str | None = None
-    plan_root: str | None = None
+    spec_root_kind: str | None = None
+    spec_root: str | None = None
     human_guide: str | None = None
     documentation_policy: str | None = None
     documentation_root_kind: str | None = None
@@ -284,27 +285,28 @@ def _normalize_storage_root(
     }, warnings
 
 
-def _normalize_plan_storage(
+def _normalize_spec_storage(
     root: Path,
     *,
     root_kind: str | None,
-    plan_root: str | None,
+    spec_root: str | None,
 ) -> tuple[dict[str, str], list[dict[str, str]]]:
-    if root_kind not in PLAN_ROOT_KINDS:
+    if root_kind not in SPEC_ROOT_KINDS:
         raise SetupError(
-            "plan_root_kind must be project-relative or external-absolute"
+            "spec_root_kind must be project-relative or external-absolute"
         )
-    if plan_root is None:
-        raise SetupError("plan_root is required")
+    if spec_root is None:
+        raise SetupError("spec_root is required")
     location, warnings = _normalize_storage_root(
         root,
         root_kind=root_kind,
-        configured_root=plan_root,
-        label="plan_root",
+        configured_root=spec_root,
+        label="spec_root",
     )
     return {
         **location,
-        "directory_pattern": PLAN_DIRECTORY_PATTERN,
+        "directory_pattern": SPEC_DIRECTORY_PATTERN,
+        "file_name": SPEC_FILE_NAME,
     }, warnings
 
 
@@ -980,26 +982,17 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
             ),
             "write_authorization": authorization,
         }
-    plan_storage: dict[str, str | None] = {}
-    plan_section = re.search(
-        r"(?ms)^### Plan storage\s*\n(.*?)(?=^### |^## |\Z)",
-        text,
-    )
-    if plan_section:
-        for key, value in re.findall(
-            r"(?m)^- (root kind|root|portability|directory pattern) = `([^`]+)`\r?$",
-            plan_section.group(1),
-        ):
-            plan_storage[key.replace(" ", "_")] = value
-    compact_plan = re.search(r"(?m)^- Plan：`([^`]+)`\r?$", text)
-    if compact_plan:
-        root = compact_plan.group(1)
+    spec_storage: dict[str, str | None] = {}
+    compact_spec = re.search(r"(?m)^- Spec：`([^`]+)`\r?$", text)
+    if compact_spec:
+        root = compact_spec.group(1)
         external = _contains_machine_absolute_path(root)
-        plan_storage = {
+        spec_storage = {
             "root_kind": "external-absolute" if external else "project-relative",
             "root": root,
             "portability": "non-portable" if external else "portable",
-            "directory_pattern": PLAN_DIRECTORY_PATTERN,
+            "directory_pattern": SPEC_DIRECTORY_PATTERN,
+            "file_name": SPEC_FILE_NAME,
         }
     return {
         "schema_version": schema_version,
@@ -1013,7 +1006,7 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
         "capability_dirty": tuple(capability_dirty),
         "pi_model_bindings": tuple(pi_model_bindings),
         "documentation": documentation,
-        "plan_storage": plan_storage,
+        "spec_storage": spec_storage,
     }
 
 
@@ -1377,7 +1370,7 @@ def _reconcile_capabilities(
 def render_workflow_rule(
     agents_path: str,
     workflow_rule_path: str,
-    plan_storage: Mapping[str, str],
+    spec_storage: Mapping[str, str],
     human_guide: str | None,
     discovery: Mapping[str, object],
     capability_bindings: tuple[dict[str, str], ...],
@@ -1453,7 +1446,7 @@ def render_workflow_rule(
             + "\n".join(pi_model_lines)
             + "\n\n仅供本项目 Runtime 使用；由 `setup-project` 从本机 Pi 可用模型确认，不复制到 plugin 源码。"
         )
-    storage_lines = [f"- Plan：`{plan_storage['root']}`"]
+    storage_lines = [f"- Spec：`{spec_storage['root']}`"]
     if documentation["policy"] == "disabled":
         storage_lines.append("- 项目文档：`disabled`")
     else:
@@ -1652,17 +1645,17 @@ def run_setup(
             documentation_root=documentation_root,
             write_authorization=documentation_write_authorization,
         )
-        if config.plan_root_kind is None:
-            existing_plan_storage = existing_values.get("plan_storage", {})
-            plan_root_kind = existing_plan_storage.get("root_kind")
-            plan_root = existing_plan_storage.get("root")
+        if config.spec_root_kind is None:
+            existing_spec_storage = existing_values.get("spec_storage", {})
+            spec_root_kind = existing_spec_storage.get("root_kind")
+            spec_root = existing_spec_storage.get("root")
         else:
-            plan_root_kind = config.plan_root_kind
-            plan_root = config.plan_root
-        plan_storage, plan_warnings = _normalize_plan_storage(
+            spec_root_kind = config.spec_root_kind
+            spec_root = config.spec_root
+        spec_storage, spec_warnings = _normalize_spec_storage(
             root,
-            root_kind=plan_root_kind,
-            plan_root=plan_root,
+            root_kind=spec_root_kind,
+            spec_root=spec_root,
         )
         expected_agents = _normalize_hash(config.expected_agents_sha256, "expected_agents_sha256")
         expected_workflow = _normalize_hash(config.expected_workflow_sha256, "expected_workflow_sha256")
@@ -1736,9 +1729,9 @@ def run_setup(
     result["discovery"] = discovery
     result["documentation"] = documentation
     result["warnings"].extend(documentation_warnings)
-    result["plan_storage"] = plan_storage
+    result["spec_storage"] = spec_storage
     result["pi_model_bindings"] = list(pi_model_bindings)
-    result["warnings"].extend(plan_warnings)
+    result["warnings"].extend(spec_warnings)
     selected_project_roots = {
         str(item["path"])
         for item in discovery["skill_root_bindings"]
@@ -1816,7 +1809,7 @@ def run_setup(
         workflow_generated = render_workflow_rule(
             agents_rel,
             workflow_rel,
-            plan_storage,
+            spec_storage,
             human_guide,
             discovery,
             effective_capabilities,
@@ -1913,16 +1906,16 @@ def run_setup(
 
     result["changed_files"] = [target["relative"] for target in targets]
     current_configuration = {
-        "plan_storage": existing_values.get("plan_storage") or None,
+        "spec_storage": existing_values.get("spec_storage") or None,
         "documentation": existing_values.get("documentation") or None,
     }
     planned_configuration = {
-        "plan_storage": plan_storage,
+        "spec_storage": spec_storage,
         "documentation": documentation,
     }
     configuration_sources = {
-        "plan_storage": (
-            "existing-binding" if config.plan_root_kind is None else "explicit-input"
+        "spec_storage": (
+            "existing-binding" if config.spec_root_kind is None else "explicit-input"
         ),
         "documentation": (
             "existing-binding"
@@ -2104,8 +2097,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--agents-path", default="AGENTS.md")
     parser.add_argument("--workflow-rule-path", default="docs/workflow-rule.md")
-    parser.add_argument("--plan-root-kind", choices=tuple(sorted(PLAN_ROOT_KINDS)))
-    parser.add_argument("--plan-root")
+    parser.add_argument("--spec-root-kind", choices=tuple(sorted(SPEC_ROOT_KINDS)))
+    parser.add_argument("--spec-root")
     parser.add_argument("--human-guide")
     parser.add_argument("--documentation-policy", choices=tuple(sorted(DOCUMENTATION_POLICIES)))
     parser.add_argument("--documentation-root-kind", choices=tuple(sorted(DOCUMENTATION_ROOT_KINDS)))
@@ -2145,8 +2138,8 @@ def main() -> int:
         project_root=args.project_root,
         agents_path=args.agents_path,
         workflow_rule_path=args.workflow_rule_path,
-        plan_root_kind=args.plan_root_kind,
-        plan_root=args.plan_root,
+        spec_root_kind=args.spec_root_kind,
+        spec_root=args.spec_root,
         human_guide=args.human_guide,
         documentation_policy=args.documentation_policy,
         documentation_root_kind=args.documentation_root_kind,

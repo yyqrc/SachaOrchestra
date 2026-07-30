@@ -60,12 +60,12 @@ Setup 分别确认四类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
-| Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Plan/文档路径、写入授权 |
-| Plan storage | Setup/Human、Planner 消费 | 独立 root、portability、任务目录模式 | 是否需要持久 Plan、发布文档 |
-| Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization | Plan/Review/Handoff 权威、provider mapping |
+| Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
+| Spec storage | Setup/Human、Planner 消费 | 独立 root、portability、任务目录模式、默认 `spec.md` | 是否需要持久 Spec、发布文档 |
+| Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization | Spec/Review/Handoff 权威、provider mapping |
 | Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Plan root、文档策略、文档 root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开 capability 候选；不得选择 Spec root、文档策略、文档 root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
 ## Role 消费
 
@@ -88,7 +88,7 @@ Provider 可声明 `experience.extract` 一类 `read_only` capability，把真�
 - 只以当前源码、配置、产物、日志或 Runtime 观察为证据，会话总结和 Agent 自报只作 locator；
 - 返回项目事实，以及候选短句、适用边界、现有 Reference 缺口、最短 evidence locator 和静态/编译/Runtime 验证边界；无合格候选时明确返回“无”。
 
-调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Plan/Execution Report/Review locator 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。
+调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review locator 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。
 
 项目事实归项目文档。跨项目候选要进入 provider 时，须在正常任务交付后取得 Human 同意，再路由到 provider 维护流程，以当前证据独立复核后迭代 canonical Skill/reference；不得让只读 `experience.extract` 自动 self-modify、创建任务、写文件或发 PR。维护流程不是公开消费能力时，不因存在于 `skills/` 就加入 capability catalog。
 

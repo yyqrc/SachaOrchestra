@@ -16,7 +16,7 @@ description: 按项目策略生成自包含 change archive/system guide；不替
 
 ## 边界
 
-- 发布型项目文档不是 Plan/Execution Report/Review/Handoff，不改变权威或复制任务状态。
+- 发布型项目文档不是 Spec Artifact/Execution Report/Review/Handoff，不改变权威或复制任务状态。
 - 内部 task/thread ID、缓存路径和不可发布 evidence locator 不进入正文。
 - generator 只证明输入、授权、路径与静态结构；Runtime trigger、内容语义质量和真实外部副作用需对应证据。
 - 安装、Git、发布、外部消息及根外写入仍需各自授权。

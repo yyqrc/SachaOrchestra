@@ -14,14 +14,14 @@ description: 显式生成或刷新 Sacha Project Integration；发现并按正�
 5. 把评估交给 [生成器](scripts/generate_project_integration.py)。生成器拒绝证据过期、只引 frontmatter、不可见或缺入口；load policy 由 Setup/Human 决定。
 6. 可能使用 Pi 时运行[巡检器](scripts/inspect_pi_models.ps1)读取 `--list-models`；把既有 route 作为 `-ConfiguredModel` 传入并保持优先。
 7. 其余按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 模糊筛选。展示候选后，由 Human 以 `--pi-model-binding <route>::<provider/model>` 保存；plugin 不保存完整型号。
-8. 从现有配置形成 current/recommended。未明确的 Plan/文档值、授权或 Pi 路由展示一次完整 delta 并等待 Human 明确确认；历史 Binding 不是本轮写入授权。
+8. 从现有配置形成 current/recommended。未明确的 Spec/文档值、授权或 Pi 路由展示一次完整 delta 并等待 Human 明确确认；历史 Binding 不是本轮写入授权。
 9. 先 dry-run，报告冲突、warning 和 `planned_delta_sha256`；确认后才用 `--confirmed-planned-delta-sha256` 写入。delta 或旧 hash 变化时拒绝；写后 check，`partial_write` 保留现场。
 
 ## 边界
 
 - 普通任务不调用；dry-run 不授权写入。
 - marker 外 Project AGENTS byte-for-byte；原子写入并补偿恢复。
-- Plan 根和文档根相互独立；外部根标记 non-portable，拒绝文件系统根。
+- Spec 根和文档根相互独立；外部根标记 non-portable，拒绝文件系统根。
 - Provider id/Skill/副作用变化须显式刷新；policy 只由 Setup/Human 确认。
 - 既有 Pi 路由默认保留；只有 Human 明确要求才用 `--clear-pi-model-bindings` 清空。精确型号只属于目标项目 Runtime 配置。
 - Skill assessment 不写入 Binding；rerun 重新读取正文。
