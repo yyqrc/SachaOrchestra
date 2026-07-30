@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.4.2` Task Evolution Intake Reassessment
+> 当前 release：`0.5.0` Pi One-shot External Executor
 > 当前 source candidate：无
-> 当前主线：Task-evolution-aware intake
-> 发布边界：`0.4.2` 让 using-sacha 在 Direct 任务发生语义转折时重新判断入口，同时保持复杂、耗时、多文件或多平台本身不触发；验证状态见 4.23
+> 当前主线：Pi one-shot external executor
+> 发布边界：`0.5.0` 用带工具前置路径 guard 与事后 Git/ignored 检查的 Pi 单次执行替代 Codex 下的 Claude CLI helper；验证状态见 4.24
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -53,6 +53,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Project Skill Capability Admission | `0.3.3` released | setup 完整读取 authority/independent 项目 Skill 正文，拆分 goal unit 并只映射可调度能力 | 正文证据与 deterministic guard、真实项目只读 dry-run 已通过；安装、fresh Runtime discovery 与消费项目写入未验证 |
 | Lean Dispatch and Claude CLI One-shot | `0.4.0` released | Codex 管理 Claude CLI 单次候选实现；dispatch/return/Handoff 只提供消费者需要的信息 | source/static R5 `Accepted with follow-up`；精确安装、`40/40` parity 与 fresh discovery 已通过 |
 | Tooling Cleanup and Fable Routing | `0.4.1` released | Claude CLI helper 接受自定义 `fable` 模型；删除无消费者的本地读取和聚合验证脚本 | 快速发版；普通回归、安装、fresh discovery 与 runtime 未执行 |
+| Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
 
 ## 3. 不变量
 
@@ -292,6 +293,14 @@ fake CLI 行为测试、Project Setup `27/27`、受影响 Skill quick validate�
 `0.4.2` 要求 `using-sacha` 在初次判断及 Direct 执行中的语义转折点重新评估。预计需要关键 Human 澄清、先冻结/持久化 Spec、跨 context owner/恢复、难回退跨 owner 决策、正式协调或独立验收会改变执行方式时，可形成新的 Sacha candidate；同一 candidate 仍只询问一次。
 
 Intake 3 与 Workflow 9 对齐 Planner candidate/Gate 和动态返回条件；复杂调试、耗时、文件多、多平台或持续验证本身仍保持 Direct。本次按快速发版收尾，只核对版本与 Git 发布身份；普通回归、Skill/Plugin validator、完整 release coherence、fresh discovery 和 Runtime smoke 不作为发布 Gate，安装证据在发布后单独核对。
+
+### 4.24 Released：Pi One-shot External Executor
+
+`0.5.0` 删除 Codex 下的 `claude_once.ps1`，由 `pi_once.ps1` 接管低返工、自包含、隔离且可确定验证的单次候选实现，并把 repo-local marketplace 身份从 `personal` 改为 `sacha`。plugin 只定义 `standard`、`pro`、`lite` 路由槽位；setup-project 优先保留项目配置，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名巡检 Pi 候选，其中 lite 优先 DeepSeek、以 GPT Luna 为备选。源码不硬编码完整 provider/model，无匹配时使用 Pi Runtime default。
+
+helper 固定关闭 session、自动 extension、Skill、prompt template 与 context file，只启用 `read,edit,write,sacha_result`。显式 `pi_guard.mjs` 在工具执行前拒绝越界、控制目录、symlink/junction 与多链接写目标；owner 仍在执行后核对 ignored 文件、Git metadata、HEAD、JSONL 终态和真实 diff。该应用层 guard 不声明 Windows OS sandbox。
+
+guard、巡检器与 fake Pi 正反例已通过；四个当时可用的配置模型都经 `pi_once.ps1` 在独立 linked worktree 完成 `read → edit → read → sacha_result`，均为 `candidate/completed`、只修改目标文件且内容正确，耗时 `76.126s`、`21.448s`、`14.580s`、`14.013s`。该次本机清单只作 Runtime 证据，不进入源码。Project Setup `29/29`、setup Skill、官方 plugin validator、`0.5.0` candidate coherence 与 `git diff --check` 已通过。`sacha-orchestra@sacha` 已精确安装为 `0.5.0`，source/cache `40/40`、缺失/多余/hash mismatch 均为 `0`；fresh task 从安装 cache 加载 `using-sacha`，确认版本并保持 Direct。
 
 ## 5. `1.0.0` 决策
 

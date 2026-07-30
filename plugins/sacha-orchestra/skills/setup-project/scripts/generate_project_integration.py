@@ -38,6 +38,7 @@ DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmatio
 PLAN_ROOT_KINDS = {"project-relative", "external-absolute"}
 PLAN_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
+PI_MODEL_ROUTES = {"standard", "pro", "lite"}
 MAX_DISCOVERY_FILES = 256
 MAX_DISCOVERY_FILE_BYTES = 256 * 1024
 MACHINE_ABSOLUTE_PATH = re.compile(
@@ -70,6 +71,8 @@ class SetupConfig:
     skill_root_bindings: tuple[str, ...] = ()
     capability_bindings: tuple[str, ...] = ()
     reconcile_capabilities: bool = False
+    pi_model_bindings: tuple[str, ...] = ()
+    clear_pi_model_bindings: bool = False
     unavailable_capability_skills: tuple[str, ...] = ()
     assess_project_skills: bool = False
     visible_project_skills: tuple[str, ...] = ()
@@ -395,6 +398,31 @@ def _parse_capability_bindings(values: tuple[str, ...]) -> tuple[dict[str, str],
         if capability_id in parsed:
             raise SetupError(f"duplicate capability binding: {capability_id}")
         parsed[capability_id] = {"id": capability_id, "skill": skill, "load_policy": policy}
+    return tuple(parsed[key] for key in sorted(parsed))
+
+
+def _parse_pi_model_bindings(values: tuple[str, ...]) -> tuple[dict[str, str], ...]:
+    parsed: dict[str, dict[str, str]] = {}
+    for value in values:
+        parts = value.split("::")
+        if len(parts) != 2:
+            raise SetupError("pi_model_binding must be <route>::<provider/model>")
+        route = parts[0]
+        model = parts[1]
+        if route != route.strip() or route != route.casefold() or route not in PI_MODEL_ROUTES:
+            raise SetupError(
+                "Pi model route must be standard, pro or lite"
+            )
+        if (
+            model != model.strip()
+            or not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", model)
+        ):
+            raise SetupError(
+                "Pi model must be an exact provider/model without whitespace or control characters"
+            )
+        if route in parsed:
+            raise SetupError(f"duplicate Pi model route: {route}")
+        parsed[route] = {"route": route, "model": model}
     return tuple(parsed[key] for key in sorted(parsed))
 
 
@@ -904,6 +932,21 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
                 "skill": match.group(2),
                 "load_policy": match.group(3),
             })
+    pi_model_bindings = []
+    pi_model_section = re.search(
+        r"(?ms)^### Pi one-shot model routing\s*\n(.*?)(?=^### |^## |\Z)",
+        text,
+    )
+    if pi_model_section:
+        for line in pi_model_section.group(1).splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("仅供本项目 Runtime 使用；"):
+                continue
+            match = re.fullmatch(r"- `([^`]+)` -> `([^`]+)`", stripped)
+            if match is None:
+                raise SetupError("managed Pi model routing is malformed")
+            route, model = match.groups()
+            pi_model_bindings.append({"route": route, "model": model})
     documentation: dict[str, str | None] = {}
     documentation_section = re.search(
         r"(?ms)^### Project documentation\s*\n(.*?)(?=^### |^## |\Z)",
@@ -968,6 +1011,7 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
         "skill_root_bindings": tuple(skill_root_bindings),
         "capability_bindings": tuple(capability_bindings),
         "capability_dirty": tuple(capability_dirty),
+        "pi_model_bindings": tuple(pi_model_bindings),
         "documentation": documentation,
         "plan_storage": plan_storage,
     }
@@ -1337,6 +1381,7 @@ def render_workflow_rule(
     human_guide: str | None,
     discovery: Mapping[str, object],
     capability_bindings: tuple[dict[str, str], ...],
+    pi_model_bindings: tuple[dict[str, str], ...],
     documentation: Mapping[str, str | None],
 ) -> bytes:
     scm = discovery["scm"]
@@ -1398,6 +1443,16 @@ def render_workflow_rule(
         sections.append("### Skill roots\n\n" + "\n".join(skill_lines))
     if capability_lines:
         sections.append("### Capability bindings\n\n" + "\n".join(capability_lines))
+    if pi_model_bindings:
+        pi_model_lines = [
+            f"- `{item['route']}` -> `{item['model']}`"
+            for item in pi_model_bindings
+        ]
+        sections.append(
+            "### Pi one-shot model routing\n\n"
+            + "\n".join(pi_model_lines)
+            + "\n\n仅供本项目 Runtime 使用；由 `setup-project` 从本机 Pi 可用模型确认，不复制到 plugin 源码。"
+        )
     storage_lines = [f"- Plan：`{plan_storage['root']}`"]
     if documentation["policy"] == "disabled":
         storage_lines.append("- 项目文档：`disabled`")
@@ -1639,6 +1694,19 @@ def run_setup(
                 for item in existing_values.get("skill_root_bindings", ())
             ))
         capability_bindings = _parse_capability_bindings(config.capability_bindings)
+        if config.pi_model_bindings and config.clear_pi_model_bindings:
+            raise SetupError(
+                "pi_model_bindings and clear_pi_model_bindings are mutually exclusive"
+            )
+        if config.clear_pi_model_bindings:
+            pi_model_bindings: tuple[dict[str, str], ...] = ()
+        elif config.pi_model_bindings:
+            pi_model_bindings = _parse_pi_model_bindings(config.pi_model_bindings)
+        else:
+            pi_model_bindings = _parse_pi_model_bindings(tuple(
+                f"{item['route']}::{item['model']}"
+                for item in existing_values.get("pi_model_bindings", ())
+            ))
         unavailable_skills = _normalize_unavailable_skills(config.unavailable_capability_skills)
         existing_capabilities = tuple(existing_values.get("capability_bindings", ()))
         capability_dirty = tuple(str(item) for item in existing_values.get("capability_dirty", ()))
@@ -1669,6 +1737,7 @@ def run_setup(
     result["documentation"] = documentation
     result["warnings"].extend(documentation_warnings)
     result["plan_storage"] = plan_storage
+    result["pi_model_bindings"] = list(pi_model_bindings)
     result["warnings"].extend(plan_warnings)
     selected_project_roots = {
         str(item["path"])
@@ -1751,6 +1820,7 @@ def run_setup(
             human_guide,
             discovery,
             effective_capabilities,
+            pi_model_bindings,
             documentation,
         )
         workflow_action = "unchanged" if workflow_preimage == workflow_generated else ("update" if workflow_existed else "create")
@@ -2052,6 +2122,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skill-root-binding", action="append", default=[])
     parser.add_argument("--capability-binding", action="append", default=[])
     parser.add_argument("--reconcile-capabilities", action="store_true")
+    parser.add_argument("--pi-model-binding", action="append", default=[])
+    parser.add_argument("--clear-pi-model-bindings", action="store_true")
     parser.add_argument("--unavailable-capability-skill", action="append", default=[])
     parser.add_argument("--assess-project-skills", action="store_true")
     parser.add_argument("--visible-project-skill", action="append", default=[])
@@ -2088,6 +2160,8 @@ def main() -> int:
         skill_root_bindings=tuple(args.skill_root_binding),
         capability_bindings=tuple(args.capability_binding),
         reconcile_capabilities=args.reconcile_capabilities,
+        pi_model_bindings=tuple(args.pi_model_binding),
+        clear_pi_model_bindings=args.clear_pi_model_bindings,
         unavailable_capability_skills=tuple(args.unavailable_capability_skill),
         assess_project_skills=args.assess_project_skills,
         visible_project_skills=tuple(args.visible_project_skill),

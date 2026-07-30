@@ -56,15 +56,16 @@ Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确�
 
 ## Project Integration 同层配置
 
-Setup 分别确认三类项目值，不得互相推导：
+Setup 分别确认四类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Plan/文档路径、写入授权 |
 | Plan storage | Setup/Human、Planner 消费 | 独立 root、portability、任务目录模式 | 是否需要持久 Plan、发布文档 |
 | Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization | Plan/Review/Handoff 权威、provider mapping |
+| Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Plan root、文档策略、文档 root 或写入授权。三类值可在同一次 Setup 集中确认，但 Binding 中各自独立保存、rerun 分别保留。
+Provider query 只展开 capability 候选；不得选择 Plan root、文档策略、文档 root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
 ## Role 消费
 

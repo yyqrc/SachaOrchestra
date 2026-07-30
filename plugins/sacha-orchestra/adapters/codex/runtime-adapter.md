@@ -75,15 +75,23 @@ Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation；�
 
 搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文有消费者时写 task-local/Artifact，否则保留工具 locator；截断不得丢失失败、warning、未验证、Scope 偏离或授权阻塞。
 
-### 3.4 本地 Claude CLI one-shot
+### 3.4 本地 Pi one-shot
 
-目标/验收冻结、输入自包含且不依赖未提交改动、写入隔离、验证确定、无需 Human/外部副作用且失败可接管时，Executor 可选本地 Claude CLI。它是候选实现 helper，不是 Role/Reviewer/workflow owner；否则使用 Codex 原生路线。
+目标/验收冻结、输入自包含且不依赖未提交改动、写入隔离、验证确定、无需 Human/外部副作用且失败可接管时，Executor 可选本地 Pi。它是候选实现 helper，不是 Role/Reviewer/workflow owner；否则使用 Codex 原生路线。
 
-integration owner 准备干净、精确 HEAD 的 linked worktree和自包含任务，再调用 [claude once](../../scripts/claude_once.ps1)，给出 Prompt、显式读写路径和 model/effort。helper 只暴露路径限定的 Read/Edit/Write，使用 `dontAsk`、最小 JSON 结果和无 session persistence，不提供 Bash、不管理 worktree、不 commit/集成。
+Human/Scope 精确 model/effort 优先；自动路由只选择项目配置中的通用槽位：
 
-路径权限约束 Claude Code 内建文件工具，不是原生 Windows OS sandbox；调用方必须信任 `ClaudePath` 指向的 executable。owner 仍检查 ignored 文件、Git metadata、HEAD 和真实 diff。真实 Claude 能力只由实际调用证明。
+| 条件 | Route | Setup family filter |
+| --- | --- | --- |
+| 高复杂度、长依赖链、复杂调试/集成或多阶段验证 | `pro` | `kimi k3` |
+| 普通自包含实现 | `standard` | `glm-5.2` |
+| 低返工且追求轻量性价比 | `lite` | `deepseek`，优先 v4/pro；`gpt-5.6 luna` 为备选 |
 
-owner 核对退出码、stdout/stderr、HEAD、范围和真实 diff并重跑验收。失败不集成、不 resume；旧进程 terminal 后由 Codex subagent 消费原任务、候选 diff、实际失败和审查意见。
+精确 `provider/model` 只来自 `setup-project` 读取本机 `pi --list-models` 的巡检或 Human 确认的 Project Integration；plugin 不保存 provider 清单或完整型号。优先级是 Human 本次精确配置、已确认项目 route、按上表筛出的候选、Pi Runtime default；项目配置即使当前清单缺失也不被自动替换，而是 warning。显式型号与 effective 不一致时失败，不静默换型。
+
+integration owner 准备干净、精确 HEAD 的 linked worktree和自包含任务，再调用 [pi once](../../scripts/pi_once.ps1)，给出 Prompt、显式读写路径及可选完整 model。helper 使用 JSON event stream、无 session、关闭自动 extension/Skill/prompt/context，只启用 `read,edit,write,sacha_result`；显式 guard 在工具执行前拒绝越界、控制目录、symlink/junction 和多链接写目标，Pi 只能以终止型结构化结果收尾。
+
+guard 和事后检查是应用层 containment，不是原生 Windows OS sandbox；调用方必须信任 `PiPath` 指向的 executable。owner 仍核对 ignored 文件、Git metadata、HEAD、退出码、JSONL、结构化 outcome 和真实 diff，并重跑验收。失败不集成、不 resume；旧进程 terminal 后由 Codex subagent 消费原任务、候选 diff、实际失败和审查意见。
 
 ## 4. Manager、Goal 与 Artifact
 

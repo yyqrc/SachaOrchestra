@@ -3,12 +3,12 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$toolPath = Join-Path $repositoryRoot 'plugins\sacha-orchestra\scripts\claude_once.ps1'
+$toolPath = Join-Path $repositoryRoot 'plugins\sacha-orchestra\scripts\pi_once.ps1'
 $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
 $testParent = Join-Path $repositoryRoot '.temp\tests'
-$testRoot = Join-Path $testParent ('claude-once-' + [Guid]::NewGuid().ToString('N'))
+$testRoot = Join-Path $testParent ('pi-once-' + [Guid]::NewGuid().ToString('N'))
 $mainRoot = Join-Path $testRoot 'repo'
-$fakeClaude = Join-Path $testRoot 'fake-claude.ps1'
+$fakePi = Join-Path $testRoot 'fake-pi.ps1'
 $worktrees = [System.Collections.Generic.List[string]]::new()
 
 function Assert-True {
@@ -62,7 +62,7 @@ function Invoke-Helper {
         [string[]]$ReadPath = @('src/base.txt'),
         [string[]]$WritePath = @('src/out.txt'),
         [string]$PromptPath,
-        [ValidateSet('sonnet', 'opus', 'fable')][string]$Model = 'sonnet',
+        [AllowEmptyString()][string]$Model = 'test-provider/standard-model',
         [string]$Mode = 'success'
     )
 
@@ -72,9 +72,9 @@ function Invoke-Helper {
     if ([string]::IsNullOrWhiteSpace($PromptPath)) {
         $PromptPath = Join-Path $Worktree '.temp\packet.md'
     }
-    $savedMode = $env:SACHA_FAKE_CLAUDE_MODE
+    $savedMode = $env:SACHA_FAKE_PI_MODE
     try {
-        $env:SACHA_FAKE_CLAUDE_MODE = $Mode
+        $env:SACHA_FAKE_PI_MODE = $Mode
         $arguments = @(
             '-NoProfile',
             '-File', $toolPath,
@@ -85,16 +85,18 @@ function Invoke-Helper {
         ) + $ReadPath + @(
             '-WritePath'
         ) + $WritePath + @(
-            '-ClaudePath', $fakeClaude,
-            '-Model', $Model,
+            '-PiPath', $fakePi,
             '-RunId', ('test-' + [Guid]::NewGuid().ToString('N')),
             '-TimeoutSeconds', '30'
         )
+        if (-not [string]::IsNullOrWhiteSpace($Model)) {
+            $arguments += @('-Model', $Model)
+        }
         $raw = @(& $pwsh @arguments)
         $code = $LASTEXITCODE
     }
     finally {
-        $env:SACHA_FAKE_CLAUDE_MODE = $savedMode
+        $env:SACHA_FAKE_PI_MODE = $savedMode
     }
     $text = $raw -join [Environment]::NewLine
     try {
@@ -113,19 +115,17 @@ function Invoke-Helper {
 $null = New-Item -ItemType Directory -Path $mainRoot -Force
 try {
     [System.IO.File]::WriteAllText(
-        $fakeClaude,
+        $fakePi,
         @'
 if ($args -contains '--version') {
-    Write-Output 'fake-claude 1.0'
+    Write-Output 'fake-pi 1.0'
     exit 0
 }
 if ($args -contains '--help') {
-    Write-Output '--print --safe-mode --no-session-persistence --json-schema --permission-mode --allowedTools --tools --prompt-suggestions --effort --model'
+    Write-Output '--print --no-session --mode --model --thinking --tools --extension --no-extensions --no-skills --no-prompt-templates --no-context-files --no-approve --append-system-prompt'
     exit 0
 }
 
-[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
-$prompt = [Console]::In.ReadToEnd()
 $captureDir = Join-Path (Get-Location).Path '.temp'
 $null = New-Item -ItemType Directory -Path $captureDir -Force
 [System.IO.File]::WriteAllText(
@@ -133,13 +133,29 @@ $null = New-Item -ItemType Directory -Path $captureDir -Force
     ($args | ConvertTo-Json -Compress),
     [System.Text.UTF8Encoding]::new($false)
 )
+$promptReference = @($args | Where-Object { $_ -is [string] -and $_.StartsWith('@') })[-1]
+$prompt = if ($promptReference) {
+    [System.IO.File]::ReadAllText($promptReference.Substring(1), [System.Text.Encoding]::UTF8)
+}
+else {
+    ''
+}
 [System.IO.File]::WriteAllText(
     (Join-Path $captureDir 'fake-prompt.md'),
     $prompt,
     [System.Text.UTF8Encoding]::new($false)
 )
+[System.IO.File]::WriteAllText(
+    (Join-Path $captureDir 'fake-scope.json'),
+    (@{
+        root = $env:SACHA_PI_ROOT
+        read = $env:SACHA_PI_READ_PATHS_JSON
+        write = $env:SACHA_PI_WRITE_PATHS_JSON
+    } | ConvertTo-Json -Compress),
+    [System.Text.UTF8Encoding]::new($false)
+)
 
-switch ($env:SACHA_FAKE_CLAUDE_MODE) {
+switch ($env:SACHA_FAKE_PI_MODE) {
     'scope' {
         [System.IO.File]::WriteAllText(
             (Join-Path (Get-Location).Path 'outside.txt'),
@@ -194,11 +210,46 @@ switch ($env:SACHA_FAKE_CLAUDE_MODE) {
     }
 }
 
+@{ type = 'agent_start' } | ConvertTo-Json -Compress
+$modelIndex = [Array]::IndexOf($args, '--model')
+$effectiveModel = if ($env:SACHA_FAKE_PI_MODE -eq 'model-mismatch') {
+    'other-provider/other-model'
+}
+elseif ($modelIndex -ge 0) {
+    $args[$modelIndex + 1]
+}
+else {
+    'runtime-provider/runtime-default'
+}
+$modelParts = $effectiveModel -split '/', 2
 @{
-    outcome = 'completed'
-    summary = 'fake candidate'
-    blockers = @()
-} | ConvertTo-Json -Compress
+    type = 'message_start'
+    message = @{
+        role = 'assistant'
+        provider = $modelParts[0]
+        model = $modelParts[1]
+    }
+} | ConvertTo-Json -Compress -Depth 4
+if ($env:SACHA_FAKE_PI_MODE -ne 'no-result') {
+    $outcome = if ($env:SACHA_FAKE_PI_MODE -eq 'blocked') { 'blocked' } else { 'completed' }
+    $blockers = if ($outcome -eq 'blocked') { @('fake blocker') } else { @() }
+    @{
+        type = 'tool_execution_end'
+        toolCallId = 'result-1'
+        toolName = 'sacha_result'
+        result = @{
+            content = @(@{ type = 'text'; text = 'fake result' })
+            details = @{
+                outcome = $outcome
+                summary = 'fake candidate'
+                blockers = $blockers
+            }
+        }
+        isError = $false
+    } | ConvertTo-Json -Compress -Depth 8
+}
+@{ type = 'agent_end'; messages = @(); willRetry = $false } | ConvertTo-Json -Compress -Depth 8
+@{ type = 'agent_settled' } | ConvertTo-Json -Compress
 exit 0
 '@,
         [System.Text.UTF8Encoding]::new($false)
@@ -217,7 +268,7 @@ exit 0
     & git -C $mainRoot init --quiet
     & git -C $mainRoot config core.autocrlf false
     & git -C $mainRoot config user.email 'test@example.invalid'
-    & git -C $mainRoot config user.name 'Claude Once Test'
+    & git -C $mainRoot config user.name 'Pi Once Test'
     & git -C $mainRoot add .
     & git -C $mainRoot commit --quiet -m init
 
@@ -239,35 +290,71 @@ exit 0
     Assert-True ($success.data.changed_files.Count -eq 1) '成功结果应只有一个变更文件'
     Assert-True ($success.data.changed_files[0] -eq 'src/out.txt') '成功结果文件错误'
     Assert-True ($success.data.scope_violations.Count -eq 0) '成功结果不应越界'
-    Assert-True ([bool]$success.data.stdout_json_valid) '成功 stdout 必须是 JSON'
+    Assert-True ([bool]$success.data.stdout_json_valid) '成功 stdout 必须是 JSONL'
+    Assert-True ([bool]$success.data.agent_settled) '成功结果必须到达 agent_settled'
+    Assert-True ([bool]$success.data.structured_result_received) '成功结果必须包含 sacha_result'
+    Assert-True ($success.data.outcome -eq 'completed') '成功结果 outcome 错误'
     Assert-True ([bool]$success.data.capabilities_verified) '成功前必须核对 CLI 能力'
-    Assert-True (Test-Path -LiteralPath (Join-Path $successRoot $success.data.raw_dir 'stdout.json')) '必须保留 stdout locator'
+    Assert-True ($success.data.requested_model -eq 'test-provider/standard-model') '请求型号未进入摘要'
+    Assert-True ($success.data.effective_model -eq 'test-provider/standard-model') '实际型号未进入摘要'
+    Assert-True (Test-Path -LiteralPath (Join-Path $successRoot $success.data.raw_dir 'stdout.jsonl')) '必须保留 stdout locator'
     $capturedArgs = [System.IO.File]::ReadAllText((Join-Path $successRoot '.temp\fake-args.json'))
-    foreach ($required in @('-p', '--safe-mode', '--no-session-persistence', '--disable-slash-commands', 'dontAsk')) {
-        Assert-True ($capturedArgs.Contains($required)) "Claude 参数缺少：$required"
-    }
-    Assert-True (-not $capturedArgs.Contains('--dangerously-skip-permissions')) '不得跳过权限'
-    foreach ($requiredRule in @(
-        'Read(/src/base.txt)',
-        'Read(/src/base.txt/**)',
-        'Read(/src/out.txt)',
-        'Edit(/src/out.txt)',
-        'Read,Edit,Write'
+    foreach ($required in @(
+        '-p',
+        '--no-session',
+        '--mode',
+        'json',
+        '--no-extensions',
+        '--extension',
+        'pi_guard.mjs',
+        '--no-skills',
+        '--no-prompt-templates',
+        '--no-context-files',
+        '--no-approve',
+        '--thinking',
+        'read,edit,write,sacha_result'
     )) {
-        Assert-True ($capturedArgs.Contains($requiredRule)) "Claude 路径权限缺少：$requiredRule"
+        Assert-True ($capturedArgs.Contains($required)) "Pi 参数缺少：$required"
     }
-    foreach ($forbiddenTool in @('"Read"', '"Edit"', '"Write"', 'Bash', 'Glob', 'Grep')) {
-        Assert-True (-not $capturedArgs.Contains($forbiddenTool)) "Claude 权限不得包含裸工具或子进程工具：$forbiddenTool"
-    }
+    $capturedArgList = @($capturedArgs | ConvertFrom-Json)
+    $toolsIndex = [Array]::IndexOf($capturedArgList, '--tools')
+    Assert-True ($toolsIndex -ge 0) 'Pi 参数缺少 --tools'
+    Assert-True ($capturedArgList[$toolsIndex + 1] -eq 'read,edit,write,sacha_result') 'Pi 工具 allowlist 不精确'
     $capturedPrompt = [System.IO.File]::ReadAllText((Join-Path $successRoot '.temp\fake-prompt.md'))
-    Assert-True ($capturedPrompt.Contains('只修改 src/out.txt')) "Prompt 未通过 stdin 完整传递：$capturedPrompt"
+    Assert-True ($capturedPrompt.Contains('只修改 src/out.txt')) "Prompt 未通过 @file 完整传递：$capturedPrompt"
+    $capturedScope = [System.IO.File]::ReadAllText((Join-Path $successRoot '.temp\fake-scope.json')) | ConvertFrom-Json
+    Assert-True ($capturedScope.root -eq $successRoot) 'Pi guard Root 未通过子进程环境传递'
+    Assert-True ($capturedScope.read.Contains('src/base.txt')) 'Pi guard ReadPath 未传递'
+    Assert-True ($capturedScope.write.Contains('src/out.txt')) 'Pi guard WritePath 未传递'
 
-    $fableRoot = New-LinkedWorktree -Name 'worktree-fable'
-    $fable = Invoke-Helper -Worktree $fableRoot -Model 'fable'
-    Assert-True ($fable.code -eq 0) "fable 候选应返回 0：$($fable.text)"
-    Assert-True ($fable.data.model -eq 'fable') 'fable 模型未进入运行摘要'
-    $fableArgs = [System.IO.File]::ReadAllText((Join-Path $fableRoot '.temp\fake-args.json'))
-    Assert-True ($fableArgs.Contains('fable')) 'fable 模型未传给 Claude CLI'
+    foreach ($model in @(
+        'test-provider/pro-model',
+        'test-provider/lite-deepseek-model',
+        'test-provider/lite-gpt-model'
+    )) {
+        $modelName = ($model -split '/')[-1]
+        $modelRoot = New-LinkedWorktree -Name ('worktree-model-' + $modelName)
+        $modelResult = Invoke-Helper -Worktree $modelRoot -Model $model
+        Assert-True ($modelResult.code -eq 0) "$model 候选应返回 0：$($modelResult.text)"
+        Assert-True ($modelResult.data.requested_model -eq $model) "$model 未进入请求摘要"
+        Assert-True ($modelResult.data.effective_model -eq $model) "$model 未进入实际摘要"
+        $modelArgs = [System.IO.File]::ReadAllText((Join-Path $modelRoot '.temp\fake-args.json'))
+        Assert-True ($modelArgs.Contains($model)) "$model 未传给 Pi CLI"
+    }
+
+    $defaultModelRoot = New-LinkedWorktree -Name 'worktree-runtime-default'
+    $defaultModel = Invoke-Helper -Worktree $defaultModelRoot -Model $null
+    Assert-True ($defaultModel.code -eq 0) "Runtime default 候选应返回 0：$($defaultModel.text)"
+    Assert-True ([string]::IsNullOrWhiteSpace([string]$defaultModel.data.requested_model)) '省略型号时 requested_model 应为空'
+    Assert-True ($defaultModel.data.effective_model -eq 'runtime-provider/runtime-default') 'Runtime default 实际型号未记录'
+    $defaultArgs = [System.IO.File]::ReadAllText((Join-Path $defaultModelRoot '.temp\fake-args.json')) | ConvertFrom-Json
+    Assert-True (-not (@($defaultArgs) -contains '--model')) '未配置型号时不得传 --model'
+
+    $mismatchRoot = New-LinkedWorktree -Name 'worktree-model-mismatch'
+    $mismatch = Invoke-Helper -Worktree $mismatchRoot -Mode 'model-mismatch'
+    Assert-True ($mismatch.code -eq 3) '实际型号不一致必须返回 3'
+    Assert-True ($mismatch.data.status -eq 'pi_failed') '型号不一致必须标记 pi_failed'
+    Assert-True ($mismatch.data.error.Contains('effective model 与请求不一致')) '型号不一致诊断不明确'
 
     $scopeRoot = New-LinkedWorktree -Name 'worktree-scope'
     $scope = Invoke-Helper -Worktree $scopeRoot -Mode 'scope'
@@ -333,7 +420,7 @@ exit 0
         $unsafe = Invoke-Helper -Worktree $unsafeRoot -ReadPath @($unsafePath)
         Assert-True ($unsafe.code -eq 2) "危险 ReadPath 必须拒绝：$unsafePath"
         Assert-True ($unsafe.data.error.Contains('ReadPath')) "危险 ReadPath 诊断不明确：$unsafePath"
-        Assert-True (-not (Test-Path -LiteralPath (Join-Path $unsafeRoot '.temp\fake-args.json'))) "危险 ReadPath 不得启动 Claude：$unsafePath"
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $unsafeRoot '.temp\fake-args.json'))) "危险 ReadPath 不得启动 Pi：$unsafePath"
     }
 
     $outsidePromptRoot = New-LinkedWorktree -Name 'worktree-outside-prompt'
@@ -343,16 +430,27 @@ exit 0
 
     $failureRoot = New-LinkedWorktree -Name 'worktree-failure'
     $failure = Invoke-Helper -Worktree $failureRoot -Mode 'fail'
-    Assert-True ($failure.code -eq 3) 'Claude 失败必须返回 3'
-    Assert-True ($failure.data.status -eq 'claude_failed') 'Claude 失败状态错误'
-    Assert-True ($failure.data.claude_exit_code -eq 7) 'Claude 原始退出码丢失'
+    Assert-True ($failure.code -eq 3) 'Pi 失败必须返回 3'
+    Assert-True ($failure.data.status -eq 'pi_failed') 'Pi 失败状态错误'
+    Assert-True ($failure.data.pi_exit_code -eq 7) 'Pi 原始退出码丢失'
 
     $invalidRoot = New-LinkedWorktree -Name 'worktree-invalid-json'
     $invalid = Invoke-Helper -Worktree $invalidRoot -Mode 'invalid-json'
     Assert-True ($invalid.code -eq 3) '非法 JSON 必须返回 3'
     Assert-True (-not [bool]$invalid.data.stdout_json_valid) '非法 JSON 不得标记有效'
 
-    Write-Output 'claude_once_tests=passed'
+    $missingResultRoot = New-LinkedWorktree -Name 'worktree-no-result'
+    $missingResult = Invoke-Helper -Worktree $missingResultRoot -Mode 'no-result'
+    Assert-True ($missingResult.code -eq 3) '缺少 sacha_result 必须返回 3'
+    Assert-True (-not [bool]$missingResult.data.structured_result_received) '缺少结果不得标记已收到'
+
+    $blockedRoot = New-LinkedWorktree -Name 'worktree-blocked'
+    $blocked = Invoke-Helper -Worktree $blockedRoot -Mode 'blocked'
+    Assert-True ($blocked.code -eq 3) 'blocked outcome 必须返回 3'
+    Assert-True ($blocked.data.outcome -eq 'blocked') 'blocked outcome 丢失'
+    Assert-True (@($blocked.data.blockers) -contains 'fake blocker') 'blocked 原因丢失'
+
+    Write-Output 'pi_once_tests=passed'
 }
 finally {
     foreach ($worktree in $worktrees) {

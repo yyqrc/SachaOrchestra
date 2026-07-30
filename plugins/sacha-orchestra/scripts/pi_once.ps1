@@ -5,11 +5,10 @@ param(
     [Parameter(Mandatory)][string]$ExpectedHead,
     [Parameter(Mandatory)][string[]]$WritePath,
     [string[]]$ReadPath = @(),
-    [string]$ClaudePath = 'claude',
-    [ValidateSet('sonnet', 'opus', 'fable')][string]$Model = 'sonnet',
+    [string]$PiPath = 'pi',
+    [AllowNull()][ValidatePattern('^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')][string]$Model,
     [ValidateSet('low', 'medium', 'high', 'xhigh', 'max')][string]$Effort = 'high',
     [ValidateRange(30, 86400)][int]$TimeoutSeconds = 1800,
-    [ValidateRange(0, 1000000)][decimal]$MaxBudgetUsd = 0,
     [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')][string]$RunId = ([Guid]::NewGuid().ToString('N'))
 )
 
@@ -95,7 +94,7 @@ function Resolve-Command {
             source     = $source
         }
     }
-    throw "ClaudePath 必须解析为 .ps1 或 .exe：$source"
+    throw "PiPath 必须解析为 .ps1 或 .exe：$source"
 }
 
 function Invoke-Process {
@@ -104,6 +103,7 @@ function Invoke-Process {
         [Parameter(Mandatory)][string[]]$Arguments,
         [Parameter(Mandatory)][string]$WorkingDirectory,
         [AllowEmptyString()][string]$StandardInput = '',
+        [hashtable]$Environment = @{},
         [Parameter(Mandatory)][int]$TimeoutMilliseconds
     )
 
@@ -120,6 +120,9 @@ function Invoke-Process {
     $startInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
     foreach ($argument in @($CommandInfo.prefix) + $Arguments) {
         $null = $startInfo.ArgumentList.Add($argument)
+    }
+    foreach ($name in $Environment.Keys) {
+        $startInfo.Environment[$name] = [string]$Environment[$name]
     }
 
     $process = [System.Diagnostics.Process]::new()
@@ -312,24 +315,30 @@ function Compare-FileState {
 }
 
 $summary = [ordered]@{
-    status              = 'error'
-    run_id              = $RunId
-    model               = $Model
-    effort              = $Effort
-    claude_version      = $null
-    capabilities_verified = $false
-    claude_exit_code    = $null
-    timed_out           = $false
-    duration_ms         = 0
-    head_before         = $null
-    head_after          = $null
-    changed_files       = @()
-    scope_violations    = @()
+    status                   = 'error'
+    run_id                   = $RunId
+    requested_model          = $Model
+    effective_model          = $null
+    effort                   = $Effort
+    pi_version               = $null
+    capabilities_verified    = $false
+    pi_exit_code             = $null
+    timed_out                = $false
+    duration_ms              = 0
+    head_before              = $null
+    head_after               = $null
+    changed_files            = @()
+    scope_violations         = @()
     ignored_scope_violations = @()
-    git_metadata_changed = $false
-    stdout_json_valid   = $false
-    raw_dir             = $null
-    error               = $null
+    git_metadata_changed     = $false
+    stdout_json_valid        = $false
+    agent_settled            = $false
+    structured_result_received = $false
+    outcome                  = $null
+    result_summary           = $null
+    blockers                 = @()
+    raw_dir                  = $null
+    error                    = $null
 }
 $scriptExitCode = 2
 
@@ -373,7 +382,7 @@ try {
         throw "linked worktree 不是干净基线：$($preexisting -join '; ')"
     }
 
-    $rawPath = Join-Path $rootPath ('.temp\sacha-claude\' + $RunId)
+    $rawPath = Join-Path $rootPath ('.temp\sacha-pi\' + $RunId)
     $rawParent = Split-Path -Parent $rawPath
     Assert-NoReparseAncestor -RootPath $rootPath -CandidatePath $rawParent
     $null = New-Item -ItemType Directory -Path $rawParent -Force
@@ -383,82 +392,69 @@ try {
     $null = New-Item -ItemType Directory -Path $rawPath
     $summary.raw_dir = (Get-RelativePath -BasePath $rootPath -TargetPath $rawPath)
 
-    $commandInfo = Resolve-Command -Command $ClaudePath
+    $commandInfo = Resolve-Command -Command $PiPath
     $versionResult = Invoke-Process `
         -CommandInfo $commandInfo `
         -Arguments @('--version') `
         -WorkingDirectory $rootPath `
         -TimeoutMilliseconds 20000
     if ($versionResult.exit_code -ne 0) {
-        throw "claude --version 失败：$($versionResult.stderr.Trim())"
+        throw "pi --version 失败：$($versionResult.stderr.Trim())"
     }
-    $summary.claude_version = $versionResult.stdout.Trim()
+    $summary.pi_version = $versionResult.stdout.Trim()
     $helpResult = Invoke-Process `
         -CommandInfo $commandInfo `
         -Arguments @('--help') `
         -WorkingDirectory $rootPath `
         -TimeoutMilliseconds 20000
     if ($helpResult.exit_code -ne 0) {
-        throw "claude --help 失败：$($helpResult.stderr.Trim())"
+        throw "pi --help 失败：$($helpResult.stderr.Trim())"
     }
     foreach ($marker in @(
         '--print',
-        '--safe-mode',
-        '--no-session-persistence',
-        '--json-schema',
-        '--permission-mode',
-        '--allowedTools',
+        '--no-session',
+        '--mode',
+        '--model',
+        '--thinking',
         '--tools',
-        '--prompt-suggestions',
-        '--effort',
-        '--model'
+        '--extension',
+        '--no-extensions',
+        '--no-skills',
+        '--no-prompt-templates',
+        '--no-context-files',
+        '--no-approve',
+        '--append-system-prompt'
     )) {
         if (-not $helpResult.stdout.Contains($marker)) {
-            throw "当前 Claude CLI 不支持所需能力：$marker"
+            throw "当前 Pi CLI 不支持所需能力：$marker"
         }
     }
     $summary.capabilities_verified = $true
 
-    $schema = [ordered]@{
-        type                 = 'object'
-        additionalProperties = $false
-        properties           = [ordered]@{
-            outcome  = @{ type = 'string'; enum = @('completed', 'blocked', 'failed') }
-            summary  = @{ type = 'string' }
-            blockers = @{ type = 'array'; items = @{ type = 'string' } }
-        }
-        required             = @('outcome', 'summary')
-    } | ConvertTo-Json -Depth 8 -Compress
+    $guardPath = Join-Path $PSScriptRoot 'pi_guard.mjs'
+    if (-not (Test-Path -LiteralPath $guardPath -PathType Leaf)) {
+        throw "Pi guard extension 不存在：$guardPath"
+    }
+    Assert-NoReparseAncestor -RootPath (Split-Path -Parent $PSScriptRoot) -CandidatePath $guardPath
 
-    $allowedTools = @()
-    foreach ($path in $readPaths) {
-        $permissionPath = '/' + $path.TrimStart('/')
-        $allowedTools += @("Read($permissionPath)", "Read($permissionPath/**)")
-    }
-    foreach ($path in $allowedPaths) {
-        $permissionPath = '/' + $path.TrimStart('/')
-        $allowedTools += @("Edit($permissionPath)", "Edit($permissionPath/**)")
-    }
     $arguments = @(
         '-p',
-        '--safe-mode',
-        '--no-session-persistence',
-        '--disable-slash-commands',
-        '--no-chrome',
-        '--prompt-suggestions', 'false',
-        '--permission-mode', 'dontAsk',
-        '--model', $Model,
-        '--effort', $Effort,
-        '--output-format', 'json',
-        '--json-schema', $schema,
-        '--tools', 'Read,Edit,Write',
-        '--allowedTools'
-    ) + $allowedTools + @(
+        '--no-session',
+        '--mode', 'json',
+        '--thinking', $Effort,
+        '--no-extensions',
+        '--extension', $guardPath,
+        '--no-skills',
+        '--no-prompt-templates',
+        '--no-context-files',
+        '--no-approve',
+        '--tools', 'read,edit,write,sacha_result',
         '--append-system-prompt',
-        'You are a one-shot implementation worker. Use only the allowed paths, do not create commits or alter Git metadata, stop instead of requesting interaction, and return only the required structured result.'
+        'You are a one-shot implementation worker. Use only the active tools and allowed paths. Do not create commits or alter Git metadata. Do not ask for interaction. Finish by calling sacha_result exactly once; use completed only after implementation and available verification, otherwise report blocked or failed.',
+        ('@' + $promptResolved)
     )
-    if ($MaxBudgetUsd -gt 0) {
-        $arguments += @('--max-budget-usd', $MaxBudgetUsd.ToString([Globalization.CultureInfo]::InvariantCulture))
+    if (-not [string]::IsNullOrWhiteSpace($Model)) {
+        $arguments = @($arguments[0..3]) + @('--model', $Model) + @($arguments[4..($arguments.Count - 1)])
     }
 
     $prompt = [System.IO.File]::ReadAllText($promptResolved, [System.Text.Encoding]::UTF8)
@@ -473,14 +469,18 @@ try {
         -CommandInfo $commandInfo `
         -Arguments $arguments `
         -WorkingDirectory $rootPath `
-        -StandardInput $prompt `
+        -Environment @{
+            SACHA_PI_ROOT = $rootPath
+            SACHA_PI_READ_PATHS_JSON = (ConvertTo-Json -InputObject @($readPaths) -Compress)
+            SACHA_PI_WRITE_PATHS_JSON = (ConvertTo-Json -InputObject @($allowedPaths) -Compress)
+        } `
         -TimeoutMilliseconds ($TimeoutSeconds * 1000)
 
-    $summary.claude_exit_code = $result.exit_code
+    $summary.pi_exit_code = $result.exit_code
     $summary.timed_out = $result.timed_out
     $summary.duration_ms = $result.duration_ms
     [System.IO.File]::WriteAllText(
-        (Join-Path $rawPath 'stdout.json'),
+        (Join-Path $rawPath 'stdout.jsonl'),
         $result.stdout,
         [System.Text.UTF8Encoding]::new($false)
     )
@@ -489,12 +489,65 @@ try {
         $result.stderr,
         [System.Text.UTF8Encoding]::new($false)
     )
-    try {
-        $null = $result.stdout | ConvertFrom-Json
-        $summary.stdout_json_valid = $true
+    $events = @()
+    $jsonLines = @(
+        $result.stdout -split '\r?\n' |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    $summary.stdout_json_valid = $jsonLines.Count -gt 0
+    foreach ($line in $jsonLines) {
+        try {
+            $events += $line | ConvertFrom-Json
+        }
+        catch {
+            $summary.stdout_json_valid = $false
+            break
+        }
     }
-    catch {
-        $summary.stdout_json_valid = $false
+    if ($summary.stdout_json_valid) {
+        $modelEvents = @($events | Where-Object {
+            $null -ne $_.message -and
+            $_.message.role -eq 'assistant' -and
+            -not [string]::IsNullOrWhiteSpace([string]$_.message.model)
+        })
+        if ($modelEvents.Count -gt 0) {
+            $effectiveMessage = $modelEvents[-1].message
+            $summary.effective_model = if (
+                -not [string]::IsNullOrWhiteSpace([string]$effectiveMessage.provider)
+            ) {
+                "$($effectiveMessage.provider)/$($effectiveMessage.model)"
+            }
+            else {
+                [string]$effectiveMessage.model
+            }
+        }
+        $summary.agent_settled = @($events | Where-Object {
+            $_.type -eq 'agent_settled'
+        }).Count -gt 0
+        $resultEvents = @($events | Where-Object {
+            $_.type -eq 'tool_execution_end' -and
+            $_.toolName -eq 'sacha_result' -and
+            -not [bool]$_.isError
+        })
+        if ($resultEvents.Count -gt 0) {
+            $details = $resultEvents[-1].result.details
+            if (
+                $null -ne $details -and
+                $details.outcome -in @('completed', 'blocked', 'failed') -and
+                $details.summary -is [string] -and
+                $details.PSObject.Properties.Name -contains 'blockers'
+            ) {
+                $summary.structured_result_received = $true
+                $summary.outcome = $details.outcome
+                $summary.result_summary = $details.summary
+                $summary.blockers = if ($null -eq $details.blockers) {
+                    @()
+                }
+                else {
+                    @($details.blockers)
+                }
+            }
+        }
     }
 
     $gitStateAfter = Get-DirectoryFileState -DirectoryPath $gitDirectory
@@ -532,29 +585,56 @@ try {
     ) {
         $summary.status = 'containment_failed'
         $summary.error = if ($scopeViolations.Count -gt 0) {
-            "Claude 写出允许范围：$($scopeViolations -join ', ')"
+            "Pi 写出允许范围：$($scopeViolations -join ', ')"
         }
         elseif ($summary.git_metadata_changed) {
-            'Claude 改变了 linked worktree Git metadata'
+            'Pi 改变了 linked worktree Git metadata'
         }
         elseif ($postGitError) {
-            "Claude 破坏了 linked worktree Git 状态：$postGitError"
+            "Pi 破坏了 linked worktree Git 状态：$postGitError"
         }
         else {
-            'Claude 改变了 worktree HEAD'
+            'Pi 改变了 worktree HEAD'
         }
         $scriptExitCode = 4
     }
-    elseif ($result.timed_out -or $result.exit_code -ne 0 -or -not $summary.stdout_json_valid) {
-        $summary.status = 'claude_failed'
+    elseif (
+        $result.timed_out -or
+        $result.exit_code -ne 0 -or
+        -not $summary.stdout_json_valid -or
+        -not $summary.agent_settled -or
+        -not $summary.structured_result_received -or
+        (
+            -not [string]::IsNullOrWhiteSpace($Model) -and
+            -not $Model.Equals([string]$summary.effective_model, [StringComparison]::OrdinalIgnoreCase)
+        ) -or
+        $summary.outcome -ne 'completed' -or
+        $summary.blockers.Count -gt 0
+    ) {
+        $summary.status = 'pi_failed'
         $summary.error = if ($result.timed_out) {
-            "Claude 超过 TimeoutSeconds=$TimeoutSeconds"
+            "Pi 超过 TimeoutSeconds=$TimeoutSeconds"
         }
         elseif ($result.exit_code -ne 0) {
-            "Claude 退出码：$($result.exit_code)"
+            "Pi 退出码：$($result.exit_code)"
+        }
+        elseif (-not $summary.stdout_json_valid) {
+            'Pi stdout 不是合法 JSONL'
+        }
+        elseif (-not $summary.agent_settled) {
+            'Pi 未到达 agent_settled'
+        }
+        elseif (-not $summary.structured_result_received) {
+            'Pi 未通过 sacha_result 返回结构化结果'
+        }
+        elseif (
+            -not [string]::IsNullOrWhiteSpace($Model) -and
+            -not $Model.Equals([string]$summary.effective_model, [StringComparison]::OrdinalIgnoreCase)
+        ) {
+            "Pi effective model 与请求不一致：requested=$Model effective=$($summary.effective_model)"
         }
         else {
-            'Claude stdout 不是合法 JSON'
+            "Pi 结果不是 completed：outcome=$($summary.outcome) blockers=$($summary.blockers -join '; ')"
         }
         $scriptExitCode = 3
     }

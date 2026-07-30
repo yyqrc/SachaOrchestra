@@ -510,6 +510,98 @@ Inspect project state and return a bounded report.
         self.assertEqual("refused", unsafe["status"])
         self.assertIn("plan_root", unsafe["conflicts"][0])
 
+    def test_pi_model_routing_is_setup_confirmed_and_preserved(self) -> None:
+        project = self.root / "pi-model-routing"
+        project.mkdir()
+        bindings = (
+            "standard::local-provider/standard-model",
+            "pro::local-provider/pro-model",
+            "lite::local-provider/lite-model",
+        )
+
+        configured = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                pi_model_bindings=bindings,
+            )
+        )
+        self.assertEqual("committed", configured["transaction"])
+        self.assertEqual(
+            ["lite", "pro", "standard"],
+            [item["route"] for item in configured["pi_model_bindings"]],
+        )
+        workflow = project / "docs" / "workflow-rule.md"
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn("### Pi one-shot model routing", content)
+        self.assertIn(
+            "- `standard` -> `local-provider/standard-model`",
+            content,
+        )
+        self.assertIn("不复制到 plugin 源码", content)
+
+        preserved = generator.run_setup(
+            generator.SetupConfig(
+                project_root=project,
+                manage_agents=False,
+                scm_provider="none",
+                expected_workflow_sha256=digest(workflow),
+            ),
+            write=True,
+        )
+        self.assertEqual("no_changes", preserved["transaction"])
+        self.assertEqual(
+            configured["pi_model_bindings"],
+            preserved["pi_model_bindings"],
+        )
+
+        cleared_preview = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                clear_pi_model_bindings=True,
+            )
+        )
+        self.assertEqual("ready", cleared_preview["status"])
+        self.assertNotIn(
+            "### Pi one-shot model routing",
+            cleared_preview["workflow_rule"]["planned_content"],
+        )
+
+    def test_pi_model_routing_rejects_unconfirmed_or_unsafe_values(self) -> None:
+        for index, binding in enumerate(
+            (
+                "unknown::local-provider/model",
+                "standard::model-without-provider",
+                "standard:: local-provider/model",
+                "standard::local-provider/model::extra",
+            )
+        ):
+            project = self.root / f"pi-model-invalid-{index}"
+            project.mkdir()
+            result = generator.run_setup(
+                self.config(
+                    project,
+                    manage_agents=False,
+                    pi_model_bindings=(binding,),
+                )
+            )
+            self.assertEqual("refused", result["status"], binding)
+            self.assertFalse((project / "docs").exists())
+
+        conflict_project = self.root / "pi-model-clear-conflict"
+        conflict_project.mkdir()
+        conflict = generator.run_setup(
+            self.config(
+                conflict_project,
+                manage_agents=False,
+                pi_model_bindings=("standard::local-provider/model",),
+                clear_pi_model_bindings=True,
+            )
+        )
+        self.assertEqual("refused", conflict["status"])
+        self.assertIn("mutually exclusive", conflict["conflicts"][0])
+
     def test_documentation_root_kind_and_bounds_are_enforced(self) -> None:
         project = self.root / "documentation-bounds"
         project.mkdir()

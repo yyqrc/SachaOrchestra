@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "sacha-orchestra"
 MANIFEST = PLUGIN / ".codex-plugin" / "plugin.json"
 CLAUDE_MANIFEST = PLUGIN / ".claude-plugin" / "plugin.json"
+MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
 INTAKE = PLUGIN / "core" / "intake-contract.md"
 CORE = PLUGIN / "core" / "workflow-contract.md"
 ASSURANCE = PLUGIN / "core" / "assurance-contract.md"
@@ -20,8 +21,10 @@ COORDINATION = PLUGIN / "core" / "coordination-contract.md"
 ARTIFACT = PLUGIN / "core" / "artifact-protocol.md"
 CODEX_ADAPTER = PLUGIN / "adapters" / "codex" / "runtime-adapter.md"
 CLAUDE_ADAPTER = PLUGIN / "adapters" / "claudecode" / "runtime-adapter.md"
-CLAUDE_ONCE = PLUGIN / "scripts" / "claude_once.ps1"
+PI_ONCE = PLUGIN / "scripts" / "pi_once.ps1"
+PI_GUARD = PLUGIN / "scripts" / "pi_guard.mjs"
 SETUP_GENERATOR = PLUGIN / "skills" / "setup-project" / "scripts" / "generate_project_integration.py"
+PI_MODEL_INSPECTOR = PLUGIN / "skills" / "setup-project" / "scripts" / "inspect_pi_models.ps1"
 PROJECT_DOCUMENTATION = PLUGIN / "skills" / "project-documentation"
 DOCUMENTATION_GENERATOR = (
     PROJECT_DOCUMENTATION / "scripts" / "generate_project_document.py"
@@ -88,6 +91,7 @@ def main() -> int:
     tag = f"v{version}"
     manifest = json.loads(text(MANIFEST))
     claude_manifest = json.loads(text(CLAUDE_MANIFEST))
+    marketplace = json.loads(text(MARKETPLACE))
     intake = text(INTAKE)
     core = text(CORE)
     assurance = text(ASSURANCE)
@@ -124,6 +128,18 @@ def main() -> int:
     check(
         manifest.get("version") == version and claude_manifest.get("version") == version,
         "Deployment manifest versions do not match --version",
+    )
+    marketplace_plugins = marketplace.get("plugins", [])
+    check(
+        marketplace.get("name") == "sacha"
+        and marketplace.get("interface", {}).get("displayName") == "Sacha"
+        and len(marketplace_plugins) == 1
+        and marketplace_plugins[0].get("name") == "sacha-orchestra"
+        and marketplace_plugins[0].get("source") == {
+            "source": "local",
+            "path": "./plugins/sacha-orchestra",
+        },
+        "Marketplace identity or local plugin source is not the released sacha configuration",
     )
     intake_version = re.search(r"(?m)^> Contract Version: ([0-9]+)$", intake)
     core_version = re.search(r"(?m)^> Contract Version: ([0-9]+)$", core)
@@ -200,39 +216,74 @@ def main() -> int:
     check(all(marker in codex_adapter for marker in codex_model_contract), "Codex role-aware model routing contract is incomplete")
     check(all(marker in claude_adapter for marker in claude_model_contract), "Claude Code role-aware model routing contract is incomplete")
     check("gpt-5.6-" not in claude_adapter, "Claude Code Adapter leaks Codex model configuration")
-    check(CLAUDE_ONCE.is_file(), "Claude CLI one-shot helper is missing")
-    if CLAUDE_ONCE.is_file():
-        claude_once = text(CLAUDE_ONCE)
+    pi_model_contract = (
+        "| `pro` |",
+        "| `standard` |",
+        "| `lite` |",
+        "`pi --list-models`",
+        "Pi Runtime default",
+    )
+    check(all(marker in codex_adapter for marker in pi_model_contract), "Pi one-shot model routing contract is incomplete")
+    check(PI_ONCE.is_file(), "Pi one-shot helper is missing")
+    check(PI_GUARD.is_file(), "Pi one-shot path guard is missing")
+    check(PI_MODEL_INSPECTOR.is_file(), "Setup Pi model inspector is missing")
+    check(not (PLUGIN / "scripts" / "claude_once.ps1").exists(), "Retired Claude CLI one-shot helper still exists")
+    if PI_ONCE.is_file():
+        pi_once = text(PI_ONCE)
         check(
             all(
-                marker in claude_once
+                marker in pi_once
                 for marker in (
                     "'-p'",
-                    "'--safe-mode'",
-                    "'--no-session-persistence'",
-                    "'--permission-mode', 'dontAsk'",
-                    "'--output-format', 'json'",
-                    "'--tools', 'Read,Edit,Write'",
-                    '"Read($permissionPath)"',
-                    '"Edit($permissionPath)"',
+                    "'--no-session'",
+                    "'--mode', 'json'",
+                    "'--no-extensions'",
+                    "'--extension', $guardPath",
+                    "'--no-skills'",
+                    "'--no-prompt-templates'",
+                    "'--no-context-files'",
+                    "'--no-approve'",
+                    "'--tools', 'read,edit,write,sacha_result'",
+                    "SACHA_PI_READ_PATHS_JSON",
+                    "SACHA_PI_WRITE_PATHS_JSON",
+                    "structured_result_received",
+                    "agent_settled",
                     "scope_violations",
                     "ignored_scope_violations",
                     "git_metadata_changed",
                     "head_before",
                     "head_after",
                     "capabilities_verified",
+                    "requested_model",
+                    "effective_model",
+                    "IsNullOrWhiteSpace($Model)",
                 )
             ),
-            "Claude CLI one-shot helper containment/transport markers are incomplete",
+            "Pi one-shot helper containment/transport markers are incomplete",
         )
+        tool_allowlist = re.search(r"'--tools', '([^']+)'", pi_once)
         check(
-            "--dangerously-skip-permissions" not in claude_once,
-            "Claude CLI one-shot helper bypasses permissions",
+            tool_allowlist is not None
+            and all(tool not in tool_allowlist.group(1).split(",") for tool in ("bash", "grep", "find", "ls")),
+            "Pi one-shot helper exposes subprocess or broad discovery tools",
         )
+    if PI_GUARD.is_file():
+        pi_guard = text(PI_GUARD)
         check(
-            "AllowedBash" not in claude_once
-            and "@('Read', 'Glob', 'Grep', 'Edit', 'Write')" not in claude_once,
-            "Claude CLI one-shot helper exposes broad or subprocess tools",
+            all(
+                marker in pi_guard
+                for marker in (
+                    'PATH_TOOLS = new Set(["read", "edit", "write"])',
+                    'WRITE_TOOLS = new Set(["edit", "write"])',
+                    'pi.on("tool_call"',
+                    "assertNoReparseAncestor",
+                    "nlink > 1",
+                    'first === ".git" || first === ".temp"',
+                    'name: "sacha_result"',
+                    "terminate: true",
+                )
+            ),
+            "Pi one-shot pre-tool guard is incomplete",
         )
     fixed_dispatch_markers = (
         "Packet 至少包含",
@@ -306,6 +357,11 @@ def main() -> int:
         "历史 Binding 不是本轮写入授权",
         "`planned_delta_sha256`",
         "`--confirmed-planned-delta-sha256`",
+        "`--list-models`",
+        "`--pi-model-binding <route>::<provider/model>`",
+        "`--clear-pi-model-bindings`",
+        "scripts/inspect_pi_models.ps1",
+        "`glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna`",
     )
     check(
         all(
@@ -319,15 +375,62 @@ def main() -> int:
         '"planned_delta_sha256"',
         "--confirmed-planned-delta-sha256",
         "confirmed_planned_delta != planned_delta_sha256",
+        "--pi-model-binding",
+        "--clear-pi-model-bindings",
+        "PI_MODEL_ROUTES",
     )
     check(
         all(marker in setup_generator for marker in setup_confirmation_generator),
         "Setup Project write-confirmation guard is incomplete",
     )
+    if PI_MODEL_INSPECTOR.is_file():
+        pi_model_inspector = text(PI_MODEL_INSPECTOR)
+        check(
+            all(
+                marker in pi_model_inspector
+                for marker in (
+                    "--list-models",
+                    "project_config",
+                    "glm-5.2",
+                    "kimi k3",
+                    "deepseek",
+                    "gpt-5.6 luna",
+                    "selected_model",
+                    "candidates",
+                )
+            ),
+            "Setup Pi model inspection and configuration priority are incomplete",
+        )
     runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
     check(
         all(marker not in content for marker in runtime_model_markers for content in (intake, core, assurance, coordination, artifact, *role_skill_documents.values())),
         "Runtime model policy leaks into Core or Role Skills",
+    )
+    private_pi_markers = (
+        "tencent" + "-intranet",
+        "glm-" + "5.2-ioa",
+        "kimi-" + "k3-ioa",
+        "deepseek-" + "v4-pro-ioa",
+        "gpt-" + "5.6-luna",
+    )
+    source_documents = tuple(
+        path
+        for path in ROOT.rglob("*")
+        if path.is_file()
+        and path.suffix.casefold() in {".md", ".json", ".yaml", ".yml", ".py", ".ps1", ".mjs"}
+        and ".git" not in path.parts
+        and ".temp" not in path.parts
+    )
+    private_pi_leaks = [
+        f"{path.relative_to(ROOT)}:{marker}"
+        for path in source_documents
+        for marker in private_pi_markers
+        if marker in text(path)
+    ]
+    check(
+        not private_pi_leaks,
+        "Private Pi provider/model identifiers leak into repository source: "
+        + ", ".join(private_pi_leaks),
     )
     check(
         len(intake.splitlines()) <= 80 and len(intake) <= 3200,
@@ -401,6 +504,7 @@ def main() -> int:
             "../../core/artifact-protocol.md",
             "scripts/resolve_capability_queries.py",
             "scripts/generate_project_integration.py",
+            "scripts/inspect_pi_models.ps1",
         }
         check(links <= allowed_links, f"Role Skill adds a non-canonical documentation dependency: {path}")
     discovery_descriptions = [
@@ -482,7 +586,7 @@ def main() -> int:
         runtime_allowed_links = set(allowed_adapter_links)
         if runtime == "Codex":
             runtime_allowed_links.update({
-                "../../scripts/claude_once.ps1",
+                "../../scripts/pi_once.ps1",
             })
         check(
             adapter_links <= runtime_allowed_links,
