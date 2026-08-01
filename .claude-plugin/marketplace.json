@@ -1,0 +1,14 @@
+{
+  "name": "sacha",
+  "owner": {
+    "name": "Sacha Orchestra"
+  },
+  "plugins": [
+    {
+      "name": "sacha-orchestra",
+      "source": "./plugins/sacha-orchestra",
+      "description": "跨运行环境的多智能体工作流编排框架：清晰任务直接执行，需关键澄清、跨 context 恢复、正式协调或独立验收时才路由 Planner/Executor/Reviewer 与 Manager 协调",
+      "category": "Productivity"
+    }
+  ]
+}
