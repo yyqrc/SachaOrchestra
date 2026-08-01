@@ -182,6 +182,21 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertEqual("committed", result["transaction"])
         return project, document_root
 
+    def test_render_agents_block_injects_project_rules(self) -> None:
+        base = generator.render_agents_block("docs/workflow-rule.md")
+        self.assertNotIn("领域工程纪律".encode("utf-8"), base)
+        rules = "## 测试规则\n- 规则A\n- 规则B".encode("utf-8")
+        with_rules = generator.render_agents_block("docs/workflow-rule.md", rules)
+        self.assertIn("领域工程纪律".encode("utf-8"), with_rules)
+        self.assertIn("## 测试规则".encode("utf-8"), with_rules)
+        self.assertIn("- 规则A".encode("utf-8"), with_rules)
+        self.assertTrue(with_rules.endswith(generator.AGENTS_END.encode("utf-8")))
+        self.assertEqual(generator.render_agents_block("docs/workflow-rule.md", None), base)
+        self.assertNotEqual(
+            hashlib.sha256(with_rules).hexdigest(),
+            hashlib.sha256(base).hexdigest(),
+        )
+
     def test_dry_run_commit_and_idempotent_rerun(self) -> None:
         project = self.root / "basic"
         project.mkdir()

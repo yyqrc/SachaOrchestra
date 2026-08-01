@@ -82,6 +82,7 @@ class SetupConfig:
     expected_agents_sha256: str | None = None
     replace_unmanaged_workflow: bool = False
     expected_workflow_sha256: str | None = None
+    project_rules_content: bytes | None = None
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -1463,14 +1464,23 @@ def render_workflow_rule(
     return text.encode("utf-8")
 
 
-def render_agents_block(workflow_rule_path: str) -> bytes:
+def render_agents_block(workflow_rule_path: str, rules_content: bytes | None = None) -> bytes:
     text = f"""{AGENTS_BEGIN}
 ## Sacha Orchestra 接入
 
 - 潜在 Sacha 任务先由 `sacha-orchestra:using-sacha` 感知；本地路线只遵循适用 Project AGENTS。
 - Human 接受 Sacha 后才读取 `{workflow_rule_path}` 获取项目绑定；入口、Gate 和 Role 路由仍以 plugin canonical contract 为准。
 {AGENTS_END}"""
-    return text.encode("utf-8")
+    body = text.encode("utf-8")
+    if rules_content:
+        rules_text = rules_content.decode("utf-8").rstrip("\n")
+        insert = (
+            "\n\n## 领域工程纪律（由 provider project-rules 注入，marker 托管）\n\n"
+            + rules_text + "\n"
+        ).encode("utf-8")
+        end = AGENTS_END.encode("utf-8")
+        body = body.replace(end, insert + end, 1)
+    return body
 
 
 def _merge_agents(preimage: bytes | None, managed_block: bytes) -> bytes:
@@ -1879,7 +1889,7 @@ def run_setup(
                 raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
             if expected_agents is not None and expected_agents != agents_hash:
                 raise SetupError("Project AGENTS expected SHA-256 is stale")
-            agents_generated = _merge_agents(agents_preimage, render_agents_block(workflow_rel))
+            agents_generated = _merge_agents(agents_preimage, render_agents_block(workflow_rel, config.project_rules_content))
             agents_action = "unchanged" if agents_preimage == agents_generated else ("update" if agents_existed else "create")
             result["agents_block"] = {
                 "path": agents_rel,
@@ -2126,6 +2136,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--replace-unmanaged-workflow", action="store_true")
     parser.add_argument("--expected-workflow-sha256")
     parser.add_argument("--confirmed-planned-delta-sha256")
+    parser.add_argument("--project-rules-file", type=Path, default=None)
     parser.add_argument("--write", action="store_true")
     return parser
 
@@ -2163,6 +2174,7 @@ def main() -> int:
         expected_agents_sha256=args.expected_agents_sha256,
         replace_unmanaged_workflow=args.replace_unmanaged_workflow,
         expected_workflow_sha256=args.expected_workflow_sha256,
+        project_rules_content=args.project_rules_file.read_bytes() if args.project_rules_file else None,
     )
     result = run_setup(
         config,

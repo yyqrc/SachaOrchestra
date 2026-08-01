@@ -69,6 +69,7 @@
 | 单 Runtime discovery、transport、identity、installation 或 recovery | 仅对应 Runtime Adapter、该 Runtime metadata/manifest、安装与 release validator；不得联动其他 Adapter |
 | Skill trigger、local procedure 或 metadata | 对应 `SKILL.md`、生成的 metadata、直接调用/返回方、Adapter discovery 清单、README 入口与 plugin validator |
 | Provider catalog/Binding 格式、resolver/generator 或 mapping 消费 | 必须同步 `docs/integrations/capability-provider-guide.md`；核查 `setup-project`、Role/Adapter、生成结果、测试/validator |
+| `render_agents_block` 内容、managed_block 注入格式或 project-rules 模板契约 | 必须同步 `setup-project` SKILL.md 与生成器；核查 `capability-provider-guide.md`、`validate_project_setup.py`、provider `project-rules` skill 消费者 |
 | 产品版本、source candidate 或 release 状态 | Evolution、两个 deployment manifest、README locator、release coherence validator、Git commit/tag identity |
 
 ## Creator 与生成器
