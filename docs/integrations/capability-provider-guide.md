@@ -51,7 +51,7 @@ Catalog 不保存 summary、触发、前置、具体影响或输出；这些事�
 5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
 6. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
 7. Binding 只保存 `capability id → canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、路径、query、前置或输出，rerun 重新读取。
-8. Provider 可声明 `project.rules` 类 read_only skill（如 `cgame-engine:project-rules`）输出规则模板；Setup 调用拿内容，通过 `--project-rules-file` 注入 AGENTS managed_block。owner=provider，不进 Binding、不需 load policy，独立于四类项目值。
+8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径、内容 SHA-256 和 marker，再与既有段做 keep/add/update/remove reconciliation。规则 owner=provider，不进 Binding、不需 load policy。
 
 Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换 mapping。
 

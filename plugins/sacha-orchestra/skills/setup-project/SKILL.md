@@ -1,30 +1,21 @@
 ---
 name: setup-project
-description: 显式生成或刷新 Sacha Project Integration；发现并按正文评估项目 Skill，以 dry-run、确认、hash 与回滚保护写入。
+description: 显式生成/刷新 Project Integration；按正文评估项目 Skill，以 dry-run、确认、hash、回滚保护写入。
 ---
 
-# Setup Project（项目接入）
+1. 显式 project root；否则用 [resolver](scripts/resolve_capability_queries.py) 从 Binding/AGENTS/SCM 定位唯一根；多候选 unresolved。
+2. Catalog 只给 id、canonical Skill、副作用。Human 标记项目 Skill root 为 `authority | mirror | independent | ignore`，不得按名称猜能力。
+3. 完整读取 authority/independent 的 `SKILL.md` 和必需 locator；按正文评估 goal、入口、证据行和 SHA-256，只映射 Runtime 可见且入口成立项。
+4. `project.rules` 只取 Human 明示/本轮已选 provider；canonical Skill 只读 `assets/project-rules.md` 原始字节，以 `--project-rules-file <canonical-skill>::<asset-path>` 传入，不调用生成、转述或临时模板，也不进 Binding。
+5. 交给[生成器](scripts/generate_project_integration.py)核对证据、路径和可见性；正文/证据缺失、歧义、冲突或 policy 未确认均不得写入。
+6. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)读 `--list-models`；已有 route 优先，其余按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选，Human 用 `--pi-model-binding <route>::<provider/model>` 保存；清空须 `--clear-pi-model-bindings`。
+7. 展示 current/recommended。Spec/文档、授权或 Pi 未明确时先展示完整 delta 并等待 Human 明确确认；历史 Binding 不是本轮写入授权。
+8. 先读 managed block：保留适用项、同源刷新、新源合并；废弃才传 `--remove-project-rules-skill <canonical-skill>`。旧版无来源/hash 须核对归属并连同 asset 显式 `--replace-legacy-project-rules`，不得静默采信或丢弃。
+   dry-run 报告 reconciliation、冲突、warning 和 `planned_delta_sha256`；确认后以 `--confirmed-planned-delta-sha256` 写入。
 
-## 工作流
+边界：
 
-1. 使用显式路径；否则由 [resolver](scripts/resolve_capability_queries.py) 从 workspace、Binding/Project AGENTS、SCM 解析唯一根；多候选 unresolved。
-2. 只用当前 metadata 和已知同 plugin catalog locator。Catalog 只给 id、canonical Skill、副作用上界；其余以 `SKILL.md` 为准。
-3. Human 标记项目 Skill root 为 `authority | mirror | independent | ignore`。完整读取 authority/independent 正文及其必需 locator；不按名称猜能力。
-4. 从正文识别独立 goal unit，记录 goal、副作用、入口/前置、正文行、SHA-256 和可调度性；只映射 Runtime 可见且入口成立的 unit。
-5. 若 `cgame-engine:project-rules`（或 provider 的 `project.rules` 类 skill）可见，调用拿规则模板，写消费项目 `.temp/` 临时文件作 `--project-rules-file` 传生成器注入 AGENTS managed_block；不可见/失败则跳过+warning。传后即清。
-6. 把评估交给 [生成器](scripts/generate_project_integration.py)。生成器拒绝证据过期、只引 frontmatter、不可见或缺入口；load policy 由 Setup/Human 决定。
-7. 可能使用 Pi 时运行[巡检器](scripts/inspect_pi_models.ps1)读取 `--list-models`；把既有 route 作为 `-ConfiguredModel` 传入并保持优先。
-8. 其余按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 模糊筛选。展示候选后，由 Human 以 `--pi-model-binding <route>::<provider/model>` 保存；plugin 不保存完整型号。
-9. 从现有配置形成 current/recommended。未明确的 Spec/文档值、授权或 Pi 路由展示一次完整 delta 并等待 Human 明确确认；历史 Binding 不是本轮写入授权。
-10. 先 dry-run，报告冲突、warning 和 `planned_delta_sha256`；确认后才用 `--confirmed-planned-delta-sha256` 写入。delta 或旧 hash 变化时拒绝；写后 check，`partial_write` 保留现场。
-
-## 边界
-
-- 普通任务不调用；dry-run 不授权写入。
-- marker 外 Project AGENTS byte-for-byte；原子写入并补偿恢复。
-- Spec 根和文档根相互独立；外部根标记 non-portable，拒绝文件系统根。
-- Provider id/Skill/副作用变化须显式刷新；policy 只由 Setup/Human 确认。
-- 既有 Pi 路由默认保留；只有 Human 明确要求才用 `--clear-pi-model-bindings` 清空。精确型号只属于目标项目 Runtime 配置。
-- Skill assessment 不写入 Binding；rerun 重新读取正文。
-- 项目知识归 Project AGENTS/Domain Skill；安装、Git、发布等外部动作各自授权。
-- `project-rules` 注入是 provider 模板预装（注入 AGENTS managed_block，非项目内规则发现）；与 `--rule-path`（项目内规则文件发现+绑定，写入 workflow-rule.md 供 Role 按 load-policy 读）是两套独立机制。
+- 普通任务不调用；dry-run 不授权写入。marker 外 Project AGENTS byte-for-byte；写入原子并可补偿恢复。
+- Spec/文档根独立；外部根标记 non-portable，拒绝文件系统根。
+- Provider 变更须显式刷新，policy 由 Setup/Human 确认；项目知识和外部动作各归 owner。
+- `project-rules` 按 canonical Skill 分段+SHA-256 合并；AGENTS 仅一个 managed block。未给模板则保留校验，删除显式，正文禁 Sacha marker。

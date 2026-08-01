@@ -19,6 +19,11 @@ GENERATOR_MARKER = "<!-- Generator: sacha-orchestra:setup-project -->"
 SCHEMA_MARKER = "<!-- Schema Version: 3 -->"
 AGENTS_BEGIN = "<!-- BEGIN SACHA ORCHESTRA MANAGED BLOCK -->"
 AGENTS_END = "<!-- END SACHA ORCHESTRA MANAGED BLOCK -->"
+PROJECT_RULES_BEGIN = "<!-- BEGIN SACHA PROJECT RULES: "
+PROJECT_RULES_END = "<!-- END SACHA PROJECT RULES: "
+PROJECT_RULES_HASH = "<!-- SOURCE SHA-256: "
+PROJECT_RULES_HEADING = "## 领域工程纪律（按 provider 合并，Sacha 托管）"
+LEGACY_PROJECT_RULES_HEADING = "## 领域工程纪律（由 provider project-rules 注入，marker 托管）"
 CONVENTIONAL_SKILL_ROOTS = (".agents/skills", ".codex/skills", ".claude/skills")
 CONVENTIONAL_RULE_NAMES = ("TEAM.md", "PROJECT.md", "EditorTools.md")
 LOAD_POLICIES = {"always", "role-entry", "on-demand"}
@@ -42,6 +47,8 @@ SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
 PI_MODEL_ROUTES = {"standard", "pro", "lite"}
 MAX_DISCOVERY_FILES = 256
 MAX_DISCOVERY_FILE_BYTES = 256 * 1024
+MAX_PROJECT_RULES_BYTES = 128 * 1024
+CANONICAL_SKILL = re.compile(r"^[a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*$")
 MACHINE_ABSOLUTE_PATH = re.compile(
     r"(?:^|[\s`'\"(\[{=:;,])(?:[A-Za-z]:[\\/]|\\\\|//|/(?!/)|~[\\/]|file:[/]+)",
     re.IGNORECASE,
@@ -82,7 +89,9 @@ class SetupConfig:
     expected_agents_sha256: str | None = None
     replace_unmanaged_workflow: bool = False
     expected_workflow_sha256: str | None = None
-    project_rules_content: bytes | None = None
+    project_rules_sources: tuple[tuple[str, bytes], ...] = ()
+    remove_project_rules_skills: tuple[str, ...] = ()
+    replace_legacy_project_rules: bool = False
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -1464,7 +1473,190 @@ def render_workflow_rule(
     return text.encode("utf-8")
 
 
-def render_agents_block(workflow_rule_path: str, rules_content: bytes | None = None) -> bytes:
+def _normalize_project_rules_skill(value: str) -> str:
+    skill = value.strip()
+    if not CANONICAL_SKILL.fullmatch(skill):
+        raise SetupError("project rules source must use canonical plugin:skill identity")
+    return skill
+
+
+def _normalize_project_rules_content(content: bytes) -> bytes:
+    if len(content) > MAX_PROJECT_RULES_BYTES:
+        raise SetupError(f"project rules content exceeds {MAX_PROJECT_RULES_BYTES} bytes")
+    text = content.decode("utf-8")
+    if "\x00" in text:
+        raise SetupError("project rules content contains NUL")
+    reserved = (
+        AGENTS_BEGIN,
+        AGENTS_END,
+        PROJECT_RULES_BEGIN,
+        PROJECT_RULES_END,
+        PROJECT_RULES_HASH,
+    )
+    if any(marker in text for marker in reserved):
+        raise SetupError("project rules content contains a reserved managed marker")
+    normalized = text.strip("\r\n")
+    if not normalized.strip():
+        raise SetupError("project rules content must not be empty")
+    return normalized.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
+def _extract_project_rules(
+    preimage: bytes | None,
+    *,
+    replace_legacy: bool = False,
+) -> dict[str, bytes]:
+    if preimage is None:
+        return {}
+    text = preimage.decode("utf-8")
+    begin_count = text.count(AGENTS_BEGIN)
+    end_count = text.count(AGENTS_END)
+    if begin_count == 0 and end_count == 0:
+        return {}
+    if begin_count != 1 or end_count != 1:
+        raise SetupError("Project AGENTS contains duplicate or broken managed markers")
+    start = text.index(AGENTS_BEGIN) + len(AGENTS_BEGIN)
+    finish = text.find(AGENTS_END, start)
+    if finish < 0:
+        raise SetupError("Project AGENTS managed markers are out of order")
+    managed = text[start:finish]
+    if LEGACY_PROJECT_RULES_HEADING in managed:
+        if not replace_legacy:
+            raise SetupError(
+                "Project AGENTS contains unattributed legacy project rules; "
+                "read and reassign them with canonical source plus --replace-legacy-project-rules"
+            )
+        if PROJECT_RULES_BEGIN in managed or PROJECT_RULES_END in managed:
+            raise SetupError("Project AGENTS mixes legacy and canonical project rules")
+    rules: dict[str, bytes] = {}
+    cursor = 0
+    while True:
+        begin = managed.find(PROJECT_RULES_BEGIN, cursor)
+        if begin < 0:
+            break
+        header_end = managed.find(" -->", begin)
+        if header_end < 0:
+            raise SetupError("Project AGENTS contains a broken project rules marker")
+        skill = _normalize_project_rules_skill(
+            managed[begin + len(PROJECT_RULES_BEGIN):header_end]
+        )
+        content_start = header_end + len(" -->")
+        if managed.startswith("\r\n", content_start):
+            content_start += 2
+        elif managed.startswith("\n", content_start):
+            content_start += 1
+        else:
+            raise SetupError("Project AGENTS project rules marker must end its line")
+        declared_hash = None
+        first_line_end = managed.find("\n", content_start)
+        if first_line_end >= 0:
+            first_line = managed[content_start:first_line_end].rstrip("\r")
+            if first_line.startswith(PROJECT_RULES_HASH):
+                if not first_line.endswith(" -->"):
+                    raise SetupError("Project AGENTS contains a broken project rules source hash")
+                declared_hash = _normalize_hash(
+                    first_line[len(PROJECT_RULES_HASH):-len(" -->")],
+                    "project rules source SHA-256",
+                )
+                content_start = first_line_end + 1
+        if declared_hash is None and not replace_legacy:
+            raise SetupError(
+                f"Project AGENTS project rules source hash is missing: {skill}; "
+                "refresh the canonical asset with --replace-legacy-project-rules"
+            )
+        end_marker = f"{PROJECT_RULES_END}{skill} -->"
+        content_end = managed.find(end_marker, content_start)
+        if content_end < 0:
+            raise SetupError("Project AGENTS contains an unclosed project rules marker")
+        if skill in rules:
+            raise SetupError(f"Project AGENTS contains duplicate project rules source: {skill}")
+        raw_content = managed[content_start:content_end].rstrip("\r\n").encode("utf-8")
+        normalized_content = _normalize_project_rules_content(raw_content)
+        if declared_hash is not None and declared_hash != sha256_bytes(normalized_content):
+            raise SetupError(f"Project AGENTS project rules source hash is stale: {skill}")
+        rules[skill] = normalized_content
+        cursor = content_end + len(end_marker)
+    if managed.count(PROJECT_RULES_BEGIN) != len(rules) or managed.count(PROJECT_RULES_END) != len(rules):
+        raise SetupError("Project AGENTS contains unmatched project rules markers")
+    return rules
+
+
+def _project_rules_replacement_requirements(preimage: bytes | None) -> tuple[bool, tuple[str, ...]]:
+    """Return unattributed legacy and per-source hash refresh requirements.
+
+    Call only after ``_extract_project_rules`` has validated the managed block.
+    """
+    if preimage is None:
+        return False, ()
+    text = preimage.decode("utf-8")
+    if AGENTS_BEGIN not in text:
+        return False, ()
+    start = text.index(AGENTS_BEGIN) + len(AGENTS_BEGIN)
+    finish = text.index(AGENTS_END, start)
+    managed = text[start:finish]
+    if LEGACY_PROJECT_RULES_HEADING in managed:
+        return True, ()
+    missing_hashes: list[str] = []
+    cursor = 0
+    while True:
+        begin = managed.find(PROJECT_RULES_BEGIN, cursor)
+        if begin < 0:
+            break
+        header_end = managed.find(" -->", begin)
+        skill = _normalize_project_rules_skill(
+            managed[begin + len(PROJECT_RULES_BEGIN):header_end]
+        )
+        content_start = header_end + len(" -->")
+        if managed.startswith("\r\n", content_start):
+            content_start += 2
+        else:
+            content_start += 1
+        first_line_end = managed.find("\n", content_start)
+        first_line = managed[content_start:first_line_end].rstrip("\r")
+        if not first_line.startswith(PROJECT_RULES_HASH):
+            missing_hashes.append(skill)
+        end_marker = f"{PROJECT_RULES_END}{skill} -->"
+        cursor = managed.find(end_marker, content_start) + len(end_marker)
+    return False, tuple(missing_hashes)
+
+
+def _reconcile_project_rules(
+    existing: Mapping[str, bytes],
+    sources: tuple[tuple[str, bytes], ...],
+    remove_skills: tuple[str, ...],
+) -> tuple[dict[str, bytes], dict[str, list[str]]]:
+    planned = dict(existing)
+    reconciliation = {"keep": [], "add": [], "update": [], "remove": []}
+    removals = {_normalize_project_rules_skill(item) for item in remove_skills}
+    source_map: dict[str, bytes] = {}
+    for raw_skill, raw_content in sources:
+        skill = _normalize_project_rules_skill(raw_skill)
+        if skill in source_map:
+            raise SetupError(f"duplicate project rules source: {skill}")
+        source_map[skill] = _normalize_project_rules_content(raw_content)
+    overlap = removals & set(source_map)
+    if overlap:
+        raise SetupError(f"project rules source cannot be updated and removed together: {sorted(overlap)[0]}")
+    for skill in sorted(removals):
+        if skill in planned:
+            del planned[skill]
+            reconciliation["remove"].append(skill)
+    for skill, content in sorted(source_map.items()):
+        if skill not in planned:
+            reconciliation["add"].append(skill)
+        elif planned[skill] == content:
+            reconciliation["keep"].append(skill)
+        else:
+            reconciliation["update"].append(skill)
+        planned[skill] = content
+    reconciliation["keep"].extend(
+        skill for skill in sorted(planned)
+        if skill not in source_map and skill not in reconciliation["keep"]
+    )
+    return planned, reconciliation
+
+
+def render_agents_block(workflow_rule_path: str, project_rules: Mapping[str, bytes] | None = None) -> bytes:
     text = f"""{AGENTS_BEGIN}
 ## Sacha Orchestra 接入
 
@@ -1472,12 +1664,18 @@ def render_agents_block(workflow_rule_path: str, rules_content: bytes | None = N
 - Human 接受 Sacha 后才读取 `{workflow_rule_path}` 获取项目绑定；入口、Gate 和 Role 路由仍以 plugin canonical contract 为准。
 {AGENTS_END}"""
     body = text.encode("utf-8")
-    if rules_content:
-        rules_text = rules_content.decode("utf-8").rstrip("\n")
-        insert = (
-            "\n\n## 领域工程纪律（由 provider project-rules 注入，marker 托管）\n\n"
-            + rules_text + "\n"
-        ).encode("utf-8")
+    if project_rules:
+        entries: list[str] = []
+        for skill, content in sorted(project_rules.items()):
+            normalized_skill = _normalize_project_rules_skill(skill)
+            rules_text = _normalize_project_rules_content(content).decode("utf-8")
+            entries.append(
+                f"{PROJECT_RULES_BEGIN}{normalized_skill} -->\n"
+                f"{PROJECT_RULES_HASH}{sha256_bytes(rules_text.encode('utf-8'))} -->\n"
+                f"{rules_text}\n"
+                f"{PROJECT_RULES_END}{normalized_skill} -->"
+            )
+        insert = ("\n\n" + PROJECT_RULES_HEADING + "\n\n" + "\n\n".join(entries) + "\n").encode("utf-8")
         end = AGENTS_END.encode("utf-8")
         body = body.replace(end, insert + end, 1)
     return body
@@ -1514,6 +1712,7 @@ def _base_result(
         "discovery": {"status": "not_run"},
         "workflow_rule": {"path": workflow_rel, "action": "unknown"},
         "agents_block": {"path": agents_rel, "enabled": manage_agents, "action": "disabled"},
+        "project_rules_reconciliation": {"keep": [], "add": [], "update": [], "remove": []},
         "project_skill_assessments": [],
         "project_capability_candidates": [],
         "project_policy_decisions_required": [],
@@ -1889,7 +2088,38 @@ def run_setup(
                 raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
             if expected_agents is not None and expected_agents != agents_hash:
                 raise SetupError("Project AGENTS expected SHA-256 is stale")
-            agents_generated = _merge_agents(agents_preimage, render_agents_block(workflow_rel, config.project_rules_content))
+            existing_project_rules = _extract_project_rules(
+                agents_preimage,
+                replace_legacy=config.replace_legacy_project_rules,
+            )
+            legacy_rules, hashless_rules = _project_rules_replacement_requirements(
+                agents_preimage
+            )
+            source_skills = {
+                _normalize_project_rules_skill(skill)
+                for skill, _ in config.project_rules_sources
+            }
+            if legacy_rules and not source_skills:
+                raise SetupError(
+                    "Project AGENTS legacy project rules require at least one canonical "
+                    "project rules asset with --replace-legacy-project-rules"
+                )
+            missing_assets = sorted(set(hashless_rules) - source_skills)
+            if missing_assets:
+                raise SetupError(
+                    "Project AGENTS project rules source hash is missing; provide the "
+                    f"canonical asset for: {missing_assets[0]}"
+                )
+            planned_project_rules, project_rules_reconciliation = _reconcile_project_rules(
+                existing_project_rules,
+                config.project_rules_sources,
+                config.remove_project_rules_skills,
+            )
+            result["project_rules_reconciliation"] = project_rules_reconciliation
+            agents_generated = _merge_agents(
+                agents_preimage,
+                render_agents_block(workflow_rel, planned_project_rules),
+            )
             agents_action = "unchanged" if agents_preimage == agents_generated else ("update" if agents_existed else "create")
             result["agents_block"] = {
                 "path": agents_rel,
@@ -2102,6 +2332,31 @@ def run_setup(
     return result
 
 
+def _read_project_rules_sources(values: list[str]) -> tuple[tuple[str, bytes], ...]:
+    sources: list[tuple[str, bytes]] = []
+    for value in values:
+        parts = value.split("::", 1)
+        if len(parts) != 2:
+            raise SetupError("project-rules-file must be <canonical-skill>::<path>")
+        skill = _normalize_project_rules_skill(parts[0])
+        path = Path(parts[1]).resolve(strict=False)
+        if not path.is_file():
+            raise SetupError(f"project rules file is not a regular file: {path}")
+        skill_name = skill.split(":", 1)[1]
+        if (
+            path.name != "project-rules.md"
+            or path.parent.name != "assets"
+            or path.parent.parent.name != skill_name
+            or path.parent.parent.parent.name != "skills"
+        ):
+            raise SetupError(
+                "project rules file must be the canonical "
+                "skills/<skill>/assets/project-rules.md asset"
+            )
+        sources.append((skill, path.read_bytes()))
+    return tuple(sources)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate Sacha Project Integration files safely.")
     parser.add_argument("--project-root", required=True, type=Path)
@@ -2136,7 +2391,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--replace-unmanaged-workflow", action="store_true")
     parser.add_argument("--expected-workflow-sha256")
     parser.add_argument("--confirmed-planned-delta-sha256")
-    parser.add_argument("--project-rules-file", type=Path, default=None)
+    parser.add_argument(
+        "--project-rules-file",
+        action="append",
+        default=[],
+        metavar="CANONICAL-SKILL::PATH",
+    )
+    parser.add_argument("--remove-project-rules-skill", action="append", default=[])
+    parser.add_argument("--replace-legacy-project-rules", action="store_true")
     parser.add_argument("--write", action="store_true")
     return parser
 
@@ -2145,6 +2407,18 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     args = build_parser().parse_args()
+    try:
+        project_rules_sources = _read_project_rules_sources(args.project_rules_file)
+        remove_project_rules_skills = tuple(
+            _normalize_project_rules_skill(item)
+            for item in args.remove_project_rules_skill
+        )
+    except (OSError, UnicodeError, SetupError) as exc:
+        result = _base_result("<invalid>", args.agents_path, args.manage_agents)
+        message = str(exc) if isinstance(exc, (SetupError, UnicodeError)) else f"filesystem operation failed: {type(exc).__name__}"
+        result.update(status="refused", transaction="no_write", conflicts=[message])
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 2
     config = SetupConfig(
         project_root=args.project_root,
         agents_path=args.agents_path,
@@ -2174,7 +2448,9 @@ def main() -> int:
         expected_agents_sha256=args.expected_agents_sha256,
         replace_unmanaged_workflow=args.replace_unmanaged_workflow,
         expected_workflow_sha256=args.expected_workflow_sha256,
-        project_rules_content=args.project_rules_file.read_bytes() if args.project_rules_file else None,
+        project_rules_sources=project_rules_sources,
+        remove_project_rules_skills=remove_project_rules_skills,
+        replace_legacy_project_rules=args.replace_legacy_project_rules,
     )
     result = run_setup(
         config,

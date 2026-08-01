@@ -2,10 +2,10 @@
 
 ## Workspace 事实
 
-- 本文件是 workspace 唯一 Project `AGENTS.md`；Global AGENTS 的安全、授权、证据、Git 和用户改动保护继续生效。
+- 本文件是 Project `AGENTS.md`；Global AGENTS 的安全/授权/证据/Git/用户改动保护仍生效。
 - 本 workspace 是 repo-local marketplace，唯一 plugin 源码位于 `plugins/sacha-orchestra`。
-- 当前 Git release、source candidate、manifest 与验证层级只以 [`docs/architecture/evolution.md`](docs/architecture/evolution.md) 为权威；manifest 表示当前源码 Scope 的精确版本，Git tag 表示已发布版本。Core 与 Adapter 的合同版本只表示各自 schema，不代表产品版本。
-- Evolution 只提供当前方向、版本和 breaking boundary，不构成实施授权。
+- Git release、candidate、manifest、验证只以 [`docs/architecture/evolution.md`](docs/architecture/evolution.md) 为权威；manifest=当前源码版本，tag=已发布版本；Core/Adapter 合同版本仅为 schema。
+- Evolution 只给方向、版本和 breaking boundary，不授权实施。
 
 ## Owner 与直接入口
 
@@ -35,7 +35,7 @@
 - Direct Scope 以用户语义目标和明确约束为边界。预计文件列表不是穷尽 allowlist，只有用户或已批准 Spec 明确写出 exact file allowlist 时才是硬边界。
 - 当前 Executor 可修改同一目标直接必需的源码、文档、断言和验证配置；同 Scope 漏改/失败直接修复重验，不创建额外流程。
 - 出现实质新方案、breaking contract/schema、权限、安全、持久数据、验收改变、未授权外部动作或无法完整验证时，停止相关写入并按三个 Gate 路由。
-- 每次迭代只验证当前目标 Runtime 和交付层；除非 Human 明确要求跨 Runtime 验收，其他 Runtime 的安装、发现、行为或证据缺口只记录为后续使用反馈，不扩大当前 Scope，也不阻塞当前 Runtime 的 source release。
+- 每次只验证当前 Runtime 和交付层；除非 Human 明确要求跨 Runtime 验收，其他 Runtime 的安装、发现、行为或证据缺口只作后续反馈，不扩大或阻塞 source release。
 - Review 只拦截会错误交付的关键问题；非 release-blocking 缺证据/改进项用 `Accepted with follow-up`。不追求全历史/全 Runtime，也不把“还能补证据”升级为 `Needs Fix`。
 
 ## 通用 Skill Core 迭代准则（可复制）

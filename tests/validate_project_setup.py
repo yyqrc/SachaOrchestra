@@ -186,8 +186,16 @@ class ProjectSetupTests(unittest.TestCase):
         base = generator.render_agents_block("docs/workflow-rule.md")
         self.assertNotIn("领域工程纪律".encode("utf-8"), base)
         rules = "## 测试规则\n- 规则A\n- 规则B".encode("utf-8")
-        with_rules = generator.render_agents_block("docs/workflow-rule.md", rules)
+        with_rules = generator.render_agents_block(
+            "docs/workflow-rule.md",
+            {"test-provider:project-rules": rules},
+        )
         self.assertIn("领域工程纪律".encode("utf-8"), with_rules)
+        self.assertIn(b"BEGIN SACHA PROJECT RULES: test-provider:project-rules", with_rules)
+        self.assertIn(
+            f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->".encode("utf-8"),
+            with_rules,
+        )
         self.assertIn("## 测试规则".encode("utf-8"), with_rules)
         self.assertIn("- 规则A".encode("utf-8"), with_rules)
         self.assertTrue(with_rules.endswith(generator.AGENTS_END.encode("utf-8")))
@@ -196,6 +204,157 @@ class ProjectSetupTests(unittest.TestCase):
             hashlib.sha256(with_rules).hexdigest(),
             hashlib.sha256(base).hexdigest(),
         )
+        with self.assertRaises(generator.SetupError):
+            generator.render_agents_block(
+                "docs/workflow-rule.md",
+                {"test-provider:project-rules": generator.AGENTS_END.encode("utf-8")},
+            )
+        tampered = with_rules.replace(b"- \xe8\xa7\x84\xe5\x88\x99A", b"- \xe8\xa7\x84\xe5\x88\x99X")
+        with self.assertRaises(generator.SetupError):
+            generator._extract_project_rules(tampered)
+        hash_line = (
+            f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->\n"
+        ).encode("utf-8")
+        without_hash = with_rules.replace(hash_line, b"")
+        with self.assertRaises(generator.SetupError):
+            generator._extract_project_rules(without_hash)
+        self.assertEqual(
+            rules,
+            generator._extract_project_rules(
+                without_hash,
+                replace_legacy=True,
+            )["test-provider:project-rules"],
+        )
+
+    def test_project_rules_cli_requires_canonical_asset_path(self) -> None:
+        canonical = self.root / "plugin" / "skills" / "project-rules" / "assets" / "project-rules.md"
+        canonical.parent.mkdir(parents=True)
+        canonical.write_text("# Rules\n", encoding="utf-8")
+        sources = generator._read_project_rules_sources([
+            f"test-provider:project-rules::{canonical}"
+        ])
+        self.assertEqual("test-provider:project-rules", sources[0][0])
+        with self.assertRaises(generator.SetupError):
+            generator._read_project_rules_sources([
+                f"test-provider:other-rules::{canonical}"
+            ])
+        loose = self.root / "project-rules.md"
+        loose.write_text("# Loose\n", encoding="utf-8")
+        with self.assertRaises(generator.SetupError):
+            generator._read_project_rules_sources([
+                f"test-provider:project-rules::{loose}"
+            ])
+
+    def test_project_rules_are_reconciled_by_canonical_provider(self) -> None:
+        project = self.root / "project-rules-reconcile"
+        project.mkdir()
+        unity_rules = "# Unity discipline\n- Unity rule".encode("utf-8")
+        engine_rules = "# Engine discipline\n- Engine rule".encode("utf-8")
+
+        first = self.confirmed_setup(self.config(
+            project,
+            project_rules_sources=(("cgame-unity:project-rules", unity_rules),),
+        ))
+        self.assertEqual(["cgame-unity:project-rules"], first["project_rules_reconciliation"]["add"])
+
+        agents = project / "AGENTS.md"
+        preserved = generator.run_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+        ))
+        self.assertEqual("unchanged", preserved["agents_block"]["action"])
+        self.assertEqual(["cgame-unity:project-rules"], preserved["project_rules_reconciliation"]["keep"])
+
+        merged = self.confirmed_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            project_rules_sources=(("cgame-engine:project-rules", engine_rules),),
+        ))
+        self.assertEqual(["cgame-engine:project-rules"], merged["project_rules_reconciliation"]["add"])
+        text = agents.read_text(encoding="utf-8")
+        self.assertEqual(1, text.count(generator.AGENTS_BEGIN))
+        self.assertEqual(1, text.count(generator.AGENTS_END))
+        self.assertIn("cgame-unity:project-rules", text)
+        self.assertIn("cgame-engine:project-rules", text)
+
+        removed = self.confirmed_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            remove_project_rules_skills=("cgame-engine:project-rules",),
+        ))
+        self.assertEqual(["cgame-engine:project-rules"], removed["project_rules_reconciliation"]["remove"])
+        self.assertNotIn("cgame-engine:project-rules", agents.read_text(encoding="utf-8"))
+
+    def test_legacy_project_rules_require_explicit_attribution(self) -> None:
+        project = self.root / "legacy-project-rules"
+        project.mkdir()
+        agents = project / "AGENTS.md"
+        agents.write_text(
+            f"{generator.AGENTS_BEGIN}\n"
+            "## Sacha Orchestra 接入\n\n"
+            f"{generator.LEGACY_PROJECT_RULES_HEADING}\n\n"
+            "# Legacy rules\n- keep only after attribution\n"
+            f"{generator.AGENTS_END}\n",
+            encoding="utf-8",
+        )
+        refused = generator.run_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+        ))
+        self.assertEqual("refused", refused["status"])
+        self.assertIn("unattributed legacy project rules", refused["conflicts"][0])
+
+        no_asset = generator.run_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            replace_legacy_project_rules=True,
+        ))
+        self.assertEqual("refused", no_asset["status"])
+        self.assertIn("require at least one canonical project rules asset", no_asset["conflicts"][0])
+
+        migrated = self.confirmed_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            project_rules_sources=((
+                "cgame-unity:project-rules",
+                b"# Current rules\n- attributed",
+            ),),
+            replace_legacy_project_rules=True,
+        ))
+        self.assertEqual("committed", migrated["transaction"])
+        text = agents.read_text(encoding="utf-8")
+        self.assertNotIn(generator.LEGACY_PROJECT_RULES_HEADING, text)
+        self.assertIn("cgame-unity:project-rules", text)
+
+    def test_project_rules_without_source_hash_require_same_source_asset(self) -> None:
+        project = self.root / "hashless-project-rules"
+        project.mkdir()
+        rules = b"# Current rules\n- attributed"
+        rendered = generator.render_agents_block(
+            "docs/workflow-rule.md",
+            {"cgame-unity:project-rules": rules},
+        )
+        hash_line = (
+            f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->\n"
+        ).encode("utf-8")
+        agents = project / "AGENTS.md"
+        agents.write_bytes(rendered.replace(hash_line, b""))
+
+        refused = generator.run_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            replace_legacy_project_rules=True,
+        ))
+        self.assertEqual("refused", refused["status"])
+        self.assertIn("canonical asset for: cgame-unity:project-rules", refused["conflicts"][0])
+
+        refreshed = self.confirmed_setup(self.config(
+            project,
+            expected_agents_sha256=digest(agents),
+            replace_legacy_project_rules=True,
+            project_rules_sources=(("cgame-unity:project-rules", rules),),
+        ))
+        self.assertEqual("committed", refreshed["transaction"])
 
     def test_dry_run_commit_and_idempotent_rerun(self) -> None:
         project = self.root / "basic"
