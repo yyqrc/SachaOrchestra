@@ -26,7 +26,7 @@ Reviewer 与 Manager 不是入口选项。已存在的下游 Gate 事实可进�
 ## 4. Entry Decision
 
 - 初次判断及 Direct 执行期间都必须检查语义转折。诊断演变为设计/修改、授权扩到新 owner/平台，或新增 API 形态、owner、fallback/行为模式决策、Spec 消费者、跨 context 恢复需求时，只有这些事实会改变执行方式才重评估。
-- 同一 objective 或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、owner、实现边界或交付模型；反之，只有复杂、耗时、多文件或多平台仍保持 L0。
+- 同一 objective 或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、owner、实现边界或交付模型。没有第 3 节 candidate 事实时保持 L0。
 - 自动感知到 candidate 时，用自然技术语言说明新增能力、成本和执行影响，只询问一次；默认不向 Human 展示内部路线名或要求协议式回复。
 - Human 接受后，当前 root owner 按需加载 Workflow Contract、当前 Adapter、confirmed Project Integration 与目标 Role。
 - Human 拒绝后按当时事实保持 L0；同一 candidate 不得重复推销或创建 Sacha Artifact。实质变化形成新 candidate 时可再推荐一次。

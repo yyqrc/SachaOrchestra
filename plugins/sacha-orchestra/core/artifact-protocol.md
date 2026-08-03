@@ -5,7 +5,8 @@
 
 ## 1. 范围与权威
 
-本文是 Artifact 语义、权威边界和 Handoff 必要语义的唯一权威。入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义；Review 与 return 分别由 [Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md) 定义。
+本文是 Artifact 语义、权威边界和 Handoff 必要语义的唯一权威。入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义。
+Review 与 return 分别由 [Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md) 定义。
 
 保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威：
 
@@ -26,7 +27,8 @@
 | Execution Report | 续跑、证据索引或正式 Review | 实际 delta、验证、偏差、风险、locator、恢复入口 |
 | Review Artifact | 正式 Review | Findings、Verdict、证据缺口、下一路由 |
 
-没有消费者就不创建 Artifact。一个事实只写一次：Spec 不保存调查流水账，Goal/Scope/AC/Handoff 不复述同一决策；Report/Review 不重抄上游或原始日志，只给消费者所需 delta 与 locator。长度按风险和恢复需要自适应，不为格式拆文件；失败、未验证、授权、风险、Evidence 与 Entry Condition 不得为压缩而删除。
+没有消费者就不创建 Artifact。一个事实只写一次：Spec 不保存调查流水账，Goal/Scope/AC/Handoff 不复述同一决策；Report/Review 不重抄上游或原始日志，只给消费者所需 delta 与 locator。
+长度按风险和恢复需要自适应，不为格式拆文件。失败、未验证、授权、风险、Evidence 与 Entry Condition 不得为压缩而删除。
 
 ## 3. Handoff
 

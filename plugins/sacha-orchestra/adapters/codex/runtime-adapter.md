@@ -36,17 +36,17 @@ Runtime 常驻面只暴露 Skill metadata。`using-sacha` 先加载 Intake；直
 
 ### 3.1 Capability selection and join
 
-dispatch 前先读取当前可用能力和宿主授权，不假定 `threadId`、`hostId`、task 创建或特定 join 工具存在。
+dispatch 先读 capability/授权，不预设 task/id/join。named discovery 只认当前可选 `agent_type`；TOML 和 Skill `agents/openai.yaml` 不证明可调用
 
-1. 不要求独立 provenance 的同 context 工作保持当前 task；一个有界 helper 可由 owner 直接使用 `spawn_agent` 并以 `wait_agent` 消费。
-2. 正式 Role transition 选择当前可用且能保留 identity/terminal 的原生 subagent 或 task transport。只有 Human 明确要求/授权用户可见 task 时才创建；已有 task 按 workspace、Task/Scope、Role、provenance、owner 和可续发状态筛选。
-3. 独立 Reviewer 使用未参与方案/实现的 context；fork 继承参与历史，不证明独立。
-4. Source 只发送目标/交付、允许范围、完成检查/停止条件和必要 locator；依赖、隔离、route identity 或 revision 只在当前 transport/consumer 需要时增加。
-5. owner 使用 transport 对应的 `wait_agent`/`wait_threads` 等 terminal join。定点 list/read 可诊断 identity 或工具异常，不得忙轮询；一种 transport 不可用时尝试同 Scope 安全替代，全部耗尽才进入 `completion_return_blocked`。
+1. 同 context 保持当前 task；有界 helper 用 `spawn_agent` + `wait_agent`。
+2. Role transition 选保留 identity/terminal 的原生 transport；用户可见 task 需 Human 明示。已有 task 按 Scope、Role、provenance、owner、可续发状态筛选。
+3. Reviewer context 未参与方案/实现；fork 不证明独立。
+4. Source 只发目标/交付、Scope、检查/停止条件和 locator；按 transport 补依赖、隔离或 identity。
+5. owner terminal join且不忙轮询；当前 transport 失败就尝试同 Scope 安全替代，全部耗尽才 `completion_return_blocked`。
 
 Feedback Source-local helper 只读补证，不取得 target workspace、owner/Role 或 repair identity，不能充当 repair target。
 
-按 Skill identity 消歧：唯一匹配就复用且不调用 `create_thread`；不唯一请 Human 决定。显式修复、目标唯一、transport 可用且无匹配时，Source 只调用一次 `create_thread`，在 owner workspace 创建一个 repair task。自动 Feedback 还需已接受 lifecycle。新 task 不扩权；Target 独立核对写入、Git、安装、发布授权，缺少时暂停。
+按 Coordination identity 消歧：唯一匹配直接复用；不唯一请 Human 决定。显式修复目标唯一、transport 可用且无匹配时，只调用一次 `create_thread` 在 owner workspace 建 repair task；自动 Feedback 还需已接受 lifecycle。新 task 不扩权，Target 独立核对实施授权。
 
 Source 用 `wait_threads` terminal join并消费一次结果；`send_message_to_thread`、helper 或报告不能替代；且不修改 repair source、不重复创建或写其他 task。
 
@@ -54,7 +54,7 @@ Source 用 `wait_threads` terminal join并消费一次结果；`send_message_to_
 
 Target 先完成必要 Artifact/Handoff，再在 final 返回结果/delta、实际验证、阻塞/风险和 locator；原生 join 未携带且消歧必需时才补 route identity/revision/dedup。随后结束，不发消息唤醒或监控 owner；更正使用新 revision。
 
-Owner 结合原生 join 与 payload 核对当前 consumer 必需的 Task/Scope revision、owner、Source/Target、snapshot 和 dedup。错误、陈旧或重复结果不产生额外 dispatch/write/terminal；正确结果只触发唯一下一 transition。`send_message_to_thread` 仅用于补充输入，不替代 join。
+Owner 结合原生 join/payload 核对 consumer 必需的 revision、owner、Source/Target、snapshot 和 dedup。错误、陈旧或重复结果不产生额外 dispatch/write/terminal；正确结果只触发唯一下一 transition。`send_message_to_thread` 只补输入，不替代 join。
 
 ### 3.3 Configuration、progress、failure
 
@@ -62,6 +62,8 @@ Owner 结合原生 join 与 payload 核对当前 consumer 必需的 Task/Scope r
 
 | Target | Model / reasoning_effort | 首个命中条件 |
 | --- | --- | --- |
+| Executor | `agent_type=luna_worker_xhigh`（Luna / `xhigh`） | helper 资格成立，且任务只读、机械或为可直接验证的小型低风险修改 |
+| Executor | `agent_type=luna_worker`（Luna / `max`） | helper 资格成立，任务非高风险但包含实质写入、复杂验证或明显错误/返工成本 |
 | Planner | `gpt-5.6-sol` / `xhigh` | breaking contract/schema、跨 Runtime/系统、难逆决策、耦合方案或验收冲突 |
 | Planner | `gpt-5.6-sol` / `high` | 其他需要冻结实质方案的规划 |
 | Executor | `gpt-5.6-sol` / `high` | 安全、权限、持久数据、breaking、不可逆外部动作或广泛兼容/发布风险，同时涉及跨系统、长依赖链、复杂迁移/集成或多阶段昂贵验证 |
@@ -69,9 +71,11 @@ Owner 结合原生 join 与 payload 核对当前 consumer 必需的 Task/Scope r
 | Executor | `gpt-5.6-terra` / `xhigh` | 多模块、长依赖链、复杂调试/集成或多阶段验证，且不属于高风险 |
 | Executor | `gpt-5.6-terra` / `high` | 其他 Scope/验收已冻结、模式既有且验证明确的实施 |
 
-高风险优先，复杂高风险再优先；模型不替代 Planner Gate。普通 Executor 输入不自包含时不用 `terra`。自包含任务使用 `spawn_agent` 的 `fork_turns=none`、`model` 和 `reasoning_effort`；未落盘 Human 决定只传最少 turns。不得为覆盖模型创建用户可见 task；必须继承完整 context 时保留继承模型。Direct/current context 不切模型。
+高风险优先 Sol。helper 合格时，轻量任务选 `luna_worker_xhigh`，其他非高风险独立交付选 `luna_worker`，均先于 Terra。Luna 控制模型成本，reasoning 按返工风险选择。
+named route 用 `agent_type`/`fork_turns=none`；每种 type 首次写入前无 join 证据时先做只读 probe。不替代 Gate、不建用户可见 task；完整父 context 用继承模型，Direct/current context 不切换。
 
-Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime default。owner 记录 requested/effective 配置和 fallback 原因；旧写入者 terminal/cancelled 前不得以其他配置启动同 Scope 写入。
+精确配置不支持时暂停。xhigh 不可用可回退已验证的 max；max 不可用不得降到 xhigh，回退 Sol/Terra。probe/join 失败不得冒充 requested type。
+记录 requested/effective agent type、model、reasoning、fallback reason；effective 只取宿主返回，无遥测即未验证。旧写入者结束前不换配置。
 
 单次 wait/join 最长 `60s`；timeout 只触发进度/liveness 检查。存在可证明活动时不按墙钟中断；仅在失活、越界、用户取消或继续会双写/增险时中断，确认 terminal/cancelled 后再接管。
 
@@ -93,9 +97,9 @@ Human/Scope 精确 model/effort 优先；自动路由只选择项目配置中的
 
 精确 `provider/model` 只来自 `setup-project` 读取本机 `pi --list-models` 的巡检或 Human 确认的 Project Integration；plugin 不保存 provider 清单或完整型号。优先级是 Human 本次精确配置、已确认项目 route、按上表筛出的候选、Pi Runtime default；项目配置即使当前清单缺失也不被自动替换，而是 warning。显式型号与 effective 不一致时失败，不静默换型。
 
-integration owner 准备干净、精确 HEAD 的 linked worktree和自包含任务，再调用 [pi once](../../scripts/pi_once.ps1)，给出 Prompt、显式读写路径及可选完整 model。helper 使用 JSON event stream、无 session、关闭自动 extension/Skill/prompt/context，只启用 `read,edit,write,sacha_result`；显式 guard 在工具执行前拒绝越界、控制目录、symlink/junction 和多链接写目标，Pi 只能以终止型结构化结果收尾。
+integration owner 准备干净、精确 HEAD 的 linked worktree和自包含任务，再调用 [pi once](../../scripts/pi_once.ps1)，给出 Prompt、显式读写路径及可选 model。helper 无 session，只启用 `read,edit,write,sacha_result`；guard 在工具前拒绝越界、控制目录、symlink/junction 和多链接写目标，并要求终止型结构化结果。
 
-guard 和事后检查是应用层 containment，不是原生 Windows OS sandbox；调用方必须信任 `PiPath` 指向的 executable。owner 仍核对 ignored 文件、Git metadata、HEAD、退出码、JSONL、结构化 outcome 和真实 diff，并重跑验收。失败不集成、不 resume；旧进程 terminal 后由 Codex subagent 消费原任务、候选 diff、实际失败和审查意见。
+guard/事后检查是应用层 containment，不是 Windows OS sandbox；调用方须信任 `PiPath` executable。owner 核对 ignored 文件、Git metadata、HEAD、退出码、JSONL、outcome 和真实 diff并重跑验收。失败不集成；旧进程 terminal 后由 Codex subagent 接管原任务与失败证据。
 
 ## 4. Manager、Goal 与 Artifact
 
@@ -109,9 +113,9 @@ Core objective 不要求原生 Goal；只有 Human 明确要求 exact Goal 时�
 
 ## 5. Skill discovery 与 Project setup
 
-Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`、`planner`、`executor`、`reviewer`、`manager`、`feedback`、`project-documentation`、`setup-project`、`clarify`。
+Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`、`planner`、`executor`、`reviewer`、`manager`、`feedback`、`project-documentation`、`setup-project`、`setup-agents`、`clarify`。
 
-`agents/openai.yaml` 只定义 metadata。Setup/Clarify explicit-only；Documentation 受 confirmed policy/授权约束；生产 Role 须显式调用或经 Intake 接受。
+`agents/openai.yaml` 只定义 metadata，不是 Codex 自定义 Agent TOML，也不参与 named `agent_type` discovery。Clarify/setup explicit-only；Documentation 受 confirmed policy/授权约束；生产 Role 须显式调用或经 Intake 接受。
 
 Setup 只在目标项目扫描已配置/约定的 Skill root；完整读取 authority/independent `SKILL.md` 及调用必需 locator，mirror 不重复。文件存在不证明 Runtime 可调用，须核对当前 metadata；不得扫描 cache、全局目录、marketplace、网络或其他 workspace。
 

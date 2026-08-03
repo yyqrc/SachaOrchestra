@@ -5,9 +5,12 @@
 
 ## 1. 范围与 owner
 
-本文只定义 Manager 控制面、delegation、completion/return、identity/dedup 和 deviation。Gate/lifecycle 见 [Workflow Contract](workflow-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。无 delegation、跨 context return 或恢复 consumer 时不加载。
+本文只定义 Manager 控制面、delegation、completion/return、identity/dedup 和 deviation。
+Gate/lifecycle 见 [Workflow Contract](workflow-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+无 delegation、跨 context return 或恢复 consumer 时不加载。
 
-Manager 不是生产 Role。生产 Role transition 由 workflow owner 路由；多个 delegated unit、依赖图、跨 context 恢复或并行生命周期由 Manager 管理。当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、结果核对与集成；helper 不取得独立 Role verdict。
+Manager 不是生产 Role。生产 Role transition 由 workflow owner 路由；多个 delegated unit、依赖图、跨 context 恢复或并行生命周期由 Manager 管理。
+当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、结果核对与集成；helper 不取得独立 Role verdict。
 
 ## 2. 派发与 single writer
 
@@ -27,9 +30,11 @@ Clarify 先使用当前 context 可达事实；一个有界只读 helper 足够�
 
 ## 4. Completion、return 与 deviation
 
-Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/Role 对同一 revision 只返回一次结果、实际验证、阻塞/风险和必要 locator；原生 transport 无法消歧时才补 Task/Scope revision、Source/Target、owner 或 dedup。更正使用新 revision。
+Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/Role 对同一 revision 只返回一次结果、实际验证、阻塞/风险和必要 locator。
+原生 transport 无法消歧时才补 Task/Scope revision、Source/Target、owner 或 dedup；更正使用新 revision。
 
-显式 Feedback 的窄授权包含只读取证和完成 repair route。当 repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配的 owner context，或在无匹配时创建恰好一个 owner context并消费 terminal；不能以调查报告或再次询问同一目标的创建授权结束。Source 的只读 investigation helper 不取得 repair owner、Role 或 identity，不能充当 repair target。Target 独立核对实施与外部副作用授权。
+显式 Feedback 的窄授权包含只读取证和完成 repair route。repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配，或在无匹配时创建恰好一个 owner context并消费 terminal。
+Source 不能以调查报告结束或重复询问同一创建授权；只读 investigation helper 不取得 repair owner、Role 或 identity。Target 独立核对实施与外部副作用授权。
 
 同一 payload 兼作 report/completion 时不重复内容；完整 report/evidence 仅在有消费者时落 Artifact。面向 Human 的 final 不是 transport，不展示内部字段表。
 

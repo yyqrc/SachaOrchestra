@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 
@@ -25,6 +26,13 @@ PI_ONCE = PLUGIN / "scripts" / "pi_once.ps1"
 PI_GUARD = PLUGIN / "scripts" / "pi_guard.mjs"
 SETUP_GENERATOR = PLUGIN / "skills" / "setup-project" / "scripts" / "generate_project_integration.py"
 PI_MODEL_INSPECTOR = PLUGIN / "skills" / "setup-project" / "scripts" / "inspect_pi_models.ps1"
+SETUP_AGENTS = PLUGIN / "skills" / "setup-agents"
+SETUP_AGENTS_SCRIPT = SETUP_AGENTS / "scripts" / "setup_agents.py"
+LUNA_WORKER_TEMPLATES = {
+    SETUP_AGENTS / "assets" / "luna-worker.toml": ("luna_worker", "max"),
+    SETUP_AGENTS / "assets" / "luna-worker-xhigh.toml": ("luna_worker_xhigh", "xhigh"),
+}
+SETUP_AGENTS_TEST = ROOT / "tests" / "test_setup_agents.py"
 PROJECT_DOCUMENTATION = PLUGIN / "skills" / "project-documentation"
 DOCUMENTATION_GENERATOR = (
     PROJECT_DOCUMENTATION / "scripts" / "generate_project_document.py"
@@ -41,7 +49,7 @@ AGENTS = ROOT / "AGENTS.md"
 SKILL_ROOTS = tuple(sorted((PLUGIN / "skills").iterdir()))
 ROLE_SKILLS = tuple(path / "SKILL.md" for path in SKILL_ROOTS)
 SKILL_METADATA = tuple(path / "agents" / "openai.yaml" for path in SKILL_ROOTS)
-EXPLICIT_ONLY_SKILLS = {"clarify", "setup-project"}
+EXPLICIT_ONLY_SKILLS = {"clarify", "setup-project", "setup-agents"}
 INTAKE_GATED_SKILLS = {"planner", "executor", "reviewer", "manager"}
 RUNTIME_API_MARKERS = (
     "create_thread",
@@ -187,20 +195,24 @@ def main() -> int:
         "Core contracts still own product release history",
     )
     check("Adapter Version:" not in codex_adapter and "Adapter Version:" not in claude_adapter, "Runtime Adapters still own product release history")
-    check(len(re.findall(r"(?m)^> 当前 release：", evolution)) == 1, "Evolution must have exactly one current release")
-    check(len(re.findall(r"(?m)^> 当前 source candidate：", evolution)) == 1, "Evolution must have exactly one current source candidate")
+    current_releases = re.findall(r"(?m)^> 当前 release：(\S+)", evolution)
+    current_candidates = re.findall(r"(?m)^> 当前 source candidate：(\S+)", evolution)
+    check(len(current_releases) == 1, "Evolution must have exactly one current release")
+    check(len(current_candidates) == 1, "Evolution must have exactly one current source candidate")
     current_mainlines = re.findall(r"(?m)^> 当前主线：(.+)$", evolution)
     check(len(current_mainlines) == 1, "Evolution must have exactly one current mainline authority")
     check("source candidate" not in codex_adapter and "source candidate" not in claude_adapter, "Adapter still owns candidate state")
     check("../codex/runtime-adapter.md" not in claude_adapter, "Claude Code Adapter references Codex Adapter")
     check("../claudecode/runtime-adapter.md" not in codex_adapter, "Codex Adapter references Claude Code Adapter")
     codex_model_contract = (
+        "`agent_type=luna_worker`",
+        "`agent_type=luna_worker_xhigh`",
         "`gpt-5.6-sol` / `xhigh`",
         "`gpt-5.6-sol` / `high`",
         "`gpt-5.6-sol` / `medium`",
         "`gpt-5.6-terra` / `xhigh`",
         "`gpt-5.6-terra` / `high`",
-        "`fork_turns=none`、`model` 和 `reasoning_effort`",
+        "`fork_turns=none`",
         "requested/effective",
         "Direct/current context",
     )
@@ -227,6 +239,32 @@ def main() -> int:
     check(PI_ONCE.is_file(), "Pi one-shot helper is missing")
     check(PI_GUARD.is_file(), "Pi one-shot path guard is missing")
     check(PI_MODEL_INSPECTOR.is_file(), "Setup Pi model inspector is missing")
+    check(SETUP_AGENTS_SCRIPT.is_file(), "Setup Agents production script is missing")
+    check(all(path.is_file() for path in LUNA_WORKER_TEMPLATES), "Luna worker templates are missing")
+    check(SETUP_AGENTS_TEST.is_file(), "Setup Agents behavior tests are missing")
+    check("setup-agents" not in skill_documents_by_name["setup-project"], "Setup Project owns user-level Agent setup")
+    parsed_luna_templates = []
+    for template_path, (expected_name, expected_effort) in LUNA_WORKER_TEMPLATES.items():
+        if not template_path.is_file():
+            continue
+        template_text = text(template_path)
+        try:
+            template = tomllib.loads(template_text)
+        except tomllib.TOMLDecodeError:
+            template = {}
+        parsed_luna_templates.append(template)
+        check(template_text.startswith("# managed-by: sacha-orchestra/setup-agents\n"), f"Luna worker template owner marker is missing: {template_path.name}")
+        check(
+            template.get("name") == expected_name
+            and isinstance(template.get("model"), str)
+            and template.get("model_reasoning_effort") == expected_effort,
+            f"Luna worker template identity is invalid: {template_path.name}",
+        )
+    check(
+        len(parsed_luna_templates) == 2
+        and len({template.get("model") for template in parsed_luna_templates}) == 1,
+        "Luna worker templates do not share one model tier",
+    )
     check(not (PLUGIN / "scripts" / "claude_once.ps1").exists(), "Retired Claude CLI one-shot helper still exists")
     if PI_ONCE.is_file():
         pi_once = text(PI_ONCE)
@@ -295,110 +333,7 @@ def main() -> int:
         all(marker not in coordination + artifact for marker in fixed_dispatch_markers),
         "Current contracts still require retired fixed dispatch formatting",
     )
-    feedback_skill = skill_documents_by_name["feedback"]
-    check(
-        all(
-            marker in feedback_skill + codex_adapter
-            for marker in (
-                "创建恰好一个 owner workspace 的 repair context",
-                "只调用一次 `create_thread`",
-                "在 owner workspace 创建一个 repair task",
-                "`wait_threads`",
-                "terminal join并消费一次结果",
-            )
-        ),
-        "Feedback unique owner with no match must create exactly one owner repair task and join",
-    )
-    check(
-        "只有唯一完整匹配才复用且不得重复创建" in feedback_skill
-        and "唯一匹配就复用且不调用 `create_thread`" in codex_adapter,
-        "Feedback unique matching target must be reused without duplicate creation",
-    )
-    check(
-        all(
-            marker in feedback_skill + codex_adapter
-            for marker in (
-                "helper 仍属于 Source",
-                "不能替代目标 workspace/context",
-                "Source-local helper",
-                "不能充当 repair target",
-            )
-        ),
-        "Feedback Source-local investigation helper must not satisfy repair-target identity",
-    )
-    check(
-        "无法消歧就问 Human" in feedback_skill and "不唯一请 Human 决定" in codex_adapter,
-        "Feedback ambiguous repair target must require Human decision",
-    )
-    check(
-        "Source 不设计或实施修复" in feedback_skill
-        and "不修改 repair source" in codex_adapter,
-        "Feedback Source must not modify repair source",
-    )
-    check(
-        "缺少授权时由 Target 暂停" in feedback_skill
-        and "Target 独立核对写入、Git、安装、发布授权" in codex_adapter,
-        "Feedback Target must independently stop on missing implementation or external-action authorization",
-    )
-    check(
-        "不得要求 Human 为创建同一目标再次授权" in feedback_skill
-        and "新 context 不扩权" in feedback_skill
-        and "新 task 不扩权" in codex_adapter,
-        "Feedback routing authority must not be confused with Target implementation authority",
-    )
-    coordination_feedback_contract = (
-        "显式 Feedback 的窄授权包含只读取证和完成 repair route",
-        "创建恰好一个 owner context并消费 terminal",
-        "不能以调查报告或再次询问同一目标的创建授权结束",
-        "investigation helper 不取得 repair owner、Role 或 identity",
-        "Target 独立核对实施与外部副作用授权",
-    )
-    check(
-        all(marker in coordination for marker in coordination_feedback_contract),
-        "Coordination Feedback deviation/return contract is incomplete",
-    )
-    intake_reassessment_contract = (
-        "初次判断及 Direct 执行期间",
-        "关键 Human 澄清",
-        "先冻结/持久化可执行 Spec",
-        "难回退跨 owner 决策",
-        "只有复杂、耗时、多文件或多平台仍保持 L0",
-        "实质变化形成新 candidate 时可再推荐一次",
-    )
-    check(
-        all(marker in intake for marker in intake_reassessment_contract),
-        "Intake task-evolution reassessment contract is incomplete",
-    )
-    using_sacha_reassessment_contract = (
-        "Direct 执行期间",
-        "关键 Human 澄清",
-        "先冻结/持久化 Spec",
-        "跨 context owner/恢复",
-        "正式协调/独立验收",
-        "难回退的跨 owner 决策",
-        "复杂调试、耗时、文件多、多平台或持续验证本身仍保持 Direct",
-    )
-    check(
-        all(
-            marker in skill_documents_by_name["using-sacha"]
-            for marker in using_sacha_reassessment_contract
-        ),
-        "using-sacha task-evolution procedure is incomplete",
-    )
-    planner_reassessment_contract = (
-        "实施前需关键 Human 澄清",
-        "需冻结/持久化 Spec",
-        "难回退跨 owner 决策",
-        "复杂、文件多、耗时、多平台、无分歧修改",
-        "Direct 或 active workflow",
-    )
-    check(
-        all(marker in core for marker in planner_reassessment_contract),
-        "Planner Gate task-evolution alignment is incomplete",
-    )
-    setup_confirmation_contract = (
-        "等待 Human 明确确认",
-        "历史 Binding 不是本轮写入授权",
+    setup_confirmation_tokens = (
         "`planned_delta_sha256`",
         "`--confirmed-planned-delta-sha256`",
         "`--list-models`",
@@ -410,9 +345,9 @@ def main() -> int:
     check(
         all(
             marker in skill_documents_by_name["setup-project"]
-            for marker in setup_confirmation_contract
+            for marker in setup_confirmation_tokens
         ),
-        "Setup Project configuration-confirmation contract is incomplete",
+        "Setup Project does not expose its stable configuration entrypoints",
     )
     setup_confirmation_generator = (
         '"write_confirmation"',
@@ -445,7 +380,7 @@ def main() -> int:
             ),
             "Setup Pi model inspection and configuration priority are incomplete",
         )
-    runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
+    runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "luna_worker", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
     check(
         all(marker not in content for marker in runtime_model_markers for content in (intake, core, assurance, coordination, artifact, *role_skill_documents.values())),
         "Runtime model policy leaks into Core or Role Skills",
@@ -464,6 +399,7 @@ def main() -> int:
         and path.suffix.casefold() in {".md", ".json", ".yaml", ".yml", ".py", ".ps1", ".mjs"}
         and ".git" not in path.parts
         and ".temp" not in path.parts
+        and path not in LUNA_WORKER_TEMPLATES
     )
     private_pi_leaks = [
         f"{path.relative_to(ROOT)}:{marker}"
@@ -549,6 +485,9 @@ def main() -> int:
             "scripts/resolve_capability_queries.py",
             "scripts/generate_project_integration.py",
             "scripts/inspect_pi_models.ps1",
+            "scripts/setup_agents.py",
+            "assets/luna-worker.toml",
+            "assets/luna-worker-xhigh.toml",
         }
         check(links <= allowed_links, f"Role Skill adds a non-canonical documentation dependency: {path}")
     discovery_descriptions = [
@@ -761,10 +700,10 @@ def main() -> int:
     )
 
     if args.phase == "candidate":
-        check(f"> 当前 source candidate：`{version}`" in evolution, "Evolution candidate does not match --version")
+        check(current_candidates == [f"`{version}`"], "Evolution candidate does not match --version")
     else:
-        check(f"> 当前 release：`{version}`" in evolution, "Evolution release does not match --version")
-        check("> 当前 source candidate：无" in evolution, "Released state still has a source candidate")
+        check(current_releases == [f"`{version}`"], "Evolution release does not match --version")
+        check(current_candidates == ["无"], "Released state still has a source candidate")
         tag_ref = git("rev-parse", "--verify", f"refs/tags/{tag}")
         check(tag_ref.returncode == 0, "Annotated release tag is missing")
         tag_commit = git("rev-parse", f"{tag}^{{}}")

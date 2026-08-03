@@ -5,7 +5,8 @@
 
 ## 1. 范围
 
-本文只定义 Intake 接受后的 Role、Gate、生命周期和 Human 路由。入口见 [Intake Contract](intake-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)，调度与 return 见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+本文只定义 Intake 接受后的 Role、Gate、生命周期和 Human 路由。入口见 [Intake Contract](intake-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
+调度与 return 见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
 
 Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 Project Integration/Domain Skill，Role procedure 归 Skill。只在当前 consumer 出现时加载对应合同，不预加载可能出现的下游面。
 
@@ -34,16 +35,19 @@ Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 
 | Reviewer | 安全/权限/持久数据、breaking、困难回退、关键验证缺失/证据冲突或 Human 要求 | 文档标签、版本封装、可回退且完整验证的局部修改 |
 | Manager | 多个 delegated 单元、依赖图、安全并发、正式恢复或多环境需要 owner | 困难、耗时、多文件、只想增加 Agent |
 
-Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实；Direct 或 active workflow 发现关键澄清、Spec 消费者、跨 context 恢复或难回退跨 owner 决策等新事实时必须重评估。名称或新 context 不证明 Reviewer 独立；参与当前方案/实现者不能作独立 Reviewer。
+Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实。Direct 或 active workflow 出现表中新的打开事实时必须重评估。
+名称或新 context 不证明 Reviewer 独立；参与当前方案/实现者不能作独立 Reviewer。
 
 ## 4. Lifecycle 与 Human 路由
 
 生命周期：Intake acceptance → Route → Plan（按需）→ Coordinate（按需）→ Execute → Review（按需）→ Close/Handoff。
 
-Human 是技术项目协作者。先给判断及证据，再给影响或下一步；按问题自然组织，不要求 Human 理解内部 Gate、Packet、状态码或字段表。只有缺失决定会改变实现、验收或高影响动作时才问一个具体问题，并给推荐与取舍。进度只报新事实、风险或阻塞。
+Human 是技术项目协作者。先给判断及证据，再给影响或下一步；按问题自然组织，不要求 Human 理解内部 Gate、Packet、状态码或字段表。
+只有缺失决定会改变实现、验收或高影响动作时才问一个具体问题，并给推荐与取舍。进度只报新事实、风险或阻塞。
 
 不得为简短而隐藏授权影响、安全/数据风险、失败、未验证、Scope 偏离、locator、Entry Condition、schema 或脆弱步骤。
 
-动态路由：Executor 在用户可见行为、架构边界、持久数据、冻结决策、Scope/验收发生实质变化，或预计需要关键 Human 澄清、先持久化 Spec、处理难回退跨 owner 决策时返回 Planner；新增高影响授权 → Human；Reviewer 路由按 Assurance；delegation/return 失败按 Coordination。Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
+动态路由：出现 Planner Gate 新事实 → Planner；新增高影响授权 → Human；Reviewer 路由按 Assurance；delegation/return 失败按 Coordination。
+Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
 
 Role completion、同 Scope 返修/补证据/复验、唯一 owner 路由和已授权 closeout 不是 Human checkpoint。Direct Scope 由用户目标与明确约束界定；预计文件列表不是 hard allowlist，除非 Human/Spec 明确如此。

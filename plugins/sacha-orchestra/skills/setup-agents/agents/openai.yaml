@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sacha Orchestra Agent Setup（全局 Agent 配置）"
+  short_description: "安全安装或刷新 Sacha 官方 max/xhigh Luna Agent"
+  default_prompt: "使用 $sacha-orchestra:setup-agents 预演并安全安装或刷新 Sacha 官方 max/xhigh Luna Agent。"
+
+policy:
+  allow_implicit_invocation: false

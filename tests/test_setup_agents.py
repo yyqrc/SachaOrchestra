@@ -1,0 +1,230 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import tomllib
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "plugins" / "sacha-orchestra" / "skills" / "setup-agents" / "scripts" / "setup_agents.py"
+SPEC = importlib.util.spec_from_file_location("sacha_setup_agents", SCRIPT)
+assert SPEC and SPEC.loader
+setup_agents = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = setup_agents
+SPEC.loader.exec_module(setup_agents)
+
+
+class SetupAgentsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.codex_home = self.root / "codex-home"
+        self.codex_home.mkdir()
+        self.target = self.codex_home / "agents" / "luna-worker.toml"
+        self.xhigh_target = self.codex_home / "agents" / "luna-worker-xhigh.toml"
+        self.template = setup_agents.DEFAULT_TEMPLATE.read_bytes()
+        self.xhigh_template = setup_agents.XHIGH_TEMPLATE.read_bytes()
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def dry_run(self):
+        return setup_agents.run_setup(codex_home=self.codex_home)
+
+    def apply(self, plan, **kwargs):
+        return setup_agents.run_setup(
+            codex_home=self.codex_home,
+            write=True,
+            confirmed_planned_delta_sha256=plan["planned_delta_sha256"],
+            **kwargs,
+        )
+
+    @staticmethod
+    def agent(plan, name):
+        return next(agent for agent in plan["agents"] if agent["name"] == name)
+
+    def test_path_resolution_prefers_codex_home_and_falls_back(self) -> None:
+        selected = setup_agents.resolve_codex_home(environ={"CODEX_HOME": str(self.codex_home)}, user_home=self.root / "ignored")
+        fallback = setup_agents.resolve_codex_home(environ={}, user_home=self.root / "user")
+        self.assertEqual(selected, self.codex_home.resolve())
+        self.assertEqual(fallback, (self.root / "user" / ".codex").resolve())
+        self.assertEqual(setup_agents.resolve_target(selected), self.target.resolve())
+        self.assertEqual(
+            setup_agents.resolve_target(selected, setup_agents.XHIGH_TARGET_RELATIVE),
+            self.xhigh_target.resolve(),
+        )
+
+    def test_cli_dry_run_uses_temporary_codex_home(self) -> None:
+        env = os.environ.copy()
+        env.update(CODEX_HOME=str(self.codex_home), PYTHONUTF8="1")
+        completed = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), "--dry-run"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = json.loads(completed.stdout)
+        self.assertEqual(result["action"], "create")
+        self.assertEqual(result["target_paths"], [str(self.target.resolve()), str(self.xhigh_target.resolve())])
+        self.assertFalse(self.target.exists())
+        self.assertFalse(self.xhigh_target.exists())
+
+    def test_cli_conflict_refuses_write_without_replace_flag(self) -> None:
+        self.target.parent.mkdir()
+        original = b'name = "custom"\n'
+        self.target.write_bytes(original)
+        env = os.environ.copy()
+        env.update(CODEX_HOME=str(self.codex_home), PYTHONUTF8="1")
+        dry_run = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), "--dry-run"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+        )
+        plan = json.loads(dry_run.stdout)
+        write = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(SCRIPT),
+                "--write",
+                "--confirmed-planned-delta-sha256",
+                plan["planned_delta_sha256"],
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+        )
+        self.assertEqual(write.returncode, 2)
+        self.assertEqual(json.loads(write.stdout)["transaction"], "no_write")
+        self.assertEqual(self.target.read_bytes(), original)
+        self.assertFalse(self.xhigh_target.exists())
+
+    def test_create_and_repeated_run_are_idempotent(self) -> None:
+        plan = self.dry_run()
+        self.assertEqual(plan["action"], "create")
+        self.assertEqual(len(plan["planned_delta_sha256"]), 64)
+        self.assertIn(str(self.target.resolve()), plan["delta"])
+        self.assertIn(str(self.xhigh_target.resolve()), plan["delta"])
+        self.assertGreaterEqual(
+            len(plan["delta"].splitlines()),
+            len(self.template.decode("utf-8").splitlines())
+            + len(self.xhigh_template.decode("utf-8").splitlines())
+            + 4,
+        )
+        self.assertFalse(self.target.exists())
+        self.assertFalse(self.xhigh_target.exists())
+        result = self.apply(plan)
+        self.assertEqual((result["status"], result["transaction"]), ("ok", "written"))
+        self.assertEqual(self.target.read_bytes(), self.template)
+        self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
+        parsed = tomllib.loads(self.target.read_text(encoding="utf-8"))
+        xhigh_parsed = tomllib.loads(self.xhigh_target.read_text(encoding="utf-8"))
+        self.assertEqual(parsed, tomllib.loads(self.template.decode("utf-8")))
+        self.assertEqual((parsed["name"], parsed["model_reasoning_effort"]), ("luna_worker", "max"))
+        self.assertEqual(
+            (xhigh_parsed["name"], xhigh_parsed["model_reasoning_effort"]),
+            ("luna_worker_xhigh", "xhigh"),
+        )
+        self.assertEqual(parsed["model"], xhigh_parsed["model"])
+        again = self.dry_run()
+        self.assertEqual((again["action"], again["delta"]), ("no-op", ""))
+
+    def test_semantically_identical_unmanaged_file_is_no_op(self) -> None:
+        self.target.parent.mkdir()
+        manual = b"\n".join(line for line in self.template.splitlines() if not line.startswith(b"#")) + b"\n"
+        xhigh_manual = b"\n".join(line for line in self.xhigh_template.splitlines() if not line.startswith(b"#")) + b"\n"
+        self.target.write_bytes(manual)
+        self.xhigh_target.write_bytes(xhigh_manual)
+        plan = self.dry_run()
+        self.assertEqual(plan["action"], "no-op")
+        result = setup_agents.run_setup(codex_home=self.codex_home, write=True)
+        self.assertEqual(result["transaction"], "no_changes")
+        self.assertEqual(self.target.read_bytes(), manual)
+        self.assertEqual(self.xhigh_target.read_bytes(), xhigh_manual)
+
+    def test_unmanaged_conflict_is_refused_without_replace_confirmation(self) -> None:
+        self.target.parent.mkdir()
+        original = b'name = "custom"\nmodel = "custom"\n'
+        self.target.write_bytes(original)
+        plan = self.dry_run()
+        self.assertEqual(self.agent(plan, "luna_worker")["action"], "conflict")
+        self.assertEqual(self.agent(plan, "luna_worker_xhigh")["action"], "create")
+        result = self.apply(plan)
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "no_write"))
+        self.assertEqual(self.target.read_bytes(), original)
+        self.assertFalse(self.xhigh_target.exists())
+
+    def test_explicit_conflict_replacement_uses_confirmed_hash(self) -> None:
+        self.target.parent.mkdir()
+        self.target.write_text('name = "custom"\n', encoding="utf-8")
+        plan = self.dry_run()
+        result = self.apply(plan, replace_conflict=True)
+        self.assertEqual(result["transaction"], "written")
+        self.assertEqual(self.target.read_bytes(), self.template)
+        self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
+
+    def test_managed_update_requires_current_planned_hash(self) -> None:
+        self.target.parent.mkdir()
+        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "luna_worker"\nmodel = "old"\n'
+        self.target.write_bytes(old)
+        plan = self.dry_run()
+        self.assertEqual(self.agent(plan, "luna_worker")["action"], "update")
+        self.assertEqual(self.agent(plan, "luna_worker_xhigh")["action"], "create")
+        refused = setup_agents.run_setup(
+            codex_home=self.codex_home,
+            write=True,
+            confirmed_planned_delta_sha256="0" * 64,
+        )
+        self.assertEqual(refused["transaction"], "no_write")
+        self.assertEqual(self.target.read_bytes(), old)
+        updated = self.apply(plan)
+        self.assertEqual(updated["transaction"], "written")
+        self.assertEqual(self.target.read_bytes(), self.template)
+        self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
+
+    def test_invalid_template_is_refused_without_write(self) -> None:
+        bad_template = self.root / "bad.toml"
+        bad_template.write_text(setup_agents.OWNER_MARKER + "\nname = [", encoding="utf-8")
+        result = setup_agents.run_setup(
+            codex_home=self.codex_home,
+            _template_paths={"luna_worker": bad_template},
+        )
+        self.assertEqual(result["transaction"], "no_write")
+        self.assertFalse(self.target.exists())
+        self.assertFalse(self.xhigh_target.exists())
+
+    def test_post_write_failure_rolls_back_preimage(self) -> None:
+        self.target.parent.mkdir()
+        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "luna_worker"\nmodel = "old"\n'
+        self.target.write_bytes(old)
+        plan = self.dry_run()
+
+        replaced = []
+
+        def fail_after_replace(target: Path) -> None:
+            replaced.append(target)
+            if len(replaced) == 2:
+                raise RuntimeError("injected post-write failure")
+
+        result = self.apply(plan, _test_hooks={"after_replace": fail_after_replace})
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "rolled_back"))
+        self.assertEqual(self.target.read_bytes(), old)
+        self.assertFalse(self.xhigh_target.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
