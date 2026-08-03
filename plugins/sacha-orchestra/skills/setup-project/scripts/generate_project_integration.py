@@ -17,6 +17,7 @@ from typing import Callable, Mapping
 
 GENERATOR_MARKER = "<!-- Generator: sacha-orchestra:setup-project -->"
 SCHEMA_MARKER = "<!-- Schema Version: 3 -->"
+IGNORED_RULE_CANDIDATES_MARKER = "Sacha ignored rule candidates"
 AGENTS_BEGIN = "<!-- BEGIN SACHA ORCHESTRA MANAGED BLOCK -->"
 AGENTS_END = "<!-- END SACHA ORCHESTRA MANAGED BLOCK -->"
 PROJECT_RULES_BEGIN = "<!-- BEGIN SACHA PROJECT RULES: "
@@ -889,15 +890,29 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
                         "load_policy": policy,
                     })
     ignored_rule_candidates = []
-    ignored_rule_section = re.search(r"(?ms)^### Ignored rule candidates\s*\n(.*?)(?=^### )", text)
-    if ignored_rule_section:
-        ignored_rule_candidates = re.findall(r"(?m)^- `([^`]+)`\r?$", ignored_rule_section.group(1))
+    ignored_rule_metadata = re.search(
+        rf"(?m)^<!-- {re.escape(IGNORED_RULE_CANDIDATES_MARKER)}: (.+) -->\r?$",
+        text,
+    )
+    if ignored_rule_metadata:
+        try:
+            parsed_ignored_rules = json.loads(ignored_rule_metadata.group(1))
+        except json.JSONDecodeError as exc:
+            raise SetupError("managed ignored rule candidate metadata is malformed") from exc
+        if not isinstance(parsed_ignored_rules, list) or not all(
+            isinstance(item, str) for item in parsed_ignored_rules
+        ):
+            raise SetupError("managed ignored rule candidate metadata must be a string list")
+        ignored_rule_candidates = parsed_ignored_rules
     else:
+        ignored_rule_section = re.search(r"(?ms)^### Ignored rule candidates\s*\n(.*?)(?=^### )", text)
+        if ignored_rule_section:
+            ignored_rule_candidates = re.findall(r"(?m)^- `([^`]+)`\r?$", ignored_rule_section.group(1))
         ignored_rule_line = re.search(
             r"(?m)^- Setup (?:refresh exclusions|忽略)：(.+?)\r?$",
             text,
         )
-        if ignored_rule_line:
+        if ignored_rule_line and not ignored_rule_candidates:
             ignored_rule_candidates = re.findall(r"`([^`]+)`", ignored_rule_line.group(1))
 
     skill_root_bindings = []
@@ -1431,8 +1446,13 @@ def render_workflow_rule(
     ignored_rules = discovery["ignored_rule_candidates"]
     if ignored_rules:
         binding_lines.append(
-            "- Setup 忽略："
-            + "、".join(f"`{item}`" for item in ignored_rules)
+            f"- Setup 不绑定为项目规则：已分类 {len(ignored_rules)} 项；"
+            "精确路径保存在生成元数据中"
+        )
+        binding_lines.append(
+            f"<!-- {IGNORED_RULE_CANDIDATES_MARKER}: "
+            + json.dumps(ignored_rules, ensure_ascii=False, separators=(",", ":"))
+            + " -->"
         )
 
     sections = [

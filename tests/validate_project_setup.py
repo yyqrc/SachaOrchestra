@@ -894,7 +894,18 @@ Inspect project state and return a bounded report.
         workflow = (project / "docs" / "workflow-rule.md").read_text(encoding="utf-8")
         agents = (project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("- SCM：未配置", workflow)
-        self.assertIn("- Setup 忽略：`TEAM.md`", workflow)
+        self.assertIn(
+            "- Setup 不绑定为项目规则：已分类 1 项；精确路径保存在生成元数据中",
+            workflow,
+        )
+        self.assertIn(
+            '<!-- Sacha ignored rule candidates: ["TEAM.md"] -->',
+            workflow,
+        )
+        self.assertNotIn("- Setup 忽略：", workflow)
+        refresh = generator.run_setup(self.config(project))
+        self.assertEqual("ready", refresh["status"], refresh["conflicts"])
+        self.assertEqual(["TEAM.md"], refresh["discovery"]["ignored_rule_candidates"])
         for heading in (
             "## 项目绑定",
             "### Storage",
@@ -925,6 +936,22 @@ Inspect project state and return a bounded report.
         self.assertIn("`sacha-orchestra:using-sacha`", agents)
         self.assertIn("Human 接受 Sacha 后", agents)
         self.assertIn("plugin canonical contract", agents)
+
+        legacy_workflow = workflow.replace(
+            "- Setup 不绑定为项目规则：已分类 1 项；精确路径保存在生成元数据中\n"
+            '<!-- Sacha ignored rule candidates: ["TEAM.md"] -->',
+            "- Setup 忽略：`TEAM.md`",
+        )
+        (project / "docs" / "workflow-rule.md").write_text(
+            legacy_workflow,
+            encoding="utf-8",
+        )
+        legacy_refresh = generator.run_setup(self.config(project))
+        self.assertEqual("ready", legacy_refresh["status"], legacy_refresh["conflicts"])
+        self.assertEqual(
+            ["TEAM.md"],
+            legacy_refresh["discovery"]["ignored_rule_candidates"],
+        )
 
     def test_refuses_stale_hash_and_unsafe_target_without_writing(self) -> None:
         stale_project = self.root / "stale"

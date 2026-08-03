@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.6.3` named Luna Executor routing and prompt contract maintenance
+> 当前 release：`0.6.4` compact Project Integration ignore metadata
 > 当前 source candidate：无
-> 当前主线：Codex named Luna Executor routing and prompt contract maintenance
-> 发布边界：`0.6.3` 增加 explicit-only 双 Luna Agent setup、能力证明后按工作量选择 `luna_worker_xhigh`/`luna_worker` 并保留 Sol/Terra fallback；同时压缩 Core/Skill 重复事实并把 validator 收敛为结构与行为检查
+> 当前主线：Project Integration 可读性与刷新安全
+> 发布边界：`0.6.4` 将 Setup 已分类的非规则候选从正文长清单压缩为数量摘要，精确路径保留在生成元数据中；Schema 3、绑定语义和旧格式解析兼容保持不变
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
