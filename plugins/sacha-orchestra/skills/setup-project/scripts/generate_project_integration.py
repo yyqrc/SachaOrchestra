@@ -17,7 +17,9 @@ from typing import Callable, Mapping
 
 GENERATOR_MARKER = "<!-- Generator: sacha-orchestra:setup-project -->"
 SCHEMA_MARKER = "<!-- Schema Version: 3 -->"
-IGNORED_RULE_CANDIDATES_MARKER = "Sacha ignored rule candidates"
+LEGACY_IGNORED_RULE_CANDIDATES_MARKER = "Sacha ignored rule candidates"
+WORKFLOW_STATE_GENERATOR = "sacha-orchestra:setup-project"
+WORKFLOW_STATE_SCHEMA_VERSION = 1
 AGENTS_BEGIN = "<!-- BEGIN SACHA ORCHESTRA MANAGED BLOCK -->"
 AGENTS_END = "<!-- END SACHA ORCHESTRA MANAGED BLOCK -->"
 PROJECT_RULES_BEGIN = "<!-- BEGIN SACHA PROJECT RULES: "
@@ -838,7 +840,27 @@ def _parse_skill_identity(text: str, relative: str) -> tuple[str, str]:
     return name, description
 
 
-def _parse_existing_project_values(data: bytes) -> dict[str, object]:
+def _parse_workflow_state(data: bytes) -> tuple[str, ...]:
+    try:
+        value = json.loads(data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SetupError("managed workflow state is not valid UTF-8 JSON") from exc
+    if not isinstance(value, dict):
+        raise SetupError("managed workflow state must be a JSON object")
+    if value.get("generator") != WORKFLOW_STATE_GENERATOR:
+        raise SetupError("workflow state generator is missing or unknown")
+    if value.get("schemaVersion") != WORKFLOW_STATE_SCHEMA_VERSION:
+        raise SetupError("workflow state schema version is unsupported")
+    ignored = value.get("ignoredRuleCandidates")
+    if not isinstance(ignored, list) or not all(isinstance(item, str) for item in ignored):
+        raise SetupError("workflow state ignoredRuleCandidates must be a string list")
+    return tuple(ignored)
+
+
+def _parse_existing_project_values(
+    data: bytes,
+    workflow_state: bytes | None = None,
+) -> dict[str, object]:
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -891,7 +913,7 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
                     })
     ignored_rule_candidates = []
     ignored_rule_metadata = re.search(
-        rf"(?m)^<!-- {re.escape(IGNORED_RULE_CANDIDATES_MARKER)}: (.+) -->\r?$",
+        rf"(?m)^<!-- {re.escape(LEGACY_IGNORED_RULE_CANDIDATES_MARKER)}: (.+) -->\r?$",
         text,
     )
     if ignored_rule_metadata:
@@ -914,6 +936,8 @@ def _parse_existing_project_values(data: bytes) -> dict[str, object]:
         )
         if ignored_rule_line and not ignored_rule_candidates:
             ignored_rule_candidates = re.findall(r"`([^`]+)`", ignored_rule_line.group(1))
+    if workflow_state is not None:
+        ignored_rule_candidates = list(_parse_workflow_state(workflow_state))
 
     skill_root_bindings = []
     skill_section = re.search(r"(?ms)^### Skill roots\s*\n(.*?)(?=^### )", text)
@@ -1446,13 +1470,7 @@ def render_workflow_rule(
     ignored_rules = discovery["ignored_rule_candidates"]
     if ignored_rules:
         binding_lines.append(
-            f"- Setup 不绑定为项目规则：已分类 {len(ignored_rules)} 项；"
-            "精确路径保存在生成元数据中"
-        )
-        binding_lines.append(
-            f"<!-- {IGNORED_RULE_CANDIDATES_MARKER}: "
-            + json.dumps(ignored_rules, ensure_ascii=False, separators=(",", ":"))
-            + " -->"
+            f"- Setup 不绑定为项目规则：已分类 {len(ignored_rules)} 项"
         )
 
     sections = [
@@ -1491,6 +1509,21 @@ def render_workflow_rule(
         sections.append("### Conflicts\n\n" + "\n".join(conflict_lines))
     text = "\n\n".join(sections) + "\n"
     return text.encode("utf-8")
+
+
+def render_workflow_state(discovery: Mapping[str, object]) -> bytes:
+    return (
+        json.dumps(
+            {
+                "generator": WORKFLOW_STATE_GENERATOR,
+                "schemaVersion": WORKFLOW_STATE_SCHEMA_VERSION,
+                "ignoredRuleCandidates": discovery["ignored_rule_candidates"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
 
 
 def _normalize_project_rules_skill(value: str) -> str:
@@ -1731,6 +1764,7 @@ def _base_result(
         "transaction": "dry_run",
         "discovery": {"status": "not_run"},
         "workflow_rule": {"path": workflow_rel, "action": "unknown"},
+        "workflow_state": {"path": "<unknown>", "action": "unknown"},
         "agents_block": {"path": agents_rel, "enabled": manage_agents, "action": "disabled"},
         "project_rules_reconciliation": {"keep": [], "add": [], "update": [], "remove": []},
         "project_skill_assessments": [],
@@ -1843,9 +1877,21 @@ def run_setup(
 
     try:
         workflow_path, workflow_rel = _normalize_relative_path(root, config.workflow_rule_path, "workflow_rule_path")
+        workflow_state_path = workflow_path.with_suffix(".state.json")
+        workflow_state_rel = workflow_state_path.relative_to(root).as_posix()
+        workflow_state_data = (
+            workflow_state_path.read_bytes() if workflow_state_path.is_file() else None
+        )
+        if workflow_state_data is not None:
+            _parse_workflow_state(workflow_state_data)
+        if workflow_state_data is not None and not workflow_path.is_file():
+            raise SetupError("managed workflow state exists without its workflow rule")
         existing_values: dict[str, object] = {}
         if workflow_path.is_file():
-            existing_values = _parse_existing_project_values(workflow_path.read_bytes())
+            existing_values = _parse_existing_project_values(
+                workflow_path.read_bytes(),
+                workflow_state_data,
+            )
         effective_agents_path = config.agents_path
         if config.agents_path == "AGENTS.md" and existing_values.get("agents_path"):
             effective_agents_path = str(existing_values["agents_path"])
@@ -2086,6 +2132,38 @@ def run_setup(
                 "pre_hash": workflow_hash,
                 "generated": workflow_generated,
                 "generated_hash": sha256_bytes(workflow_generated),
+            })
+
+        workflow_state_existed, workflow_state_preimage, workflow_state_hash = _file_state(
+            workflow_state_path
+        )
+        workflow_state_generated = render_workflow_state(discovery)
+        workflow_state_action = (
+            "unchanged"
+            if workflow_state_preimage == workflow_state_generated
+            else ("update" if workflow_state_existed else "create")
+        )
+        result["workflow_state"] = {
+            "path": workflow_state_rel,
+            "action": workflow_state_action,
+            "preimage_sha256": workflow_state_hash,
+            "generated_sha256": sha256_bytes(workflow_state_generated),
+        }
+        result["targets"][workflow_state_rel] = _target_record(
+            workflow_state_rel,
+            workflow_state_existed,
+            workflow_state_hash,
+            workflow_state_generated,
+        )
+        if workflow_state_action != "unchanged":
+            targets.append({
+                "path": workflow_state_path,
+                "relative": workflow_state_rel,
+                "existed": workflow_state_existed,
+                "preimage": workflow_state_preimage,
+                "pre_hash": workflow_state_hash,
+                "generated": workflow_state_generated,
+                "generated_hash": sha256_bytes(workflow_state_generated),
             })
 
         if config.manage_agents:

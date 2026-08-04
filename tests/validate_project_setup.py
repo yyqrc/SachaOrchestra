@@ -892,19 +892,28 @@ Inspect project state and return a bounded report.
         self.assertEqual("committed", result["transaction"])
 
         workflow = (project / "docs" / "workflow-rule.md").read_text(encoding="utf-8")
+        workflow_state_path = project / "docs" / "workflow-rule.state.json"
+        workflow_state = json.loads(workflow_state_path.read_text(encoding="utf-8"))
         agents = (project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("- SCM：未配置", workflow)
         self.assertIn(
-            "- Setup 不绑定为项目规则：已分类 1 项；精确路径保存在生成元数据中",
+            "- Setup 不绑定为项目规则：已分类 1 项",
             workflow,
         )
-        self.assertIn(
-            '<!-- Sacha ignored rule candidates: ["TEAM.md"] -->',
-            workflow,
+        self.assertNotIn("TEAM.md", workflow)
+        self.assertNotIn("Sacha ignored rule candidates", workflow)
+        self.assertEqual(
+            {
+                "generator": "sacha-orchestra:setup-project",
+                "schemaVersion": 1,
+                "ignoredRuleCandidates": ["TEAM.md"],
+            },
+            workflow_state,
         )
         self.assertNotIn("- Setup 忽略：", workflow)
         refresh = generator.run_setup(self.config(project))
         self.assertEqual("ready", refresh["status"], refresh["conflicts"])
+        self.assertEqual([], refresh["changed_files"])
         self.assertEqual(["TEAM.md"], refresh["discovery"]["ignored_rule_candidates"])
         for heading in (
             "## 项目绑定",
@@ -937,9 +946,29 @@ Inspect project state and return a bounded report.
         self.assertIn("Human 接受 Sacha 后", agents)
         self.assertIn("plugin canonical contract", agents)
 
-        legacy_workflow = workflow.replace(
+        workflow_state_path.unlink()
+        html_metadata_workflow = workflow.replace(
+            "- Setup 不绑定为项目规则：已分类 1 项",
             "- Setup 不绑定为项目规则：已分类 1 项；精确路径保存在生成元数据中\n"
             '<!-- Sacha ignored rule candidates: ["TEAM.md"] -->',
+        )
+        (project / "docs" / "workflow-rule.md").write_text(
+            html_metadata_workflow,
+            encoding="utf-8",
+        )
+        html_metadata_refresh = generator.run_setup(self.config(project))
+        self.assertEqual(
+            "ready",
+            html_metadata_refresh["status"],
+            html_metadata_refresh["conflicts"],
+        )
+        self.assertEqual(
+            ["TEAM.md"],
+            html_metadata_refresh["discovery"]["ignored_rule_candidates"],
+        )
+
+        legacy_workflow = workflow.replace(
+            "- Setup 不绑定为项目规则：已分类 1 项",
             "- Setup 忽略：`TEAM.md`",
         )
         (project / "docs" / "workflow-rule.md").write_text(
@@ -1003,6 +1032,36 @@ Inspect project state and return a bounded report.
             workflow.read_text(encoding="utf-8"),
         )
         self.assertFalse((project / "AGENTS.md").exists())
+
+    def test_refuses_invalid_or_orphaned_workflow_state(self) -> None:
+        project = self.root / "invalid-workflow-state"
+        project.mkdir()
+        self.confirmed_setup(self.config(project))
+        state = project / "docs" / "workflow-rule.state.json"
+        state.write_text("{}\n", encoding="utf-8")
+
+        invalid = generator.run_setup(self.config(project))
+        self.assertEqual("refused", invalid["status"])
+        self.assertEqual("no_write", invalid["transaction"])
+        self.assertIn("generator", invalid["conflicts"][0])
+
+        orphan = self.root / "orphaned-workflow-state"
+        orphan_state = orphan / "docs" / "workflow-rule.state.json"
+        orphan_state.parent.mkdir(parents=True)
+        orphan_state.write_text(
+            json.dumps(
+                {
+                    "generator": "sacha-orchestra:setup-project",
+                    "schemaVersion": 1,
+                    "ignoredRuleCandidates": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        orphaned = generator.run_setup(self.config(orphan))
+        self.assertEqual("refused", orphaned["status"])
+        self.assertEqual("no_write", orphaned["transaction"])
+        self.assertIn("without its workflow rule", orphaned["conflicts"][0])
 
     def test_rolls_back_when_second_target_write_fails(self) -> None:
         project = self.root / "rollback"

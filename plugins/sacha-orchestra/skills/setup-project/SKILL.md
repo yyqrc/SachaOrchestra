@@ -20,6 +20,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，以 
 ## 边界
 
 - 普通任务不调用；dry-run 不授权写入。marker 外 Project AGENTS byte-for-byte；写入原子并可补偿恢复。
+- `workflow-rule.md` 只保留 Runtime 消费的项目差异；同目录 `workflow-rule.state.json` 只供 Setup 恢复精确机器状态，普通 Role 不读取。旧内联元数据在下一次确认写入时迁移。
 - Spec/文档根独立；外部根标记 non-portable，拒绝文件系统根。
 - Provider 变更须显式刷新，policy 由 Setup/Human 确认；项目知识和外部动作各归 owner。
 - `project-rules` 按 canonical Skill 分段+SHA-256 合并；AGENTS 仅一个 managed block。未给模板则保留校验，删除显式，正文禁 Sacha marker。
