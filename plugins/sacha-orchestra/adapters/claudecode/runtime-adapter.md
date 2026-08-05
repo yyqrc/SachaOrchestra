@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter
 
-> Implements: Intake Contract 3；Workflow Contract 10；Assurance Contract 1；Coordination Contract 3；Artifact Protocol 4
+> Implements: Intake Contract 4；Workflow Contract 11；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 5
 > Status: Normative Claude Code mapping
 
 ## 1. Boundary
@@ -43,6 +43,8 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 5. 当前 transport 不可用时先尝试同 Scope 安全替代；owner/Role/return 仍无法唯一确定才进入 Core 阻塞路线。
 
 前台执行由主对话消费 terminal result；后台执行由 owner 保持 phase，以正式 completion notification 和 identity 消费一次结果，不留给 Human 唤醒，也不因启动成功提前结束。
+
+Planner 提案由主对话展示并等待 Human；清晰批准且无其他阻塞时，主对话在同一 Task 立即进入 Executor，不创建第二个用户会话或再次询问是否开始。
 
 Target completion 返回结果/delta、实际验证、阻塞/风险和必要 locator；原生 notification 未携带且消歧必需时才补 route identity/revision/dedup。错误、陈旧或重复结果不产生额外 transition。
 

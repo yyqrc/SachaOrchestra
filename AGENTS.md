@@ -43,8 +43,9 @@
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
 - `description` 只回答“何时用/何时不用”；正文才写首查位置、扩大条件、动作、交付和停止边界。metadata prompt 只给自然入口，不复述正文流程。
 - Adapter 单 Runtime；Role Skill Runtime-neutral；显式 setup 只管对应配置；README 只保留入口、最小用法和 locator；历史/迁移归具名文档。
-- 只从真实任务、失败或重复低效增加规则；每条内容必须改变触发、调查、实施、验证或停止判断。
-- 先删铺垫、常识、历史和同义重复，再压缩句子；不得用长复句把多个 owner、阶段或验收揉成一条。
+- “不给 Sacha 注水”是验收条件：新增产品语义、模板或 validator 必须源于真实失败/重复低效，并说明唯一 owner、直接 consumer、改变的判断和证伪方式；缺一项就不增加。
+- 优先补强现有 owner；“更完整/规范”不构成扩面理由。先删铺垫、常识、历史和同义重复；示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
+- 精简时核对 trigger、关键步骤、退出/恢复、Human 决策点和证据仍有 owner；不得把删除包装成等价压缩。若改变进入/退出、决定者、恢复或完成声明，停止并把 delta 交 Human 确认。
 - 多种做法成立时写判断原则；稳定参数写配置；脆弱且重复的机械顺序写 script 并实跑。
 - 主流程脱离 Sacha、固定 Gate、Scope/Handoff 仍能完成；编排只增强协调、恢复或独立验收。
 - 不得为缩短文本删除授权、安全、失败、未验证、Evidence、Entry Condition、schema、恢复入口或脆弱顺序。

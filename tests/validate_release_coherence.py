@@ -29,8 +29,8 @@ PI_MODEL_INSPECTOR = PLUGIN / "skills" / "setup-project" / "scripts" / "inspect_
 SETUP_AGENTS = PLUGIN / "skills" / "setup-agents"
 SETUP_AGENTS_SCRIPT = SETUP_AGENTS / "scripts" / "setup_agents.py"
 LUNA_WORKER_TEMPLATES = {
-    SETUP_AGENTS / "assets" / "luna-worker.toml": ("luna_worker", "max"),
-    SETUP_AGENTS / "assets" / "luna-worker-xhigh.toml": ("luna_worker_xhigh", "xhigh"),
+    SETUP_AGENTS / "assets" / "sacha-luna-worker.toml": ("sacha_luna_worker", "max"),
+    SETUP_AGENTS / "assets" / "sacha-luna-worker-xhigh.toml": ("sacha_luna_worker_xhigh", "xhigh"),
 }
 SETUP_AGENTS_TEST = ROOT / "tests" / "test_setup_agents.py"
 PROJECT_DOCUMENTATION = PLUGIN / "skills" / "project-documentation"
@@ -160,23 +160,23 @@ def main() -> int:
     check(coordination_version is not None, "Coordination Contract version is missing")
     check(artifact_version is not None, "Artifact Protocol version is missing")
     check(
-        intake_version is not None and intake_version.group(1) == "3",
+        intake_version is not None and intake_version.group(1) == "4",
         "Intake Contract schema is not current",
     )
     check(
-        core_version is not None and core_version.group(1) == "10",
+        core_version is not None and core_version.group(1) == "11",
         "Workflow Contract schema is not current",
     )
     check(
-        assurance_version is not None and assurance_version.group(1) == "1",
+        assurance_version is not None and assurance_version.group(1) == "2",
         "Assurance Contract schema is not current",
     )
     check(
-        coordination_version is not None and coordination_version.group(1) == "3",
+        coordination_version is not None and coordination_version.group(1) == "4",
         "Coordination Contract schema is not current",
     )
     check(
-        artifact_version is not None and artifact_version.group(1) == "4",
+        artifact_version is not None and artifact_version.group(1) == "5",
         "Artifact Protocol schema changed",
     )
     expected_mapping = (
@@ -205,8 +205,8 @@ def main() -> int:
     check("../codex/runtime-adapter.md" not in claude_adapter, "Claude Code Adapter references Codex Adapter")
     check("../claudecode/runtime-adapter.md" not in codex_adapter, "Codex Adapter references Claude Code Adapter")
     codex_model_contract = (
-        "`agent_type=luna_worker`",
-        "`agent_type=luna_worker_xhigh`",
+        "`agent_type=sacha_luna_worker`",
+        "`agent_type=sacha_luna_worker_xhigh`",
         "`gpt-5.6-sol` / `xhigh`",
         "`gpt-5.6-sol` / `high`",
         "`gpt-5.6-sol` / `medium`",
@@ -380,7 +380,7 @@ def main() -> int:
             ),
             "Setup Pi model inspection and configuration priority are incomplete",
         )
-    runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "luna_worker", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
+    runtime_model_markers = ("gpt-5.6-sol", "gpt-5.6-terra", "sacha_luna_worker", "reasoning_effort", "`opus`", "`sonnet`", "`haiku`")
     check(
         all(marker not in content for marker in runtime_model_markers for content in (intake, core, assurance, coordination, artifact, *role_skill_documents.values())),
         "Runtime model policy leaks into Core or Role Skills",
@@ -486,8 +486,8 @@ def main() -> int:
             "scripts/generate_project_integration.py",
             "scripts/inspect_pi_models.ps1",
             "scripts/setup_agents.py",
-            "assets/luna-worker.toml",
-            "assets/luna-worker-xhigh.toml",
+            "assets/sacha-luna-worker.toml",
+            "assets/sacha-luna-worker-xhigh.toml",
         }
         check(links <= allowed_links, f"Role Skill adds a non-canonical documentation dependency: {path}")
     discovery_descriptions = [
@@ -646,6 +646,7 @@ def main() -> int:
     check(
         "docs/history/" not in agents
         and "docs/plans/" not in agents
+        and "docs/plan/" not in agents
         and re.search(r"\b0\.\d+\.\d+\b", agents) is None,
         "Project AGENTS still contains release chronology or per-plan routing",
     )

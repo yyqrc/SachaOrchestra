@@ -1,6 +1,6 @@
 # Assurance Contract
 
-> Contract Version: 1
+> Contract Version: 2
 > Status: Normative Core assurance contract
 
 ## 1. 范围
@@ -17,6 +17,8 @@ Baseline/`acceptance_revision` 变化使旧 verdict 失效；evidence-only delta
 人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、stale、不可达或计数不一致保持未验证；Provider、报告和自报不拥有 verdict。
 
 Reviewer 检查真实状态并只重跑能改变 verdict 的高风险验证。缺证据不等于实现缺陷；自动化不能证明的检查给出具体 Human/external 路线。
+
+验收按实际执行者路由，不增加 Outcome：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。B 类等待期间保持同一 workflow 的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。release-blocking 的 B/C 未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项才可 `Accepted with follow-up`。
 
 ## 3. Outcome 与路由
 

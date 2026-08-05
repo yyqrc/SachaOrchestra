@@ -1,6 +1,6 @@
 # Workflow Contract
 
-> Contract Version: 10
+> Contract Version: 11
 > Status: Normative Core kernel
 
 ## 1. 范围
@@ -17,7 +17,7 @@ Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 
 - 原始文件、外部状态和命令结果决定事实；Artifact/报告/自报只索引。
 - workflow owner 推进到根终态；Role/helper completion 只是中间结果。
 - 授权、Reviewer provenance、single writer、return identity/dedup、安全、Handoff 必要语义与原始证据权威不可降级。
-- 能在当前 context 完成就不持久化；只有批准、breaking 或恢复需要才写 Spec Artifact。Plan 只表示按需规划活动或 inline plan，没有消费者就不建 Artifact。
+- 能在当前 context 完成就不持久化；澄清决定需防止压缩丢失时先写最小决定记录，只有批准、breaking 或恢复需要才写 Spec Artifact。Plan 只表示按需规划活动或 inline plan，没有消费者就不建 Artifact。
 - 单个 Executor 或有界 helper 足够时不启用 Manager；多个独立单元、依赖图或多环境才协调。验证按真实风险从 diff/parse 扩到集成、发布或真实环境，不按固定套餐联动。
 - 三个 Gate 全关且无需恢复时，Executor 在当前 context 完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 
@@ -40,14 +40,18 @@ Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. Lifecycle 与 Human 路由
 
-生命周期：Intake acceptance → Route → Plan（按需）→ Coordinate（按需）→ Execute → Review（按需）→ Close/Handoff。
+生命周期：Intake acceptance → Route → Plan（按需）→ Human 确认实质新方案（按需）→ Coordinate（按需）→ Execute → Review（按需）→ Close/Handoff。
 
 Human 是技术项目协作者。先给判断及证据，再给影响或下一步；按问题自然组织，不要求 Human 理解内部 Gate、Packet、状态码或字段表。
 只有缺失决定会改变实现、验收或高影响动作时才问一个具体问题，并给推荐与取舍。进度只报新事实、风险或阻塞。
+
+Planner 形成 Human 此前未确认的实质方案时，先把拟执行 Spec 交给 Human 看见并说明本轮优先检查处；确认前不得进入 Execute。Human 批准后，若没有未决方案、额外授权或阻塞性 Entry Condition，workflow owner 必须在同一任务立即路由 Executor；`批准`、`都 OK` 等清晰短答已足够，不得再索要“开始实施”。
+
+一次回复处理多个问题，或形成多项建议、取舍、异议点时，正文之后用自然中文和稳定编号收齐本轮最终建议与待决定事项，说明结论、关键影响以及是否仍需 Human 决定；不得遗漏正文建议或新增正文未论证方案。单一简单结论、进度或纯事实回报不强制总结。它只是当轮沟通收口，不是 Artifact、Gate、状态或第二份决定日志。
 
 不得为简短而隐藏授权影响、安全/数据风险、失败、未验证、Scope 偏离、locator、Entry Condition、schema 或脆弱步骤。
 
 动态路由：出现 Planner Gate 新事实 → Planner；新增高影响授权 → Human；Reviewer 路由按 Assurance；delegation/return 失败按 Coordination。
 Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
 
-Role completion、同 Scope 返修/补证据/复验、唯一 owner 路由和已授权 closeout 不是 Human checkpoint。Direct Scope 由用户目标与明确约束界定；预计文件列表不是 hard allowlist，除非 Human/Spec 明确如此。
+Role completion、已批准方案向 Executor 的 transition、同 Scope 返修/补证据/复验、唯一 owner 路由和已授权 closeout 不是 Human checkpoint。Direct Scope 由用户目标与明确约束界定；预计文件列表不是 hard allowlist，除非 Human/Spec 明确如此。

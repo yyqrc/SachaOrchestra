@@ -44,8 +44,12 @@ DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
 DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
 DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
 SPEC_ROOT_KINDS = {"project-relative", "external-absolute"}
+DEFAULT_SPEC_ROOT_KIND = "project-relative"
+DEFAULT_SPEC_ROOT = "docs/plan"
 SPEC_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
 SPEC_FILE_NAME = "spec.md"
+DECISIONS_FILE_NAME = "decisions.md"
+PROJECT_CONTEXT_FILE_NAME = "CONTEXT.md"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
 PI_MODEL_ROUTES = {"standard", "pro", "lite"}
 MAX_DISCOVERY_FILES = 256
@@ -234,6 +238,14 @@ def _normalize_documentation(
         **location,
         "write_authorization": write_authorization,
     }, warnings
+
+
+def _project_context_locator(documentation: Mapping[str, str | None]) -> str:
+    if documentation["policy"] == "disabled":
+        return f"docs/{PROJECT_CONTEXT_FILE_NAME}"
+    root = str(documentation["root"]).rstrip("/\\")
+    separator = "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", root) else "/"
+    return f"{root}{separator}{PROJECT_CONTEXT_FILE_NAME}"
 
 
 def _normalize_storage_root(
@@ -1494,7 +1506,11 @@ def render_workflow_rule(
             + "\n".join(pi_model_lines)
             + "\n\n仅供本项目 Runtime 使用；由 `setup-project` 从本机 Pi 可用模型确认，不复制到 plugin 源码。"
         )
-    storage_lines = [f"- Spec：`{spec_storage['root']}`"]
+    storage_lines = [
+        f"- Spec：`{spec_storage['root']}`",
+        f"- 任务目录：`{spec_storage['directory_pattern']}`",
+        f"- 文件：`{spec_storage['file_name']}`；澄清决定：`{DECISIONS_FILE_NAME}`（按需，与 Spec 同目录）",
+    ]
     if documentation["policy"] == "disabled":
         storage_lines.append("- 项目文档：`disabled`")
     else:
@@ -1502,6 +1518,10 @@ def render_workflow_rule(
             f"- 项目文档：`{documentation['policy']}` -> `{documentation['root']}`；"
             f"write = `{documentation['write_authorization']}`"
         )
+    storage_lines.append(
+        f"- 项目 Context：`{_project_context_locator(documentation)}`"
+        "（术语与跨任务约束；setup 只提供 locator，不创建正文）"
+    )
     sections.append("### Storage\n\n" + "\n".join(storage_lines))
     if unresolved_lines:
         sections.append("### Unresolved\n\n" + "\n".join(unresolved_lines))
@@ -1922,11 +1942,22 @@ def run_setup(
         )
         if config.spec_root_kind is None:
             existing_spec_storage = existing_values.get("spec_storage", {})
-            spec_root_kind = existing_spec_storage.get("root_kind")
-            spec_root = existing_spec_storage.get("root")
+            if existing_spec_storage:
+                spec_root_kind = existing_spec_storage.get("root_kind")
+                spec_root = existing_spec_storage.get("root")
+                spec_storage_source = "existing-binding"
+            elif workflow_path.is_file():
+                spec_root_kind = None
+                spec_root = None
+                spec_storage_source = "missing-existing-binding"
+            else:
+                spec_root_kind = DEFAULT_SPEC_ROOT_KIND
+                spec_root = DEFAULT_SPEC_ROOT
+                spec_storage_source = "default"
         else:
             spec_root_kind = config.spec_root_kind
             spec_root = config.spec_root
+            spec_storage_source = "explicit-input"
         spec_storage, spec_warnings = _normalize_spec_storage(
             root,
             root_kind=spec_root_kind,
@@ -2252,9 +2283,7 @@ def run_setup(
         "documentation": documentation,
     }
     configuration_sources = {
-        "spec_storage": (
-            "existing-binding" if config.spec_root_kind is None else "explicit-input"
-        ),
+        "spec_storage": spec_storage_source,
         "documentation": (
             "existing-binding"
             if config.documentation_policy is None

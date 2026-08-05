@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "document_type": "project-context",
+  "trigger": "goal-closeout",
+  "persistent_product_delta": true,
+  "expected_target_sha256": null,
+  "entries": [
+    {
+      "term": "项目术语",
+      "definition": "由最终实现和项目证据支持、需要跨任务复用的稳定含义。",
+      "excluded_meanings": "不包含仅对当前任务有效的临时命名或尚未验证的方案猜测。",
+      "scope": "适用于会消费该 owner、数据边界或生命周期约束的后续任务。",
+      "evidence": "使用项目内可发布的源码、配置或文档 locator。",
+      "consumers": "指出当前任务之外的具体模块、Skill、接口或任务类型。"
+    }
+  ]
+}

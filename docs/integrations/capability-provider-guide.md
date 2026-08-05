@@ -62,11 +62,13 @@ Setup 分别确认四类项目值，不得互相推导：
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
-| Spec storage | Setup/Human、Planner 消费 | 独立 root、portability、任务目录模式、默认 `spec.md` | 是否需要持久 Spec、发布文档 |
-| Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization | Spec/Review/Handoff 权威、provider mapping |
+| Spec storage | Setup/Human、Planner/Clarify 消费 | 完整规划集合 root、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要持久 Spec、发布文档 |
+| Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization，以及该 root 下的 `CONTEXT.md` locator；未配置时 locator fallback 为 `docs/CONTEXT.md` | Spec/Review/Handoff 权威、provider mapping；locator 本身不授权创建正文 |
 | Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
 
 Provider query 只展开 capability 候选；不得选择 Spec root、文档策略、文档 root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+
+首次没有既有或显式 Spec storage 时，Setup 推荐项目内 `docs/plan`；该值就是完整集合根，任务路径为 `docs/plan/<YYYY-MM-DD>-<short-slug>/spec.md`，不是先配置 `docs` 再隐式拼接。既有或 Human 显式选择的其他根保持不变。项目 context 优先沿用项目已有 owner/locator；否则使用 configured Project Documentation root 下的 `CONTEXT.md`，没有文档 root 时暴露 `docs/CONTEXT.md`。Setup 只保存/生成 locator，不扫描历史任务，也不因配置自动创建正文。
 
 ## Role 消费
 
@@ -76,6 +78,10 @@ Human 接受 Sacha 且任务需要项目能力时，Role：
 2. 按 policy 判断是否加载；mapping 本身不授权。
 3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据。
 4. Provider 返回领域结果与 evidence locator；最终路由和 verdict 仍由 Sacha 合同决定。
+
+Planner/Clarify 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 locator、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/locator、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
+
+Provider 不拥有 Planner/Clarify 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 选择项目 context locator，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
 
 无 Binding、无 mapping、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
 
@@ -95,4 +101,4 @@ Provider 可声明 `experience.extract` 一类 `read_only` capability，把真�
 
 ## Provider 迭代
 
-Provider 修改能力时，更新 canonical Skill；仅在 capability id、Skill mapping 或副作用上界变化时同步 catalog。运行 provider 自身 schema/Skill/plugin 验证后，在消费项目执行 Setup dry-run；Human 确认 policy 与 reconciliation 后再刷新 Binding。新增经验提取能力时还要用真实任务验证只读边界、候选准入、证据分类、基础输出，以及调用方需要时的 Documentation 适配；不以模板或字符串存在代替真实 Skill 输出。Provider source、Runtime discovery、Binding refresh、Documentation write 和真实任务行为分别报告，不得互相替代。
+Provider 修改能力时，更新 canonical Skill；仅在 capability id、Skill mapping 或副作用上界变化时同步 catalog。术语 owner/定义/冲突和领域压力输入优先补入现有 `project-inspect`、`code-discovery`、`solution-comparison`、`change-guard` 等自然语言结果；只有真实独立能力缺口与消费者成立时才新增 capability。运行 provider 自身 schema/Skill/plugin 验证后，在消费项目执行 Setup dry-run；Human 确认 policy 与 reconciliation 后再刷新 Binding。新增经验提取能力时还要用真实任务验证只读边界、候选准入、证据分类、基础输出，以及调用方需要时的 Documentation 适配；不以模板或字符串存在代替真实 Skill 输出。Provider source、Runtime discovery、Binding refresh、Documentation write 和真实任务行为分别报告，不得互相替代。

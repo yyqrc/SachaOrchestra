@@ -72,7 +72,7 @@ class ProjectSetupTests(unittest.TestCase):
             "manage_agents": True,
             "scm_provider": "none",
             "spec_root_kind": "project-relative",
-            "spec_root": "docs/plans",
+            "spec_root": "docs/plan",
             "documentation_policy": "disabled",
         }
         values.update(overrides)
@@ -148,6 +148,28 @@ class ProjectSetupTests(unittest.TestCase):
             "persistent_product_delta": True,
             "output_path": "changes/feature.md",
             "sections": sections,
+        }
+        value.update(overrides)
+        return value
+
+    @staticmethod
+    def context_input(**overrides):
+        value = {
+            "schema_version": "1",
+            "document_type": "project-context",
+            "trigger": "goal-closeout",
+            "persistent_product_delta": True,
+            "expected_target_sha256": None,
+            "entries": [
+                {
+                    "term": "账号",
+                    "definition": "表示登录身份，由认证模块拥有。",
+                    "excluded_meanings": "不表示角色存档或游戏内角色数据。",
+                    "scope": "登录、会话恢复和身份迁移。",
+                    "evidence": "src/auth/account.py 的 Account owner。",
+                    "consumers": "登录流程、会话恢复工具和身份迁移任务。",
+                }
+            ],
         }
         value.update(overrides)
         return value
@@ -426,7 +448,7 @@ class ProjectSetupTests(unittest.TestCase):
             "--spec-root-kind",
             "project-relative",
             "--spec-root",
-            "docs/plans",
+            "docs/plan",
             "--documentation-policy",
             "disabled",
         )
@@ -448,7 +470,7 @@ class ProjectSetupTests(unittest.TestCase):
             },
             dry_run["write_confirmation"]["current"],
         )
-        self.assertEqual("docs/plans", dry_run["write_confirmation"]["planned"]["spec_storage"]["root"])
+        self.assertEqual("docs/plan", dry_run["write_confirmation"]["planned"]["spec_storage"]["root"])
         self.assertEqual(
             "spec.md",
             dry_run["write_confirmation"]["planned"]["spec_storage"]["file_name"],
@@ -466,7 +488,7 @@ class ProjectSetupTests(unittest.TestCase):
                 f"--{legacy_noun}-root-kind",
                 "project-relative",
                 f"--{legacy_noun}-root",
-                "docs/plans",
+                "docs/plan",
             ),
             capture_output=True,
             text=True,
@@ -548,7 +570,7 @@ Inspect project state and return a bounded report.
                 "--spec-root-kind",
                 "project-relative",
                 "--spec-root",
-                "docs/plans",
+                "docs/plan",
                 "--documentation-policy",
                 "disabled",
                 "--skill-root-binding",
@@ -629,8 +651,12 @@ Inspect project state and return a bounded report.
             "write = `bounded-closeout`",
             workflow.read_text(encoding="utf-8"),
         )
+        self.assertIn(
+            f"- 项目 Context：`{external}\\CONTEXT.md`",
+            workflow.read_text(encoding="utf-8"),
+        )
 
-    def test_spec_storage_is_explicit_separate_and_preserved(self) -> None:
+    def test_spec_storage_defaults_is_separate_and_preserved(self) -> None:
         missing_project = self.root / "spec-missing"
         missing_project.mkdir()
         missing = generator.run_setup(
@@ -641,8 +667,17 @@ Inspect project state and return a bounded report.
                 documentation_policy="disabled",
             )
         )
-        self.assertEqual("refused", missing["status"])
-        self.assertIn("spec_root_kind", missing["conflicts"][0])
+        self.assertEqual(("ready", "dry_run"), (missing["status"], missing["transaction"]))
+        self.assertEqual("docs/plan", missing["spec_storage"]["root"])
+        self.assertEqual(
+            "default",
+            missing["write_confirmation"]["sources"]["spec_storage"],
+        )
+        generated = missing["workflow_rule"]["planned_content"]
+        self.assertIn("- Spec：`docs/plan`", generated)
+        self.assertIn("- 任务目录：`<YYYY-MM-DD>-<short-slug>/`", generated)
+        self.assertIn("澄清决定：`decisions.md`（按需，与 Spec 同目录）", generated)
+        self.assertIn("- 项目 Context：`docs/CONTEXT.md`", generated)
 
         project = self.root / "spec-storage"
         project.mkdir()
@@ -673,6 +708,7 @@ Inspect project state and return a bounded report.
         content = workflow.read_text(encoding="utf-8")
         self.assertIn("### Storage", content)
         self.assertIn(f"- Spec：`{external_spec}`", content)
+        self.assertIn("- 项目 Context：`docs/archive/CONTEXT.md`", content)
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -724,7 +760,7 @@ Inspect project state and return a bounded report.
                     "",
                     "### Storage",
                     "",
-                    f"- {legacy_label}：`docs/plans`",
+                    f"- {legacy_label}：`docs/plan`",
                     "- 项目文档：`disabled`",
                     "",
                 )
@@ -1337,7 +1373,7 @@ Inspect project state and return a bounded report.
             update_preview["write_confirmation"]["sources"],
         )
         self.assertEqual(
-            "docs/plans",
+            "docs/plan",
             update_preview["write_confirmation"]["current"]["spec_storage"]["root"],
         )
         unconfirmed = generator.run_setup(updated_config, write=True)
@@ -1911,6 +1947,173 @@ Format evidence for another workflow; this is not a standalone execution goal.
         self.assertIn("atomic new-file creation failed", failed["conflicts"][0])
         self.assertFalse((document_root / "changes" / "feature.md").exists())
 
+    def test_project_context_create_merge_and_definition_change_requirements(self) -> None:
+        project, document_root = self.configured_document_project(
+            "project-context",
+            policy="required-at-closeout",
+            authorization="bounded-closeout",
+        )
+        target = document_root / "CONTEXT.md"
+
+        dry_run = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(),
+        )
+        self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
+        self.assertIsNone(dry_run["preimage_sha256"])
+        self.assertFalse(target.exists())
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(),
+            write=True,
+        )
+        self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
+        created_text = target.read_text(encoding="utf-8")
+        self.assertIn("### 账号", created_text)
+        self.assertIn("- 明确排除：不表示角色存档", created_text)
+
+        target.write_text(
+            created_text + "\n## 人工维护内容\n\n此段必须保留。\n",
+            encoding="utf-8",
+        )
+        preimage = digest(target)
+        second_entry = {
+            "term": "完成",
+            "definition": "表示全部 blocking 验收已有直接证据。",
+            "excluded_meanings": "不表示代码已经写完但仍缺必需 Runtime 证据。",
+            "scope": "任务 closeout 与完成声明。",
+            "evidence": "项目验证规则与验收输出。",
+            "consumers": "Executor、Reviewer 和发布收尾任务。",
+        }
+        merged = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(
+                expected_target_sha256=preimage,
+                entries=[second_entry],
+            ),
+            write=True,
+        )
+        self.assertEqual(
+            ("ok", "committed"),
+            (merged["status"], merged["transaction"]),
+            merged["conflicts"],
+        )
+        merged_text = target.read_text(encoding="utf-8")
+        self.assertIn("### 账号", merged_text)
+        self.assertIn("### 完成", merged_text)
+        self.assertIn("## 人工维护内容", merged_text)
+        self.assertIn("此段必须保留。", merged_text)
+
+        current_hash = digest(target)
+        changed_account = self.context_input()["entries"][0]
+        changed_account["definition"] = "表示新的业务定义。"
+        requires_human = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(
+                expected_target_sha256=current_hash,
+                entries=[changed_account],
+            ),
+        )
+        self.assertEqual("refused", requires_human["status"])
+        self.assertIn("explicit per-write confirmation", requires_human["conflicts"][0])
+
+        confirmed = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(
+                expected_target_sha256=current_hash,
+                entries=[changed_account],
+            ),
+            write=True,
+            per_write_confirmed=True,
+        )
+        self.assertEqual(("ok", "committed"), (confirmed["status"], confirmed["transaction"]))
+        self.assertIn("新的业务定义", target.read_text(encoding="utf-8"))
+
+        stale = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(
+                expected_target_sha256=current_hash,
+                entries=[second_entry],
+            ),
+        )
+        self.assertEqual("refused", stale["status"])
+        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
+
+    def test_project_context_rejects_unqualified_or_implicit_existing_updates(self) -> None:
+        project, document_root = self.configured_document_project(
+            "project-context-rejections",
+            policy="required-at-closeout",
+            authorization="bounded-closeout",
+        )
+        empty_consumer = self.context_input()["entries"][0]
+        empty_consumer["consumers"] = ""
+        refused = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(entries=[empty_consumer]),
+        )
+        self.assertEqual("refused", refused["status"])
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(),
+            write=True,
+        )
+        self.assertEqual("ok", created["status"])
+        target = document_root / "CONTEXT.md"
+        missing_preimage = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(),
+        )
+        self.assertEqual("refused", missing_preimage["status"])
+        self.assertIn("requires expected_target_sha256", missing_preimage["conflicts"][0])
+
+    def test_project_context_cli_uses_integration_fixed_target(self) -> None:
+        project, document_root = self.configured_document_project(
+            "project-context-cli",
+            policy="on-request",
+            authorization="per-write-confirmation",
+        )
+        input_path = project / "context-input.json"
+        input_path.write_text(
+            json.dumps(
+                self.context_input(trigger="human-request"),
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        process = subprocess.run(
+            (
+                sys.executable,
+                "-B",
+                str(DOCUMENT_SCRIPT),
+                "--project-root",
+                str(project),
+                "--input-json",
+                str(input_path),
+                "--per-write-confirmed",
+                "--write",
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        result = json.loads(process.stdout)
+        self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
+        self.assertEqual(document_root / "CONTEXT.md", Path(result["target"]))
+        self.assertTrue((document_root / "CONTEXT.md").is_file())
+
     def test_project_documentation_refuses_unreachable_escape_and_root_boundaries(self) -> None:
         project = self.root / "documents-unreachable"
         project.mkdir()
@@ -1953,10 +2156,19 @@ Format evidence for another workflow; this is not a standalone execution goal.
         original = workflow.read_text(encoding="utf-8")
         for unsafe_root in ("G:\\", "\\\\server\\share\\"):
             with self.subTest(unsafe_root=unsafe_root):
+                unsafe_context = document_generator._expected_context_locator(
+                    {
+                        "policy": "on-request",
+                        "root": unsafe_root,
+                    }
+                )
                 workflow.write_text(
                     original.replace(
                         "-> `docs/archive`",
                         f"-> `{unsafe_root}`",
+                    ).replace(
+                        "`docs/archive/CONTEXT.md`",
+                        f"`{unsafe_context}`",
                     ),
                     encoding="utf-8",
                 )
@@ -1977,7 +2189,7 @@ Format evidence for another workflow; this is not a standalone execution goal.
             authorization="per-write-confirmation",
         )
         forbidden_values = (
-            "详情见 docs/plans/x/spec.md。",
+            "详情见 docs/plan/x/spec.md。",
             "详情见 spec.md。",
             "详情见 `execution-report.md`。",
             "证据位于 cache/evidence.json。",

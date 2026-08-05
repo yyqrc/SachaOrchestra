@@ -15,10 +15,10 @@ from typing import Callable, Mapping
 
 
 OWNER_MARKER = "# managed-by: sacha-orchestra/setup-agents"
-TARGET_RELATIVE = Path("agents") / "luna-worker.toml"
-DEFAULT_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "luna-worker.toml"
-XHIGH_TARGET_RELATIVE = Path("agents") / "luna-worker-xhigh.toml"
-XHIGH_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "luna-worker-xhigh.toml"
+TARGET_RELATIVE = Path("agents") / "sacha-luna-worker.toml"
+DEFAULT_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker.toml"
+XHIGH_TARGET_RELATIVE = Path("agents") / "sacha-luna-worker-xhigh.toml"
+XHIGH_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker-xhigh.toml"
 IDENTITY_FIELDS = ("name", "model", "model_reasoning_effort")
 REQUIRED_FIELDS = (*IDENTITY_FIELDS, "description", "developer_instructions")
 
@@ -36,8 +36,8 @@ class AgentDefinition:
 
 
 AGENT_DEFINITIONS = (
-    AgentDefinition("luna_worker", TARGET_RELATIVE, DEFAULT_TEMPLATE, "max"),
-    AgentDefinition("luna_worker_xhigh", XHIGH_TARGET_RELATIVE, XHIGH_TEMPLATE, "xhigh"),
+    AgentDefinition("sacha_luna_worker", TARGET_RELATIVE, DEFAULT_TEMPLATE, "max"),
+    AgentDefinition("sacha_luna_worker_xhigh", XHIGH_TARGET_RELATIVE, XHIGH_TEMPLATE, "xhigh"),
 )
 
 
@@ -162,9 +162,13 @@ def build_agent_plan(
         except SetupAgentsError as exc:
             current_semantics = None
             current_parse_error = str(exc)
-        if current_semantics == template_semantics:
+        if current == template:
             action = "no-op"
-        elif has_owner_marker(current):
+        elif (
+            has_owner_marker(current)
+            and current_semantics is not None
+            and current_semantics.get("name") == definition.name
+        ):
             action = "update"
         else:
             action = "conflict"
@@ -177,7 +181,7 @@ def build_agent_plan(
         "generated_sha256": sha256_bytes(template),
         "delta": delta,
         "current_parse_error": current_parse_error,
-        "replace_conflict_required": action == "conflict",
+        "owned_update": action == "update",
     }
     return AgentPlan(
         definition,
@@ -222,7 +226,7 @@ def build_plan(
             "generated_sha256": sha256_bytes(agent.template),
             "delta": agent.delta,
             "current_parse_error": agent.current_parse_error,
-            "replace_conflict_required": agent.action == "conflict",
+            "owned_update": agent.action == "update",
         }
         for agent in agents
     ]
@@ -264,10 +268,6 @@ def plan_result(plan: Plan) -> dict[str, object]:
             }
             for agent in plan.agents
         ],
-        "write_confirmation": {
-            "required": any(agent.action != "no-op" for agent in plan.agents),
-            "replace_conflict_required": any(agent.action == "conflict" for agent in plan.agents),
-        },
         "warnings": warnings,
     }
 
@@ -308,8 +308,6 @@ def run_setup(
     *,
     codex_home: str | Path | None = None,
     write: bool = False,
-    confirmed_planned_delta_sha256: str | None = None,
-    replace_conflict: bool = False,
     environ: Mapping[str, str] | None = None,
     user_home: Path | None = None,
     _template_paths: Mapping[str, Path] | None = None,
@@ -332,11 +330,8 @@ def run_setup(
     if not changed_agents:
         result.update(status="ok", transaction="no_changes")
         return result
-    if any(agent.action == "conflict" for agent in changed_agents) and not replace_conflict:
-        result.update(status="refused", transaction="no_write", errors=["conflict replacement requires explicit confirmation"])
-        return result
-    if confirmed_planned_delta_sha256 != plan.planned_delta_sha256:
-        result.update(status="refused", transaction="no_write", errors=["confirmed planned delta SHA-256 does not match current dry-run"])
+    if any(agent.action == "conflict" for agent in changed_agents):
+        result.update(status="refused", transaction="no_write", errors=["non-Sacha or identity-conflicting Agent file cannot be overwritten"])
         return result
 
     parent = plan.codex_home / "agents"
@@ -351,10 +346,12 @@ def run_setup(
         if not parent.exists():
             parent.mkdir()
             parent_created = True
+        if hook := hooks.get("before_preimage_check"):
+            hook()
         for agent in plan.agents:
             current_now = agent.target.read_bytes() if agent.target.is_file() else None
             if current_now != agent.current:
-                raise SetupAgentsError(f"target changed after dry-run confirmation: {agent.definition.name}")
+                raise SetupAgentsError(f"target changed after planning: {agent.definition.name}")
         for agent in changed_agents:
             template_parsed = validate_agent(agent.template)
             temp_paths[agent.target] = prepare_temp(
@@ -374,7 +371,10 @@ def run_setup(
             temp_path.unlink(missing_ok=True)
         if not replaced_agents:
             if parent_created:
-                parent.rmdir()
+                try:
+                    parent.rmdir()
+                except OSError:
+                    pass
             result.update(status="refused", transaction="no_write", errors=[f"write failed: {type(exc).__name__}: {exc}"])
             return result
         try:
@@ -416,14 +416,10 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true")
     mode.add_argument("--write", action="store_true")
-    parser.add_argument("--confirmed-planned-delta-sha256")
-    parser.add_argument("--replace-conflict", action="store_true")
     args = parser.parse_args()
     result = run_setup(
         codex_home=args.codex_home,
         write=args.write,
-        confirmed_planned_delta_sha256=args.confirmed_planned_delta_sha256,
-        replace_conflict=args.replace_conflict,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if result["status"] in {"planned", "ok"} else 2

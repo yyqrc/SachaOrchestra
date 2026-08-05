@@ -9,7 +9,7 @@
 ```mermaid
 flowchart TD
     U["用户目标 / 任务演变"] --> S["初次与语义转折重评估<br/>using-sacha"]; S --> L["清晰任务直接处理"]; S --> Q["执行方式需要改变<br/>说明影响并询问一次"]; Q -->|"拒绝"| L; Q -->|"接受"| PG{"是否需要先规划？"}
-    PG -->|"否"| E["进入执行阶段"]; PG -->|"是"| P["规划<br/>确认任务范围和完成标准"]; P --> E; E --> EQ{"能否拆成互不冲突的任务？"}; EQ -->|"不能"| SE["单个执行者完成"]; EQ -->|"可以"| M["Manager<br/>组织安全并行"]
+    PG -->|"否"| E["进入执行阶段"]; PG -->|"是"| P["规划<br/>确认任务范围和完成标准"]; P --> H["用户查看实质新方案"]; H -->|"批准且无其他阻塞"| E; E --> EQ{"能否拆成互不冲突的任务？"}; EQ -->|"不能"| SE["单个执行者完成"]; EQ -->|"可以"| M["Manager<br/>组织安全并行"]
     M --> A["执行任务 A"]; M --> B["执行任务 B"]; A --> I["集成负责人汇总"]; B --> I; SE --> IV["整体验证"]; I --> IV; IV --> RG{"是否需要独立复核？"}; RG -->|"否"| C["负责人收尾 / 交接"]; RG -->|"是"| R["复核"]
     R --> V{"复核结果"}; V -->|"通过，可附后续事项"| C; V -.->|"需要返修"| E; V -.->|"范围或完成标准需调整"| P
     P -.->|"目标或完成标准不清"| CL["需求澄清<br/>Clarify"]; CL -.->|"澄清结果返回"| P; CL -.->|"需要独立研究"| RM["Manager<br/>协调独立研究"]; RM -.->|"研究结果返回"| CL
@@ -18,12 +18,12 @@ flowchart TD
 实线是默认处理流程，虚线是按需辅助或返修。单个有界 helper 由当前 owner 直接管理；多个独立单元才交给 Manager。共享工作树不并行写同一文件，隔离 patch/候选实现可并行并由集成负责人串行应用；Git 和整体验证仍串行。详细进入条件见[入口规则](core/intake-contract.md)和[工作流规则](core/workflow-contract.md)，复核见[验收规则](core/assurance-contract.md)，任务协调见[协调规则](core/coordination-contract.md)。
 
 - 高级用户可直接调用 `planner`、`executor`、`reviewer`、`manager` 或 `feedback`；这表示同意使用 Sacha，但不会扩大写入、安装、Git 或发布授权。显式 `feedback` 在修复 owner 唯一时会创建或复用其真实 workspace task并等待终态，不以 Source-local 调查 helper 或报告代替。
-- `clarify`、`setup-project` 与 `setup-agents` 只在明确调用时运行。`setup-agents` 单独预演并配置 `luna_worker`（max）和 `luna_worker_xhigh`（xhigh），不属于项目接入。
+- `clarify` 可由 Human 直接调用，也由 active Planner 在目标、边界、验收或实质决定未收口时显式调用；`setup-project` 与 `setup-agents` 只接受 Human 明确调用。`setup-agents` 配置 Sacha 命名空间下的 `sacha_luna_worker`（max）和 `sacha_luna_worker_xhigh`（xhigh），不属于项目接入。
 - 正式跨 context dispatch 由目标 Runtime Adapter 按 Role、风险和能力选择模型。Codex 还可把低返工、自包含工作交给本地 Pi 单次执行，具体型号由 setup-project 巡检后保存在项目内，未配置则使用 Pi 默认值。具体映射见 [Codex](adapters/codex/runtime-adapter.md) 与 [Claude Code](adapters/claudecode/runtime-adapter.md)。
 
 ## 项目接入与运行环境
 
-`setup-project` 先预演改动；无 provider catalog 的项目 Skill 只有在完整正文证明可独立调用、当前 Runtime 可见且依赖成立后，才成为待确认的 capability mapping。确认选择并核对预期文件指纹后，它以回滚保护生成项目接入配置；`project-documentation` 根据已确认的策略输出自包含的变更存档或系统指南，不替代正式任务记录。项目命令和领域规则仍由项目规则与领域能力所有。
+`setup-project` 先预演改动；首次 Spec storage 默认使用完整集合根 `docs/plan`，任务写入其 `<YYYY-MM-DD>-<short-slug>/` 子目录。项目已有 context locator 时沿用，否则使用文档 root 下的 `CONTEXT.md`，未配置文档 root 时暴露 `docs/CONTEXT.md`；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。
 
 ```mermaid
 flowchart TD
@@ -35,6 +35,6 @@ flowchart TD
     WF -.-> AH["当前任务记录 / 正式交接"]; OUT -.-> NEXT["使用者 / 后续智能体"]; AH -.-> NEXT
 ```
 
-规划文件和项目存档可以放在不同目录。`experience.extract` 只返回事实与候选，再由当前任务整理成项目文档；维护能力插件知识库还需用户同意。生成器只安全新建单份文档，不创建目录、覆盖旧文件、更新索引或执行 Git/wiki 发布；当前任务仍以正式任务记录和交接为准。
+规划文件和项目存档可以放在不同目录。`experience.extract` 只返回事实与候选，再由当前任务整理成项目文档；维护能力插件知识库还需用户同意。生成器对 change archive/system guide 仍只安全新建；`project-context` 只在已确认的 `CONTEXT.md` managed 术语区按 preimage 有界合并，修改既有定义需要显式确认。它不创建目录、更新索引或执行 Git/wiki 发布；当前任务仍以正式任务记录和交接为准。
 
 [任务记录与交接协议](core/artifact-protocol.md)定义正式记录；[Codex 运行适配](adapters/codex/runtime-adapter.md)与[Claude Code 运行适配](adapters/claudecode/runtime-adapter.md)定义平台行为。[版本演进](../../docs/architecture/evolution.md)记录当前方向、发布边界与迁移结论。安装、刷新、移除或重新安装必须获得用户明确授权，并用新任务验证插件能被重新发现。

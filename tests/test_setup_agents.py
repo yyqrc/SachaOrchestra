@@ -26,8 +26,8 @@ class SetupAgentsTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.codex_home = self.root / "codex-home"
         self.codex_home.mkdir()
-        self.target = self.codex_home / "agents" / "luna-worker.toml"
-        self.xhigh_target = self.codex_home / "agents" / "luna-worker-xhigh.toml"
+        self.target = self.codex_home / "agents" / "sacha-luna-worker.toml"
+        self.xhigh_target = self.codex_home / "agents" / "sacha-luna-worker-xhigh.toml"
         self.template = setup_agents.DEFAULT_TEMPLATE.read_bytes()
         self.xhigh_template = setup_agents.XHIGH_TEMPLATE.read_bytes()
 
@@ -37,11 +37,10 @@ class SetupAgentsTests(unittest.TestCase):
     def dry_run(self):
         return setup_agents.run_setup(codex_home=self.codex_home)
 
-    def apply(self, plan, **kwargs):
+    def apply(self, _plan=None, **kwargs):
         return setup_agents.run_setup(
             codex_home=self.codex_home,
             write=True,
-            confirmed_planned_delta_sha256=plan["planned_delta_sha256"],
             **kwargs,
         )
 
@@ -78,30 +77,14 @@ class SetupAgentsTests(unittest.TestCase):
         self.assertFalse(self.target.exists())
         self.assertFalse(self.xhigh_target.exists())
 
-    def test_cli_conflict_refuses_write_without_replace_flag(self) -> None:
+    def test_cli_conflict_always_refuses_write(self) -> None:
         self.target.parent.mkdir()
         original = b'name = "custom"\n'
         self.target.write_bytes(original)
         env = os.environ.copy()
         env.update(CODEX_HOME=str(self.codex_home), PYTHONUTF8="1")
-        dry_run = subprocess.run(
-            [sys.executable, "-B", str(SCRIPT), "--dry-run"],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            env=env,
-        )
-        plan = json.loads(dry_run.stdout)
         write = subprocess.run(
-            [
-                sys.executable,
-                "-B",
-                str(SCRIPT),
-                "--write",
-                "--confirmed-planned-delta-sha256",
-                plan["planned_delta_sha256"],
-            ],
+            [sys.executable, "-B", str(SCRIPT), "--write"],
             check=False,
             capture_output=True,
             text=True,
@@ -134,74 +117,105 @@ class SetupAgentsTests(unittest.TestCase):
         parsed = tomllib.loads(self.target.read_text(encoding="utf-8"))
         xhigh_parsed = tomllib.loads(self.xhigh_target.read_text(encoding="utf-8"))
         self.assertEqual(parsed, tomllib.loads(self.template.decode("utf-8")))
-        self.assertEqual((parsed["name"], parsed["model_reasoning_effort"]), ("luna_worker", "max"))
+        self.assertEqual((parsed["name"], parsed["model_reasoning_effort"]), ("sacha_luna_worker", "max"))
         self.assertEqual(
             (xhigh_parsed["name"], xhigh_parsed["model_reasoning_effort"]),
-            ("luna_worker_xhigh", "xhigh"),
+            ("sacha_luna_worker_xhigh", "xhigh"),
         )
         self.assertEqual(parsed["model"], xhigh_parsed["model"])
         again = self.dry_run()
         self.assertEqual((again["action"], again["delta"]), ("no-op", ""))
 
-    def test_semantically_identical_unmanaged_file_is_no_op(self) -> None:
+    def test_semantically_identical_unmanaged_file_is_conflict(self) -> None:
         self.target.parent.mkdir()
         manual = b"\n".join(line for line in self.template.splitlines() if not line.startswith(b"#")) + b"\n"
         xhigh_manual = b"\n".join(line for line in self.xhigh_template.splitlines() if not line.startswith(b"#")) + b"\n"
         self.target.write_bytes(manual)
         self.xhigh_target.write_bytes(xhigh_manual)
         plan = self.dry_run()
-        self.assertEqual(plan["action"], "no-op")
+        self.assertEqual(plan["action"], "conflict")
         result = setup_agents.run_setup(codex_home=self.codex_home, write=True)
-        self.assertEqual(result["transaction"], "no_changes")
+        self.assertEqual(result["transaction"], "no_write")
         self.assertEqual(self.target.read_bytes(), manual)
         self.assertEqual(self.xhigh_target.read_bytes(), xhigh_manual)
 
-    def test_unmanaged_conflict_is_refused_without_replace_confirmation(self) -> None:
+    def test_unmanaged_conflict_is_refused(self) -> None:
         self.target.parent.mkdir()
         original = b'name = "custom"\nmodel = "custom"\n'
         self.target.write_bytes(original)
         plan = self.dry_run()
-        self.assertEqual(self.agent(plan, "luna_worker")["action"], "conflict")
-        self.assertEqual(self.agent(plan, "luna_worker_xhigh")["action"], "create")
+        self.assertEqual(self.agent(plan, "sacha_luna_worker")["action"], "conflict")
+        self.assertEqual(self.agent(plan, "sacha_luna_worker_xhigh")["action"], "create")
         result = self.apply(plan)
         self.assertEqual((result["status"], result["transaction"]), ("refused", "no_write"))
         self.assertEqual(self.target.read_bytes(), original)
         self.assertFalse(self.xhigh_target.exists())
 
-    def test_explicit_conflict_replacement_uses_confirmed_hash(self) -> None:
+    def test_owner_marker_with_wrong_identity_is_refused(self) -> None:
         self.target.parent.mkdir()
-        self.target.write_text('name = "custom"\n', encoding="utf-8")
+        self.target.write_bytes(setup_agents.OWNER_MARKER.encode() + b'\nname = "custom"\n')
         plan = self.dry_run()
-        result = self.apply(plan, replace_conflict=True)
-        self.assertEqual(result["transaction"], "written")
+        self.assertEqual(self.agent(plan, "sacha_luna_worker")["action"], "conflict")
+        result = self.apply(plan)
+        self.assertEqual(result["transaction"], "no_write")
+        self.assertFalse(self.xhigh_target.exists())
+
+    def test_cli_write_creates_without_second_confirmation(self) -> None:
+        env = os.environ.copy()
+        env.update(CODEX_HOME=str(self.codex_home), PYTHONUTF8="1")
+        completed = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), "--write"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = json.loads(completed.stdout)
+        self.assertEqual((result["status"], result["transaction"]), ("ok", "written"))
         self.assertEqual(self.target.read_bytes(), self.template)
         self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
 
-    def test_managed_update_requires_current_planned_hash(self) -> None:
+    def test_managed_update_runs_on_explicit_write(self) -> None:
         self.target.parent.mkdir()
-        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "luna_worker"\nmodel = "old"\n'
+        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "sacha_luna_worker"\nmodel = "old"\n'
         self.target.write_bytes(old)
         plan = self.dry_run()
-        self.assertEqual(self.agent(plan, "luna_worker")["action"], "update")
-        self.assertEqual(self.agent(plan, "luna_worker_xhigh")["action"], "create")
-        refused = setup_agents.run_setup(
-            codex_home=self.codex_home,
-            write=True,
-            confirmed_planned_delta_sha256="0" * 64,
-        )
-        self.assertEqual(refused["transaction"], "no_write")
-        self.assertEqual(self.target.read_bytes(), old)
+        self.assertEqual(self.agent(plan, "sacha_luna_worker")["action"], "update")
+        self.assertEqual(self.agent(plan, "sacha_luna_worker_xhigh")["action"], "create")
         updated = self.apply(plan)
         self.assertEqual(updated["transaction"], "written")
         self.assertEqual(self.target.read_bytes(), self.template)
         self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
+
+    def test_legacy_generic_files_are_untouched(self) -> None:
+        legacy = self.codex_home / "agents" / "luna-worker.toml"
+        legacy.parent.mkdir()
+        original = b'name = "luna_worker"\n'
+        legacy.write_bytes(original)
+        result = self.apply()
+        self.assertEqual(result["transaction"], "written")
+        self.assertEqual(legacy.read_bytes(), original)
+
+    def test_target_change_after_planning_refuses_without_write(self) -> None:
+        changed = b'name = "changed"\n'
+
+        def change_preimage() -> None:
+            self.target.parent.mkdir(exist_ok=True)
+            self.target.write_bytes(changed)
+
+        result = self.apply(_test_hooks={"before_preimage_check": change_preimage})
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "no_write"))
+        self.assertEqual(self.target.read_bytes(), changed)
+        self.assertFalse(self.xhigh_target.exists())
 
     def test_invalid_template_is_refused_without_write(self) -> None:
         bad_template = self.root / "bad.toml"
         bad_template.write_text(setup_agents.OWNER_MARKER + "\nname = [", encoding="utf-8")
         result = setup_agents.run_setup(
             codex_home=self.codex_home,
-            _template_paths={"luna_worker": bad_template},
+            _template_paths={"sacha_luna_worker": bad_template},
         )
         self.assertEqual(result["transaction"], "no_write")
         self.assertFalse(self.target.exists())
@@ -209,7 +223,7 @@ class SetupAgentsTests(unittest.TestCase):
 
     def test_post_write_failure_rolls_back_preimage(self) -> None:
         self.target.parent.mkdir()
-        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "luna_worker"\nmodel = "old"\n'
+        old = setup_agents.OWNER_MARKER.encode() + b'\nname = "sacha_luna_worker"\nmodel = "old"\n'
         self.target.write_bytes(old)
         plan = self.dry_run()
 

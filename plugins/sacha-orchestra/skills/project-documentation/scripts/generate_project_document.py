@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate, render and atomically create one project publication document."""
+"""Validate and atomically create a publication or update project CONTEXT."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any
 INTEGRATION_GENERATOR = "<!-- Generator: sacha-orchestra:setup-project -->"
 INTEGRATION_SCHEMA = "<!-- Schema Version: 3 -->"
 INPUT_SCHEMA_VERSION = "1"
-DOCUMENT_TYPES = {"change-archive", "system-guide"}
+DOCUMENT_TYPES = {"change-archive", "system-guide", "project-context"}
 TRIGGERS = {"human-request", "goal-closeout"}
 POLICIES = {"disabled", "on-request", "required-at-closeout"}
 ROOT_KINDS = {"project-relative", "external-absolute"}
@@ -26,6 +26,18 @@ MAX_TITLE_CHARS = 120
 MAX_SECTION_CHARS = 8000
 MAX_DOCUMENT_CHARS = 24000
 MAX_DOCUMENT_BYTES = 64 * 1024
+MAX_CONTEXT_ENTRIES = 32
+CONTEXT_FILE_NAME = "CONTEXT.md"
+CONTEXT_BEGIN = "<!-- BEGIN SACHA PROJECT CONTEXT: terminology -->"
+CONTEXT_END = "<!-- END SACHA PROJECT CONTEXT: terminology -->"
+CONTEXT_HEADING = "## 项目术语（Sacha 托管）"
+CONTEXT_FIELDS = (
+    ("definition", "定义"),
+    ("excluded_meanings", "明确排除"),
+    ("scope", "适用边界"),
+    ("evidence", "依据"),
+    ("consumers", "任务外消费者"),
+)
 SECTIONS = (
     ("conclusion", "结论"),
     ("quick_start", "如何使用 / 最短路径"),
@@ -102,6 +114,25 @@ def _compact_root(root: str) -> tuple[str, str]:
     )
 
 
+def _expected_context_locator(documentation: dict[str, str | None]) -> str:
+    if documentation["policy"] == "disabled":
+        return f"docs/{CONTEXT_FILE_NAME}"
+    root = str(documentation["root"]).rstrip("/\\")
+    separator = "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", root) else "/"
+    return f"{root}{separator}{CONTEXT_FILE_NAME}"
+
+
+def _attach_context_locator(
+    text: str,
+    documentation: dict[str, str | None],
+) -> dict[str, str | None]:
+    expected = _expected_context_locator(documentation)
+    match = re.search(r"(?m)^- 项目 Context：`([^`]+)`(?:（[^\r\n]*）)?\r?$", text)
+    if match is not None and match.group(1) != expected:
+        raise DocumentError("Project context locator is inconsistent with documentation root")
+    return {**documentation, "context_locator": expected}
+
+
 def parse_project_integration(data: bytes) -> dict[str, str | None]:
     try:
         text = data.decode("utf-8-sig")
@@ -124,13 +155,13 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
     if compact:
         policy, root, authorization = compact.groups()
         if policy == "disabled":
-            return {
+            return _attach_context_locator(text, {
                 "policy": policy,
                 "root_kind": None,
                 "root": None,
                 "portability": "not-applicable",
                 "write_authorization": None,
-            }
+            })
         if root is None or authorization is None:
             raise DocumentError("enabled Project documentation is incomplete")
         root_kind, portability = _compact_root(root)
@@ -145,11 +176,11 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             raise DocumentError("Project documentation policy is invalid")
         if authorization not in WRITE_AUTHORIZATIONS:
             raise DocumentError("Project documentation write authorization is invalid")
-        return result
+        return _attach_context_locator(text, result)
 
     documentation = _section(text, "### Project documentation")
     document_types = re.search(
-        r"(?m)^- document types = `change-archive`、`system-guide`\r?$",
+        r"(?m)^- document types = `change-archive`、`system-guide`(?:、`project-context`)?\r?$",
         documentation,
     )
     if document_types is None:
@@ -175,7 +206,7 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             )
         ):
             raise DocumentError("disabled documentation contains active root or authorization")
-        return result
+        return _attach_context_locator(text, result)
     if result["root_kind"] not in ROOT_KINDS:
         raise DocumentError("Project documentation root kind is invalid")
     if result["write_authorization"] not in WRITE_AUTHORIZATIONS:
@@ -187,7 +218,7 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
     )
     if result["portability"] != expected_portability:
         raise DocumentError("Project documentation portability is inconsistent")
-    return result
+    return _attach_context_locator(text, result)
 
 
 def _normalized_relative_path(raw: Any, label: str) -> PurePosixPath:
@@ -265,9 +296,73 @@ def _public_text(value: Any, label: str) -> str:
     return normalized
 
 
+def _context_text(value: Any, label: str, *, max_chars: int = 2000) -> str:
+    normalized = _public_text(value, label)
+    if len(normalized) > max_chars or any(token in normalized for token in ("\n", "\r", "`")):
+        raise DocumentError(f"{label} must be one line without backticks and at most {max_chars} characters")
+    return normalized
+
+
+def _parse_context_input(value: dict[str, Any]) -> dict[str, Any]:
+    expected = {
+        "schema_version",
+        "document_type",
+        "trigger",
+        "persistent_product_delta",
+        "expected_target_sha256",
+        "entries",
+    }
+    if set(value) != expected:
+        raise DocumentError(f"project-context input fields must be exactly {sorted(expected)}")
+    if value["schema_version"] != INPUT_SCHEMA_VERSION:
+        raise DocumentError(f"document input schema_version must be {INPUT_SCHEMA_VERSION}")
+    if value["trigger"] not in TRIGGERS:
+        raise DocumentError("trigger must be human-request or goal-closeout")
+    if value["persistent_product_delta"] is not True:
+        raise DocumentError("project-context requires persistent_product_delta true")
+    expected_hash = value["expected_target_sha256"]
+    if expected_hash is not None and (
+        not isinstance(expected_hash, str)
+        or re.fullmatch(r"[0-9A-Fa-f]{64}", expected_hash) is None
+    ):
+        raise DocumentError("expected_target_sha256 must be null or a 64-character SHA-256")
+    entries = value["entries"]
+    if not isinstance(entries, list) or not entries or len(entries) > MAX_CONTEXT_ENTRIES:
+        raise DocumentError(f"project-context entries must contain 1-{MAX_CONTEXT_ENTRIES} items")
+    parsed_entries: list[dict[str, str]] = []
+    seen: set[str] = set()
+    expected_entry_fields = {"term", *(key for key, _ in CONTEXT_FIELDS)}
+    for index, item in enumerate(entries):
+        if not isinstance(item, dict) or set(item) != expected_entry_fields:
+            raise DocumentError(
+                f"entries[{index}] fields must be exactly {sorted(expected_entry_fields)}"
+            )
+        term = _context_text(item["term"], f"entries[{index}].term", max_chars=120)
+        if any(token in term for token in ("#", "<!--", "-->")):
+            raise DocumentError(f"entries[{index}].term contains unsafe Markdown syntax")
+        identity = term.casefold()
+        if identity in seen:
+            raise DocumentError(f"duplicate project-context term: {term}")
+        seen.add(identity)
+        parsed = {"term": term}
+        for key, _ in CONTEXT_FIELDS:
+            parsed[key] = _context_text(item[key], f"entries[{index}].{key}")
+        parsed_entries.append(parsed)
+    return {
+        "schema_version": INPUT_SCHEMA_VERSION,
+        "document_type": "project-context",
+        "trigger": value["trigger"],
+        "persistent_product_delta": True,
+        "expected_target_sha256": None if expected_hash is None else expected_hash.upper(),
+        "entries": parsed_entries,
+    }
+
+
 def parse_document_input(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise DocumentError("document input root must be an object")
+    if value.get("document_type") == "project-context":
+        return _parse_context_input(value)
     expected = {
         "schema_version",
         "document_type",
@@ -282,7 +377,7 @@ def parse_document_input(value: Any) -> dict[str, Any]:
     if value["schema_version"] != INPUT_SCHEMA_VERSION:
         raise DocumentError(f"document input schema_version must be {INPUT_SCHEMA_VERSION}")
     if value["document_type"] not in DOCUMENT_TYPES:
-        raise DocumentError("document_type must be change-archive or system-guide")
+        raise DocumentError("document_type must be change-archive, system-guide or project-context")
     if value["trigger"] not in TRIGGERS:
         raise DocumentError("trigger must be human-request or goal-closeout")
     if not isinstance(value["persistent_product_delta"], bool):
@@ -386,6 +481,101 @@ def parse_generated_document(data: bytes) -> dict[str, Any]:
     return {"title": title_match.group(1), "sections": sections}
 
 
+def _render_context_entry(entry: dict[str, str]) -> str:
+    lines = [f"### {entry['term']}"]
+    lines.extend(f"- {label}：{entry[key]}" for key, label in CONTEXT_FIELDS)
+    return "\n".join(lines)
+
+
+def _render_context_block(entries: dict[str, dict[str, str]]) -> str:
+    bodies = [
+        _render_context_entry(entries[key])
+        for key in sorted(entries, key=lambda item: (item.casefold(), item))
+    ]
+    return f"{CONTEXT_BEGIN}\n{CONTEXT_HEADING}\n\n" + "\n\n".join(bodies) + f"\n{CONTEXT_END}"
+
+
+def _parse_context_document(data: bytes) -> tuple[str, dict[str, dict[str, str]], tuple[int, int] | None]:
+    if len(data) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"project context exceeds {MAX_DOCUMENT_BYTES} bytes")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise DocumentError("project context must be UTF-8") from exc
+    begin_count = text.count(CONTEXT_BEGIN)
+    end_count = text.count(CONTEXT_END)
+    if begin_count == 0 and end_count == 0:
+        return text, {}, None
+    if begin_count != 1 or end_count != 1:
+        raise DocumentError("project context contains duplicate or broken managed markers")
+    start = text.find(CONTEXT_BEGIN)
+    finish = text.find(CONTEXT_END, start)
+    if finish < start:
+        raise DocumentError("project context managed markers are out of order")
+    finish += len(CONTEXT_END)
+    block = text[start:finish]
+    normalized_block = block.replace("\r\n", "\n")
+    prefix = f"{CONTEXT_BEGIN}\n{CONTEXT_HEADING}\n\n"
+    suffix = f"\n{CONTEXT_END}"
+    if not normalized_block.startswith(prefix) or not normalized_block.endswith(suffix):
+        raise DocumentError("project context managed block structure is invalid")
+    body = normalized_block[len(prefix) : -len(suffix)]
+    chunks = re.split(r"\n\n(?=### )", body) if body else []
+    entries: dict[str, dict[str, str]] = {}
+    for chunk in chunks:
+        lines = chunk.splitlines()
+        if not lines or not lines[0].startswith("### "):
+            raise DocumentError("project context term heading is invalid")
+        term = _context_text(lines[0][4:], "existing term", max_chars=120)
+        if len(lines) != 1 + len(CONTEXT_FIELDS):
+            raise DocumentError(f"project context term structure is invalid: {term}")
+        entry = {"term": term}
+        for line, (key, label) in zip(lines[1:], CONTEXT_FIELDS):
+            marker = f"- {label}："
+            if not line.startswith(marker):
+                raise DocumentError(f"project context field is invalid: {term}/{label}")
+            entry[key] = _context_text(line[len(marker) :], f"existing.{term}.{key}")
+        identity = term.casefold()
+        if identity in entries:
+            raise DocumentError(f"duplicate project-context term: {term}")
+        entries[identity] = entry
+    return text, entries, (start, finish)
+
+
+def _merge_context_document(
+    original: bytes | None,
+    incoming: list[dict[str, str]],
+) -> tuple[bytes, list[str]]:
+    if original is None:
+        text, entries, span = "# 项目上下文\n", {}, None
+    else:
+        text, entries, span = _parse_context_document(original)
+    changed_existing: list[str] = []
+    for entry in incoming:
+        identity = entry["term"].casefold()
+        if identity in entries and entries[identity] != entry:
+            changed_existing.append(entries[identity]["term"])
+        entries[identity] = entry
+    block = _render_context_block(entries)
+    newline = "\r\n" if original is not None and b"\r\n" in original else "\n"
+    if newline != "\n":
+        block = block.replace("\n", newline)
+    if span is None:
+        separator = newline if text.endswith(("\n", "\r")) else newline * 2
+        merged = text + separator + block + newline
+    else:
+        merged = text[: span[0]] + block + text[span[1] :]
+        if not merged.endswith("\n"):
+            merged += "\n"
+    generated = merged.encode("utf-8")
+    if original is not None and original.startswith(b"\xef\xbb\xbf"):
+        generated = b"\xef\xbb\xbf" + generated
+    if len(generated) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"project context exceeds {MAX_DOCUMENT_BYTES} bytes")
+    _parse_context_document(generated)
+    return generated, changed_existing
+
+
 def _target_path(root: Path, output_path: str) -> Path:
     pure = _normalized_relative_path(output_path, "output_path")
     target = root.joinpath(*pure.parts)
@@ -399,6 +589,84 @@ def _target_path(root: Path, output_path: str) -> Path:
     if target.exists():
         raise DocumentError("output target already exists; overwrite is forbidden")
     return target
+
+
+def _context_preimage(target: Path, expected_sha256: str | None) -> bytes | None:
+    if target.exists():
+        if not target.is_file():
+            raise DocumentError("project context target is not a file")
+        original = target.read_bytes()
+        actual = sha256_bytes(original)
+        if expected_sha256 is None:
+            raise DocumentError("existing project context requires expected_target_sha256")
+        if actual != expected_sha256:
+            raise DocumentError("project context preimage SHA-256 changed")
+        return original
+    if expected_sha256 is not None:
+        raise DocumentError("project context target is absent but expected_target_sha256 was provided")
+    return None
+
+
+def _commit_context_update(target: Path, generated: bytes, original: bytes | None) -> None:
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=".sacha-context-",
+            suffix=".tmp",
+            dir=target.parent,
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(generated)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if original is None:
+            os.link(temp_path, target)
+        else:
+            if not target.is_file() or target.read_bytes() != original:
+                raise DocumentError("project context changed before atomic replace")
+            os.replace(temp_path, target)
+            temp_path = None
+    except FileExistsError as exc:
+        raise DocumentError("project context appeared during atomic create") from exc
+    except OSError as exc:
+        raise DocumentError(f"atomic project context write failed: {type(exc).__name__}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _restore_context(target: Path, original: bytes | None, generated_hash: str) -> bool:
+    try:
+        if original is None:
+            if target.is_file() and sha256_bytes(target.read_bytes()) == generated_hash:
+                target.unlink()
+            return not target.exists()
+        restore_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                prefix=".sacha-context-restore-",
+                suffix=".tmp",
+                dir=target.parent,
+                delete=False,
+            ) as handle:
+                restore_path = Path(handle.name)
+                handle.write(original)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(restore_path, target)
+            restore_path = None
+        finally:
+            if restore_path is not None:
+                restore_path.unlink(missing_ok=True)
+        return target.read_bytes() == original
+    except OSError:
+        return False
 
 
 def generate_project_document(
@@ -438,6 +706,68 @@ def generate_project_document(
             per_write_confirmed=per_write_confirmed,
         )
         root = _resolve_document_root(project, documentation)
+        if document["document_type"] == "project-context":
+            target = root / CONTEXT_FILE_NAME
+            original = _context_preimage(target, document["expected_target_sha256"])
+            generated, changed_existing = _merge_context_document(
+                original,
+                document["entries"],
+            )
+            if changed_existing and not per_write_confirmed:
+                raise DocumentError(
+                    "updating an existing project context definition requires explicit per-write confirmation"
+                )
+            generated_hash = sha256_bytes(generated)
+            original_hash = None if original is None else sha256_bytes(original)
+            _, parsed_entries, _ = _parse_context_document(generated)
+            result.update(
+                status="ready",
+                transaction="dry_run",
+                document_type="project-context",
+                target=str(target),
+                sha256=generated_hash,
+                preimage_sha256=original_hash,
+                changed_existing_terms=changed_existing,
+                parsed={"terms": [entry["term"] for entry in parsed_entries.values()]},
+            )
+            if not write:
+                return result
+            write_started = True
+            if sha256_bytes(workflow.read_bytes()) != workflow_hash:
+                raise DocumentError("Project Integration changed after validation")
+            root = _resolve_document_root(project, documentation)
+            target = root / CONTEXT_FILE_NAME
+            current = _context_preimage(target, document["expected_target_sha256"])
+            if current != original:
+                raise DocumentError("project context changed after validation")
+            generated, changed_existing = _merge_context_document(
+                current,
+                document["entries"],
+            )
+            if changed_existing and not per_write_confirmed:
+                raise DocumentError(
+                    "updating an existing project context definition requires explicit per-write confirmation"
+                )
+            if current == generated:
+                result.update(status="ok", transaction="no_changes")
+                return result
+            generated_hash = sha256_bytes(generated)
+            _commit_context_update(target, generated, current)
+            try:
+                written = target.read_bytes()
+                if sha256_bytes(written) != generated_hash:
+                    raise DocumentError("post-write project context SHA-256 validation failed")
+                _parse_context_document(written)
+            except (OSError, DocumentError) as exc:
+                restored = _restore_context(target, current, generated_hash)
+                result.update(
+                    status="failed",
+                    transaction="rolled_back" if restored else "partial_write",
+                )
+                result["conflicts"].append(str(exc))
+                return result
+            result.update(status="ok", transaction="committed")
+            return result
         target = _target_path(root, document["output_path"])
         generated = render_document(document)
         parsed = parse_generated_document(generated)
@@ -514,7 +844,7 @@ def generate_project_document(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate and create one self-contained project publication document."
+        description="Validate and create a project publication or safely update project CONTEXT."
     )
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--workflow-rule-path", default="docs/workflow-rule.md")

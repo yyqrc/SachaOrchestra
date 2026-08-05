@@ -54,10 +54,11 @@ class SpecArtifactContractTests(unittest.TestCase):
         self.assertIn("Spec Artifact", workflow)
         self.assertIn("Plan 只表示按需规划活动或 inline plan", workflow)
         self.assertIn("Spec storage", planner)
-        self.assertIn("默认写入 `spec.md`", planner)
+        self.assertIn("两者都没有时使用集合根 `docs/plan`", planner)
+        self.assertIn("任务目录内写 `spec.md`", planner)
         for adapter in (codex_adapter, claude_adapter):
-            self.assertIn("Workflow Contract 10", adapter)
-            self.assertIn("Artifact Protocol 4", adapter)
+            self.assertIn("Workflow Contract 11", adapter)
+            self.assertIn("Artifact Protocol 5", adapter)
 
         old_artifact_name = "Plan" + " Artifact"
         self.assertNotIn(old_artifact_name, artifact)
@@ -80,8 +81,6 @@ class SpecArtifactContractTests(unittest.TestCase):
                     project_root=project,
                     manage_agents=False,
                     scm_provider="none",
-                    spec_root_kind="project-relative",
-                    spec_root="docs/plans",
                     documentation_policy="disabled",
                 )
             )
@@ -90,7 +89,7 @@ class SpecArtifactContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "root_kind": "project-relative",
-                "root": "docs/plans",
+                "root": "docs/plan",
                 "portability": "portable",
                 "directory_pattern": "<YYYY-MM-DD>-<short-slug>/",
                 "file_name": "spec.md",
@@ -98,7 +97,10 @@ class SpecArtifactContractTests(unittest.TestCase):
             result["spec_storage"],
         )
         generated = result["workflow_rule"]["planned_content"]
-        self.assertIn("- Spec：`docs/plans`", generated)
+        self.assertIn("- Spec：`docs/plan`", generated)
+        self.assertIn("- 任务目录：`<YYYY-MM-DD>-<short-slug>/`", generated)
+        self.assertIn("- 文件：`spec.md`；澄清决定：`decisions.md`", generated)
+        self.assertIn("- 项目 Context：`docs/CONTEXT.md`", generated)
         old_label = "- " + "Pla" + "n："
         self.assertNotIn(old_label, generated)
 

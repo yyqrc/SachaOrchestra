@@ -1,6 +1,6 @@
 # Artifact Protocol
 
-> Contract Version: 4
+> Contract Version: 5
 > Status: Normative Core contract
 
 ## 1. 范围与权威
@@ -11,6 +11,7 @@ Review 与 return 分别由 [Assurance Contract](assurance-contract.md)、[Coord
 保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威：
 
 - Spec Artifact：目标、Scope、冻结决策、允许边界与验收；
+- 澄清决定记录：在 Spec 形成前保存后续会消费的已确定决定；多轮、分支或上下文压缩需要恢复时，按需保存能回到原问题的最小澄清锚点与 frontier；疑似跨任务术语可作为项目 context 候选保留到 closeout 复核；
 - 真实文件、外部状态、diff 和命令原始输出：实现与验证事实；
 - Execution Report：事实与证据的可恢复索引；
 - Review Artifact：Reviewer 判断；
@@ -23,11 +24,13 @@ Review 与 return 分别由 [Assurance Contract](assurance-contract.md)、[Coord
 | Artifact | 生成条件 | 最小内容 |
 | --- | --- | --- |
 | 最终任务记录 | 同一 context 简单完成 | 修改、验证、失败/未验证与剩余风险 |
+| 澄清决定记录 | Spec 形成前已有确定决定供规划消费，或多轮/分支/压缩恢复需要保留澄清锚点 | 已确认决定、依据/约束、未决项与 locator；恢复确需时增加原始问题、当前关注点、暂存思路，以及尚未探索/解决的实质分支、依赖与关键排除依据；疑似跨任务术语按需记录定义、排除含义、证据、边界、任务外消费者和 Unknown |
 | Spec Artifact | 持久 Scope、批准方案或跨 context 恢复 | Scope、决策、Acceptance、暂停/回退 |
 | Execution Report | 续跑、证据索引或正式 Review | 实际 delta、验证、偏差、风险、locator、恢复入口 |
 | Review Artifact | 正式 Review | Findings、Verdict、证据缺口、下一路由 |
 
-没有消费者就不创建 Artifact。一个事实只写一次：Spec 不保存调查流水账，Goal/Scope/AC/Handoff 不复述同一决策；Report/Review 不重抄上游或原始日志，只给消费者所需 delta 与 locator。
+没有消费者就不创建 Artifact。澄清决定记录使用项目既有载体；无约定且确有规划或恢复消费者时可用任务目录中的 `decisions.md`，不保存完整对话、调查流水账或完整决策树。恢复 frontier 只保留会改变方案且压缩后必须重建的最小分支信息，旧项确认或失效后原位压缩。Planner 读取它形成 Spec 并沿用已确认术语，批准后 Spec 成为唯一执行基线；两者不要求合并为同一文件，也不建立并行状态系统。项目 context 候选不因记录而成为项目事实，只有 closeout 基于最终实现/Review 证据复核且文档授权覆盖后才可进入项目 `CONTEXT.md`。
+一个事实只写一次：Spec 只吸收执行所需的冻结决定，不重抄澄清过程；Goal/Scope/AC/Handoff 不复述同一决策；Report/Review 不重抄上游或原始日志，只给消费者所需 delta 与 locator。Human Review Focus 和当轮最终建议清单直接出现在回复中，不因沟通收口写入业务 Spec。
 长度按风险和恢复需要自适应，不为格式拆文件。失败、未验证、授权、风险、Evidence 与 Entry Condition 不得为压缩而删除。
 
 ## 3. Handoff

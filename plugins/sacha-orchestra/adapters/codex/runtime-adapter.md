@@ -1,6 +1,6 @@
 # Codex Runtime Adapter
 
-> Implements: Intake Contract 3；Workflow Contract 10；Assurance Contract 1；Coordination Contract 3；Artifact Protocol 4
+> Implements: Intake Contract 4；Workflow Contract 11；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 5
 > Status: Normative Codex mapping
 
 ## 1. Boundary
@@ -62,8 +62,8 @@ Owner 结合原生 join/payload 核对 consumer 必需的 revision、owner、Sou
 
 | Target | Model / reasoning_effort | 首个命中条件 |
 | --- | --- | --- |
-| Executor | `agent_type=luna_worker_xhigh`（Luna / `xhigh`） | helper 资格成立，且任务只读、机械或为可直接验证的小型低风险修改 |
-| Executor | `agent_type=luna_worker`（Luna / `max`） | helper 资格成立，任务非高风险但包含实质写入、复杂验证或明显错误/返工成本 |
+| Executor | `agent_type=sacha_luna_worker_xhigh`（Luna / `xhigh`） | helper 资格成立，且任务只读、机械或为可直接验证的小型低风险修改 |
+| Executor | `agent_type=sacha_luna_worker`（Luna / `max`） | helper 资格成立，任务非高风险但包含实质写入、复杂验证或明显错误/返工成本 |
 | Planner | `gpt-5.6-sol` / `xhigh` | breaking contract/schema、跨 Runtime/系统、难逆决策、耦合方案或验收冲突 |
 | Planner | `gpt-5.6-sol` / `high` | 其他需要冻结实质方案的规划 |
 | Executor | `gpt-5.6-sol` / `high` | 安全、权限、持久数据、breaking、不可逆外部动作或广泛兼容/发布风险，同时涉及跨系统、长依赖链、复杂迁移/集成或多阶段昂贵验证 |
@@ -71,11 +71,9 @@ Owner 结合原生 join/payload 核对 consumer 必需的 revision、owner、Sou
 | Executor | `gpt-5.6-terra` / `xhigh` | 多模块、长依赖链、复杂调试/集成或多阶段验证，且不属于高风险 |
 | Executor | `gpt-5.6-terra` / `high` | 其他 Scope/验收已冻结、模式既有且验证明确的实施 |
 
-高风险优先 Sol。helper 合格时，轻量任务选 `luna_worker_xhigh`，其他非高风险独立交付选 `luna_worker`，均先于 Terra。Luna 控制模型成本，reasoning 按返工风险选择。
-named route 用 `agent_type`/`fork_turns=none`；每种 type 首次写入前无 join 证据时先做只读 probe。不替代 Gate、不建用户可见 task；完整父 context 用继承模型，Direct/current context 不切换。
+高风险优先 Sol；合格 helper 用 Luna：轻量 xhigh，较高返工成本 max。named route 使用 `agent_type`/`fork_turns=none`；首次写入前先做只读 probe。Direct/current context 不切换。
 
-精确配置不支持时暂停。xhigh 不可用可回退已验证的 max；max 不可用不得降到 xhigh，回退 Sol/Terra。probe/join 失败不得冒充 requested type。
-记录 requested/effective agent type、model、reasoning、fallback reason；effective 只取宿主返回，无遥测即未验证。旧写入者结束前不换配置。
+Human/Scope 精确配置不支持时暂停。自动 Luna 不可用时回退已验证的风险匹配 Sol/Terra；不得静默触发 `setup-agents`，它只是显式兼容安装。记录 requested/effective route 与 fallback reason；无宿主遥测即未验证。旧写入者结束前不换配置。
 
 单次 wait/join 最长 `60s`；timeout 只触发进度/liveness 检查。存在可证明活动时不按墙钟中断；仅在失活、越界、用户取消或继续会双写/增险时中断，确认 terminal/cancelled 后再接管。
 
@@ -104,6 +102,8 @@ guard/事后检查是应用层 containment，不是 Windows OS sandbox；调用�
 ## 4. Manager、Goal 与 Artifact
 
 单个职责内有界 helper 不打开 Manager Gate，由当前 owner 直接管理。Manager Gate 开启后，每个 ready 单元使用一个 `spawn_agent`；自包含时 `fork_turns=none`，缺少未落盘 Human 决定时才传最少 turns。completion 用 `wait_agent`；补充输入/取消使用 Runtime 对应能力。
+
+Planner 提案由 root task 等待 Human；批准且无其他阻塞时直接启动 Executor，不新建用户 task 或二次确认。
 
 `parallel_expected` 成立时首次 wait/join 前启动至少两个实例。结果按消费者和风险保留必要 delta，不为格式强制落 Artifact。integration owner 串行应用隔离 patch/候选实现并处理共享生成物、Git 与整体验证。
 

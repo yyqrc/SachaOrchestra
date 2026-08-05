@@ -1,6 +1,6 @@
 # Intake Contract
 
-> Contract Version: 3
+> Contract Version: 4
 > Status: Normative Core contract
 
 ## 1. 范围
@@ -35,6 +35,6 @@ Reviewer 与 Manager 不是入口选项。已存在的下游 Gate 事实可进�
 
 以下输入视为已接受：显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer、Manager、Feedback canonical capability。Clarify 与 Setup Project 只授权其 explicit-only narrow scope，后续开发目标重新判断入口。
 
-入口判断是当前 objective/Scope 的临时事实，不是 Role、Gate、Artifact、Handoff 字段、完成证据或写入授权。接受 Sacha 不授权 workspace 写入、安装、Git、发布、远程资源、权限或高影响动作；拒绝也不关闭适用的安全与工程规则。
+入口判断是当前 objective/Scope 的临时事实，不是 Role、Gate、Artifact、Handoff 字段、完成证据或写入授权。接受 Sacha 不批准 Planner 后续形成的实质新方案，也不授权 workspace 写入、安装、Git、发布、远程资源、权限或高影响动作；方案确认及批准后的自动执行由 Workflow Contract 处理。拒绝也不关闭适用的安全与工程规则。
 
 Hook 可以由 Runtime 在另行授权后预加载环境信息，但不得接受 Sacha、替代 `using-sacha`、扩大授权或成为正确性与恢复前提。

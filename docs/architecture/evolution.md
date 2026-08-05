@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.6.4` compact Project Integration ignore metadata
+> 当前 release：`0.6.5` Planner alignment and project context
 > 当前 source candidate：无
-> 当前主线：Project Integration 可读性与刷新安全
-> 发布边界：`0.6.4` 将 Setup 已分类的非规则候选从正文长清单压缩为数量摘要，精确路径保留在生成元数据中；Schema 3、绑定语义和旧格式解析兼容保持不变
+> 当前主线：Planner 对齐、可执行 Spec 与项目 Context 安全沉淀
+> 发布边界：`0.6.5` 要求 Planner 新形成的实质方案先由 Human Review，批准后自动进入 Executor；补齐 Clarify 决定/恢复锚点、A/B/C 验收路由、默认 Spec 任务目录、项目 `CONTEXT.md` 有界维护与 Sacha 命名空间 Agent 配置
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -55,6 +55,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Tooling Cleanup and Fable Routing | `0.4.1` released | Claude CLI helper 接受自定义 `fable` 模型；删除无消费者的本地读取和聚合验证脚本 | 快速发版；普通回归、安装、fresh discovery 与 runtime 未执行 |
 | Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
 | Spec Artifact and Feedback Repair | `0.6.0` released | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
+| Planner Alignment and Project Context | `0.6.5` released | Planner 实质新方案 Human Review、批准后自动执行、Clarify 可恢复决定、A/B/C 验收、项目 Context 有界维护与 Sacha Agent 命名空间 | source/static 已验证；安装、cache、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为不在本次 Scope |
 
 ## 3. 不变量
 
@@ -312,6 +313,14 @@ Project Integration 的公开配置、生成器 Python API/JSON/CLI 与新输出
 同一 `0.6.0` candidate 收紧显式 Feedback：repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配目标，或创建恰好一个 owner workspace task并以原生 terminal join消费结果。Source-local investigation helper 只读补证，不取得 repair identity；调查与路由不授权 Target 写入、Git、安装或发布。
 
 source/static 已通过 Spec Artifact 合同 `3/3`、Project Setup `29/29`、五个受影响 Skill official validator、plugin validator、`0.6.0` candidate coherence 与 combined diff check。独立 Reviewer、安装/cache parity、fresh discovery、真实 Planner `spec.md` 写入及 Feedback `create_thread → wait_threads` 行为未执行。
+
+### 4.26 Released：Planner 对齐、可执行 Spec 与项目 Context
+
+`docs/plans/2026-08-04-planner-alignment-executable-spec/spec.md` 冻结 `0.6.5`：Planner 形成 Human 此前未确认、会改变用户可见行为、架构、数据/资产、owner、迁移/兼容、难回退选择或验收方式的实质方案时，先交付拟执行 Spec 与 Human Review Focus；批准且没有额外授权、未决方案或阻塞性 Entry Condition 后，原 workflow owner 立即进入 Executor，不再请求第二次“开始实施”。Clarify 按需保存最小决定与恢复 frontier，并把稳定项目术语作为 closeout 候选而非直接事实。
+
+同一 candidate 将验收输入按实际执行者区分为 Agent 执行、Human 提供前置后 Agent 执行、Human 观察判断三类，不新增 Outcome。Project Integration 首次默认使用 `docs/plan/<YYYY-MM-DD>-<short-slug>/` 保存 `spec.md` 与按需 `decisions.md`，并暴露确定的项目 `CONTEXT.md` locator；Project Documentation 只在授权和 preimage 保护下有界维护 managed 术语区。`setup-agents` 改用 Sacha-owned `sacha_luna_worker` 与 `sacha_luna_worker_xhigh`，拒绝覆盖非 Sacha 身份。
+
+Project Setup `38/38`、单元测试 `18/18`、九个受影响 Skill official validator、plugin validator、`0.6.5` candidate coherence 与 diff check 已通过。本次只发布 source/static 层；安装、cache parity、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为及 Domain Provider 跨仓实施均不在发布 Scope。
 
 ## 5. `1.0.0` 决策
 

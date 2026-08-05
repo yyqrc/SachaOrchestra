@@ -1,6 +1,6 @@
 # managed-by: sacha-orchestra/setup-agents
-# source: assets/luna-worker-xhigh.toml
-name = "luna_worker_xhigh"
+# source: assets/sacha-luna-worker-xhigh.toml
+name = "sacha_luna_worker_xhigh"
 description = "用于处理范围明确、低风险、可直接验证的轻量低成本 Executor 任务。适用于只读搜索、日志分析、文档整理、机械批处理和小型局部修改。"
 
 model = "gpt-5.6-luna"

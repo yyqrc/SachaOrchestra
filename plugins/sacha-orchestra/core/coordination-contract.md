@@ -1,6 +1,6 @@
 # Coordination Contract
 
-> Contract Version: 3
+> Contract Version: 4
 > Status: Normative Core coordination contract
 
 ## 1. 范围与 owner
@@ -10,7 +10,7 @@ Gate/lifecycle 见 [Workflow Contract](workflow-contract.md)，持久记录见 [
 无 delegation、跨 context return 或恢复 consumer 时不加载。
 
 Manager 不是生产 Role。生产 Role transition 由 workflow owner 路由；多个 delegated unit、依赖图、跨 context 恢复或并行生命周期由 Manager 管理。
-当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、结果核对与集成；helper 不取得独立 Role verdict。
+当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、核对真实 diff/原始证据与集成；helper 的 done 只是 locator，不取得独立 Role verdict。
 
 ## 2. 派发与 single writer
 
@@ -44,7 +44,7 @@ Source 不能以调查报告结束或重复询问同一创建授权；只读 inv
 - `goal_partial`：已授权子集完成，剩余部分明确未完成且当前 objective 不再继续；
 - `goal_cancelled`：Human 或上游 owner 明确取消；
 - `goal_superseded`：objective 被新目标替代；
-- `human_decision_required`：继续需要实质方案、Scope/验收变化、新高影响授权、不可消歧 owner 或 Human/外部恢复；
+- `human_decision_required`：继续需要实质方案、Scope/验收变化、新高影响授权、不可消歧 owner 或 Human/外部恢复；Planner 提案获批且无其他阻塞时，原 workflow owner 立即消费该回复并启动 Executor；
 - `completion_return_blocked`：安全 return transport 与替代路径均不可用；
 - `external_failure`：外部系统已终止且同 Scope 安全恢复路径耗尽。
 
@@ -56,4 +56,4 @@ Source 不能以调查报告结束或重复询问同一创建授权；只读 inv
 - Identity：核对当前 transport/consumer 实际需要的 Task/Scope revision、owner、Source/Target、Baseline；原生 join 已唯一绑定的标识不重复编码；
 - Progress：下一 transition 已启动、处于可证明的 Runtime wait/用户 steering，或进入合法根终态。
 
-失败产生 bounded deviation，保留 expected/actual/impact、证据、恢复或停止条件，以及 transport 无法提供的必要 identity/dedup。错误、陈旧或重复 completion 不产生额外 transition/write/terminal；环境不可用先耗尽同 Scope 安全替代。
+失败产生 bounded deviation，保留 expected/actual/impact、证据、恢复或停止条件，以及 transport 无法提供的必要 identity/dedup。错误、陈旧或重复 completion 不产生额外 transition/write/terminal；环境不可用先耗尽同 Scope 安全替代。实现缺陷和同 Scope 证据补齐返回原 Executor，旧写入者未 terminal 前不得另开写入者或盲目重试。

@@ -1,6 +1,6 @@
 # managed-by: sacha-orchestra/setup-agents
-# source: assets/luna-worker.toml
-name = "luna_worker"
+# source: assets/sacha-luna-worker.toml
+name = "sacha_luna_worker"
 description = "用于处理范围与验收已冻结、可独立交付且错误或返工成本较高的低成本 Executor 任务。适用于局部实现、修复、测试和有界集成。"
 
 model = "gpt-5.6-luna"

@@ -5,22 +5,20 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，以 
 
 ## 工作流
 
-1. 显式 project root；否则用 [resolver](scripts/resolve_capability_queries.py) 从 Binding/AGENTS/SCM 定位唯一根；多候选 unresolved。
-2. Catalog 只给 id、canonical Skill、副作用。Human 标记项目 Skill root 为 `authority | mirror | independent | ignore`，不得按名称猜能力。
-3. 完整读取 authority/independent 的 `SKILL.md` 和必需 locator；按正文评估 goal、入口、证据行和 SHA-256，只映射 Runtime 可见且入口成立项。
-4. `project.rules` 只取 Human 明示/本轮已选 provider。读取 canonical `assets/project-rules.md` 原始字节，以 `--project-rules-file <canonical-skill>::<asset-path>` 传入；不生成、转述或写入 Binding。
-5. 交给[生成器](scripts/generate_project_integration.py)核对证据、路径和可见性；正文/证据缺失、歧义、冲突或 policy 未确认均不得写入。
-6. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)读 `--list-models`；已有 route 优先，其余按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选。
-   Human 用 `--pi-model-binding <route>::<provider/model>` 保存；清空须 `--clear-pi-model-bindings`。
-7. 展示 current/recommended。Spec/文档、授权或 Pi 未明确时先展示完整 delta 并等待 Human 明确确认；历史 Binding 不是本轮写入授权。
-8. 先读 managed block：保留适用项、同源刷新、新源合并；废弃才传 `--remove-project-rules-skill <canonical-skill>`。
-   旧版无来源/hash 须核对归属并连同 asset 显式 `--replace-legacy-project-rules`，不得静默采信或丢弃。
-   dry-run 报告 reconciliation、冲突、warning 和 `planned_delta_sha256`；确认后以 `--confirmed-planned-delta-sha256` 写入。
+1. 使用显式 project root；否则由 [resolver](scripts/resolve_capability_queries.py) 从 Binding/AGENTS/SCM 定位唯一根，多候选保持 unresolved。
+2. Catalog 只给 id、canonical Skill 和副作用。Human 标记 Skill root policy；完整读取 authority/independent 正文和必需 locator，只映射 Runtime 可见且可独立交付的 goal。
+3. `project.rules` 只取 Human 明示或本轮已选 provider 的 canonical asset 原始字节，不生成、转述或写入 Binding。
+4. [生成器](scripts/generate_project_integration.py)核对正文证据、SHA-256、路径和可见性；缺失、歧义、冲突或 policy 未确认均不写入。
+5. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)执行 `--list-models`，按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选；Human 用 `--pi-model-binding <route>::<provider/model>` 保存，清空用 `--clear-pi-model-bindings`。
+6. 首次 Spec storage 默认 `docs/plan`；任务写入日期 slug 子目录的 `spec.md`，按需同放 `decisions.md`。既有/显式根不改。沿用项目 context locator，否则使用生成器提供的文档 root 派生或项目 fallback；Setup 不创建正文。
+7. 读取 managed block 后保留适用项、同源刷新、新源合并；废弃或替换无来源/hash 的旧段必须显式指定并核对 asset。
+8. dry-run 返回 reconciliation、冲突、warning、完整 delta 和 `planned_delta_sha256`；Human 以 `--confirmed-planned-delta-sha256` matching hash 写入。历史 Binding 不授权本轮写入。
 
 ## 边界
 
-- 普通任务不调用；dry-run 不授权写入。marker 外 Project AGENTS byte-for-byte；写入原子并可补偿恢复。
-- `workflow-rule.md` 只保留 Runtime 消费的项目差异；同目录 `workflow-rule.state.json` 只供 Setup 恢复精确机器状态，普通 Role 不读取。旧内联元数据在下一次确认写入时迁移。
-- Spec/文档根独立；外部根标记 non-portable，拒绝文件系统根。
+- 普通任务不调用；dry-run 不授权写入。marker 外 AGENTS 不变；写入原子且可恢复。
+- Provider 可选；无 Provider 时仍评估 Runtime 可见的项目 Skill，无 mapping 时由 Role 使用项目规则和原生路线。
+- `workflow-rule.md` 只保留 Runtime 项目差异；state 文件只供 Setup 恢复，普通 Role 不读取。
+- Spec/文档根独立；外部根标记 non-portable，拒绝文件系统根。Context locator 不新增独立 root，也不扫描历史任务推断内容。
 - Provider 变更须显式刷新，policy 由 Setup/Human 确认；项目知识和外部动作各归 owner。
-- `project-rules` 按 canonical Skill 分段+SHA-256 合并；AGENTS 仅一个 managed block。未给模板则保留校验，删除显式，正文禁 Sacha marker。
+- `project-rules` 按 canonical Skill 和 SHA-256 合并；AGENTS 仅一个 managed block，删除必须显式。
