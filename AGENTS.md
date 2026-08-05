@@ -41,8 +41,9 @@
 ## 内容归属与信息密度
 
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
+- 路径术语是硬约束：Human 或配置提供的目录用 `base`；解析、派生后实际生效的目录用 `root`；文件及其位置用 `path`；非文件的证据、owner、Runtime 标识或间接指向用 `reference`。不得使用 `locator`，也不得用 `reference` 代替本应明确的文件 `path`；修改既有内容时按该分类消除混用。
 - `description` 只回答“何时用/何时不用”；正文才写首查位置、扩大条件、动作、交付和停止边界。metadata prompt 只给自然入口，不复述正文流程。
-- Adapter 单 Runtime；Role Skill Runtime-neutral；显式 setup 只管对应配置；README 只保留入口、最小用法和 locator；历史/迁移归具名文档。
+- Adapter 单 Runtime；Role Skill Runtime-neutral；显式 setup 只管对应配置；README 只保留入口、最小用法和必要 path/reference；历史/迁移归具名文档。
 - “不给 Sacha 注水”是项目验收条件：新增规则、Role、Gate、Artifact、状态、字段、模板或 validator 必须对应真实失败或重复低效，并能说清唯一 owner、直接 consumer、改变了什么判断和如何证伪；缺一项就不增加。
 - 优先补强现有 owner 的 trigger、procedure 或 decision rule；“看起来更完整/更规范”不是扩产品面的理由。新增内容时先删铺垫、常识、历史和同义重复，示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
 - Caveman/精简只提高表达密度：可删除废话、同义重复和无消费者说明，不得删除或弱化有顺序依赖的步骤、trigger、进入/退出与恢复条件、Owner/Human 决策点、授权、安全、证据和验收。无法证明语义等价时保留原文；若会改变流程判断，停止该部分并把语义 delta 交给 Human 二次确认。
@@ -68,7 +69,7 @@
 | Skill trigger、local procedure 或 metadata | 对应 `SKILL.md`、生成的 metadata、直接调用/返回方、Adapter discovery 清单、README 入口与 plugin validator |
 | Provider catalog/Binding 格式、resolver/generator 或 mapping 消费 | 必须同步 `docs/integrations/capability-provider-guide.md`；核查 `setup-project`、Role/Adapter、生成结果、测试/validator |
 | `render_agents_block` 内容、managed_block 注入格式或 project-rules 模板契约 | 必须同步 `setup-project` SKILL.md 与生成器；核查 `capability-provider-guide.md`、`validate_project_setup.py`、provider `project-rules` skill 消费者 |
-| 产品版本、source candidate 或 release 状态 | Evolution、两个 deployment manifest、README locator、release coherence validator、Git commit/tag identity |
+| 产品版本、source candidate 或 release 状态 | Evolution、两个 deployment manifest、README release reference、release coherence validator、Git commit/tag identity |
 
 ## Creator 与生成器
 

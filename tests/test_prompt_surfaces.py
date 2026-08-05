@@ -39,5 +39,25 @@ class PromptSurfaceTests(unittest.TestCase):
         self.assertIn("$sacha-orchestra:clarify", using_sacha)
         self.assertIn("allow_implicit_invocation: false", clarify_metadata)
 
+    def test_clarify_flow_preserves_human_dialogue_and_artifacts(self) -> None:
+        using_sacha = (PLUGIN / "skills" / "using-sacha" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        clarify = (PLUGIN / "skills" / "clarify" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        planner = (PLUGIN / "skills" / "planner" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("只证明表面 Scope，不证明数据语义", using_sacha)
+        self.assertIn("决定权属于 Human", clarify)
+        self.assertIn("多选工具的自由输入仍是普通 Human 对话", clarify)
+        self.assertIn("疑问或调查请求先回答，再回到原问题", clarify)
+        self.assertIn("第一个会影响方案的决定一经确认", clarify)
+        self.assertIn("在提出下一问题前写入", clarify)
+        self.assertIn("先把完整方案写入 `spec.md` 并回读", planner)
+        self.assertIn("对话中的完整或简化 Spec 都不能替代落盘文件", planner)
+
 if __name__ == "__main__":
     unittest.main()

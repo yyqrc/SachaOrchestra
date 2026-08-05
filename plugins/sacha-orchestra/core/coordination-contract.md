@@ -10,7 +10,7 @@ Gate/lifecycle 见 [Workflow Contract](workflow-contract.md)，持久记录见 [
 无 delegation、跨 context return 或恢复 consumer 时不加载。
 
 Manager 不是生产 Role。生产 Role transition 由 workflow owner 路由；多个 delegated unit、依赖图、跨 context 恢复或并行生命周期由 Manager 管理。
-当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、核对真实 diff/原始证据与集成；helper 的 done 只是 locator，不取得独立 Role verdict。
+当前 owner 可直接使用一个有界 helper 完成职责内的调查、验证或候选 patch，并负责 scope、等待、取消、核对真实 diff/原始证据与集成；helper 的 done 只是 reference，不取得独立 Role verdict。
 
 ## 2. 派发与 single writer
 
@@ -20,17 +20,17 @@ Packet 只是派发消息的内部叫法，不是文件、对象或固定 schema
 
 单个 ready 单元串行处理。至少两个独立 ready 单元且 Scope、依赖、授权和 Runtime 允许时，首次 wait/join 前启动至少两个实例；记录 `parallel_started`、`parallel_blocked` 或 `parallel_dispatch_missed`。不足两个 ready 单元不伪装成并行。
 
-返回只写结果/delta、实际验证、阻塞/风险和必要 locator。按消费者与风险增减，不为格式新建 Artifact，也不隐藏失败、未验证、Scope 偏离或授权阻塞。
+返回只写结果/delta、实际验证、阻塞/风险和必要 reference。按消费者与风险增减，不为格式新建 Artifact，也不隐藏失败、未验证、Scope 偏离或授权阻塞。
 
 ## 3. Clarify research
 
 Clarify 先使用当前 context 可达事实；一个有界只读 helper 足够时直接管理。只有多个研究单元、依赖图、正式恢复或并行生命周期需要独立 owner 时打开 Manager Gate。
 
-研究任务不授权写入、冻结方案、验收或外部动作。发现需写入、新 Scope/方案或新授权时停止并返回 Planner/Human。Manager 返回 evidence locator；Clarify 只消费事实。
+研究任务不授权写入、冻结方案、验收或外部动作。发现需写入、新 Scope/方案或新授权时停止并返回 Planner/Human。Manager 返回 evidence reference；Clarify 只消费事实。
 
 ## 4. Completion、return 与 deviation
 
-Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/Role 对同一 revision 只返回一次结果、实际验证、阻塞/风险和必要 locator。
+Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/Role 对同一 revision 只返回一次结果、实际验证、阻塞/风险和必要 reference。
 原生 transport 无法消歧时才补 Task/Scope revision、Source/Target、owner 或 dedup；更正使用新 revision。
 
 显式 Feedback 的窄授权包含只读取证和完成 repair route。repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配，或在无匹配时创建恰好一个 owner context并消费 terminal。

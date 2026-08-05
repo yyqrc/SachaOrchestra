@@ -30,7 +30,7 @@ Reviewer 与 Manager 不是入口选项。已存在的下游 Gate 事实可进�
 - 自动感知到 candidate 时，用自然技术语言说明新增能力、成本和执行影响，只询问一次；默认不向 Human 展示内部路线名或要求协议式回复。
 - Human 接受后，当前 root owner 按需加载 Workflow Contract、当前 Adapter、confirmed Project Integration 与目标 Role。
 - Human 拒绝后按当时事实保持 L0；同一 candidate 不得重复推销或创建 Sacha Artifact。实质变化形成新 candidate 时可再推荐一次。
-- locator、日志、进度、非语义文案或仅估算变化不触发重问。
+- reference、日志、进度、非语义文案或仅估算变化不触发重问。
 - 重复抑制只依赖当前 context 或正式恢复证据；不得新增跨会话 Registry。
 
 以下输入视为已接受：显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer、Manager、Feedback canonical capability。Clarify 与 Setup Project 只授权其 explicit-only narrow scope，后续开发目标重新判断入口。

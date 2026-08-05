@@ -49,7 +49,7 @@ Planner 形成 Human 此前未确认的实质方案时，先把拟执行 Spec �
 
 一次回复处理多个问题，或形成多项建议、取舍、异议点时，正文之后用自然中文和稳定编号收齐本轮最终建议与待决定事项，说明结论、关键影响以及是否仍需 Human 决定；不得遗漏正文建议或新增正文未论证方案。单一简单结论、进度或纯事实回报不强制总结。它只是当轮沟通收口，不是 Artifact、Gate、状态或第二份决定日志。
 
-不得为简短而隐藏授权影响、安全/数据风险、失败、未验证、Scope 偏离、locator、Entry Condition、schema 或脆弱步骤。
+不得为简短而隐藏授权影响、安全/数据风险、失败、未验证、Scope 偏离、reference、Entry Condition、schema 或脆弱步骤。
 
 动态路由：出现 Planner Gate 新事实 → Planner；新增高影响授权 → Human；Reviewer 路由按 Assurance；delegation/return 失败按 Coordination。
 Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。

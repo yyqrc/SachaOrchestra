@@ -15,7 +15,7 @@
 Provider 只负责“具体需要对齐什么”，Sacha 仍负责：
 
 - 是否需要 Planner、Clarify、Human Review、Executor、Reviewer 或 Manager。
-- 澄清决策记录、Spec storage、Scope、Non-goals、批准 revision 与执行许可。
+- 澄清决策记录、Spec storage root、Scope、Non-goals、批准 revision 与执行许可。
 - 外部动作授权、最终路由和 verdict。
 
 ## 2. 当前缺口
@@ -24,11 +24,11 @@ Provider 只负责“具体需要对齐什么”，Sacha 仍负责：
 
 - Provider catalog、canonical Skill 与 Setup/Binding 的责任边界。
 - Role 读取 confirmed Binding 和 canonical Skill。
-- Provider 返回领域结果与 evidence locator，最终路由和 verdict 归 Sacha。
+- Provider 返回领域结果与 evidence reference，最终路由和 verdict 归 Sacha。
 
 但 guide 尚未告诉 Provider：当 Planner 需要形成可执行 Spec 时，领域结果应具体到什么程度，也没有明确要求返回：
 
-- 当前实现、owner、稳定 locator 与直接调用/数据链。
+- 当前实现、owner、稳定 path/reference 与直接调用/数据链。
 - 会改变方案的生命周期、数据/资产、序列化、线程、ABI、平台和兼容约束。
 - 真正可行的候选方案、代价、推荐理由与无法由工程事实推出的 Human 选择。
 - Executor 不需重新设计所需的实施地图。
@@ -47,7 +47,7 @@ Provider 只负责“具体需要对齐什么”，Sacha 仍负责：
 ### 3.1 Sacha 仓库
 
 - 迭代 `docs/integrations/capability-provider-guide.md` 的责任边界、Role 消费和 Provider 迭代章节。
-- Guide 必须明确说明 Provider 如何按需提供现有领域术语 owner/locator、当前定义、冲突证据和领域压力场景，以及 Clarify 如何消费；不能只把这些内容留在本 Spec。
+- Guide 必须明确说明 Provider 如何按需提供现有领域术语 owner/path、当前定义、冲突证据和领域压力场景，以及 Clarify 如何消费；不能只把这些内容留在本 Spec。
 - 按需要补充 guide 的最小示例，但不新增固定输出 schema、catalog 字段或 Runtime 协议。
 - 核对 `setup-project`、Planner/Clarify、Artifact、Adapter 与 validator 是否只是引用该边界；没有直接语义错误时不联动修改。
 
@@ -65,7 +65,7 @@ Provider 维护者依据更新后的 guide，逐个核对已有 canonical Skill�
 - 不让 Provider 写入或冻结 Sacha 的澄清决策文件、`spec.md`、Execution Report 或 Review Artifact。
 - 不创建 `cgame-unity-workflow`、`cgame-engine-workflow` 或 Provider 内第二套 Planner/Executor/Reviewer。
 - 不要求每个 Provider 新增 `plan`、`brainstorm`、`alignment` 或 `spec-review` capability。
-- 不给 `capabilities.json` 增加输出格式、Human 决策、验证矩阵或 Spec locator 字段。
+- 不给 `capabilities.json` 增加输出格式、Human 决策、验证矩阵或 Spec path 字段。
 - 不规定固定字段表、固定方案数量或所有调用都返回完整实施地图；输出按当前消费者和风险自适应。
 - 不把项目命令、Unity/Engine 特有知识或具体模型写进 Sacha Core。
 - 不安装、refresh Binding、修改 cache、commit、push 或发布。
@@ -76,7 +76,7 @@ Provider 维护者依据更新后的 guide，逐个核对已有 canonical Skill�
 
 当调用目的是形成或修订可执行 Spec，Provider 应按任务需要返回以下语义；没有消费者的项省略：
 
-- `当前事实与定位`：真实 owner、入口、调用/数据链、资源或配置位置、当前行为和证据 locator。
+- `当前事实与定位`：真实 owner、入口、调用/数据链、资源或配置位置、当前行为和证据 reference。
 - `领域约束`：生命周期、线程、坐标空间、数据/资产、序列化、ABI、平台、构建、兼容、性能和回退边界中会改变方案的部分。
 - `候选与推荐`：只比较会产生不同实现或结果的可行方案，说明主要代价、推荐理由和已排除条件。
 - `Human 选择`：仅列无法从工程事实推出、且会改变用户可见行为、架构、数据、迁移、兼容或验收的决定。
@@ -98,11 +98,11 @@ Provider 输出只冻结会改变结果的领域事实：
 ### 5.3 Human 决策与决策记录
 
 - Provider 只能指出未决 Human 选择并给推荐/取舍，不能替 Human 决定。
-- Provider 可以给出领域术语事实和项目既有术语 owner/locator，但不创建或拥有项目词典，不决定 Clarify 是否完成。
-- Provider 没有既有术语 owner 时明确返回“无”，不得自行选择项目 `CONTEXT.md` 路径或写入；默认 locator、提升和写入授权仍归 Sacha Project Integration/Documentation owner。
+- Provider 可以给出领域术语事实和项目既有术语 owner/path，但不创建或拥有项目词典，不决定 Clarify 是否完成。
+- Provider 没有既有术语 owner 时明确返回“无”，不得自行选择 Project Context path 或写入；默认 path、提升和写入授权仍归 Sacha Project Integration/Documentation owner。
 - Planner/Human 确认后，由 Sacha owner 把决定尽快写入项目约定的澄清决策文件；Provider 不拥有该文件。
 - Provider 返回的事实或建议不会因为被写入决策文件而取得执行授权。
-- 形成 `spec.md` 时由 Planner 消费当前决定和 evidence locator；Provider 不直接生成 Sacha Spec。
+- 形成 `spec.md` 时由 Planner 消费当前决定和 evidence reference；Provider 不直接生成 Sacha Spec。
 
 ### 5.4 A/B/C 领域验收输入
 
@@ -114,7 +114,7 @@ Provider 不得用静态检查替代设备/画面事实，也不得把本可自�
 
 ### 5.5 Provider 与 Sacha 的返回边界
 
-- Provider 返回领域结果、风险和 evidence locator；Sacha Planner 决定是否形成 Human Review proposal。
+- Provider 返回领域结果、风险和 evidence reference；Sacha Planner 决定是否形成 Human Review proposal。
 - Provider 仍只返回领域事实、候选方案、约束、验收输入及本次调用发现的 Human 待选项；跨问题的“最终建议与待决定事项”收口归 Sacha Workflow/Role，Provider 不拥有该通用语义，也不新增输出协议。
 - Provider 提供的术语冲突和压力场景只是既有领域结果的一部分，不新增 `glossary`、`grill` 或 challenge-frontier 字段/schema。
 - Capability Provider Guide 必须把上述能力写入 Role 消费与 Provider 迭代说明：优先迭代已有 code-discovery、project-inspect、solution-comparison、change-guard 等 canonical Skill 的自然语言结果；只有真实独立能力缺口和消费者成立时才新增 capability。
@@ -127,7 +127,7 @@ Provider 不得用静态检查替代设备/画面事实，也不得把本可自�
 ### 步骤 1：迭代 Capability Provider Guide
 
 - 目标位置/定位：`docs/integrations/capability-provider-guide.md` 的“责任边界”“Role 消费”“Provider 迭代”。
-- 预期改动：补入第 5 节的领域规划输入、Human 决策、实施密度、A/B/C 和返回边界；明确 Provider 按需返回领域术语 owner/locator、定义冲突和领域压力场景，Clarify 负责 Human 对齐、项目 context 提升与退出；保持现有 Schema v2 与 Binding 格式不变。
+- 预期改动：补入第 5 节的领域规划输入、Human 决策、实施密度、A/B/C 和返回边界；明确 Provider 按需返回领域术语 owner/path、定义冲突和领域压力场景，Clarify 负责 Human 对齐、项目 context 提升与退出；保持现有 Schema v2 与 Binding 格式不变。
 - 约束与不变量：guide 是 provider 维护指南，不是 Runtime 强制加载面；不把解释性语义变成 catalog/schema 字段。
 - 检查与证据：全文 owner/链接检查；确认 Sacha 与 Provider 的批准、Spec、verdict 权限没有交叉。
 - 返回规划的触发条件：必须改变 capability catalog schema、Binding schema 或 Project Integration 才能表达该能力。

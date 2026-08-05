@@ -5,7 +5,7 @@
 
 ## 1. Boundary
 
-本文映射 Codex 原生 task/subagent，以及由 Codex owner 管理的本地 one-shot helper。以下是可选 owner locator，不是预加载清单：
+本文映射 Codex 原生 task/subagent，以及由 Codex owner 管理的本地 one-shot helper。以下是可选 owner reference，不是预加载清单：
 
 - [Intake Contract](../../core/intake-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
@@ -41,7 +41,7 @@ dispatch 先读 capability/授权，不预设 task/id/join。named discovery 只
 1. 同 context 保持当前 task；有界 helper 用 `spawn_agent` + `wait_agent`。
 2. Role transition 选保留 identity/terminal 的原生 transport；用户可见 task 需 Human 明示。已有 task 按 Scope、Role、provenance、owner、可续发状态筛选。
 3. Reviewer context 未参与方案/实现；fork 不证明独立。
-4. Source 只发目标/交付、Scope、检查/停止条件和 locator；按 transport 补依赖、隔离或 identity。
+4. Source 只发目标/交付、Scope、检查/停止条件和 reference；按 transport 补依赖、隔离或 identity。
 5. owner terminal join且不忙轮询；当前 transport 失败就尝试同 Scope 安全替代，全部耗尽才 `completion_return_blocked`。
 
 Feedback Source-local helper 只读补证，不取得 target workspace、owner/Role 或 repair identity，不能充当 repair target。
@@ -52,7 +52,7 @@ Source 用 `wait_threads` terminal join并消费一次结果；`send_message_to_
 
 ### 3.2 Terminal return
 
-Target 先完成必要 Artifact/Handoff，再在 final 返回结果/delta、实际验证、阻塞/风险和 locator；原生 join 未携带且消歧必需时才补 route identity/revision/dedup。随后结束，不发消息唤醒或监控 owner；更正使用新 revision。
+Target 先完成必要 Artifact/Handoff，再在 final 返回结果/delta、实际验证、阻塞/风险和 reference；原生 join 未携带且消歧必需时才补 route identity/revision/dedup。随后结束，不发消息唤醒或监控 owner；更正使用新 revision。
 
 Owner 结合原生 join/payload 核对 consumer 必需的 revision、owner、Source/Target、snapshot 和 dedup。错误、陈旧或重复结果不产生额外 dispatch/write/terminal；正确结果只触发唯一下一 transition。`send_message_to_thread` 只补输入，不替代 join。
 
@@ -79,7 +79,7 @@ Human/Scope 精确配置不支持时暂停。自动 Luna 不可用时回退已�
 
 Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation；本 Adapter 只补原生结果未携带且恢复必需的 thread/host、task/agent lifecycle、工具错误与 repair/re-verification entry。
 
-搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文有消费者时写 task-local/Artifact，否则保留工具 locator；截断不得丢失失败、warning、未验证、Scope 偏离或授权阻塞。
+搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文有消费者时写 task-local/Artifact，否则保留工具 reference；截断不得丢失失败、warning、未验证、Scope 偏离或授权阻塞。
 
 ### 3.4 本地 Pi one-shot
 
@@ -109,7 +109,7 @@ Planner 提案由 root task 等待 Human；批准且无其他阻塞时直接启�
 
 Core objective 不要求原生 Goal；只有 Human 明确要求 exact Goal 时创建。Goal 不是 Scope、授权、Artifact/Handoff 或证据；局部 blocker 不直接映射为原生 blocked。
 
-正式 dispatch 前证明 Target 可读取 Scope、必要 Artifact、原始 locator 和当前 consumer 所需 Handoff 语义。Review 使用 Core Baseline/`acceptance_revision`；Runtime 实例 ID、模型、界面状态和内部存储标识只进入 transport。
+正式 dispatch 前证明 Target 可读取 Scope、必要 Artifact、原始 reference 和当前 consumer 所需 Handoff 语义。Review 使用 Core Baseline/`acceptance_revision`；Runtime 实例 ID、模型、界面状态和内部存储标识只进入 transport。
 
 ## 5. Skill discovery 与 Project setup
 
@@ -117,6 +117,6 @@ Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`�
 
 `agents/openai.yaml` 只定义 metadata，不是 Codex 自定义 Agent TOML，也不参与 named `agent_type` discovery。Clarify/setup explicit-only；Documentation 受 confirmed policy/授权约束；生产 Role 须显式调用或经 Intake 接受。
 
-Setup 只在目标项目扫描已配置/约定的 Skill root；完整读取 authority/independent `SKILL.md` 及调用必需 locator，mirror 不重复。文件存在不证明 Runtime 可调用，须核对当前 metadata；不得扫描 cache、全局目录、marketplace、网络或其他 workspace。
+Setup 只在目标项目扫描已配置/约定的 Skill root；完整读取 authority/independent `SKILL.md` 及调用必需 path，mirror 不重复。文件存在不证明 Runtime 可调用，须核对当前 metadata；不得扫描 cache、全局目录、marketplace、网络或其他 workspace。
 
-Setup 只从当前 context 已知的 plugin Skill locator 定点读取同 plugin catalog。项目 Skill 先按正文证据判定 `schedulable`，再由 Human 确认 load policy；id/目录/metadata 不替代正文。Role 按需读 binding/Skill；mapping 不预加载、不证明安装、不授权，也不转移 Gate/Scope/verdict。
+Setup 只从当前 context 已知的 plugin Skill path 定点读取同 plugin catalog。项目 Skill 先按正文证据判定 `schedulable`，再由 Human 确认 load policy；id/目录/metadata 不替代正文。Role 按需读 binding/Skill；mapping 不预加载、不证明安装、不授权，也不转移 Gate/Scope/verdict。

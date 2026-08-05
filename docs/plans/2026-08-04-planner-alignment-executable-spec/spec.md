@@ -81,8 +81,8 @@ Spec 的实施密度应处在“宽泛步骤”与“逐行代写实现”之间
 - 由 Workflow Contract 的 Human 路由拥有通用回复收口语义：Role/Workflow 一次处理多个问题或形成多项建议、取舍、异议点时，结束前给出自然中文、稳定编号的“最终建议与待决定事项”；Planner Skill 只实现 Role-local procedure。
 - 同时保留：Role completion 本身、同 Scope 返修、补证据和局部实现判断不是 Human checkpoint。
 - 在 Clarify/Planner Skill 与 Artifact Protocol 中定义“轻量决策文件 → `spec.md`”的两层权威、压缩恢复、修订和批准收口；Planner Skill 另负责在 Human 可见回复中直接给出 Review Focus。
-- 在 Clarify Role-local procedure 中补回有界挑战覆盖、术语歧义调查和按风险选择的极值/跨版本压力视角；它们只提高问题发现能力，不新增模式状态、固定问卷或完整决策树。跨任务术语只使用下一条定义的单一项目 context locator。
-- 为跨任务术语提供一个确定入口：项目已声明 owner/locator 时沿用；否则使用 confirmed documentation root 下的 `CONTEXT.md`，没有配置文档父目录时默认 `docs/CONTEXT.md`。它是项目上下文/术语文档，不是第二份 AGENTS、Spec 或任务历史。
+- 在 Clarify Role-local procedure 中补回有界挑战覆盖、术语歧义调查和按风险选择的极值/跨版本压力视角；它们只提高问题发现能力，不新增模式状态、固定问卷或完整决策树。跨任务术语只使用下一条定义的单一 Project Context path。
+- 为跨任务术语提供一个确定入口：项目已声明 owner/path 时沿用；否则使用 `<Spec base>/CONTEXT.md`。它是项目上下文/术语文档，不是第二份 AGENTS、Spec 或任务历史，也不从 Project Documentation root 推导。
 - 在 Coordination Contract 与 Runtime Adapter 中复用 `human_decision_required`：暂停 Executor dispatch，在同一 root task/Scope revision 等待 Human，确认后继续，不创建第二套 workflow。
 - 在 Executor Skill 中明确只有批准状态或等价的 Human 已确认事实满足时，才消费包含新实质方案的 Spec。
 - 在 Reviewer/Assurance 中明确 Human 方案 Review 与实施后独立验收不是同一件事，Reviewer 不能替代方案批准。
@@ -135,21 +135,21 @@ Sacha 负责判断何时必须对齐、组织澄清、持久化并冻结 Spec、
 ### 5.2 澄清决策文件与 `spec.md` 的两层权威
 
 1. Planner/Clarify 先调查真实状态；缺失决定会改变 Scope、架构、数据/资产、迁移、兼容或验收时，只向 Human 问会改变方案的最少问题。
-2. 一项会被后续 Planner/Spec 消费的澄清决定收口后，立即写入项目约定的决策文件；即使决定尚未收口，只要多轮、分支或 context 压缩已经形成真实恢复风险，也立即写入最小澄清锚点。没有现有约定时，使用默认集合根 `docs/plan` 下的任务目录，并把轻量 `decisions.md` 与后续 `spec.md` 放在同一目录。它只保存当前有效决定和恢复原问题必需的关注点、未决项、暂存思路与 evidence locator，不保存完整对话。
+2. 一项会被后续 Planner/Spec 消费的澄清决定收口后，立即写入项目约定的决策文件；即使决定尚未收口，只要多轮、分支或 context 压缩已经形成真实恢复风险，也立即写入最小澄清锚点。没有现有约定时，使用由 `<Spec base>/plan` 推导的 Spec storage root，并把轻量 `decisions.md` 与后续 `spec.md` 放在同一任务目录。它只保存当前有效决定和恢复原问题必需的关注点、未决项、暂存思路与 evidence reference，不保存完整对话。
 3. 决策文件用于上下文压缩和跨 context 恢复，不是执行许可。Clarify 不冻结 Scope；未经 Planner 收口的决定不能被 Executor 直接消费。每次落盘也不是一个审批点：澄清可以分轮进行，Human 只在候选执行方案收口后 Review `spec.md`。
-4. 当当前决定、工程事实与关键选择足以形成候选执行基线时，Planner 在 confirmed Spec storage 或项目约定目录生成 `spec.md`，状态为“待 Human Review”。Spec 引用决策 locator，只重述 Executor 必须知道的当前结果，不复制澄清历史；至少覆盖目标结果、选定方向与理由、影响范围、Scope/Non-goals、实施地图、约束、验收、主要风险与回退。
+4. 当当前决定、工程事实与关键选择足以形成候选执行基线时，Planner 在 confirmed Spec storage root 或项目约定目录生成 `spec.md`，状态为“待 Human Review”。Spec 引用 decisions path，只重述 Executor 必须知道的当前结果，不复制澄清历史；至少覆盖目标结果、选定方向与理由、影响范围、Scope/Non-goals、实施地图、约束、验收、主要风险与回退。
 5. Planner 回复不粘贴全文，只说明推荐结论、决策/Spec 路径、Human Review Focus、本轮新增或改变的 delta 与尚未决定项；满足第 5.3.2 节触发条件时，再用稳定编号收齐本轮全部最终建议与待决定事项。
 6. Human 的异议先更新受影响决定，再同步 Spec；未受影响部分保持批准/确认。若决策文件与 Spec 冲突，停止 Executor dispatch并由 Planner 统一后再继续。
 7. Human 接受后将 `spec.md` 状态改为“Human 已批准实施”，冻结批准 revision。若没有未决方案、额外授权或阻塞写入的 Entry Condition，root owner 必须在同一任务立即路由 Executor，以该 Spec 和当前真实状态开工；短回复“批准”“都 OK”已足够，不再追加启动确认。
 8. 实施中若 Scope、冻结决定或验收发生实质变化，返回 Planner，更新受影响决定和 Spec delta并只重新确认变化部分；局部实现缺陷不触发重新批准。
 
-如果 Human 在原始请求中已把实质方案、Scope 和验收明确决定，Planner 只是整理为 Spec，则可以记录“Human 已在请求中确认”并直接进入 Executor，不重复要求形式化批准。错别字、locator 补充、证据更新、不改变执行的措辞细化和局部实现说明，不使既有批准失效。
+如果 Human 在原始请求中已把实质方案、Scope 和验收明确决定，Planner 只是整理为 Spec，则可以记录“Human 已在请求中确认”并直接进入 Executor，不重复要求形式化批准。错别字、reference 补充、证据更新、不改变执行的措辞细化和局部实现说明，不使既有批准失效。
 
 Clarify 的通用交互纪律由其 Role-local procedure 拥有：模糊想法用 `brainstorm` 收敛目标、Non-goals、候选与取舍；现状、内部先例或外部方案不清用 `survey` 形成可比较事实；已有粗略方案用 `grill` 核对前提，并通过反例、具体场景、失败/回退路径和可证伪验收打磨边界。它们是可切换、可组合的推进意图，不要求 Human 选择模式，也没有固定顺序或轮数。
 
-追问和解释必须能在同一对话中交替。Human 拥有的业务事实与新增约束可直接纳入；代码、运行状态和外部现状先查证；方案偏好先核对事实前提与影响；猜想和推测只作为调查线索。Human 要求解释时先查真实来源，先给业务概要，按需展开数据流与代码 locator，理解到位后立即返回此前未决的决策。项目或领域 Skill 提供领域事实、候选和压力场景，Sacha Clarify 仍拥有通用 Human 对话、决定收口与退出判断。
+追问和解释必须能在同一对话中交替。Human 拥有的业务事实与新增约束可直接纳入；代码、运行状态和外部现状先查证；方案偏好先核对事实前提与影响；猜想和推测只作为调查线索。Human 要求解释时先查真实来源，先给业务概要，按需展开数据流与代码 reference，理解到位后立即返回此前未决的决策。项目或领域 Skill 提供领域事实、候选和压力场景，Sacha Clarify 仍拥有通用 Human 对话、决定收口与退出判断。
 
-多轮对话、分支打断或 context 压缩存在丢失风险时，Clarify 在既有决定载体中维护最小“澄清锚点”：原始问题/目标、已确认决定、当前关注点、按依赖排列的阻塞性未决项、暂存的新思路和 locator。新思路只能解决当前项、加入阻塞项或暂存，不能静默替换原问题；解释、调查、helper 返回和恢复后都先从锚点续接。该锚点是现有 `decisions.md` 的恢复信息，不是新 Artifact、状态机或完整对话记录。
+多轮对话、分支打断或 context 压缩存在丢失风险时，Clarify 在既有决定载体中维护最小“澄清锚点”：原始问题/目标、已确认决定、当前关注点、按依赖排列的阻塞性未决项、暂存的新思路和 reference。新思路只能解决当前项、加入阻塞项或暂存，不能静默替换原问题；解释、调查、helper 返回和恢复后都先从锚点续接。该锚点是现有 `decisions.md` 的恢复信息，不是新 Artifact、状态机或完整对话记录。
 
 Clarify 只有在原问题仍被覆盖，且影响目标、Scope/Non-goals、验收和实质方案的未决项已确认、由 Human 明确暂缓或明确授权 Planner 取舍后才能退出。Planner 必须独立核对这一条件，不能把 Clarify Role 自报当作完成证据；Human 只说“够了/开始吧”但仍有阻塞项时，先用最小清单确认这些项如何处置。
 
@@ -159,7 +159,7 @@ Clarify 在 `grill` 或其他澄清意图中维护有界挑战图，而不是穷
 
 挑战图的完整推理结构只存在于当前工作上下文，但不能完全依赖上下文存活。Clarify 必须判断哪些分支现在可问、依赖上游决定、等待事实调查、已经有依据排除，以及尚未询问但仍可能改变方案；这些是生成下一问和判断退出所需的内部语义，不是对 Human 展示或持久化的状态 taxonomy。
 
-出现多轮、分支或 context 压缩风险时，现有 `decisions.md` 的澄清锚点除原问题、已定决定和当前焦点外，还保存“最小可恢复 frontier”：尚未探索或仍未解决的实质问题、它依赖的上游决定/事实 locator，以及少量若遗忘就会被错误重开的关键排除结论与依据。它不保存完整树、所有无关分支、固定节点 ID、表格或对话历史；旧项确认或失效后原位压缩/替换。恢复后 Clarify 先读取锚点和当前证据，重新生成工作挑战图，再继续依赖最靠前的问题。
+出现多轮、分支或 context 压缩风险时，现有 `decisions.md` 的澄清锚点除原问题、已定决定和当前焦点外，还保存“最小可恢复 frontier”：尚未探索或仍未解决的实质问题、它依赖的上游决定/事实 reference，以及少量若遗忘就会被错误重开的关键排除结论与依据。它不保存完整树、所有无关分支、固定节点 ID、表格或对话历史；旧项确认或失效后原位压缩/替换。恢复后 Clarify 先读取锚点和当前证据，重新生成工作挑战图，再继续依赖最靠前的问题。
 
 提问按依赖关系调度：会决定后续问题是否成立的上游前提优先；互不依赖且 Human 能一次理解的问题可以自然合并；调查中的事实缺口只阻塞依赖它的分支。不得规定固定轮数、每轮固定问题数量，或要求每个高风险决定机械完成同一组“前提反转/中断/验收”动作。高风险决定只要求使用足以暴露错误假设的相关反例或压力场景。
 
@@ -176,13 +176,13 @@ Clarify 在 `grill` 或其他澄清意图中维护有界挑战图，而不是穷
 
 1. 遇到同词多义、同义多名、两个概念被错误合并、含糊量词、业务词与代码含义冲突，或 Human/文档/代码使用不一致时，Clarify 必须先查当前工程用法，再确认本任务采用与明确排除的含义。
 2. 会影响本次方案、且需要跨轮恢复或供后续 Spec 消费的术语定义写入现有 `decisions.md`；短且无需持久恢复的澄清可以只在当前回复中确认，不为术语单独强制创建 Artifact。Planner 形成 Spec 时沿用当前定义；新证据使定义失效时返回 Clarify，不在 Spec 中重新发明术语。
-3. 项目已经声明术语 owner、`CONTEXT.md`、词典或等价文档 locator 时，沿用该 owner 并核对当前源码/用法；文档只作证据，不因存在就自动压过真实实现。
-4. 没有现有 owner/locator 时，项目级上下文的默认 locator 为 confirmed Project Documentation root 下的 `CONTEXT.md`；没有配置文档父目录时为项目内 `docs/CONTEXT.md`。外部 documentation root 继续遵守其 portability 与写入授权。该默认只解决跨任务发现路径，不授权创建或修改文件。
+3. 项目已经声明术语 owner、Project Context path、词典或等价文档 path 时，沿用该 owner 并核对当前源码/用法；文档只作证据，不因存在就自动压过真实实现。
+4. 没有现有 owner/path 时，Project Context path 唯一为 `<Spec base>/CONTEXT.md`。Project Documentation root 是独立的发布目录，不参与该 path 推导。该默认只解决跨任务发现路径，不授权创建或修改文件。
 5. Clarify/Planner 开始处理含项目术语、架构或跨任务约束的任务时，按当前输入查询相关 `CONTEXT.md` 内容，而不是遍历历史任务目录或全部 `decisions.md`。当前任务中疑似稳定、项目特有且可能持续影响其他任务/消费者的定义先作为“项目 context 候选”写入当前 `decisions.md`；候选包含建议定义、明确排除的含义、当前证据、适用边界、可指出的任务外消费者和仍有的冲突/Unknown，不在澄清早期直接提升。
 6. 实施 closeout 需要 Project Documentation 时，Documentation writer 只读取当前任务明确传入的 context 候选、最终 Spec、真实 diff/执行证据、Review 结果和现有 `CONTEXT.md`，再次判断候选是否仍与最终实现一致、是否有具体任务外消费者、是否重复已有内容及是否存在定义冲突；它不扫描历史任务目录寻找候选。
 7. 候选的项目级资格由 closeout 的 Documentation writer/root owner 基于最终证据确认。定义能从项目事实直接推出、无现有冲突、任务外消费者明确，且 confirmed documentation trigger/write authorization 覆盖本次写入时，可直接创建或有界更新 `CONTEXT.md`；涉及业务含义选择、替换/否定既有定义、owner 冲突、证据仍是推测或缺少写入授权时，必须交给 Human 决定。Documentation writer 只确认候选是否达到这些证据条件，不能替 Human 发明业务定义。
 8. 未达到项目级条件的候选继续留在任务记录，不为了“以后可能有用”写入 `CONTEXT.md`。写入只合并相关条目并保护无关内容，不复制任务对话、完整 `decisions.md` 或 Spec；候选资格不使用固定消费者数量作为门槛，但必须能指出当前任务之外的具体消费者或稳定项目接口。
-9. `setup-project` 负责计算并在 Project Integration/managed project rules 中暴露上述 locator，保持现有显式 dry-run、planned delta hash 与写入授权；它不扫描历史任务推断术语，也不因 Setup 本身自动创建或重写 `CONTEXT.md`。`project-documentation` 增加最小 project-context create/update 路线与当前任务候选复核，继续受 documentation policy、root containment、preimage/并发保护和 write authorization 约束。
+9. `setup-project` 负责计算并在 Project Integration/managed project rules 中暴露上述 Project Context path，保持现有显式 dry-run、planned delta hash 与写入授权；它不扫描历史任务推断术语，也不因 Setup 本身自动创建或重写 `CONTEXT.md`。`project-documentation` 增加最小 project-context create/update 路线与当前任务候选复核，继续受 Spec base containment、preimage/并发保护和 write authorization 约束。
 
 Domain Provider 可以返回领域术语的当前定义、代码/文档冲突、真实用例和领域压力场景，但不拥有 Clarify 退出、项目术语文档、Human 决策或新的 Provider 输出协议。
 
@@ -192,7 +192,7 @@ Domain Provider 可以返回领域术语的当前定义、代码/文档冲突、
 
 #### 5.3.1 Human Review Focus
 
-Human Review Focus 应由 Planner 在 Human 可见回复中直接输出，默认 3～5 项并附对应 Spec 章节或 locator。它是当前 revision 的阅读导航，不是冻结决定或执行基线，因此不要求在业务 `spec.md` 中另建固定章节；跨 context 时可从当前 Spec 重新生成，不能只把 locator 丢给 Human 自行寻找重点。
+Human Review Focus 应由 Planner 在 Human 可见回复中直接输出，默认 3～5 项并附对应 Spec 章节或 path。它是当前 revision 的阅读导航，不是冻结决定或执行基线，因此不要求在业务 `spec.md` 中另建固定章节；跨 context 时可从当前 Spec 重新生成，不能只把 path 丢给 Human 自行寻找重点。
 
 Human Review 不以“复杂、Unity、文件多或耗时”触发，而以 Planner 是否替 Human 形成新实质决定触发。以下任一事实要求先 Review：
 
@@ -275,7 +275,7 @@ Assurance 映射保持现有 Outcome：全部 blocking 检查满足才 `Accepted
 
 ### 5.7 Worker/helper 完成后的 Owner 核对与返修
 
-Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结果后至少按风险核对：
+Worker/helper 的 done、自报和摘要只作为 reference。Owner 在接收结果后至少按风险核对：
 
 - 真实 diff/文件状态是否只覆盖批准 Scope，是否碰到用户已有改动。
 - 原始检查的退出状态、错误、warning、失败计数和证据是否支持声称的结果。
@@ -300,7 +300,7 @@ Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结�
 - 自动覆盖只指已显式调用后的 Sacha-owned 文件，不授权修改其他 `.codex/agents` 文件、全局配置、cache 或 Runtime。
 - Adapter 不把 `setup-agents` 变成普通 Sacha 的安装前置：Human 已明确指定且验证可用的精确 route 优先；否则使用当前 Sacha namespaced Agent；缺失时按已验证的 Sol/Terra Executor 路线或 Runtime default 安全 fallback，并记录 requested/effective route 与原因。
 - Runtime 真正支持原生精确 Luna model/effort 后，路由优先 Human 精确配置和原生精确 spawn，Sacha custom Agent 只作兼容 fallback；不能以官方文档或工具参数存在提前切换。
-- `setup-agents` 不进入主要 Workflow 或 `setup-project`，README 只在 Codex 兼容/故障恢复位置给 locator；旧通用 `luna_worker*` 仅在确认带 Sacha owner marker 时作为兼容输入，非 Sacha-owned 文件不修改、不删除。
+- `setup-agents` 不进入主要 Workflow 或 `setup-project`，README 只在 Codex 兼容/故障恢复位置给 reference；旧通用 `luna_worker*` 仅在确认带 Sacha owner marker 时作为兼容输入，非 Sacha-owned 文件不修改、不删除。
 
 只有真实 Runtime smoke 同时证明以下事项后，才能删除 custom Agent 依赖和 `setup-agents`：
 
@@ -316,10 +316,10 @@ Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结�
 
 - 上游任务的 `using-sacha`、Planner/Reviewer 建议和 Sacha Intake acceptance 只决定路由，不是 Human 对后续方案的批准。
 - Planner 返回待确认 Spec 时，workflow owner 复用现有 `human_decision_required`，停止 Executor dispatch；Planner terminal、Role completion 或 Spec 文件存在均不构成执行许可。
-- 待确认结果必须回到 Human 可见的 root task；Human 回复后在同一 Task/Scope revision 上继续，不创建第二个 Planner、Executor、用户可见 task 或 workflow。跨 context 时只携带恢复必需的决策/Spec revision、locator 和未决项。
+- 待确认结果必须回到 Human 可见的 root task；Human 回复后在同一 Task/Scope revision 上继续，不创建第二个 Planner、Executor、用户可见 task 或 workflow。跨 context 时只携带恢复必需的决策/Spec revision、reference 和未决项。
 - Human 方案 Review 发生在实施前；Reviewer 是实施后的独立 Assurance consumer。上游可提前记录预计需要 Reviewer，但 Reviewer 不能批准方案，也不能用来替代 Human Review。
 - Human 确认后，若无未决项或阻塞前置，root owner 立即在同一任务启动/恢复 Executor，并自动继续按风险 Review、同 Scope 返修/补证据和收尾；不能停在“已批准、Executor 尚未启动”。只有新的实质方案、Scope/验收变化、新高影响授权或写入前必需 Entry Condition 再次返回 Human。
-- 外部 one-shot 进程按 Adapter 保存实际参数、退出状态、stdout/stderr locator、最终结果和 effective route；Codex 原生 subagent 已由 Runtime 保存 transport 时不为每次派发另建 Manifest。
+- 外部 one-shot 进程按 Adapter 保存实际参数、退出状态、stdout/stderr reference、最终结果和 effective route；Codex 原生 subagent 已由 Runtime 保存 transport 时不为每次派发另建 Manifest。
 - 模型/Agent fallback 或升级只依据能力不支持、真实验证失败、高风险/跨系统事实、长依赖链无法处理或 requested/effective 不一致；不建立 `simple/medium/hard` 或 Luna→Terra→Sol 固定升级状态机。
 
 ## 6. 实施步骤
@@ -345,23 +345,23 @@ Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结�
 - 预期改动补充：恢复 `brainstorm`、`survey`、`grill` 的可执行分野和共同对话循环；解释后回到未决问题，偏好先验前提，猜想先调查，`grill` 使用反例与可证伪场景。
 - 预期改动补充：分支或压缩风险出现时维护可恢复的澄清锚点；新思路不得替换原问题，Planner 独立核对未决项后才接受 Clarify 完成。
 - 预期改动补充：加入第 5.2.1 节的有界挑战图、依赖感知提问、术语冲突调查，以及数值/容量、生命周期、数据迁移和跨版本兼容等按风险选择的压力视角。
-- 预期改动补充：`decisions.md` 保存最小可恢复 frontier 与当前任务 project-context 候选；setup-project 按已确认项目约定、documentation root 或默认 `docs` 解析 `CONTEXT.md` locator；Clarify 查询相关项目上下文；closeout 的 Project Documentation writer 用最终实现/Review 证据再次筛选候选，并只在资格与授权同时满足时创建/有界更新项目术语条目。
+- 预期改动补充：`decisions.md` 保存最小可恢复 frontier 与当前任务 project-context 候选；setup-project 由 Spec base 解析 Project Context path；Clarify 查询相关项目上下文；closeout 的 Project Documentation writer 用最终实现/Review 证据再次筛选候选，并只在资格与授权同时满足时创建/有界更新项目术语条目。
 - 约束与不变量：决策文件不是第二份 Spec、执行许可、完整对话或固定每任务 Artifact；一个事实不在两个文件保存两份会漂移的完整正文。
-- 约束与不变量补充：不保存完整挑战图，不固定问题数或三联探针；只有恢复必要的未探索/未解决分支和关键排除依据进入 `decisions.md`；`CONTEXT.md` 是可覆盖的默认项目 locator，不是新 Artifact 或第二份规则入口，Setup 不因配置 locator 自动写正文。
-- 依赖与顺序：先冻结 locator 优先级、候选 owner、closeout 资格判断、Human 决策边界、写入授权和任务/项目术语边界；再调整 setup-project/project-documentation；最后调整 Clarify/Planner procedure、Guide 与场景验证。
+- 约束与不变量补充：不保存完整挑战图，不固定问题数或三联探针；只有恢复必要的未探索/未解决分支和关键排除依据进入 `decisions.md`；Project Context path 是可覆盖的默认文件入口，不是新 Artifact 或第二份规则入口，Setup 不因配置 path 自动写正文。
+- 依赖与顺序：先冻结 path 优先级、候选 owner、closeout 资格判断、Human 决策边界、写入授权和任务/项目术语边界；再调整 setup-project/project-documentation；最后调整 Clarify/Planner procedure、Guide 与场景验证。
 - 检查与证据：场景覆盖 Spec 产生前发生 context compaction、多个决定分轮收口、Human 修改一项决定、非实质文案/证据更新不使批准失效。
 - 检查与证据补充：覆盖模糊想法收敛、现状/竞品调查后再选方案、粗略方案场景压测、Human 反问解释后继续原决策，以及用户推测与代码事实冲突；目标已清楚时不得为了走完三种意图继续提问。
 - 检查与证据补充：覆盖新思路打断当前决策、context 压缩后从锚点恢复、Clarify 擅自退出被 Planner 拒绝，以及 Human 明确暂缓未决项后可继续规划。
 - 检查与证据补充：覆盖术语同词多义/文档与代码冲突、上游事实只阻塞依赖分支、空值/极值/重复/乱序、生命周期中断与重入、旧数据/新代码和新数据/旧代码、迁移中断/回滚；无相关风险的任务不得为了覆盖清单继续追问。
 - 检查与证据补充：覆盖 context 压缩前后保留尚未询问的实质分支、依赖事实的分支和关键排除依据；恢复后重建工作挑战图且不要求持久化完整树。
-- 检查与证据补充：覆盖已有项目 `CONTEXT.md`、configured documentation root、无配置时 `docs/CONTEXT.md`、首次创建、并发/旧 preimage 拒绝、有界更新保护无关内容、未获写入授权只返回候选，以及新任务不遍历历史 `decisions.md` 也能读取提升后的术语。
+- 检查与证据补充：覆盖 `<Spec base>/CONTEXT.md`、Spec base 与 Project Documentation root 相隔很远、首次创建、并发/旧 preimage 拒绝、有界更新保护无关内容、未获写入授权只返回候选，以及新任务不遍历历史 `decisions.md` 也能读取提升后的术语。
 - 检查与证据补充：覆盖 Clarify 提名后方案发生变化导致 closeout 淘汰候选、最终实现证明候选且 bounded-closeout 授权覆盖时写入、定义冲突/替换旧含义/业务选择返回 Human，以及 Documentation writer 不从历史任务搜集或凭推测提升术语。
 - 返回规划的触发条件：无法避免决策文件与 Spec 双权威，或必须新增 Registry/approval 文件消歧。
 
 ### 步骤 3：加入 Planner 回复收口、自适应可执行密度与 Human Review Focus
 
 - 目标位置/定位：`core/workflow-contract.md` 的 Human 路由、Planner Skill、必要的用户入口文档与 Planner 场景 fixture/validator。
-- 预期改动：Workflow 定义第 5.3.2 节的通用收口语义；Planner 正文负责调查、比较和证据，Human 可见回复直接输出 Review Focus，并在末尾收齐全部建议、分歧与待确认项。采用第 5.3.1、5.4 节：回复只给 locator、Focus、delta 和必要清单，实施步骤使用中文标签且不要求固定空字段。
+- 预期改动：Workflow 定义第 5.3.2 节的通用收口语义；Planner 正文负责调查、比较和证据，Human 可见回复直接输出 Review Focus，并在末尾收齐全部建议、分歧与待确认项。采用第 5.3.1、5.4 节：回复只给 reference、Focus、delta 和必要清单，实施步骤使用中文标签且不要求固定空字段。
 - 约束与不变量：Review Focus 与建议完整性清单责任分开，二者默认不持久化进业务 Spec；普通任务仍可 inline plan/Direct；单一简单回答不生成空总结；不规定“接受/挑战/驳回”等固定动作；只冻结改变结果的部分，局部代码表达留给 Executor。Intake、Adapter 和 Domain Provider 不复制这段 procedure。
 - 检查与证据：除简单/复杂 Spec 密度场景外，增加多问题完整收口、正文建议遗漏、清单凭空新增建议、编号唯一可逐项回复和简单回答不产生空清单的 fixture。
 - 返回规划的触发条件：必须为所有项目增加固定 Spec schema 或逐句 validator。
@@ -431,10 +431,10 @@ Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结�
 - [ ] 术语歧义、概念错误合并、同义冲突和文档/代码含义不一致会先由真实工程事实调查；需要恢复或供 Spec 消费的任务关键定义进入 `decisions.md`，短对话不为此强制新增 Artifact。
 - [ ] 数值/容量、状态/生命周期、失败恢复、数据迁移、跨版本兼容和环境差异只在相关时触发；无风险消费者不会被固定问卷拖入额外澄清。
 - [ ] Planner 沿用已确认任务术语；定义被新证据推翻时返回 Clarify，不在 Spec 中重新发明含义。
-- [ ] 项目上下文优先沿用已有 owner/locator，其次使用 documentation root 下的 `CONTEXT.md`，否则使用 `docs/CONTEXT.md`；新任务从该入口查询相关术语，不遍历历史任务目录。
+- [ ] 项目上下文优先沿用已有 owner/path；默认 Project Context path 为 `<Spec base>/CONTEXT.md`，与 Project Documentation root 独立；新任务从该入口查询相关术语，不遍历历史任务目录。
 - [ ] Clarify 只提名 project-context 候选；closeout Documentation writer/root owner 用最终 Spec、diff/执行证据、Review 和现有 `CONTEXT.md` 再次确认资格，早期方案变化会淘汰失效候选。
 - [ ] 事实明确、无冲突、任务外消费者具体且既有授权覆盖时可安全创建/有界更新 `CONTEXT.md`；业务含义选择、替换旧定义、owner 冲突、推测或缺授权时返回 Human。
-- [ ] setup-project 只解析/暴露 locator，不自动写正文；Documentation writer 不遍历历史任务目录或把“可能有用”当成提升证据。
+- [ ] setup-project 只解析/暴露 Project Context path，不自动写正文；Documentation writer 不遍历历史任务目录或把“可能有用”当成提升证据。
 - [ ] 多轮或分支澄清会在现有 `decisions.md` 中保留原问题、当前关注点、阻塞性未决项和暂存新思路；context 压缩后能从原返回点继续。
 - [ ] 新思路不能静默替换原问题，Clarify 自报完成不能绕过 Planner 对原问题与阻塞性未决项的独立核对。
 - [ ] Planner 从当前决策形成 `spec.md`；Human 已在请求中确认的方案不会重复拦截，新实质方案未批准时不能进入 Executor。
@@ -485,12 +485,12 @@ Worker/helper 的 done、自报和摘要只作为 locator。Owner 在接收结�
 - 不把 `brainstorm`、`survey`、`grill` 拆成三个 Skill、固定模式状态、必经阶段、固定轮数或额外产物；只在 Clarify 内保留改变实际交互的自适应判断与纪律。
 - 不建立或持久化“完整决策树”，不固定每轮 2～4 问，不要求每个高风险决定机械生成同一组三联探针；只在工作上下文维护有界挑战图，并在现有锚点保存恢复必需的最小 frontier。
 - 不把极值、边界、生命周期和跨版本视角变成每个任务必填的长问卷，也不把能从代码、配置或 Runtime 查明的事实全部询问 Human。
-- 不以固定消费者数量决定术语是否提升，不创建 `docs/terminology.md`、ADR 或新的 Glossary Artifact；`docs/CONTEXT.md` 只是无现有 owner/locator、无 configured documentation root 时的默认跨任务入口，不因每次 Setup/Clarify 自动创建或改写。
+- 不以固定消费者数量决定术语是否提升，不创建 `docs/terminology.md`、ADR 或新的 Glossary Artifact；`<Spec base>/CONTEXT.md` 是无现有 owner/path 时的默认跨任务入口，不因每次 Setup/Clarify 自动创建或改写。
 - 不遍历所有历史 `decisions.md` 拼接项目知识，不把 `CONTEXT.md` 变成第二份 AGENTS、Spec、完整任务历史或自动积累的知识库。
 - 不新增 Clarify Session、Conversation Gate、未决项状态 taxonomy、独立恢复文件或每轮固定检查表；澄清锚点只复用按需 `decisions.md`，短且无分支的对话不强制落盘。
 - 不新增 Summary Role、Decision Gate、建议状态 taxonomy、固定表格或每轮强制总结；只在多问题、多建议、多取舍或多待决项时触发通用收口。
 - 不引入“已批准但等待再次启动”的中间状态，不把批准后的 Executor 路由变成第二次 Human checkpoint。
-- 不在 Planner 回复中粘贴完整 Spec；只返回 locator、Review Focus、delta、未决项和按需最终建议清单。
+- 不在 Planner 回复中粘贴完整 Spec；只返回 Spec path、Review Focus、delta、未决项和按需最终建议清单。
 - 不让收口清单重复 Spec 全文、正文论证或产生正文/权威文件中不存在的新方案。
 - 不把每轮 Review Focus 或最终建议清单固定写入业务 Spec，不强制每项使用“接受/挑战/驳回”尾句或三态标签。
 - 不新增 `draft-spec.md`、`approval.json`、`spec-review.md` 或完整聊天/审批流水。按需 `decisions.md` 只保存已确认决定与恢复信息，不是第二份 Spec 或固定状态机。

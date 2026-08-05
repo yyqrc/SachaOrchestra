@@ -43,9 +43,9 @@ PROJECT_SKILL_SIDE_EFFECTS = {
 DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
 DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
 DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
-SPEC_ROOT_KINDS = {"project-relative", "external-absolute"}
-DEFAULT_SPEC_ROOT_KIND = "project-relative"
-DEFAULT_SPEC_ROOT = "docs/plan"
+SPEC_BASE_KINDS = {"project-relative", "external-absolute"}
+DEFAULT_SPEC_BASE_KIND = "project-relative"
+DEFAULT_SPEC_BASE = "docs"
 SPEC_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
 SPEC_FILE_NAME = "spec.md"
 DECISIONS_FILE_NAME = "decisions.md"
@@ -71,8 +71,8 @@ class SetupConfig:
     project_root: Path
     agents_path: str = "AGENTS.md"
     workflow_rule_path: str = "docs/workflow-rule.md"
-    spec_root_kind: str | None = None
-    spec_root: str | None = None
+    spec_base_kind: str | None = None
+    spec_base: str | None = None
     human_guide: str | None = None
     documentation_policy: str | None = None
     documentation_root_kind: str | None = None
@@ -240,12 +240,32 @@ def _normalize_documentation(
     }, warnings
 
 
-def _project_context_locator(documentation: Mapping[str, str | None]) -> str:
-    if documentation["policy"] == "disabled":
-        return f"docs/{PROJECT_CONTEXT_FILE_NAME}"
-    root = str(documentation["root"]).rstrip("/\\")
-    separator = "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", root) else "/"
-    return f"{root}{separator}{PROJECT_CONTEXT_FILE_NAME}"
+def _path_separator(value: str) -> str:
+    return "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", value) else "/"
+
+
+def _path_parts(value: str) -> tuple[str, ...]:
+    return tuple(part for part in re.split(r"[/\\]+", value) if part)
+
+
+def _derive_spec_storage_root(spec_base: str) -> str:
+    base = spec_base.rstrip("/\\")
+    return f"{base}{_path_separator(base)}plan"
+
+
+def _spec_base_from_storage_root(spec_storage_root: str) -> str:
+    storage_root = spec_storage_root.rstrip("/\\")
+    parts = _path_parts(storage_root)
+    if not parts or parts[-1].casefold() != "plan":
+        raise SetupError("normalized Spec storage root must end in plan")
+    return re.sub(r"[/\\][^/\\]+$", "", storage_root)
+
+
+def _project_context_path(spec_storage: Mapping[str, str]) -> str:
+    storage_root = str(spec_storage["root"])
+    separator = _path_separator(storage_root)
+    spec_base = _spec_base_from_storage_root(storage_root)
+    return f"{spec_base}{separator}{PROJECT_CONTEXT_FILE_NAME}"
 
 
 def _normalize_storage_root(
@@ -314,20 +334,28 @@ def _normalize_spec_storage(
     root: Path,
     *,
     root_kind: str | None,
-    spec_root: str | None,
+    spec_base: str | None,
 ) -> tuple[dict[str, str], list[dict[str, str]]]:
-    if root_kind not in SPEC_ROOT_KINDS:
+    if root_kind not in SPEC_BASE_KINDS:
         raise SetupError(
-            "spec_root_kind must be project-relative or external-absolute"
+            "spec_base_kind must be project-relative or external-absolute"
         )
-    if spec_root is None:
-        raise SetupError("spec_root is required")
-    location, warnings = _normalize_storage_root(
+    if spec_base is None:
+        raise SetupError("spec_base is required")
+    _, base_warnings = _normalize_storage_root(
         root,
         root_kind=root_kind,
-        configured_root=spec_root,
-        label="spec_root",
+        configured_root=spec_base,
+        label="spec_base",
     )
+    spec_storage_root = _derive_spec_storage_root(spec_base)
+    location, storage_warnings = _normalize_storage_root(
+        root,
+        root_kind=root_kind,
+        configured_root=spec_storage_root,
+        label="spec_storage_root",
+    )
+    warnings = base_warnings or storage_warnings
     return {
         **location,
         "directory_pattern": SPEC_DIRECTORY_PATTERN,
@@ -813,8 +841,8 @@ def _relative_existing_path(root: Path, path: Path) -> tuple[Path, str]:
     return resolved, relative
 
 
-def _extract_relative_references(text: str) -> tuple[str, ...]:
-    references: set[str] = set()
+def _extract_relative_paths(text: str) -> tuple[str, ...]:
+    paths: set[str] = set()
     tokens = re.findall(r"`([^`\r\n]+)`", text)
     tokens.extend(re.findall(r"\[[^\]]+\]\(([^)\s#]+)", text))
     tokens.extend(re.findall(r"\*\*([^*\r\n]+)\*\*", text))
@@ -829,8 +857,8 @@ def _extract_relative_references(text: str) -> tuple[str, ...]:
             or "*" in normalized
         ):
             continue
-        references.add(normalized.rstrip("/"))
-    return tuple(sorted(references))
+        paths.add(normalized.rstrip("/"))
+    return tuple(sorted(paths))
 
 
 def _parse_skill_identity(text: str, relative: str) -> tuple[str, str]:
@@ -1148,17 +1176,17 @@ def _discover_project_integration(
             agents_text, _ = _read_discovery_text(agents_path, agents_rel)
         except SetupError as exc:
             unresolved.append({"path": agents_rel, "reason": str(exc)})
-    for raw in _extract_relative_references(agents_text):
+    for raw in _extract_relative_paths(agents_text):
         try:
-            referenced, referenced_rel = _normalize_relative_path(root, raw, "Project AGENTS reference")
+            referenced, referenced_rel = _normalize_relative_path(root, raw, "Project AGENTS path")
         except SetupError:
             continue
         if referenced_rel.endswith(".md") and referenced.exists():
-            add_rule(referenced, required=False, source="project_agents_reference", depth=1)
+            add_rule(referenced, required=False, source="project_agents_path", depth=1)
         if referenced.is_dir() and "skills" in PurePosixPath(referenced_rel).parts:
-            add_skill_root(referenced, required=False, source="project_agents_reference")
+            add_skill_root(referenced, required=False, source="project_agents_path")
         elif referenced_rel.endswith("/SKILL.md") and referenced.is_file():
-            add_skill_root(referenced.parent.parent, required=False, source="project_agents_reference")
+            add_skill_root(referenced.parent.parent, required=False, source="project_agents_path")
 
     first_hop_rules = [
         (entry["path"], relative)
@@ -1171,7 +1199,7 @@ def _discover_project_integration(
         except SetupError as exc:
             unresolved.append({"kind": "rule", "path": first_rel, "reason": str(exc)})
             continue
-        for raw in _extract_relative_references(first_text):
+        for raw in _extract_relative_paths(first_text):
             candidates = [first_path.parent / raw, root / raw]
             referenced = next((item for item in candidates if item.exists()), candidates[0])
             try:
@@ -1179,7 +1207,7 @@ def _discover_project_integration(
             except SetupError:
                 continue
             if referenced_rel == human_guide:
-                add_rule(resolved, required=False, source="human_guide_reference", depth=2)
+                add_rule(resolved, required=False, source="human_guide_path", depth=2)
             elif referenced_rel.endswith(".md") and resolved.is_file():
                 add_rule(resolved, required=False, source=f"second_hop:{first_rel}", depth=2)
             if resolved.is_dir() and "skills" in PurePosixPath(referenced_rel).parts:
@@ -1200,7 +1228,7 @@ def _discover_project_integration(
             rule_candidates.append({
                 "path": relative,
                 "sources": sorted(entry["sources"]),
-                "suggested_purpose": "human guide reference",
+                "suggested_purpose": "human guide path",
                 "suggested_load_policy": "on-demand",
                 "human_guide": True,
                 "generated_target": False,
@@ -1519,8 +1547,8 @@ def render_workflow_rule(
             f"write = `{documentation['write_authorization']}`"
         )
     storage_lines.append(
-        f"- 项目 Context：`{_project_context_locator(documentation)}`"
-        "（术语与跨任务约束；setup 只提供 locator，不创建正文）"
+        f"- 项目 Context：`{_project_context_path(spec_storage)}`"
+        "（术语与跨任务约束；setup 只记录 path，不创建正文）"
     )
     sections.append("### Storage\n\n" + "\n".join(storage_lines))
     if unresolved_lines:
@@ -1940,28 +1968,30 @@ def run_setup(
             documentation_root=documentation_root,
             write_authorization=documentation_write_authorization,
         )
-        if config.spec_root_kind is None:
+        if config.spec_base_kind is None:
             existing_spec_storage = existing_values.get("spec_storage", {})
             if existing_spec_storage:
-                spec_root_kind = existing_spec_storage.get("root_kind")
-                spec_root = existing_spec_storage.get("root")
+                spec_base_kind = existing_spec_storage.get("root_kind")
+                spec_base = _spec_base_from_storage_root(
+                    str(existing_spec_storage.get("root", ""))
+                )
                 spec_storage_source = "existing-binding"
             elif workflow_path.is_file():
-                spec_root_kind = None
-                spec_root = None
+                spec_base_kind = None
+                spec_base = None
                 spec_storage_source = "missing-existing-binding"
             else:
-                spec_root_kind = DEFAULT_SPEC_ROOT_KIND
-                spec_root = DEFAULT_SPEC_ROOT
+                spec_base_kind = DEFAULT_SPEC_BASE_KIND
+                spec_base = DEFAULT_SPEC_BASE
                 spec_storage_source = "default"
         else:
-            spec_root_kind = config.spec_root_kind
-            spec_root = config.spec_root
+            spec_base_kind = config.spec_base_kind
+            spec_base = config.spec_base
             spec_storage_source = "explicit-input"
         spec_storage, spec_warnings = _normalize_spec_storage(
             root,
-            root_kind=spec_root_kind,
-            spec_root=spec_root,
+            root_kind=spec_base_kind,
+            spec_base=spec_base,
         )
         expected_agents = _normalize_hash(config.expected_agents_sha256, "expected_agents_sha256")
         expected_workflow = _normalize_hash(config.expected_workflow_sha256, "expected_workflow_sha256")
@@ -2489,12 +2519,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--agents-path", default="AGENTS.md")
     parser.add_argument("--workflow-rule-path", default="docs/workflow-rule.md")
-    parser.add_argument("--spec-root-kind", choices=tuple(sorted(SPEC_ROOT_KINDS)))
-    parser.add_argument("--spec-root")
+    parser.add_argument("--spec-base-kind", choices=tuple(sorted(SPEC_BASE_KINDS)))
+    parser.add_argument(
+        "--spec-base",
+        help="Spec base input; setup derives the Spec storage root in its plan child directory",
+    )
     parser.add_argument("--human-guide")
     parser.add_argument("--documentation-policy", choices=tuple(sorted(DOCUMENTATION_POLICIES)))
     parser.add_argument("--documentation-root-kind", choices=tuple(sorted(DOCUMENTATION_ROOT_KINDS)))
-    parser.add_argument("--documentation-root")
+    parser.add_argument(
+        "--documentation-root",
+        help="Exact Project Documentation root; setup preserves it without appending directories",
+    )
     parser.add_argument(
         "--documentation-write-authorization",
         choices=tuple(sorted(DOCUMENTATION_WRITE_AUTHORIZATIONS)),
@@ -2550,8 +2586,8 @@ def main() -> int:
         project_root=args.project_root,
         agents_path=args.agents_path,
         workflow_rule_path=args.workflow_rule_path,
-        spec_root_kind=args.spec_root_kind,
-        spec_root=args.spec_root,
+        spec_base_kind=args.spec_base_kind,
+        spec_base=args.spec_base,
         human_guide=args.human_guide,
         documentation_policy=args.documentation_policy,
         documentation_root_kind=args.documentation_root_kind,

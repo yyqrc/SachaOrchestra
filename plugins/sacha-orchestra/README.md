@@ -23,7 +23,7 @@ flowchart TD
 
 ## 项目接入与运行环境
 
-`setup-project` 先预演改动；首次 Spec storage 默认使用完整集合根 `docs/plan`，任务写入其 `<YYYY-MM-DD>-<short-slug>/` 子目录。项目已有 context locator 时沿用，否则使用文档 root 下的 `CONTEXT.md`，未配置文档 root 时暴露 `docs/CONTEXT.md`；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。
+`setup-project` 先预演改动。Spec base 与 Project Documentation root 是两项独立输入，可以相隔很远；Setup 派生 Spec storage root `<spec-base>/plan`，把 Project Context path 固定为 `<spec-base>/CONTEXT.md`，并原样保存 Project Documentation root，不追加目录。任务写入 Spec storage root 的 `<YYYY-MM-DD>-<short-slug>/` 子目录；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。
 
 ```mermaid
 flowchart TD

@@ -35,7 +35,7 @@
 - `admission`：`schedulable`、`support_only` 或 `unavailable`。
 - `side_effect`：`read_only`、`project_generated_state`、`project_source_write`、`runtime_state` 或 `external_state`。
 - `evidence`：正文的 1-based 行号或闭区间；不得只引 frontmatter/空行。
-- `required_paths`：调用必需的项目相对静态入口。`schedulable` 时必须存在；非调用必需的示例、可选 locator 不填。
+- `required_paths`：调用必需的项目相对静态入口。`schedulable` 时必须存在；非调用必需的示例、可选 reference 不填。
 - `runtime_prerequisites`：设备、进程、授权或输入等调用时检查项；它们不因当前未满足而删除静态 mapping。
 - `reason`：为何该 unit 可或不可由 Sacha 独立调度。
 - `id`：仅 `schedulable` 必填，且必须在正文判定之后分配。

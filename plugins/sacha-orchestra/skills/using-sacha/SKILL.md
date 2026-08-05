@@ -8,10 +8,10 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 ## 工作流
 
 1. 读取 [Intake Contract](../../core/intake-contract.md)，核对目标、Scope、授权、验收和项目规则。
-2. 初次判断及 Direct 执行期间都检查语义转折。关键澄清/Spec、跨 context 恢复、正式协调/独立验收或难回退跨 owner 决策出现时，按当前事实重评估。
+2. 初次判断及 Direct 执行期间都检查语义转折。用户列出多个功能点、入口、文件或调用位置只证明表面 Scope，不证明数据语义、用户可见行为、持久化/迁移、跨 owner 责任和验收已经明确；其中仍有会改变方案且需 Human 决定的内容时，按关键澄清/Spec candidate 重评估。
 3. 复杂调试、耗时、多文件、多平台或持续验证本身仍保持 Direct。只有执行方式会改变时才建议 Sacha；一句说明收益、成本和推荐，同一 candidate 只问一次。
 4. 显式 using-sacha、明确使用 Sacha 或直接调用 canonical Role 视为接受。接受后读取 [Workflow Contract](../../core/workflow-contract.md) 与目标 Role；只有 transport、恢复或外部状态需要时才读 Adapter。
-5. 拒绝后按当前事实直接处理；目标、Scope、验收、风险、授权或交付模型实质变化可形成新 candidate，locator、日志或进度变化不得触发重问。
+5. 拒绝后按当前事实直接处理；目标、Scope、验收、风险、授权或交付模型实质变化可形成新 candidate，reference、日志或进度变化不得触发重问。
 
 ## 路由
 

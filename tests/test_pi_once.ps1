@@ -297,7 +297,7 @@ exit 0
     Assert-True ([bool]$success.data.capabilities_verified) '成功前必须核对 CLI 能力'
     Assert-True ($success.data.requested_model -eq 'test-provider/standard-model') '请求型号未进入摘要'
     Assert-True ($success.data.effective_model -eq 'test-provider/standard-model') '实际型号未进入摘要'
-    Assert-True (Test-Path -LiteralPath (Join-Path $successRoot $success.data.raw_dir 'stdout.jsonl')) '必须保留 stdout locator'
+    Assert-True (Test-Path -LiteralPath (Join-Path $successRoot $success.data.raw_dir 'stdout.jsonl')) '必须保留 stdout path'
     $capturedArgs = [System.IO.File]::ReadAllText((Join-Path $successRoot '.temp\fake-args.json'))
     foreach ($required in @(
         '-p',

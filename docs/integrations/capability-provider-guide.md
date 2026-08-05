@@ -44,8 +44,8 @@ Catalog 不保存 summary、触发、前置、具体影响或输出；这些事�
 
 ## Setup 消费
 
-1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 locator 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；无效 catalog 回退 metadata 并 warning。
-2. Project-local Skill：Setup 只扫描目标项目内已确认的 authority/independent root，完整读取每个 `SKILL.md` 正文；mirror 复用 authority，ignore 不消费。仅在正文声明为调用必需时读取项目内直接 locator。
+1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 catalog path 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；无效 catalog 回退 metadata 并 warning。
+2. Project-local Skill：Setup 只扫描目标项目内已确认的 authority/independent root，完整读取每个 `SKILL.md` 正文；mirror 复用 authority，ignore 不消费。仅在正文声明为调用必需时读取项目内直接 path。
 3. 项目 Skill 的 id、目录名、frontmatter name/description 和关键词只用于定位，不得推导 capability。Setup 从正文拆分零到多个 goal unit，记录 goal、类型、副作用、静态入口、运行时前置、reason、覆盖步骤/输出的正文行与 Skill SHA-256，并判定 `schedulable`、`support_only` 或 `unavailable`。
 4. 只有正文定义可独立交付的有界目标、Skill 在当前 Runtime 可见且必需静态入口存在的 unit 才可进入候选；capability id 在该判定后分配。support/helper/reference/maintenance-only 或不可用 unit 不生成 mapping。
 5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
@@ -62,13 +62,13 @@ Setup 分别确认四类项目值，不得互相推导：
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
-| Spec storage | Setup/Human、Planner/Clarify 消费 | 完整规划集合 root、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要持久 Spec、发布文档 |
-| Project documentation | Setup/Human、Documentation writer 消费 | policy、独立 root、portability、write authorization，以及该 root 下的 `CONTEXT.md` locator；未配置时 locator fallback 为 `docs/CONTEXT.md` | Spec/Review/Handoff 权威、provider mapping；locator 本身不授权创建正文 |
+| Spec storage root | Setup/Human、Planner/Clarify 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
+| Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path |
 | Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Spec root、文档策略、文档 root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开 capability 候选；不得选择 Spec base、Project Documentation policy、Project Documentation root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
-首次没有既有或显式 Spec storage 时，Setup 推荐项目内 `docs/plan`；该值就是完整集合根，任务路径为 `docs/plan/<YYYY-MM-DD>-<short-slug>/spec.md`，不是先配置 `docs` 再隐式拼接。既有或 Human 显式选择的其他根保持不变。项目 context 优先沿用项目已有 owner/locator；否则使用 configured Project Documentation root 下的 `CONTEXT.md`，没有文档 root 时暴露 `docs/CONTEXT.md`。Setup 只保存/生成 locator，不扫描历史任务，也不因配置自动创建正文。
+首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Project Documentation 另收独立 Project Documentation root 并原样保存，不追加目录；两项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
 
 ## Role 消费
 
@@ -77,11 +77,11 @@ Human 接受 Sacha 且任务需要项目能力时，Role：
 1. 从 confirmed Binding 读取 capability、Skill 与 load policy。
 2. 按 policy 判断是否加载；mapping 本身不授权。
 3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据。
-4. Provider 返回领域结果与 evidence locator；最终路由和 verdict 仍由 Sacha 合同决定。
+4. Provider 返回领域结果与 evidence reference；最终路由和 verdict 仍由 Sacha 合同决定。
 
-Planner/Clarify 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 locator、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/locator、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
+Planner/Clarify 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 reference、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/path、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
 
-Provider 不拥有 Planner/Clarify 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 选择项目 context locator，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
+Provider 不拥有 Planner/Clarify 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 使用 Project Context path，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
 
 无 Binding、无 mapping、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
 
@@ -92,10 +92,10 @@ Provider 可声明 `experience.extract` 一类 `read_only` capability，把真�
 - 不直接修改项目文档、provider 源码或 catalog；
 - 不决定文档 policy、root、授权、类型或最终正文；
 - 不依赖 Sacha、Role、Documentation writer 或预先配置的项目存档；
-- 只以当前源码、配置、产物、日志或 Runtime 观察为证据，会话总结和 Agent 自报只作 locator；
-- 返回项目事实，以及候选短句、适用边界、现有 Reference 缺口、最短 evidence locator 和静态/编译/Runtime 验证边界；无合格候选时明确返回“无”。
+- 只以当前源码、配置、产物、日志或 Runtime 观察为证据，会话总结和 Agent 自报只作 reference；
+- 返回项目事实，以及候选短句、适用边界、现有 Reference 缺口、最短 evidence reference 和静态/编译/Runtime 验证边界；无合格候选时明确返回“无”。
 
-调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review locator 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。
+调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review path 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。
 
 项目事实归项目文档。跨项目候选要进入 provider 时，须在正常任务交付后取得 Human 同意，再路由到 provider 维护流程，以当前证据独立复核后迭代 canonical Skill/reference；不得让只读 `experience.extract` 自动 self-modify、创建任务、写文件或发 PR。维护流程不是公开消费能力时，不因存在于 `skills/` 就加入 capability catalog。
 

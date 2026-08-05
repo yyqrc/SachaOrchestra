@@ -48,7 +48,7 @@ SECTIONS = (
     ("validation_and_limits", "验证与限制"),
     ("ai_handoff", "AI 接力附录"),
 )
-INTERNAL_LOCATORS = (
+INTERNAL_REFERENCES = (
     re.compile(r"(?<![A-Za-z0-9_.-])\.codex(?:[\\/]|$)", re.IGNORECASE),
     re.compile(
         r"(?<![A-Za-z0-9_.-])(?:spec|execution-report|review)\.md\b",
@@ -114,23 +114,28 @@ def _compact_root(root: str) -> tuple[str, str]:
     )
 
 
-def _expected_context_locator(documentation: dict[str, str | None]) -> str:
-    if documentation["policy"] == "disabled":
-        return f"docs/{CONTEXT_FILE_NAME}"
-    root = str(documentation["root"]).rstrip("/\\")
-    separator = "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", root) else "/"
-    return f"{root}{separator}{CONTEXT_FILE_NAME}"
+def _expected_context_path(text: str) -> str:
+    match = re.search(r"(?m)^- Spec：`([^`]+)`\r?$", text)
+    if match is None:
+        raise DocumentError("Project Integration Spec storage root is missing")
+    spec_storage_root = match.group(1).rstrip("/\\")
+    parts = tuple(part for part in re.split(r"[/\\]+", spec_storage_root) if part)
+    if not parts or parts[-1].casefold() != "plan":
+        raise DocumentError("Project Integration Spec storage root must end in plan")
+    separator = "\\" if re.match(r"^(?:[A-Za-z]:\\|\\\\)", spec_storage_root) else "/"
+    spec_base = re.sub(r"[/\\][^/\\]+$", "", spec_storage_root)
+    return f"{spec_base}{separator}{CONTEXT_FILE_NAME}"
 
 
-def _attach_context_locator(
+def _attach_context_path(
     text: str,
     documentation: dict[str, str | None],
 ) -> dict[str, str | None]:
-    expected = _expected_context_locator(documentation)
+    expected = _expected_context_path(text)
     match = re.search(r"(?m)^- 项目 Context：`([^`]+)`(?:（[^\r\n]*）)?\r?$", text)
     if match is not None and match.group(1) != expected:
-        raise DocumentError("Project context locator is inconsistent with documentation root")
-    return {**documentation, "context_locator": expected}
+        raise DocumentError("Project Context path is inconsistent with Spec base")
+    return {**documentation, "context_path": expected}
 
 
 def parse_project_integration(data: bytes) -> dict[str, str | None]:
@@ -155,7 +160,7 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
     if compact:
         policy, root, authorization = compact.groups()
         if policy == "disabled":
-            return _attach_context_locator(text, {
+            return _attach_context_path(text, {
                 "policy": policy,
                 "root_kind": None,
                 "root": None,
@@ -176,7 +181,7 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             raise DocumentError("Project documentation policy is invalid")
         if authorization not in WRITE_AUTHORIZATIONS:
             raise DocumentError("Project documentation write authorization is invalid")
-        return _attach_context_locator(text, result)
+        return _attach_context_path(text, result)
 
     documentation = _section(text, "### Project documentation")
     document_types = re.search(
@@ -206,19 +211,19 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             )
         ):
             raise DocumentError("disabled documentation contains active root or authorization")
-        return _attach_context_locator(text, result)
+        return _attach_context_path(text, result)
     if result["root_kind"] not in ROOT_KINDS:
-        raise DocumentError("Project documentation root kind is invalid")
+        raise DocumentError("Project Documentation root kind is invalid")
     if result["write_authorization"] not in WRITE_AUTHORIZATIONS:
         raise DocumentError("Project documentation write authorization is invalid")
     if result["root"] in {None, "none"}:
-        raise DocumentError("enabled documentation root is missing")
+        raise DocumentError("enabled Project Documentation root is missing")
     expected_portability = (
         "portable" if result["root_kind"] == "project-relative" else "non-portable"
     )
     if result["portability"] != expected_portability:
         raise DocumentError("Project documentation portability is inconsistent")
-    return _attach_context_locator(text, result)
+    return _attach_context_path(text, result)
 
 
 def _normalized_relative_path(raw: Any, label: str) -> PurePosixPath:
@@ -247,37 +252,72 @@ def _resolve_document_root(
     raw = str(documentation["root"])
     kind = documentation["root_kind"]
     if kind == "project-relative":
-        pure = _normalized_relative_path(raw, "documentation root")
+        pure = _normalized_relative_path(raw, "Project Documentation root")
         root = (project_root / Path(*pure.parts)).resolve(strict=False)
         try:
             root.relative_to(project_root)
         except ValueError as exc:
-            raise DocumentError("documentation root escapes project root") from exc
+            raise DocumentError("Project Documentation root escapes project root") from exc
     elif kind == "external-absolute":
         candidate = Path(raw)
         if not candidate.is_absolute():
-            raise DocumentError("external documentation root is not absolute")
+            raise DocumentError("external Project Documentation root is not absolute")
         lexical = Path(os.path.abspath(raw))
         resolved = candidate.resolve(strict=False)
         if lexical == Path(lexical.anchor) or resolved == Path(resolved.anchor):
-            raise DocumentError("external documentation root must not be a drive or share root")
+            raise DocumentError("external Project Documentation root must not be a drive or share root")
         try:
             resolved.relative_to(project_root)
         except ValueError:
             pass
         else:
             raise DocumentError(
-                "documentation root inside project must be project-relative"
+                "Project Documentation root inside project must be project-relative"
             )
         root = resolved
     else:
-        raise DocumentError("Project documentation root kind is invalid")
+        raise DocumentError("Project Documentation root kind is invalid")
     try:
         if not root.is_dir():
-            raise DocumentError("documentation root is absent or unreachable")
+            raise DocumentError("Project Documentation root is absent or unreachable")
     except OSError as exc:
-        raise DocumentError("documentation root is unreachable") from exc
+        raise DocumentError("Project Documentation root is unreachable") from exc
     return root
+
+
+def _resolve_context_target(
+    project_root: Path,
+    documentation: dict[str, str | None],
+) -> Path:
+    raw = str(documentation["context_path"])
+    candidate = Path(raw)
+    if candidate.name.casefold() != CONTEXT_FILE_NAME.casefold():
+        raise DocumentError("Project Context path must target CONTEXT.md")
+    if candidate.is_absolute():
+        lexical = Path(os.path.abspath(raw))
+        target = candidate.resolve(strict=False)
+        if lexical.parent == Path(lexical.anchor) or target.parent == Path(target.anchor):
+            raise DocumentError("project context root must not be a drive or share root")
+        try:
+            target.relative_to(project_root)
+        except ValueError:
+            pass
+        else:
+            raise DocumentError("project-local Context path must be project-relative")
+    else:
+        pure = _normalized_relative_path(raw, "Project Context path")
+        target = project_root.joinpath(*pure.parts).resolve(strict=False)
+        try:
+            target.relative_to(project_root)
+        except ValueError as exc:
+            raise DocumentError("Project Context path escapes project root") from exc
+    spec_base = target.parent
+    try:
+        if not spec_base.is_dir():
+            raise DocumentError("Spec base is absent or unreachable")
+    except OSError as exc:
+        raise DocumentError("Spec base is unreachable") from exc
+    return target
 
 
 def _public_text(value: Any, label: str) -> str:
@@ -290,9 +330,9 @@ def _public_text(value: Any, label: str) -> str:
         raise DocumentError(f"{label} exceeds {MAX_SECTION_CHARS} characters")
     if re.search(r"(?m)^#{1,6}\s", normalized):
         raise DocumentError(f"{label} must not add Markdown headings")
-    for pattern in INTERNAL_LOCATORS:
+    for pattern in INTERNAL_REFERENCES:
         if pattern.search(normalized):
-            raise DocumentError(f"{label} contains an internal or machine-local locator")
+            raise DocumentError(f"{label} contains an internal or machine-local reference")
     return normalized
 
 
@@ -392,9 +432,9 @@ def parse_document_input(value: Any) -> dict[str, Any]:
     ):
         raise DocumentError("title is empty, unsafe or too long")
     title = title.strip()
-    for pattern in INTERNAL_LOCATORS:
+    for pattern in INTERNAL_REFERENCES:
         if pattern.search(title):
-            raise DocumentError("title contains an internal or machine-local locator")
+            raise DocumentError("title contains an internal or machine-local reference")
 
     output = _normalized_relative_path(value["output_path"], "output_path")
     if output.suffix.casefold() != ".md":
@@ -583,7 +623,7 @@ def _target_path(root: Path, output_path: str) -> Path:
     try:
         parent.relative_to(root)
     except ValueError as exc:
-        raise DocumentError("output parent escapes documentation root") from exc
+        raise DocumentError("output parent escapes Project Documentation root") from exc
     if not parent.is_dir():
         raise DocumentError("output parent directory does not exist")
     if target.exists():
@@ -705,9 +745,8 @@ def generate_project_document(
             document,
             per_write_confirmed=per_write_confirmed,
         )
-        root = _resolve_document_root(project, documentation)
         if document["document_type"] == "project-context":
-            target = root / CONTEXT_FILE_NAME
+            target = _resolve_context_target(project, documentation)
             original = _context_preimage(target, document["expected_target_sha256"])
             generated, changed_existing = _merge_context_document(
                 original,
@@ -735,8 +774,7 @@ def generate_project_document(
             write_started = True
             if sha256_bytes(workflow.read_bytes()) != workflow_hash:
                 raise DocumentError("Project Integration changed after validation")
-            root = _resolve_document_root(project, documentation)
-            target = root / CONTEXT_FILE_NAME
+            target = _resolve_context_target(project, documentation)
             current = _context_preimage(target, document["expected_target_sha256"])
             if current != original:
                 raise DocumentError("project context changed after validation")
@@ -768,6 +806,7 @@ def generate_project_document(
                 return result
             result.update(status="ok", transaction="committed")
             return result
+        root = _resolve_document_root(project, documentation)
         target = _target_path(root, document["output_path"])
         generated = render_document(document)
         parsed = parse_generated_document(generated)

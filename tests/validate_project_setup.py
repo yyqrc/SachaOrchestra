@@ -71,8 +71,8 @@ class ProjectSetupTests(unittest.TestCase):
             "project_root": project,
             "manage_agents": True,
             "scm_provider": "none",
-            "spec_root_kind": "project-relative",
-            "spec_root": "docs/plan",
+            "spec_base_kind": "project-relative",
+            "spec_base": "docs",
             "documentation_policy": "disabled",
         }
         values.update(overrides)
@@ -396,7 +396,7 @@ class ProjectSetupTests(unittest.TestCase):
         )
         self.assertEqual([], list(project.iterdir()))
 
-        changed_config = self.config(project, spec_root="plans")
+        changed_config = self.config(project, spec_base="plans")
         stale_confirmation = generator.run_setup(
             changed_config,
             write=True,
@@ -445,10 +445,10 @@ class ProjectSetupTests(unittest.TestCase):
             str(project),
             "--scm-provider",
             "none",
-            "--spec-root-kind",
+            "--spec-base-kind",
             "project-relative",
-            "--spec-root",
-            "docs/plan",
+            "--spec-base",
+            "docs",
             "--documentation-policy",
             "disabled",
         )
@@ -567,10 +567,10 @@ Inspect project state and return a bounded report.
                 str(project),
                 "--scm-provider",
                 "none",
-                "--spec-root-kind",
+                "--spec-base-kind",
                 "project-relative",
-                "--spec-root",
-                "docs/plan",
+                "--spec-base",
+                "docs",
                 "--documentation-policy",
                 "disabled",
                 "--skill-root-binding",
@@ -652,7 +652,7 @@ Inspect project state and return a bounded report.
             workflow.read_text(encoding="utf-8"),
         )
         self.assertIn(
-            f"- 项目 Context：`{external}\\CONTEXT.md`",
+            "- 项目 Context：`docs/CONTEXT.md`",
             workflow.read_text(encoding="utf-8"),
         )
 
@@ -682,13 +682,13 @@ Inspect project state and return a bounded report.
         project = self.root / "spec-storage"
         project.mkdir()
         external_spec = self.root / "iwiki" / "docs"
-        external_spec.mkdir(parents=True)
+        (external_spec / "plan").mkdir(parents=True)
         configured = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
-                spec_root_kind="external-absolute",
-                spec_root=str(external_spec),
+                spec_base_kind="external-absolute",
+                spec_base=str(external_spec),
                 documentation_policy="on-request",
                 documentation_root_kind="project-relative",
                 documentation_root="docs/archive",
@@ -696,7 +696,7 @@ Inspect project state and return a bounded report.
             ),
         )
         self.assertEqual("committed", configured["transaction"])
-        self.assertEqual(str(external_spec), configured["spec_storage"]["root"])
+        self.assertEqual(str(external_spec / "plan"), configured["spec_storage"]["root"])
         self.assertEqual("non-portable", configured["spec_storage"]["portability"])
         self.assertEqual("spec.md", configured["spec_storage"]["file_name"])
         self.assertEqual("docs/archive", configured["documentation"]["root"])
@@ -707,8 +707,8 @@ Inspect project state and return a bounded report.
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
         self.assertIn("### Storage", content)
-        self.assertIn(f"- Spec：`{external_spec}`", content)
-        self.assertIn("- 项目 Context：`docs/archive/CONTEXT.md`", content)
+        self.assertIn(f"- Spec：`{external_spec / 'plan'}`", content)
+        self.assertIn(f"- 项目 Context：`{external_spec}\\CONTEXT.md`", content)
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -720,32 +720,48 @@ Inspect project state and return a bounded report.
             write=True,
         )
         self.assertEqual("no_changes", preserved["transaction"])
-        self.assertEqual(str(external_spec), preserved["spec_storage"]["root"])
+        self.assertEqual(str(external_spec / "plan"), preserved["spec_storage"]["root"])
         self.assertEqual("docs/archive", preserved["documentation"]["root"])
 
-        missing_external = self.root / "missing-spec-root"
+        nested_plan_project = self.root / "nested-plan-base"
+        nested_plan_project.mkdir()
+        nested_plan = generator.run_setup(
+            self.config(
+                nested_plan_project,
+                manage_agents=False,
+                spec_base_kind="project-relative",
+                spec_base="plan",
+            )
+        )
+        self.assertEqual("plan/plan", nested_plan["spec_storage"]["root"])
+        self.assertIn(
+            "- 项目 Context：`plan/CONTEXT.md`",
+            nested_plan["workflow_rule"]["planned_content"],
+        )
+
+        missing_external = self.root / "missing-spec-base"
         warned = generator.run_setup(
             self.config(
                 self.root / "spec-storage",
                 manage_agents=False,
-                spec_root_kind="external-absolute",
-                spec_root=str(missing_external),
+                spec_base_kind="external-absolute",
+                spec_base=str(missing_external),
             )
         )
         self.assertEqual("ready", warned["status"])
         self.assertFalse(missing_external.exists())
-        self.assertEqual("spec_root_unreachable", warned["warnings"][0]["kind"])
+        self.assertEqual("spec_base_unreachable", warned["warnings"][0]["kind"])
 
         unsafe = generator.run_setup(
             self.config(
                 self.root / "spec-storage",
                 manage_agents=False,
-                spec_root_kind="external-absolute",
-                spec_root="G:\\",
+                spec_base_kind="external-absolute",
+                spec_base="G:\\",
             )
         )
         self.assertEqual("refused", unsafe["status"])
-        self.assertIn("spec_root", unsafe["conflicts"][0])
+        self.assertIn("spec_base", unsafe["conflicts"][0])
 
         legacy_project = self.root / "legacy-storage"
         legacy_rule = legacy_project / "docs" / "workflow-rule.md"
@@ -776,7 +792,7 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", ignored_legacy_storage["status"])
-        self.assertIn("spec_root_kind", ignored_legacy_storage["conflicts"][0])
+        self.assertIn("spec_base_kind", ignored_legacy_storage["conflicts"][0])
 
     def test_pi_model_routing_is_setup_confirmed_and_preserved(self) -> None:
         project = self.root / "pi-model-routing"
@@ -961,7 +977,7 @@ Inspect project state and return a bounded report.
             "### Unresolved",
             "### Conflicts",
             "### Fallback",
-            "## Canonical locators",
+            "## Canonical references",
             "Ignored rule candidates",
             "fallback = `discoverable-domain-skill-or-native-role`",
             "Workflow rule：",
@@ -1356,8 +1372,8 @@ Inspect project state and return a bounded report.
             project,
             manage_agents=False,
             scm_provider=None,
-            spec_root_kind=None,
-            spec_root=None,
+            spec_base_kind=None,
+            spec_base=None,
             documentation_policy=None,
             capability_bindings=desired,
             reconcile_capabilities=True,
@@ -1953,7 +1969,7 @@ Format evidence for another workflow; this is not a standalone execution goal.
             policy="required-at-closeout",
             authorization="bounded-closeout",
         )
-        target = document_root / "CONTEXT.md"
+        target = project / "docs" / "CONTEXT.md"
 
         dry_run = document_generator.generate_project_document(
             project_root=project,
@@ -2046,6 +2062,81 @@ Format evidence for another workflow; this is not a standalone execution goal.
         self.assertEqual("refused", stale["status"])
         self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
 
+    def test_project_context_uses_spec_base_not_documentation_root(self) -> None:
+        project, document_root = self.configured_document_project(
+            "project-context-spec-base",
+            policy="required-at-closeout",
+            authorization="bounded-closeout",
+            documentation_root="iwiki",
+        )
+        context_root = project / "context-store"
+        context_root.mkdir()
+        workflow = project / "docs" / "workflow-rule.md"
+        refreshed = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                spec_base_kind="project-relative",
+                spec_base="context-store",
+                documentation_policy="required-at-closeout",
+                documentation_root_kind="project-relative",
+                documentation_root="iwiki",
+                documentation_write_authorization="bounded-closeout",
+                expected_workflow_sha256=digest(workflow),
+            ),
+        )
+        self.assertEqual("context-store/plan", refreshed["spec_storage"]["root"])
+        self.assertEqual("iwiki", refreshed["documentation"]["root"])
+        workflow = project / "docs" / "workflow-rule.md"
+        self.assertIn(
+            "- 项目 Context：`context-store/CONTEXT.md`",
+            workflow.read_text(encoding="utf-8"),
+        )
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(),
+            write=True,
+        )
+
+        target = context_root / "CONTEXT.md"
+        self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
+        self.assertEqual(target, Path(created["target"]))
+        self.assertTrue(target.is_file())
+
+    def test_external_storage_bases_are_derived_independently(self) -> None:
+        project = self.root / "independent-storage-bases"
+        project.mkdir()
+        documentation_root = self.root / "documentation-root"
+        documentation_root.mkdir(parents=True)
+        spec_base = self.root / "separate-spec-storage"
+        (spec_base / "plan").mkdir(parents=True)
+
+        configured = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                spec_base_kind="external-absolute",
+                spec_base=str(spec_base),
+                documentation_policy="on-request",
+                documentation_root_kind="external-absolute",
+                documentation_root=str(documentation_root),
+                documentation_write_authorization="per-write-confirmation",
+            ),
+        )
+
+        self.assertEqual(str(spec_base / "plan"), configured["spec_storage"]["root"])
+        self.assertEqual(str(documentation_root), configured["documentation"]["root"])
+        workflow = project / "docs" / "workflow-rule.md"
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn(f"- Spec：`{spec_base / 'plan'}`", content)
+        self.assertIn(f"- 项目文档：`on-request` -> `{documentation_root}`", content)
+        self.assertIn(
+            f"- 项目 Context：`{spec_base}\\CONTEXT.md`",
+            content,
+        )
+
     def test_project_context_rejects_unqualified_or_implicit_existing_updates(self) -> None:
         project, document_root = self.configured_document_project(
             "project-context-rejections",
@@ -2068,7 +2159,7 @@ Format evidence for another workflow; this is not a standalone execution goal.
             write=True,
         )
         self.assertEqual("ok", created["status"])
-        target = document_root / "CONTEXT.md"
+        target = project / "docs" / "CONTEXT.md"
         missing_preimage = document_generator.generate_project_document(
             project_root=project,
             workflow_rule_path="docs/workflow-rule.md",
@@ -2111,13 +2202,13 @@ Format evidence for another workflow; this is not a standalone execution goal.
         self.assertEqual(0, process.returncode, process.stderr)
         result = json.loads(process.stdout)
         self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
-        self.assertEqual(document_root / "CONTEXT.md", Path(result["target"]))
-        self.assertTrue((document_root / "CONTEXT.md").is_file())
+        self.assertEqual(project / "docs" / "CONTEXT.md", Path(result["target"]))
+        self.assertTrue((project / "docs" / "CONTEXT.md").is_file())
 
     def test_project_documentation_refuses_unreachable_escape_and_root_boundaries(self) -> None:
         project = self.root / "documents-unreachable"
         project.mkdir()
-        missing = self.root / "missing-publication-root"
+        missing = self.root / "missing-documentation-root"
         setup = self.confirmed_setup(
             self.config(
                 project,
@@ -2156,19 +2247,10 @@ Format evidence for another workflow; this is not a standalone execution goal.
         original = workflow.read_text(encoding="utf-8")
         for unsafe_root in ("G:\\", "\\\\server\\share\\"):
             with self.subTest(unsafe_root=unsafe_root):
-                unsafe_context = document_generator._expected_context_locator(
-                    {
-                        "policy": "on-request",
-                        "root": unsafe_root,
-                    }
-                )
                 workflow.write_text(
                     original.replace(
                         "-> `docs/archive`",
                         f"-> `{unsafe_root}`",
-                    ).replace(
-                        "`docs/archive/CONTEXT.md`",
-                        f"`{unsafe_context}`",
                     ),
                     encoding="utf-8",
                 )
@@ -2182,7 +2264,7 @@ Format evidence for another workflow; this is not a standalone execution goal.
                 self.assertIn("drive or share root", refused["conflicts"][0])
         workflow.write_text(original, encoding="utf-8")
 
-    def test_project_documentation_rejects_internal_locators_and_invalid_integration(self) -> None:
+    def test_project_documentation_rejects_internal_references_and_invalid_integration(self) -> None:
         project, _ = self.configured_document_project(
             "documents-content",
             policy="on-request",
@@ -2210,7 +2292,7 @@ Format evidence for another workflow; this is not a standalone execution goal.
                 )
                 self.assertEqual("refused", internal["status"])
                 self.assertIn(
-                    "internal or machine-local locator",
+                    "internal or machine-local reference",
                     internal["conflicts"][0],
                 )
 

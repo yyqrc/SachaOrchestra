@@ -67,8 +67,8 @@ class SpecArtifactContractTests(unittest.TestCase):
 
     def test_setup_public_api_and_generated_output_are_spec_only(self) -> None:
         option_strings = generator.build_parser()._option_string_actions
-        self.assertIn("--spec-root-kind", option_strings)
-        self.assertIn("--spec-root", option_strings)
+        self.assertIn("--spec-base-kind", option_strings)
+        self.assertIn("--spec-base", option_strings)
         old_option_prefix = "--" + "pla" + "n-root"
         self.assertNotIn(old_option_prefix, option_strings)
         self.assertNotIn(old_option_prefix + "-kind", option_strings)

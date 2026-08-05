@@ -14,7 +14,7 @@
 | 模型与工具往返 | 319 个模型回合、3075 次工具调用 | 合并同一阶段的机械调用 |
 | `functions.exec` 聚合不足 | 2380 次 `exec` 中 92.6% 只调用一个内部工具 | 独立步骤并行调用；重复且稳定的项目动作再脚本化 |
 | 读与搜索高频 | 读文件占 46.3%，搜索占 38.9%；`read + search` 组合出现 244 次 | FastCtx 先 grep，再局部 read |
-| 大输出集中 | 超过 6000 字符的输出占 30.5%，却占 86.7% 输出字符 | 默认摘要，原文落 `.temp/` 并返回 locator |
+| 大输出集中 | 超过 6000 字符的输出占 30.5%，却占 86.7% 输出字符 | 默认摘要，原文落 `.temp/` 并返回 path |
 | 项目侧重复 | LookDev/Client 频繁重复 status、diff、Unity 状态和同步检查 | `diff_digest.ps1`、领域 Unity probe 和 compact sync 各自处理 |
 
 另取最近 18 个 Sacha 会话作为维护流程对照：188 个模型回合、2300 次工具调用、27 次 compaction；`read + search` 组合 80 次，`diff + validate` 组合 77 次。Sacha 的首要重复项是候选版本收尾，不是再增加流程文档。
@@ -59,7 +59,7 @@ LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具�
 - Renderer、Material、LightProbe/TOD 等指定领域状态；
 - 过滤后的日志计数与最高信号项。
 
-默认只读、不 Refresh、不切 PlayMode、不改对象。stdout 返回有界 JSON；完整日志、截图和对象清单只返回 locator。固定查询成熟后再落为项目 Editor helper。
+默认只读、不 Refresh、不切 PlayMode、不改对象。stdout 返回有界 JSON；完整日志、截图和对象清单只返回 path。固定查询成熟后再落为项目 Editor helper。
 
 ### 2.4 `sync_to_client.py` compact mode
 
@@ -74,9 +74,9 @@ LookDevProject 和 Client 的 Unity 状态查询由 cgame-unity 或项目工具�
 
 ### 2.5 `task_handoff.ps1`
 
-在调查已结束、目标和 locator 已冻结后生成短交接，供新 task 使用。
+在调查已结束、目标和 evidence reference 已冻结后生成短交接，供新 task 使用。
 
-输入只接受 Human/模型已经确认的目标、Scope、关键文件、已知事实、剩余动作和风险，不自行推断方案。默认输出不超过 20 行 / 3500 字符；超出内容写入 locator。
+输入只接受 Human/模型已经确认的目标、Scope、关键文件、已知事实、剩余动作和风险，不自行推断方案。默认输出不超过 20 行 / 3500 字符；超出内容写入 path。
 
 ## 3. 实现顺序
 

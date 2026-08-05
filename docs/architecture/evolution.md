@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.6.6` Semantic-preserving prompt compression
+> 当前 release：`0.7.0` Clarification loop and path semantics
 > 当前 source candidate：无
-> 当前主线：保留 Clarify/Planner 决策语义并移除形式化文本门槛
-> 发布边界：`0.6.6` 恢复 Clarify 的自适应调查、追问、恢复与退出条件，以及 Planner 的可执行 Spec 细化原则；Caveman 仅删除废话和重复，validator 不再用正文长度或精确说明文案阻塞等价表达
+> 当前主线：收口复合模糊需求、澄清对话、Spec 落盘与路径术语
+> 发布边界：`0.7.0` 让 using-sacha 识别表面清晰但语义未收口的复合需求，Clarify 只询问 Human-owned 决策并正确消费自由输入，Planner 先落盘 Spec 再请求批准；Project Integration 统一 base/root/path/reference，并以 Spec base 派生 storage root 与 Project Context path
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -31,7 +31,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | 首个 Project Integration | 已完成 | RenderDocAnalysis 接入、项目规则与 Core/Adapter 分层 | 历史接入不继续扩写 |
 | Stage 2 maturity intake | 已收口 | 暴露了累计 Report、重复 Handoff 和人工 Checkpoint 的成本 | 不恢复矩阵、Checkpoint 或主动证据摄取 |
 | Lean Hybrid | 已完成候选实现 | Direct、Plan、Assure、Full assurance、Goal-first、Project setup、Human-confirmed serial dispatch、Direct plugin development | `0.1.9` 的 bounded source changes 已验收 |
-| Managed Parallel | 已接受源码并安装 `0.1.10` | Manager Gate、Work Packet、真实并行运行时断言、自动反馈与迭代路由 | 当前 task 的 Skill locator 仍漂移，fresh-context 与真实并行行为未验证 |
+| Managed Parallel | 已接受源码并安装 `0.1.10` | Manager Gate、Work Packet、真实并行运行时断言、自动反馈与迭代路由 | 当前 task 的 Skill path 仍漂移，fresh-context 与真实并行行为未验证 |
 | Subagent context/report budget | `0.1.11` 已安装、未发布 | additive report contract、Codex 最小 context、Manager 去重聚合、`report_limited` 与定向 follow-up | 独立 Final re-review 为 `Reject — Needs Evidence`；raw fidelity 与 natural `report_limited` 路径未通过 |
 | Autonomous Goal Completion | `0.1.12` released | 根 workflow owner、subagent completion join、独立 Role callback、runtime transition assertions、自动返修/补证据/re-review 与 Human stop gate | source/static R3 `Accepted with follow-up`；fresh-installed §8.2 runtime re-review `Accepted`，最终 `goal_complete` |
 | Workflow Feedback Intake | `0.1.13` released | Transport/Identity/Progress 三层断言、完整 deviation packet、显式 feedback intake/transport 与自动修复 callback | 已完成 source 验收并精确安装；不单独宣称 Project Binding 行为 |
@@ -44,19 +44,20 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | 减重与能力接入（批次0/1a/2） | `0.1.19` released | 路由入口 `S0 Sacha Direct` 改名 `D0` 消歧；入口歧义区主动询问（琐碎默认 L0、高风险强制、歧义区问一次）；新增 explicit-only `clarify` 需求澄清 Skill；能力消费证据胶囊规范可核对轨迹 | source/static 独立 Review `Accepted with follow-up`；plugin 安装、fresh discovery 与真实 Runtime 行为未在本 release Scope 执行 |
 | Runtime Adapter and contract normalization | `0.1.20` released | Adapter 独立映射；Workflow Contract 4 去除单 Skill taxonomy 和重复 Conformance；Role Skills 只保留 Runtime-neutral 最小 procedure；停止旧字段、旧 Schema 和 Role alias 兼容 | source/static 验证通过并完成 source release；runtime promotion 未执行 |
 | Using Sacha Intake | `0.2.0` released | `using-sacha` 唯一默认入口、Intake Contract 1、Workflow Contract 5、一次 opt-in、Role trigger 收紧、compact contracts 与技术型 Human Interface | source/static 独立 Review `Accepted with follow-up`；安装、source/cache parity 与真实自动感知行为未纳入 source release |
-| Context Budget Hardening | `0.2.1` released | 精简 discovery metadata/Project AGENTS；D0 延迟 Adapter；工具/Artifact/transport 预算；Workflow 按需拆层；Manager 管理 Clarify 研究；Provider Catalog Schema v2；独立 Plan/发布文档根 | source/static 独立 Review 均为 `Accepted with follow-up`、阻塞 finding `0`；精确安装与 `35/35` parity 已通过；fresh discovery、真实 Planner/closeout 消费、Research Packet 调度和无效 catalog fallback 未验证 |
+| Context Budget Hardening | `0.2.1` released | 精简 discovery metadata/Project AGENTS；D0 延迟 Adapter；工具/Artifact/transport 预算；Workflow 按需拆层；Manager 管理 Clarify 研究；Provider Catalog Schema v2；独立 Spec storage root / Project Documentation root | source/static 独立 Review 均为 `Accepted with follow-up`、阻塞 finding `0`；精确安装与 `35/35` parity 已通过；fresh discovery、真实 Planner/closeout 消费、Research Packet 调度和无效 catalog fallback 未验证 |
 | Runtime Adapter Boundary Cleanup | `0.2.2` released | 删除 Codex Adapter 的插件发布维护段；移除两个 Adapter 无消费者的安装加载条件；压缩 Claude Code Adapter 重复授权枚举 | source/static、精确安装与 source/cache `33/33` parity 已通过；fresh discovery 与 Runtime 行为未验证 |
 | Direct Iteration and Adaptive Runtime Rules | `0.2.3` released | 归档预设举证；打包 helper；清晰任务直执行、单 helper 直管、能力感知 transport、自适应 timeout/budget、扩展 Handoff 与完整终态 | breaking migration 已记录；source/static 独立 Review `Accepted with follow-up`，安装后发现与目标项目调用未验证 |
 | Role-Aware Model Routing | `0.3.0` released | Codex 按 Planner/Executor 风险选择 `sol/terra` 与推理强度；Claude Code 按 Role/risk 选择 `opus/sonnet/haiku`；精确配置优先并记录 fallback | Core/Skill/Handoff 不变；source/static 已通过，安装与真实 Runtime dispatch 未验证 |
-| Project Integration Compression | `0.3.1` released | 聚合 Rule/Capability load policy，删除空节点、重复 fallback/locator 与可推导 Storage 字段 | Schema v3 项目值与授权语义不变；setup/project-documentation 解析和 LookDev 幂等 dry-run 已通过，安装与真实 Runtime 消费未验证 |
+| Project Integration Compression | `0.3.1` released | 聚合 Rule/Capability load policy，删除空节点、重复 fallback/reference 与可推导 Storage 字段 | Schema v3 项目值与授权语义不变；setup/project-documentation 解析和 LookDev 幂等 dry-run 已通过，安装与真实 Runtime 消费未验证 |
 | Setup Confirmation and Repair Isolation | `0.3.2` released | setup planned-delta 确认 guard；Feedback full-identity 复用、隔离 dispatch 与单次 terminal join 合同 | setup 行为测试与 Skill/plugin static 已通过；安装与真实 Runtime 自动建 task/join 未验证 |
 | Project Skill Capability Admission | `0.3.3` released | setup 完整读取 authority/independent 项目 Skill 正文，拆分 goal unit 并只映射可调度能力 | 正文证据与 deterministic guard、真实项目只读 dry-run 已通过；安装、fresh Runtime discovery 与消费项目写入未验证 |
 | Lean Dispatch and Claude CLI One-shot | `0.4.0` released | Codex 管理 Claude CLI 单次候选实现；dispatch/return/Handoff 只提供消费者需要的信息 | source/static R5 `Accepted with follow-up`；精确安装、`40/40` parity 与 fresh discovery 已通过 |
 | Tooling Cleanup and Fable Routing | `0.4.1` released | Claude CLI helper 接受自定义 `fable` 模型；删除无消费者的本地读取和聚合验证脚本 | 快速发版；普通回归、安装、fresh discovery 与 runtime 未执行 |
 | Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
-| Spec Artifact and Feedback Repair | `0.6.0` released | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
+| Spec Artifact and Feedback Repair | `0.6.0` released | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage root；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
 | Planner Alignment and Project Context | `0.6.5` released | Planner 实质新方案 Human Review、批准后自动执行、Clarify 可恢复决定、A/B/C 验收、项目 Context 有界维护与 Sacha Agent 命名空间 | source/static 已验证；安装、cache、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为不在本次 Scope |
 | Semantic-preserving Prompt Compression | `0.6.6` released | 恢复 Clarify/Planner 的顺序、进入/退出、恢复与决策原则；移除说明正文长度和逐句文案锁定 | 普通 source/static 验证与精确安装、cache parity 纳入本次发版；fresh task 行为留待新任务使用验证 |
+| Clarification Loop and Path Semantics | `0.7.0` released | 复合模糊需求重评估、Human-owned 提问过滤、自由输入续接、及时 `decisions.md`、Spec 先落盘；Spec base 派生 storage/context path并统一 base/root/path/reference | `--spec-root*` 与 `SetupConfig.spec_root*` 被 `--spec-base*` / `spec_base*` 取代，不保留旧接口；普通 source/static、精确安装与 source/cache `46/46` parity 已通过，fresh task 行为未验证 |
 
 ## 3. 不变量
 
@@ -217,7 +218,7 @@ Schema v3 只保存 capability id、canonical Skill、最小 load policy 与 fal
 
 `docs/plans/2026-07-23-layered-acceptance-review-delta/spec.md` 冻结并发布 `0.1.18`：对 Planning、Artifact、Coordination、Verification、Runtime evidence、Context/report、Feedback 与 Project setup 分别选择最低足够强度，不形成总分或固定流水线；`L0`～`L3` 验收 Profile 使 Direct 与普通工程任务避免无事实的完整 Review，风险工作继续由既有 Reviewer Gate 独立保证。
 
-正式 Review 只维护一个实现 Baseline。相同 Scope、Baseline 与 `acceptance_revision` 下的 evidence-only delta 以稳定 `changed_check_ids` scoped re-review，并在既有 Review Artifact append Entry；不新增 Evidence/Verdict Revision Artifact。局部 blocker 只暂停冲突范围，存在安全且已授权 ready branch 时根 workflow owner 继续推进。Scope、验收、owner、交付、安全/权限或依赖图的实质变化使旧 Gate 判断失效，但证据 locator、结果或文案变化不自动打开 Gate。Agent-observed evidence 不替代 Human-confirmed canonical check。
+正式 Review 只维护一个实现 Baseline。相同 Scope、Baseline 与 `acceptance_revision` 下的 evidence-only delta 以稳定 `changed_check_ids` scoped re-review，并在既有 Review Artifact append Entry；不新增 Evidence/Verdict Revision Artifact。局部 blocker 只暂停冲突范围，存在安全且已授权 ready branch 时根 workflow owner 继续推进。Scope、验收、owner、交付、安全/权限或依赖图的实质变化使旧 Gate 判断失效，但证据 reference、结果或文案变化不自动打开 Gate。Agent-observed evidence 不替代 Human-confirmed canonical check。
 
 该 release 保持三个生产 Role、三个 Gate、Artifact Protocol 精确九字段 Handoff、single writer、Human 授权、Reviewer provenance、callback identity/dedup、历史证据和 owner-joined terminal return；不修改 Binding/Setup schema、resolver/generator，不新增 Registry、后台服务、hook、MCP 或 App。source/static 独立 Review 已通过；安装、fresh-context runtime 与真实行为仍是后续独立授权层。
 
@@ -243,9 +244,9 @@ Workflow Contract 5 从 Intake acceptance 开始；三个生产 Role、三个 Ga
 
 ### 4.17 Released：Context Budget Hardening
 
-`0.2.1` 在不改变 Role、Gate、授权、九字段 Handoff 或证据权威的前提下减少 Codex active context：压缩常驻 Skill description；Executor-only D0 不预加载 Runtime Adapter；大工具输出使用摘要、计数、关键片段与 locator；Plan、Execution Report、Packet report 和 completion notice 使用可超限但不得丢失失败/风险的 soft budget；Sacha workspace 的常驻 AGENTS 只保留当前 authority、维护和验证纪律；release coherence 只检查机器可判定边界，不以自然语言 marker 代替语义 Review。
+`0.2.1` 在不改变 Role、Gate、授权、九字段 Handoff 或证据权威的前提下减少 Codex active context：压缩常驻 Skill description；Executor-only D0 不预加载 Runtime Adapter；大工具输出使用摘要、计数、关键片段与 reference；Plan、Execution Report、Packet report 和 completion notice 使用可超限但不得丢失失败/风险的 soft budget；Sacha workspace 的常驻 AGENTS 只保留当前 authority、维护和验证纪律；release coherence 只检查机器可判定边界，不以自然语言 marker 代替语义 Review。
 
-同一 candidate 为 Schema v3 Project Integration 增加 Human-confirmed 文档策略、可移植或 non-portable 根及 bounded closeout 授权，并新增可执行的自包含 `change-archive`/`system-guide` generator/parser。Spec storage 与发布文档根独立配置，支持项目相对或外部绝对根；持久 Spec 才渐进消费 Spec storage，Setup 不创建目标根。发布型项目文档不属于 Artifact，不复制 Scope、Role 状态或证据权威。
+同一 candidate 为 Schema v3 Project Integration 增加 Human-confirmed 文档策略、可移植或 non-portable root 及 bounded closeout 授权，并新增可执行的自包含 `change-archive`/`system-guide` generator/parser。Spec storage root 与 Project Documentation root 独立配置，支持项目相对或外部绝对 root；持久 Spec 才渐进消费 Spec storage root，Setup 不创建目标 root。发布型项目文档不属于 Artifact，不复制 Scope、Role 状态或证据权威。
 
 ### 4.18 Released：Runtime Adapter Boundary Cleanup
 
@@ -257,13 +258,13 @@ source/static、精确安装和 source/cache `33/33` parity 已通过；fresh di
 
 ### 4.19 Released：Direct Iteration and Adaptive Runtime Rules
 
-`0.2.3` 收口了 2026-07-24 已实施的批次设计。根路线图不再把 Runtime locator、跨 Runtime 证明、SH3 或历史 Review 追溯写成预设任务，只保留入口轻路径、Planner/Clarify、Provider 接入、自然并行、Setup/项目文档、目标 Runtime Adapter 和高频步骤脚本化等可直接推进的方向。
+`0.2.3` 收口了 2026-07-24 已实施的批次设计。根路线图不再把 Runtime reference、跨 Runtime 证明、SH3 或历史 Review 追溯写成预设任务，只保留入口轻路径、Planner/Clarify、Provider 接入、自然并行、Setup/项目文档、目标 Runtime Adapter 和高频步骤脚本化等可直接推进的方向。
 
 同一 release 根据规则全量审查升级 Intake 2、Workflow 7、Coordination 2 与 Artifact 2：清晰已授权任务保持 Direct；单个有界 helper 不强制 Manager；Runtime transport、liveness、context/report budget 按能力与风险自适应；根终态表达完成、部分完成、取消、替代、Human 决策、return 阻塞与外部失败；九个 Handoff 核心字段保持稳定并允许 namespaced `Extensions`。
 
 能力具备可执行 owner 和入口后即可投入使用；真实运行失败用于收紧边界、补充案例并防止回归，不再单独建立“证明能够运行”的举证工程。历史 verdict 只保留在归档，不转写为当前待办。
 
-同一 release 归档 CGame 能力接入设计，补充 Provider、Spec storage、Project Documentation 与 experience candidate 的边界，取消以真实案例、SH3 或安装后验收作为 `1.0.0` 举证门槛，并刷新根/Plugin README。跨会话规律和高频步骤接口记录在 [`maintenance-tooling.md`](maintenance-tooling.md)。
+同一 release 归档 CGame 能力接入设计，补充 Provider、Spec storage root、Project Documentation 与 experience candidate 的边界，取消以真实案例、SH3 或安装后验收作为 `1.0.0` 举证门槛，并刷新 root/Plugin README。跨会话规律和高频步骤接口记录在 [`maintenance-tooling.md`](maintenance-tooling.md)。
 
 Codex 本地读取使用 FastCtx，VCS diff 使用全局 `diff_digest.ps1`，项目验证由 Project AGENTS/Domain Skill 选择。
 
@@ -309,7 +310,7 @@ guard、巡检器与 fake Pi 正反例已通过；四个当时可用的配置模
 
 `docs/plans/2026-07-30-spec-artifact-storage-repair/spec.md` 冻结由 `G:\COD\Client` 真实消费偏差触发的修复：持久 Scope 权威只称 `Spec Artifact`，Planner 需要持久化时在任务目录默认生成 `spec.md`；`Plan` 只保留为 lifecycle 中按需规划活动或 `inline plan`。
 
-Project Integration 的公开配置、生成器 Python API/JSON/CLI 与新输出统一为 `Spec storage`、`spec_storage`、`spec_root*`、`--spec-root*` 和 `- Spec：...`。本 repair 明确不读取或迁移旧 Plan storage 形态，也不修改外部消费项目文件。Artifact Contract 4 与 Workflow Contract 10 承载当前语义。
+Project Integration 的公开配置、生成器 Python API/JSON/CLI 当前统一为 `Spec base`、`spec_base*`、`--spec-base*`，并由 `<Spec base>/plan` 唯一推导 `Spec storage root`；生成输出仍使用 `- Spec：...`。本 repair 明确不读取或迁移旧 Plan storage 形态，也不修改外部消费项目文件。Artifact Contract 4 与 Workflow Contract 10 承载当前语义。
 
 同一 `0.6.0` candidate 收紧显式 Feedback：repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配目标，或创建恰好一个 owner workspace task并以原生 terminal join消费结果。Source-local investigation helper 只读补证，不取得 repair identity；调查与路由不授权 Target 写入、Git、安装或发布。
 
@@ -319,9 +320,17 @@ source/static 已通过 Spec Artifact 合同 `3/3`、Project Setup `29/29`、五
 
 `docs/plans/2026-08-04-planner-alignment-executable-spec/spec.md` 冻结 `0.6.5`：Planner 形成 Human 此前未确认、会改变用户可见行为、架构、数据/资产、owner、迁移/兼容、难回退选择或验收方式的实质方案时，先交付拟执行 Spec 与 Human Review Focus；批准且没有额外授权、未决方案或阻塞性 Entry Condition 后，原 workflow owner 立即进入 Executor，不再请求第二次“开始实施”。Clarify 按需保存最小决定与恢复 frontier，并把稳定项目术语作为 closeout 候选而非直接事实。
 
-同一 candidate 将验收输入按实际执行者区分为 Agent 执行、Human 提供前置后 Agent 执行、Human 观察判断三类，不新增 Outcome。Project Integration 首次默认使用 `docs/plan/<YYYY-MM-DD>-<short-slug>/` 保存 `spec.md` 与按需 `decisions.md`，并暴露确定的项目 `CONTEXT.md` locator；Project Documentation 只在授权和 preimage 保护下有界维护 managed 术语区。`setup-agents` 改用 Sacha-owned `sacha_luna_worker` 与 `sacha_luna_worker_xhigh`，拒绝覆盖非 Sacha 身份。
+同一 candidate 将验收输入按实际执行者区分为 Agent 执行、Human 提供前置后 Agent 执行、Human 观察判断三类，不新增 Outcome。Project Integration 首次默认使用 `docs/plan/<YYYY-MM-DD>-<short-slug>/` 保存 `spec.md` 与按需 `decisions.md`，并暴露确定的Project Context path；Project Documentation 只在授权和 preimage 保护下有界维护 managed 术语区。`setup-agents` 改用 Sacha-owned `sacha_luna_worker` 与 `sacha_luna_worker_xhigh`，拒绝覆盖非 Sacha 身份。
 
 Project Setup `38/38`、单元测试 `18/18`、九个受影响 Skill official validator、plugin validator、`0.6.5` candidate coherence 与 diff check 已通过。本次只发布 source/static 层；安装、cache parity、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为及 Domain Provider 跨仓实施均不在发布 Scope。
+
+### 4.27 Released：澄清闭环与路径语义
+
+`0.7.0` 根据真实 LightmapSizeEstimate 规划偏差收紧入口、Clarify 与 Planner：列出多个功能点、文件或入口不再证明数据语义、用户行为、持久化和验收已明确；Clarify 只询问无法自行查明、会改变方案且决定权属于 Human 的事项。多选自由输入按选择、纠正、疑问或新方向继续对话，疑问先回答再恢复原问题；已知会形成 Spec 时，第一个关键决定确认后、下一问题前写最小 `decisions.md`。需要批准或恢复的 Planner 方案先写入并回读 `spec.md`，对话只交付摘要、path 与重点检查项。
+
+同一 release 按项目术语规则把配置输入目录称为 `base`、派生生效目录称为 `root`、文件位置称为 `path`、非文件指向称为 `reference`。Setup 的公开 Python/CLI 输入从 `spec_root*` / `--spec-root*` 改为 `spec_base*` / `--spec-base*`，再唯一派生 `<base>/plan` Spec storage root 与 `<base>/CONTEXT.md` Project Context path；旧接口不保留兼容，属于 `0.7.0` breaking boundary。
+
+Project Setup `40/40`、Spec Artifact contract `3/3`、单元测试 `17/17`、Pi fake CLI、六个受影响 Skill official validator、plugin validator 与 `0.7.0` candidate coherence 已通过。Codex 已精确安装 `sacha-orchestra@sacha 0.7.0`，source/cache `46/46`、missing/extra/hash mismatch 均为 `0`；fresh task discovery 和真实 Planner/Clarify 行为仍未验证。
 
 ## 5. `1.0.0` 决策
 

@@ -5,7 +5,7 @@
 
 ## 1. Boundary
 
-本文只映射 Claude Code 原生能力。以下是可选 owner locator，不是预加载清单：
+本文只映射 Claude Code 原生能力。以下是可选 owner reference，不是预加载清单：
 
 - [Intake Contract](../../core/intake-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
@@ -38,7 +38,7 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 
 1. 核对 Task/Scope、Role、Artifact 可达性、provenance、owner 和 return path。
 2. 不要求独立 provenance 的同 context 工作保持主对话；一个有界 helper 可由 owner 直接管理。正式 Role transition 才选择可保留 identity/terminal 的 Agent transport。
-3. Source 只传 route intent、Scope/Handoff locator、必要约束与 runtime identity，不复制长报告/隐藏历史。
+3. Source 只传 route intent、Scope/Handoff reference、必要约束与 runtime identity，不复制长报告/隐藏历史。
 4. 独立 Review 使用新 `Agent` context；同 Task/Scope 的 repair、补证据和 re-review 保持原 owner。
 5. 当前 transport 不可用时先尝试同 Scope 安全替代；owner/Role/return 仍无法唯一确定才进入 Core 阻塞路线。
 
@@ -46,7 +46,7 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 
 Planner 提案由主对话展示并等待 Human；清晰批准且无其他阻塞时，主对话在同一 Task 立即进入 Executor，不创建第二个用户会话或再次询问是否开始。
 
-Target completion 返回结果/delta、实际验证、阻塞/风险和必要 locator；原生 notification 未携带且消歧必需时才补 route identity/revision/dedup。错误、陈旧或重复结果不产生额外 transition。
+Target completion 返回结果/delta、实际验证、阻塞/风险和必要 reference；原生 notification 未携带且消歧必需时才补 route identity/revision/dedup。错误、陈旧或重复结果不产生额外 transition。
 
 正式跨 context dispatch 先应用 Human 本次或批准 Scope 的精确配置，否则按 Role/risk 选择：
 
@@ -64,7 +64,7 @@ Transport/Identity/Progress 失败按 Coordination Contract 生成 deviation；�
 
 Human 输出遵循 Core 技术紧凑顺序；liveness 由当前前台调用或后台 completion/cancel 状态证明，timeout 不替代 terminal/cancel/完成证据。
 
-搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文已有消费者时写入 task-local 文件或既有 Artifact，否则保留工具 locator；不为限额制造文件，截断不得隐藏失败、warning、未验证、Scope 偏离或授权阻塞。
+搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文已有消费者时写入 task-local 文件或既有 Artifact，否则保留工具 reference；不为限额制造文件，截断不得隐藏失败、warning、未验证、Scope 偏离或授权阻塞。
 
 ## 4. Manager 与 Artifact
 
@@ -72,7 +72,7 @@ Human 输出遵循 Core 技术紧凑顺序；liveness 由当前前台调用或�
 
 completion 只在 transport 需要时核对 revision/dedup；结果按消费者和风险保留必要 delta，不为格式强制落 Artifact。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。
 
-Agent context 通过稳定 locator 读取 Scope、Artifact、原始 evidence 和当前 consumer 所需 Handoff 语义。恢复先核对可用 route identity、Scope、revision 与 Entry Condition，不从隐藏历史猜测；不可达时停止 transition 并记录唯一入口。
+Agent context 通过稳定 reference 读取 Scope、Artifact、原始 evidence 和当前 consumer 所需 Handoff 语义。恢复先核对可用 route identity、Scope、revision 与 Entry Condition，不从隐藏历史猜测；不可达时停止 transition 并记录唯一入口。
 
 ## 5. Discovery 与 Hook 边界
 
