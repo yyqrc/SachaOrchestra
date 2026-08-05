@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.6.5` Planner alignment and project context
+> 当前 release：`0.6.6` Semantic-preserving prompt compression
 > 当前 source candidate：无
-> 当前主线：Planner 对齐、可执行 Spec 与项目 Context 安全沉淀
-> 发布边界：`0.6.5` 要求 Planner 新形成的实质方案先由 Human Review，批准后自动进入 Executor；补齐 Clarify 决定/恢复锚点、A/B/C 验收路由、默认 Spec 任务目录、项目 `CONTEXT.md` 有界维护与 Sacha 命名空间 Agent 配置
+> 当前主线：保留 Clarify/Planner 决策语义并移除形式化文本门槛
+> 发布边界：`0.6.6` 恢复 Clarify 的自适应调查、追问、恢复与退出条件，以及 Planner 的可执行 Spec 细化原则；Caveman 仅删除废话和重复，validator 不再用正文长度或精确说明文案阻塞等价表达
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -56,6 +56,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Pi One-shot External Executor | `0.5.0` released | Codex 管理 Pi 单次候选实现；`standard/pro/lite` 路由、工具前置路径 guard、JSONL 结构化终态、事后 containment 与 `sacha` marketplace 身份 | fake CLI、guard 单测、真实 Pi smoke、source/static、安装与 cache 验证见 4.24 |
 | Spec Artifact and Feedback Repair | `0.6.0` released | 持久权威统一为 Spec Artifact、Planner 默认 `spec.md`、Project Integration 只使用 Spec storage；Feedback 创建或复用唯一 owner repair task并等待终态 | 无旧 Plan storage 读取或迁移；安装、cache、fresh discovery 与真实跨 task 行为未纳入 source release |
 | Planner Alignment and Project Context | `0.6.5` released | Planner 实质新方案 Human Review、批准后自动执行、Clarify 可恢复决定、A/B/C 验收、项目 Context 有界维护与 Sacha Agent 命名空间 | source/static 已验证；安装、cache、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为不在本次 Scope |
+| Semantic-preserving Prompt Compression | `0.6.6` released | 恢复 Clarify/Planner 的顺序、进入/退出、恢复与决策原则；移除说明正文长度和逐句文案锁定 | 普通 source/static 验证与精确安装、cache parity 纳入本次发版；fresh task 行为留待新任务使用验证 |
 
 ## 3. 不变量
 

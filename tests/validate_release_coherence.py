@@ -69,9 +69,6 @@ RUNTIME_API_MARKERS = (
     "terminal callback",
     "joined wait",
     "create/reuse",
-    "docs/CONTEXT.md",
-    "docs/adr/",
-    "cgame-unity",
 )
 
 
@@ -444,37 +441,12 @@ def main() -> int:
         sum(len(content) for content in (
             intake,
             core,
-            assurance,
-            coordination,
-            artifact,
-            *(
-                content
-                for path, content in role_skill_documents.items()
-                if "project-documentation" not in path
-            ),
-        )) <= 24000,
-        "Workflow Core and Skill documents exceed the active text budget",
-    )
-    check(
-        len(skill_documents_by_name.get("project-documentation", "")) <= 1200,
-        "Project Documentation exceeds its on-demand text budget",
-    )
-    check(
-        sum(len(content) for content in (
-            intake,
-            core,
             skill_documents_by_name["using-sacha"],
             skill_documents_by_name["executor"],
         )) <= 9000,
         "Direct Executor active surface exceeds the progressive-loading budget",
     )
     for path, content in role_skill_documents.items():
-        lines = content.splitlines()
-        check(
-            len(lines) <= 30 and len(content) <= 1600,
-            f"Skill exceeds the bounded procedure surface: {path}",
-        )
-        check(max((len(line) for line in lines), default=0) <= 220, f"Role Skill contains an oversized compound line: {path}")
         links = set(re.findall(r"\]\(([^)]+)\)", content))
         allowed_links = {
             "../../core/intake-contract.md",
@@ -638,10 +610,6 @@ def main() -> int:
     check(
         "flowchart TD" in plugin_readme and "using-sacha" in plugin_readme,
         "Plugin README does not expose the using-sacha architecture overview",
-    )
-    check(
-        len(agents.splitlines()) <= 120 and len(agents) <= 7000,
-        "Project AGENTS exceeds the resident Sacha development context budget",
     )
     check(
         "docs/history/" not in agents

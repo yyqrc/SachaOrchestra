@@ -43,9 +43,9 @@
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
 - `description` 只回答“何时用/何时不用”；正文才写首查位置、扩大条件、动作、交付和停止边界。metadata prompt 只给自然入口，不复述正文流程。
 - Adapter 单 Runtime；Role Skill Runtime-neutral；显式 setup 只管对应配置；README 只保留入口、最小用法和 locator；历史/迁移归具名文档。
-- “不给 Sacha 注水”是验收条件：新增产品语义、模板或 validator 必须源于真实失败/重复低效，并说明唯一 owner、直接 consumer、改变的判断和证伪方式；缺一项就不增加。
-- 优先补强现有 owner；“更完整/规范”不构成扩面理由。先删铺垫、常识、历史和同义重复；示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
-- 精简时核对 trigger、关键步骤、退出/恢复、Human 决策点和证据仍有 owner；不得把删除包装成等价压缩。若改变进入/退出、决定者、恢复或完成声明，停止并把 delta 交 Human 确认。
+- “不给 Sacha 注水”是项目验收条件：新增规则、Role、Gate、Artifact、状态、字段、模板或 validator 必须对应真实失败或重复低效，并能说清唯一 owner、直接 consumer、改变了什么判断和如何证伪；缺一项就不增加。
+- 优先补强现有 owner 的 trigger、procedure 或 decision rule；“看起来更完整/更规范”不是扩产品面的理由。新增内容时先删铺垫、常识、历史和同义重复，示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
+- Caveman/精简只提高表达密度：可删除废话、同义重复和无消费者说明，不得删除或弱化有顺序依赖的步骤、trigger、进入/退出与恢复条件、Owner/Human 决策点、授权、安全、证据和验收。无法证明语义等价时保留原文；若会改变流程判断，停止该部分并把语义 delta 交给 Human 二次确认。
 - 多种做法成立时写判断原则；稳定参数写配置；脆弱且重复的机械顺序写 script 并实跑。
 - 主流程脱离 Sacha、固定 Gate、Scope/Handoff 仍能完成；编排只增强协调、恢复或独立验收。
 - 不得为缩短文本删除授权、安全、失败、未验证、Evidence、Entry Condition、schema、恢复入口或脆弱顺序。
@@ -83,12 +83,14 @@
 ```powershell
 python -B tests/validate_project_setup.py
 python -B -m unittest discover -s tests -p 'test_*.py'
-& <validator-python> <skill-creator>/scripts/quick_validate.py <affected-skill-root>
-& <validator-python> <plugin-creator>/scripts/validate_plugin.py <plugin-root>
-git diff --check
+& <validator-python> -B <skill-creator>/scripts/quick_validate.py <affected-skill-root>
+& <validator-python> -B <plugin-creator>/scripts/validate_plugin.py <plugin-root>
+cprobe summary <affected-path-or-directory> --json
 ```
 
-- Source validator 只检查可解析结构、稳定标识、owner/link、预算和禁止边界；不得逐句锁定可等价改写的说明文字。
+- Python 默认由 Codex 全局 `shell_environment_policy` 注入 `PYTHONUTF8=1`；生产脚本仍显式使用 `encoding="utf-8"`。不得给每条命令机械添加 `-X utf8`；只有实测 `sys.flags.utf8_mode != 1` 或出现解码错误时，才对受影响命令使用该 fallback。
+- `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
+- Source validator 只检查可解析结构、稳定标识、owner/link、真实 consumer 预算和禁止边界；不得逐句锁定可等价改写的说明文字。按需加载的 Skill 正文不以总字数、行数或单行长度作为 release blocker；压缩不得删除流程判断。
 - 生产脚本用隔离临时目录的正反例/幂等/失败恢复测试；Skill trigger、Role 路由与 Runtime 调用用真实 scenario smoke。前一层不得替代后一层。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。
 

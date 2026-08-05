@@ -9,14 +9,13 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 确认 Planner Gate；两者皆无时不接管。
 2. 先读项目规则和真实状态。mapping 可用才调用对应 Skill；缺 Binding/mapping 时用 AGENTS、Domain Skill 或原生路线，不调用 Setup。
-3. 形成 Spec 前检查目标、Scope/Non-goals、验收和 Human 决定；先查代码/规则/Skill并读取决定记录和相关项目 `CONTEXT.md`。未收口时显式调用 `$sacha-orchestra:clarify`，一个研究 helper 足够时不启用 Manager。
-   Clarify 返回本身不等于澄清完成：核对原问题、恢复 frontier、阻塞项和术语；仍有重要分支或新证据推翻定义时继续 Clarify，不凭 Role 自报进入 Executor。
+3. 形成 Spec 前检查目标结果、Scope/Non-goals、验收和会改变方案的 Human 决定。任一未收口时必须显式调用 `$sacha-orchestra:clarify`；可从代码、项目规则或 Skill 查明的事实先自行调查，全部明确时跳过。先读取已落盘决定和相关项目 `CONTEXT.md`，一个有界研究 helper 足够时不打开 Manager。Clarify 返回本身不等于澄清完成：Planner 核对原问题仍被覆盖、可恢复 frontier 没有尚未询问的重要分支、阻塞项已确认/暂缓/授权取舍，且关键术语沿用已确认含义；否则继续 Clarify，新证据推翻定义时也返回 Clarify，不能凭 Role 自报生成 Spec 或进入 Executor。
 4. 当前 context 可恢复时用 inline plan；只有方案需 Human 批准、breaking 或跨 context 恢复需要时写 Spec Artifact。
    持久化优先使用 confirmed Spec storage，其次项目现有约定；两者都没有时使用集合根 `docs/plan`。任务目录内写 `spec.md`，按需 `decisions.md` 同目录；不为此调用 Setup。
-5. Spec 使 Executor 无需重新设计，但不逐行代写。每步说明位置、改动、约束/不变量、依赖/顺序、检查/证据和返回规划条件；只剩局部代码表达时停止细化。
+5. Spec 详细到 Executor 不需重新设计，但不替 Executor 逐行写代码。实施越依赖顺序、owner、数据边界和领域约束，步骤越接近可直接执行；只剩局部代码表达时停止细化。每步用自然中文说明目标位置、预期改动、约束与不变量、依赖与顺序、检查与证据，以及需要返回规划的条件。
 6. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件，以及 A/B/C 验收路线；不要求无消费者的字段、ID 或表格。
-7. Human 未确认的实质方案须交付拟执行 Spec，并在回复中说明 Review Focus；它不是固定章节。多项建议按 Workflow Contract 编号收口，不遗漏或新增方案。
-8. 仅为持久记录/恢复读取 [Artifact Protocol](../../core/artifact-protocol.md)。把 context 候选和 `decisions.md` locator 交 closeout writer，不纳入 Spec 权威。批准且无未决方案、额外授权或阻塞条件时，立即返回 owner 进入 Executor。
+7. 形成 Human 此前未确认的实质方案时，把拟执行 Spec 交给 Human，并在回复中直接说明优先阅读哪些改动敏感部分；Review Focus 不是 Spec 固定章节。多问题或多项建议按 Workflow Contract 在回复末尾编号收口，不能遗漏正文建议或增加未论证方案。
+8. 需要持久记录或正式恢复时才读取 [Artifact Protocol](../../core/artifact-protocol.md)。把当前任务 project-context 候选及 `decisions.md` locator 保留给 closeout Documentation writer，候选不进入 Spec 执行权威。批准后若无未决方案、额外授权或阻塞性 Entry Condition，返回 workflow owner 并立即进入 Executor，不再等待第二次开始确认；Planner 不自行实施生产修改。
 
 ## 暂停与路由
 

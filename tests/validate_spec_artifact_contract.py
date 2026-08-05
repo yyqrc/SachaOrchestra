@@ -54,8 +54,8 @@ class SpecArtifactContractTests(unittest.TestCase):
         self.assertIn("Spec Artifact", workflow)
         self.assertIn("Plan 只表示按需规划活动或 inline plan", workflow)
         self.assertIn("Spec storage", planner)
-        self.assertIn("两者都没有时使用集合根 `docs/plan`", planner)
-        self.assertIn("任务目录内写 `spec.md`", planner)
+        self.assertIn("docs/plan", planner)
+        self.assertIn("spec.md", planner)
         for adapter in (codex_adapter, claude_adapter):
             self.assertIn("Workflow Contract 11", adapter)
             self.assertIn("Artifact Protocol 5", adapter)
