@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import hashlib
 import json
 import os
 import tempfile
@@ -49,7 +48,6 @@ class AgentPlan:
     current: bytes | None
     action: str
     delta: str
-    planned_delta_sha256: str
     current_parse_error: str | None
 
 
@@ -57,11 +55,6 @@ class AgentPlan:
 class Plan:
     codex_home: Path
     agents: tuple[AgentPlan, ...]
-    planned_delta_sha256: str
-
-
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
 
 
 def resolve_codex_home(
@@ -174,15 +167,6 @@ def build_agent_plan(
             action = "conflict"
 
     delta = "" if action == "no-op" else render_delta(target, current, template)
-    confirmation_payload = {
-        "target_path": str(target),
-        "action": action,
-        "current_sha256": sha256_bytes(current) if current is not None else None,
-        "generated_sha256": sha256_bytes(template),
-        "delta": delta,
-        "current_parse_error": current_parse_error,
-        "owned_update": action == "update",
-    }
     return AgentPlan(
         definition,
         target,
@@ -190,14 +174,6 @@ def build_agent_plan(
         current,
         action,
         delta,
-        sha256_bytes(
-            json.dumps(
-                confirmation_payload,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        ),
         current_parse_error,
     )
 
@@ -217,28 +193,7 @@ def build_plan(
         build_agent_plan(home, definition, _template_path=overrides.get(definition.name))
         for definition in AGENT_DEFINITIONS
     )
-    confirmation_payload = [
-        {
-            "name": agent.definition.name,
-            "target_path": str(agent.target),
-            "action": agent.action,
-            "current_sha256": sha256_bytes(agent.current) if agent.current is not None else None,
-            "generated_sha256": sha256_bytes(agent.template),
-            "delta": agent.delta,
-            "current_parse_error": agent.current_parse_error,
-            "owned_update": agent.action == "update",
-        }
-        for agent in agents
-    ]
-    planned_hash = sha256_bytes(
-        json.dumps(
-            confirmation_payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-    )
-    return Plan(home, agents, planned_hash)
+    return Plan(home, agents)
 
 
 def plan_result(plan: Plan) -> dict[str, object]:
@@ -254,15 +209,12 @@ def plan_result(plan: Plan) -> dict[str, object]:
         "transaction": "dry_run",
         "action": action,
         "target_paths": [str(agent.target) for agent in plan.agents],
-        "planned_delta_sha256": plan.planned_delta_sha256,
         "delta": "\n".join(agent.delta for agent in plan.agents if agent.delta),
         "agents": [
             {
                 "name": agent.definition.name,
                 "action": agent.action,
                 "target_path": str(agent.target),
-                "current_sha256": sha256_bytes(agent.current) if agent.current is not None else None,
-                "generated_sha256": sha256_bytes(agent.template),
                 "delta": agent.delta,
                 "current_parse_error": agent.current_parse_error,
             }
@@ -288,8 +240,8 @@ def prepare_temp(
             os.fsync(stream.fileno())
         if validate:
             validate_agent(temp_path.read_bytes(), expected_identity)
-        if sha256_bytes(temp_path.read_bytes()) != sha256_bytes(data):
-            raise SetupAgentsError("temporary file hash mismatch")
+        if temp_path.read_bytes() != data:
+            raise SetupAgentsError("temporary file content mismatch")
         return temp_path
     except Exception:
         temp_path.unlink(missing_ok=True)
@@ -300,8 +252,8 @@ def verify_installed(target: Path, expected: bytes) -> None:
     actual = target.read_bytes()
     expected_parsed = validate_agent(expected)
     validate_agent(actual, {key: expected_parsed[key] for key in IDENTITY_FIELDS})
-    if actual != expected or sha256_bytes(actual) != sha256_bytes(expected):
-        raise SetupAgentsError("installed content/hash mismatch")
+    if actual != expected:
+        raise SetupAgentsError("installed content mismatch")
 
 
 def run_setup(
@@ -379,7 +331,7 @@ def run_setup(
             return result
         try:
             for agent in reversed(replaced_agents):
-                if sha256_bytes(agent.target.read_bytes()) != sha256_bytes(agent.template):
+                if agent.target.read_bytes() != agent.template:
                     raise SetupAgentsError(f"generated file changed before rollback: {agent.definition.name}")
                 if agent.current is None:
                     agent.target.unlink()
@@ -402,10 +354,7 @@ def run_setup(
     result.update(
         status="ok",
         transaction="written",
-        installed_sha256={
-            agent.definition.name: sha256_bytes(agent.target.read_bytes())
-            for agent in changed_agents
-        },
+        written_paths=[str(agent.target) for agent in changed_agents],
     )
     return result
 

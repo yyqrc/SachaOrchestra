@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -30,7 +31,7 @@ DOCUMENT_SCRIPT = (
     / "plugins"
     / "sacha-orchestra"
     / "skills"
-    / "project-documentation"
+    / "document-project"
     / "scripts"
     / "generate_project_document.py"
 )
@@ -153,6 +154,24 @@ class ProjectSetupTests(unittest.TestCase):
         return value
 
     @staticmethod
+    def documentation_generation_policy(**overrides):
+        value = {
+            "minimum_section_count": 0,
+            "minimum_word_count": 0,
+            "structure_rule": "模板章节是候选结构。",
+            "required_topics_rule": "required_topics 必须得到回答。",
+            "optional_sections_rule": "没有实质内容时删除可选章节。",
+            "section_admission_test": ["是否回答独立问题", "是否包含独立事实", "删除是否损失信息"],
+            "section_admission_rule": "未通过时合并或删除。",
+            "compression_rule": "短小或重复章节必须合并。",
+            "navigation_rule": "只有长文才保留导航。",
+            "revision_history_rule": "新文档不生成空修订记录。",
+            "output_gate": ["不得残留占位符", "不得残留生成说明", "不得存在空章节"],
+        }
+        value.update(overrides)
+        return value
+
+    @staticmethod
     def context_input(**overrides):
         value = {
             "schema_version": "1",
@@ -214,38 +233,21 @@ class ProjectSetupTests(unittest.TestCase):
         )
         self.assertIn("领域工程纪律".encode("utf-8"), with_rules)
         self.assertIn(b"BEGIN SACHA PROJECT RULES: test-provider:project-rules", with_rules)
-        self.assertIn(
-            f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->".encode("utf-8"),
-            with_rules,
-        )
+        self.assertNotIn(generator.PROJECT_RULES_HASH.encode("utf-8"), with_rules)
         self.assertIn("## 测试规则".encode("utf-8"), with_rules)
         self.assertIn("- 规则A".encode("utf-8"), with_rules)
         self.assertTrue(with_rules.endswith(generator.AGENTS_END.encode("utf-8")))
         self.assertEqual(generator.render_agents_block("docs/workflow-rule.md", None), base)
-        self.assertNotEqual(
-            hashlib.sha256(with_rules).hexdigest(),
-            hashlib.sha256(base).hexdigest(),
-        )
+        self.assertNotEqual(with_rules, base)
         with self.assertRaises(generator.SetupError):
             generator.render_agents_block(
                 "docs/workflow-rule.md",
                 {"test-provider:project-rules": generator.AGENTS_END.encode("utf-8")},
             )
         tampered = with_rules.replace(b"- \xe8\xa7\x84\xe5\x88\x99A", b"- \xe8\xa7\x84\xe5\x88\x99X")
-        with self.assertRaises(generator.SetupError):
-            generator._extract_project_rules(tampered)
-        hash_line = (
-            f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->\n"
-        ).encode("utf-8")
-        without_hash = with_rules.replace(hash_line, b"")
-        with self.assertRaises(generator.SetupError):
-            generator._extract_project_rules(without_hash)
         self.assertEqual(
-            rules,
-            generator._extract_project_rules(
-                without_hash,
-                replace_legacy=True,
-            )["test-provider:project-rules"],
+            rules.replace(b"- \xe8\xa7\x84\xe5\x88\x99A", b"- \xe8\xa7\x84\xe5\x88\x99X"),
+            generator._extract_project_rules(tampered)["test-provider:project-rules"],
         )
 
     def test_project_rules_cli_requires_canonical_asset_path(self) -> None:
@@ -348,8 +350,8 @@ class ProjectSetupTests(unittest.TestCase):
         self.assertNotIn(generator.LEGACY_PROJECT_RULES_HEADING, text)
         self.assertIn("cgame-unity:project-rules", text)
 
-    def test_project_rules_without_source_hash_require_same_source_asset(self) -> None:
-        project = self.root / "hashless-project-rules"
+    def test_project_rules_legacy_source_hash_is_removed_on_refresh(self) -> None:
+        project = self.root / "legacy-hashed-project-rules"
         project.mkdir()
         rules = b"# Current rules\n- attributed"
         rendered = generator.render_agents_block(
@@ -359,24 +361,19 @@ class ProjectSetupTests(unittest.TestCase):
         hash_line = (
             f"{generator.PROJECT_RULES_HASH}{generator.sha256_bytes(rules)} -->\n"
         ).encode("utf-8")
+        begin_line = (
+            f"{generator.PROJECT_RULES_BEGIN}cgame-unity:project-rules -->\n"
+        ).encode("utf-8")
         agents = project / "AGENTS.md"
-        agents.write_bytes(rendered.replace(hash_line, b""))
-
-        refused = generator.run_setup(self.config(
-            project,
-            expected_agents_sha256=digest(agents),
-            replace_legacy_project_rules=True,
-        ))
-        self.assertEqual("refused", refused["status"])
-        self.assertIn("canonical asset for: cgame-unity:project-rules", refused["conflicts"][0])
+        agents.write_bytes(rendered.replace(begin_line, begin_line + hash_line, 1))
 
         refreshed = self.confirmed_setup(self.config(
             project,
             expected_agents_sha256=digest(agents),
-            replace_legacy_project_rules=True,
-            project_rules_sources=(("cgame-unity:project-rules", rules),),
         ))
         self.assertEqual("committed", refreshed["transaction"])
+        self.assertNotIn(generator.PROJECT_RULES_HASH.encode("utf-8"), agents.read_bytes())
+        self.assertIn(rules, agents.read_bytes())
 
     def test_dry_run_commit_and_idempotent_rerun(self) -> None:
         project = self.root / "basic"
@@ -384,6 +381,12 @@ class ProjectSetupTests(unittest.TestCase):
 
         dry_run = generator.run_setup(self.config(project))
         self.assertEqual("dry_run", dry_run["transaction"])
+        for section in ("workflow_rule", "workflow_state", "agents_block"):
+            self.assertNotIn("preimage_sha256", dry_run[section])
+            self.assertNotIn("generated_sha256", dry_run[section])
+        for target in dry_run["targets"].values():
+            self.assertNotIn("generated_sha256", target)
+            self.assertNotIn("current_sha256", target)
         self.assertEqual([], list(project.iterdir()))
 
         missing_confirmation = generator.run_setup(self.config(project), write=True)
@@ -1863,6 +1866,465 @@ Format evidence for another workflow; this is not a standalone execution goal.
             document_input=self.document_input(trigger="goal-closeout"),
         )
         self.assertEqual(("ready", "dry_run"), (bounded["status"], bounded["transaction"]))
+
+    def test_document_template_catalog_binding_and_profile_selection_are_deterministic(self) -> None:
+        option_strings = generator.build_parser()._option_string_actions
+        for option in (
+            "--documentation-template-catalog-path-kind",
+            "--documentation-template-catalog-path",
+            "--clear-documentation-template-catalog",
+        ):
+            self.assertIn(option, option_strings)
+        project = self.root / "documents-catalog-bound"
+        project.mkdir()
+        (project / "docs" / "archive" / "changes").mkdir(parents=True)
+        catalog = project / "docs" / "templates"
+        catalog.mkdir(parents=True)
+        implementation = catalog / "change-archive-implementation-record-v1.md"
+        implementation.write_text(
+            "# {变更标题} — 实施记录\n\n## 背景与目标\n\n{目标}\n\n"
+            "## 实现与数据流\n\n{实现}\n\n## 验证结果\n\n{验证}\n",
+            encoding="utf-8",
+        )
+        pipeline = catalog / "system-guide-pipeline-overview-v1.md"
+        pipeline.write_text(
+            "# {系统名称} 管线全景\n\n## 阅读导航\n\n{导航}\n\n"
+            "## 输入到运行时\n\n{管线}\n\n## 验证与维护\n\n{验证}\n",
+            encoding="utf-8",
+        )
+        profiles = [
+            {
+                "id": "rendering-implementation-record-v1",
+                "document_type": "change-archive",
+                "primary_purpose": "record",
+                "primary_question": "这次改了什么，为什么这样改，如何验证",
+                "choose_when": ["重点是实施和验证"],
+                "avoid_when": ["重点是完整系统管线"],
+                "required_topics": ["目标", "结果", "验证边界"],
+                "optional_sections": ["目录", "文件表"],
+                "template": implementation.name,
+                "reference_samples": [],
+            },
+            {
+                "id": "rendering-pipeline-overview-v1",
+                "document_type": "system-guide",
+                "primary_purpose": "explain",
+                "primary_question": "这个系统或管线现在如何工作",
+                "choose_when": ["存在端到端生命周期"],
+                "avoid_when": ["只记录一次改动"],
+                "required_topics": ["用途与边界", "数据流", "验证边界"],
+                "optional_sections": ["导航", "历史"],
+                "template": pipeline.name,
+                "reference_samples": [],
+            },
+        ]
+        manifest = catalog / "profiles.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "selection": {
+                        "strategy": "manifest-ranked",
+                        "read_templates_before_selection": False,
+                        "tie_policy": "ask-human",
+                        "allow_profile_merge": False,
+                        "fallback_profile": "rendering-implementation-record-v1",
+                    },
+                    "generation_policy": self.documentation_generation_policy(),
+                    "profiles": profiles,
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        config = self.config(
+            project,
+            manage_agents=False,
+            documentation_policy="on-request",
+            documentation_root_kind="project-relative",
+            documentation_root="docs/archive",
+            documentation_write_authorization="per-write-confirmation",
+            documentation_template_catalog_path_kind="project-relative",
+            documentation_template_catalog_path="docs/templates",
+        )
+        dry_run = generator.run_setup(config)
+        approved_delta = dry_run["write_confirmation"]["planned_delta_sha256"]
+        original_pipeline_before_setup = pipeline.read_text(encoding="utf-8")
+        pipeline.write_text(
+            original_pipeline_before_setup + "\n<!-- independent template update -->\n",
+            encoding="utf-8",
+        )
+        configured = generator.run_setup(
+            config,
+            write=True,
+            confirmed_planned_delta_sha256=approved_delta,
+        )
+        self.assertEqual("ok", configured["status"], configured["conflicts"])
+        pipeline.write_text(original_pipeline_before_setup, encoding="utf-8")
+        binding = configured["documentation"]["template_catalog"]
+        self.assertEqual(
+            {"path_kind": "project-relative", "path": "docs/templates"},
+            binding,
+        )
+        workflow = project / "docs" / "workflow-rule.md"
+        workflow_text = workflow.read_text(encoding="utf-8")
+        self.assertIn(
+            "- document-template catalog：path kind = `project-relative`；"
+            "path = `docs/templates`",
+            workflow_text,
+        )
+        self.assertNotIn("manifest sha256", workflow_text)
+        self.assertNotIn("document-template profile", workflow_text)
+
+        rendered = (
+            "# 功能变更 — 实施记录\n\n## 背景与目标\n\n完成持久功能。\n\n"
+            "## 实现与数据流\n\n入口到持久化。\n\n## 验证结果\n\n运行验证通过。\n"
+        )
+        ready = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(),
+                    "title": "功能变更 — 实施记录",
+                    "template_profile": "rendering-implementation-record-v1",
+                    "rendered_markdown": rendered,
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual(("ready", "dry_run"), (ready["status"], ready["transaction"]))
+        self.assertEqual("project-catalog", ready["template"]["source"])
+        self.assertEqual("rendering-implementation-record-v1", ready["template"]["profile"])
+        self.assertNotIn("sha256", ready["template"])
+
+        system_ready = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(
+                        document_type="system-guide",
+                        title="烘焙管线 管线全景",
+                        output_path="changes/pipeline.md",
+                    ),
+                    "template_profile": "rendering-pipeline-overview-v1",
+                    "rendered_markdown": (
+                        "# 烘焙管线 管线全景\n\n"
+                        "## 结论、边界与主链路\n\n"
+                        "本系统覆盖资产输入、核心处理到运行消费；当前只验证主路径，"
+                        "未覆盖异常恢复。\n"
+                    ),
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("ready", system_ready["status"])
+        self.assertEqual("rendering-pipeline-overview-v1", system_ready["template"]["profile"])
+        self.assertEqual(
+            ["用途与边界", "数据流", "验证边界"],
+            system_ready["template"]["required_topics"],
+        )
+
+        template_instruction = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(title="功能变更 — 实施记录"),
+                    "template_profile": "rendering-implementation-record-v1",
+                    "rendered_markdown": (
+                        "# 功能变更 — 实施记录\n\n<!-- 生成说明：不要保留 -->\n\n"
+                        "## 结果\n\n已经完成。\n"
+                    ),
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("refused", template_instruction["status"])
+        self.assertIn("template-author instructions", template_instruction["conflicts"][0])
+
+        original_template = implementation.read_text(encoding="utf-8")
+        implementation.write_text(original_template + "\n<!-- drift -->\n", encoding="utf-8")
+        drift = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(),
+                    "title": "功能变更 — 实施记录",
+                    "template_profile": "rendering-implementation-record-v1",
+                    "rendered_markdown": rendered,
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("ready", drift["status"])
+        self.assertEqual(str(implementation.resolve()), drift["template"]["path"])
+        implementation.write_text(original_template, encoding="utf-8")
+
+        original_pipeline = pipeline.read_text(encoding="utf-8")
+        pipeline.write_text(original_pipeline + "\n<!-- unrelated update -->\n", encoding="utf-8")
+        unrelated_template_update = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(),
+                    "title": "功能变更 — 实施记录",
+                    "template_profile": "rendering-implementation-record-v1",
+                    "rendered_markdown": rendered,
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("ready", unrelated_template_update["status"])
+        self.assertEqual(
+            str(implementation.resolve()),
+            unrelated_template_update["template"]["path"],
+        )
+        pipeline.write_text(original_pipeline, encoding="utf-8")
+
+        preserve = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                scm_provider=None,
+                spec_base_kind=None,
+                spec_base=None,
+                documentation_policy=None,
+                documentation_root_kind=None,
+                documentation_root=None,
+                documentation_write_authorization=None,
+            )
+        )
+        self.assertEqual(binding, preserve["documentation"]["template_catalog"])
+
+        workflow_hash = digest(workflow)
+        cleared = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                scm_provider=None,
+                spec_base_kind=None,
+                spec_base=None,
+                documentation_policy=None,
+                documentation_root_kind=None,
+                documentation_root=None,
+                documentation_write_authorization=None,
+                clear_documentation_template_catalog=True,
+                expected_workflow_sha256=workflow_hash,
+            )
+        )
+        self.assertNotIn("template_catalog", cleared["documentation"])
+
+    def test_change_archive_canonical_fallback_ignores_document_root_style_samples(self) -> None:
+        project, document_root = self.configured_document_project(
+            "documents-canonical-template",
+            policy="on-request",
+            authorization="per-write-confirmation",
+        )
+        decoy = document_root / "random-implementation-style.md"
+        decoy.write_text("# 随机抽样风格\n\n这不是已绑定模板。\n", encoding="utf-8")
+        rendered = document_generator.CANONICAL_CHANGE_ARCHIVE_TEMPLATE.read_text(
+            encoding="utf-8"
+        ).replace("{变更标题}", "功能变更")
+        rendered = re.sub(r"(?s)<!--.*?-->\s*", "", rendered)
+        rendered = re.sub(r"\{[^{}\r\n]+\}", "已填写", rendered)
+        fallback_input = {
+            key: value
+            for key, value in {
+                **self.document_input(title="功能变更 — 实施记录"),
+                "template_profile": document_generator.CANONICAL_CHANGE_ARCHIVE_PROFILE,
+                "rendered_markdown": rendered,
+            }.items()
+            if key != "sections"
+        }
+        first = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=fallback_input,
+            per_write_confirmed=True,
+        )
+        decoy.write_text("# 另一个随机风格\n", encoding="utf-8")
+        second = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=fallback_input,
+            per_write_confirmed=True,
+        )
+        self.assertEqual("bundled-fallback", first["template"]["source"])
+        self.assertEqual(
+            document_generator.CANONICAL_CHANGE_ARCHIVE_PROFILE,
+            first["template"]["profile"],
+        )
+        self.assertNotIn("sha256", first["template"])
+        self.assertNotIn("sha256", second["template"])
+        self.assertEqual(first["sha256"], second["sha256"])
+
+        system_rendered = document_generator.CANONICAL_SYSTEM_GUIDE_TEMPLATE.read_text(
+            encoding="utf-8"
+        ).replace("{系统名称}", "文档系统").replace("{系统}", "文档系统")
+        system_rendered = re.sub(r"(?s)<!--.*?-->\s*", "", system_rendered)
+        system_rendered = re.sub(r"\{[^{}\r\n]+\}", "已填写", system_rendered)
+        system = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(
+                        document_type="system-guide",
+                        title="文档系统 系统全景",
+                        output_path="changes/system.md",
+                    ),
+                    "template_profile": document_generator.CANONICAL_SYSTEM_GUIDE_PROFILE,
+                    "rendered_markdown": system_rendered,
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("ready", system["status"], system["conflicts"])
+        self.assertEqual("bundled-fallback", system["template"]["source"])
+
+    def test_bundled_document_templates_do_not_emit_fixed_metadata_cards(self) -> None:
+        change_archive = document_generator.CANONICAL_CHANGE_ARCHIVE_TEMPLATE.read_text(
+            encoding="utf-8"
+        )
+        system_guide = document_generator.CANONICAL_SYSTEM_GUIDE_TEMPLATE.read_text(
+            encoding="utf-8"
+        )
+        for label in (
+            "变更类型",
+            "完成状态",
+            "背景/触发",
+            "目标",
+            "根因或关键约束",
+            "采用方案",
+            "影响范围",
+            "适用工程/版本",
+            "日期",
+        ):
+            self.assertNotRegex(change_archive, rf"(?m)^>\s*\*\*{re.escape(label)}\*\*")
+        for label in (
+            "文档状态",
+            "覆盖范围",
+            "权威基准",
+            "工具链/平台",
+            "证据范围",
+            "未执行",
+            "维护约定",
+        ):
+            self.assertNotRegex(system_guide, rf"(?m)^>\s*\*\*{re.escape(label)}\*\*")
+        self.assertIn("自然写入对应正文或修订记录", change_archive)
+        self.assertIn("自然写入正文或修订记录", system_guide)
+
+    def test_document_template_catalog_rejects_implicit_scan_without_binding(self) -> None:
+        project, document_root = self.configured_document_project(
+            "documents-no-catalog-scan",
+            policy="on-request",
+            authorization="per-write-confirmation",
+        )
+        (document_root / "profiles.json").write_text("{}", encoding="utf-8")
+        legacy = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.document_input(),
+            per_write_confirmed=True,
+        )
+        self.assertEqual("legacy-structured-default", legacy["template"]["source"])
+        selected = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input={
+                key: value
+                for key, value in {
+                    **self.document_input(),
+                    "template_profile": "rendering-implementation-record-v1",
+                    "rendered_markdown": "# 功能变更存档\n",
+                }.items()
+                if key != "sections"
+            },
+            per_write_confirmed=True,
+        )
+        self.assertEqual("refused", selected["status"])
+        self.assertIn("requires a bound project catalog", selected["conflicts"][0])
+
+    def test_document_template_catalog_rejects_preselection_reads_and_missing_files(self) -> None:
+        for name, preselect, create_template, expected in (
+            ("preselect", True, True, "selection contract"),
+            ("missing", False, False, "absent file"),
+            ("quota", False, True, "must not impose section or word quotas"),
+        ):
+            with self.subTest(name=name):
+                project = self.root / f"documents-catalog-{name}"
+                project.mkdir()
+                catalog = project / "templates"
+                catalog.mkdir()
+                if create_template:
+                    (catalog / "record.md").write_text(
+                        "# {标题}\n\n## 结果\n\n{内容}\n",
+                        encoding="utf-8",
+                    )
+                (catalog / "profiles.json").write_text(
+                    json.dumps(
+                        {
+                            "schema_version": 1,
+                            "selection": {
+                                "strategy": "manifest-ranked",
+                                "read_templates_before_selection": preselect,
+                                "tie_policy": "ask-human",
+                                "allow_profile_merge": False,
+                                "fallback_profile": "record-v1",
+                            },
+                            "generation_policy": self.documentation_generation_policy(
+                                minimum_section_count=1 if name == "quota" else 0
+                            ),
+                            "profiles": [
+                                {
+                                    "id": "record-v1",
+                                    "document_type": "change-archive",
+                                    "primary_purpose": "record",
+                                    "primary_question": "这次改了什么",
+                                    "choose_when": ["存在持久改动"],
+                                    "avoid_when": ["纯问答"],
+                                    "required_topics": ["目标", "结果"],
+                                    "optional_sections": ["目录"],
+                                    "template": "record.md",
+                                    "reference_samples": [],
+                                }
+                            ],
+                        },
+                        ensure_ascii=False,
+                    ),
+                    encoding="utf-8",
+                )
+                result = generator.run_setup(
+                    self.config(
+                        project,
+                        manage_agents=False,
+                        documentation_policy="on-request",
+                        documentation_root_kind="project-relative",
+                        documentation_root="docs/archive",
+                        documentation_write_authorization="per-write-confirmation",
+                        documentation_template_catalog_path_kind="project-relative",
+                        documentation_template_catalog_path="templates",
+                    )
+                )
+                self.assertEqual("refused", result["status"])
+                self.assertIn(expected, result["conflicts"][0])
 
     def test_project_documentation_cli_dry_run_create_parse_and_no_overwrite(self) -> None:
         project, document_root = self.configured_document_project(

@@ -57,13 +57,49 @@ class SpecArtifactContractTests(unittest.TestCase):
         self.assertIn("docs/plan", planner)
         self.assertIn("spec.md", planner)
         for adapter in (codex_adapter, claude_adapter):
-            self.assertIn("Workflow Contract 11", adapter)
-            self.assertIn("Artifact Protocol 5", adapter)
+            self.assertIn("Workflow Contract 12", adapter)
+            self.assertIn("Artifact Protocol 6", adapter)
 
         old_artifact_name = "Plan" + " Artifact"
         self.assertNotIn(old_artifact_name, artifact)
         self.assertNotIn(old_artifact_name, workflow)
         self.assertNotIn(old_artifact_name, planner)
+
+    def test_documentation_closeout_is_selective_and_keeps_publication_separate(self) -> None:
+        workflow = (PLUGIN / "core" / "workflow-contract.md").read_text(encoding="utf-8")
+        artifact = (PLUGIN / "core" / "artifact-protocol.md").read_text(encoding="utf-8")
+        executor = (PLUGIN / "skills" / "executor" / "SKILL.md").read_text(encoding="utf-8")
+        documentation = (
+            PLUGIN / "skills" / "document-project" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Documentation candidate check（按需）", workflow)
+        self.assertIn("候选必须有持久产品 delta", workflow)
+        self.assertIn("没有上述持久知识的一行/局部修复，均静默跳过", workflow)
+        self.assertIn("`on-request` 只询问一次是否生成", workflow)
+        self.assertIn("`bounded-closeout | per-write-confirmation`", workflow)
+        self.assertIn("只检查一次 Documentation candidate", executor)
+
+        self.assertIn("Execution Report 只在恢复、证据索引或正式 Review 有消费者时", artifact)
+        self.assertIn("`change-archive`/done 文档", artifact)
+        self.assertIn("Project Documentation root", artifact)
+        self.assertIn("Project Context path", artifact)
+
+        self.assertIn("已批准复杂 Spec + 持久代码变化 + 实际 Runtime 验证", documentation)
+        self.assertIn("必须形成一次候选检查", documentation)
+        self.assertIn("一行修复、纯问答、无持久 delta：静默跳过", documentation)
+        self.assertIn("`profiles.json`", documentation)
+        self.assertIn("选择完成前不读模板正文", documentation)
+        self.assertIn("不随机选择、不混合模板", documentation)
+        self.assertIn("模板章节只是候选结构", documentation)
+        self.assertIn("不要求复刻完整 heading skeleton", documentation)
+        provider_guide = (ROOT / "docs" / "integrations" / "capability-provider-guide.md").read_text(
+            encoding="utf-8"
+        )
+        for active_text in (workflow, artifact, executor, documentation, provider_guide):
+            self.assertNotIn("CODM", active_text)
+            self.assertNotIn("Rendering/Dawn", active_text)
+            self.assertNotIn("G:\\COD", active_text)
 
     def test_setup_public_api_and_generated_output_are_spec_only(self) -> None:
         option_strings = generator.build_parser()._option_string_actions
@@ -113,7 +149,7 @@ class SpecArtifactContractTests(unittest.TestCase):
             PLUGIN / "skills" / "planner" / "SKILL.md",
             PLUGIN / "skills" / "executor" / "SKILL.md",
             PLUGIN / "skills" / "setup-project" / "SKILL.md",
-            PLUGIN / "skills" / "project-documentation" / "SKILL.md",
+            PLUGIN / "skills" / "document-project" / "SKILL.md",
             GENERATOR_PATH,
             ROOT / "docs" / "integrations" / "capability-provider-guide.md",
         )

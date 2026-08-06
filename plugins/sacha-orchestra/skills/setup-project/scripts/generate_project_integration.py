@@ -43,6 +43,11 @@ PROJECT_SKILL_SIDE_EFFECTS = {
 DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
 DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
 DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
+CHANGE_ARCHIVE_TEMPLATE_PATH_KINDS = {"project-relative", "external-absolute"}
+CHANGE_ARCHIVE_TEMPLATE_PROFILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+CHANGE_ARCHIVE_TEMPLATE_VERSION = re.compile(r"^[1-9][0-9]*$")
+MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES = 64 * 1024
+DOCUMENT_TEMPLATE_TYPES = {"change-archive", "system-guide"}
 SPEC_BASE_KINDS = {"project-relative", "external-absolute"}
 DEFAULT_SPEC_BASE_KIND = "project-relative"
 DEFAULT_SPEC_BASE = "docs"
@@ -78,6 +83,9 @@ class SetupConfig:
     documentation_root_kind: str | None = None
     documentation_root: str | None = None
     documentation_write_authorization: str | None = None
+    documentation_template_catalog_path_kind: str | None = None
+    documentation_template_catalog_path: str | None = None
+    clear_documentation_template_catalog: bool = False
     rule_paths: tuple[str, ...] = ()
     skill_roots: tuple[str, ...] = ()
     scm_provider: str | None = None
@@ -238,6 +246,200 @@ def _normalize_documentation(
         **location,
         "write_authorization": write_authorization,
     }, warnings
+
+
+def _normalize_template_path(
+    root: Path,
+    *,
+    path_kind: str,
+    configured_path: str,
+    label: str,
+    require_file: bool,
+) -> tuple[Path, str]:
+    if path_kind not in CHANGE_ARCHIVE_TEMPLATE_PATH_KINDS:
+        raise SetupError(
+            f"{label} path_kind must be project-relative or external-absolute"
+        )
+    if path_kind == "project-relative":
+        target, normalized_path = _normalize_relative_path(
+            root,
+            configured_path,
+            f"{label}_path",
+        )
+    else:
+        if any(token in configured_path for token in ("\n", "\r", "`")):
+            raise SetupError(f"{label} path contains unsafe characters")
+        candidate = Path(configured_path)
+        if not candidate.is_absolute():
+            raise SetupError(f"external {label} path is not absolute")
+        target = candidate.resolve(strict=False)
+        boundary = target.parent if require_file else target
+        if boundary == Path(boundary.anchor):
+            raise SetupError(f"external {label} must not be stored at a filesystem root")
+        try:
+            target.relative_to(root)
+        except ValueError:
+            pass
+        else:
+            raise SetupError(f"project-local {label} path must be project-relative")
+        normalized_path = str(candidate)
+    return target, normalized_path
+
+
+def _normalize_documentation_template_catalog(
+    root: Path,
+    *,
+    path_kind: str | None,
+    catalog_path: str | None,
+) -> dict[str, object] | None:
+    if path_kind is None and catalog_path is None:
+        return None
+    if path_kind is None or catalog_path is None:
+        raise SetupError(
+            "documentation template catalog requires path_kind and path"
+        )
+    target, normalized_path = _normalize_template_path(
+        root,
+        path_kind=path_kind,
+        configured_path=str(catalog_path),
+        label="documentation_template_catalog",
+        require_file=False,
+    )
+    try:
+        if not target.is_dir():
+            raise SetupError("documentation template catalog path is absent or not a directory")
+        manifest = target / "profiles.json"
+        if not manifest.is_file():
+            raise SetupError("documentation template catalog requires profiles.json")
+        manifest_data = manifest.read_bytes()
+        if len(manifest_data) > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
+            raise SetupError("documentation template catalog manifest exceeds 65536 bytes")
+        manifest_value = json.loads(manifest_data.decode("utf-8-sig"))
+    except OSError as exc:
+        raise SetupError("documentation template catalog is unreachable") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SetupError("documentation template catalog manifest must be UTF-8 JSON") from exc
+
+    if not isinstance(manifest_value, dict) or manifest_value.get("schema_version") != 1:
+        raise SetupError("documentation template catalog schema_version must be 1")
+    selection = manifest_value.get("selection")
+    if not isinstance(selection, dict) or (
+        selection.get("strategy") != "manifest-ranked"
+        or selection.get("read_templates_before_selection") is not False
+        or selection.get("tie_policy") != "ask-human"
+        or selection.get("allow_profile_merge") is not False
+        or selection.get("allow_ad_hoc_profile", False) is not False
+    ):
+        raise SetupError("documentation template catalog selection contract is invalid")
+    manifest_profiles = manifest_value.get("profiles")
+    if not isinstance(manifest_profiles, list) or not manifest_profiles:
+        raise SetupError("documentation template catalog contains no profiles")
+    generation_policy = manifest_value.get("generation_policy")
+    required_generation_fields = {
+        "minimum_section_count",
+        "minimum_word_count",
+        "structure_rule",
+        "required_topics_rule",
+        "optional_sections_rule",
+        "section_admission_test",
+        "section_admission_rule",
+        "compression_rule",
+        "navigation_rule",
+        "revision_history_rule",
+        "output_gate",
+    }
+    if not isinstance(generation_policy, dict) or not required_generation_fields.issubset(
+        generation_policy
+    ):
+        raise SetupError("documentation template catalog generation_policy is invalid")
+    if generation_policy["minimum_section_count"] != 0 or generation_policy["minimum_word_count"] != 0:
+        raise SetupError("documentation template catalog must not impose section or word quotas")
+    for label in (
+        "structure_rule",
+        "required_topics_rule",
+        "optional_sections_rule",
+        "section_admission_rule",
+        "compression_rule",
+        "navigation_rule",
+        "revision_history_rule",
+    ):
+        if not isinstance(generation_policy[label], str) or not generation_policy[label].strip():
+            raise SetupError(f"documentation template catalog generation_policy.{label} is invalid")
+    for label in ("section_admission_test", "output_gate"):
+        if (
+            not isinstance(generation_policy[label], list)
+            or not generation_policy[label]
+            or any(not isinstance(value, str) or not value.strip() for value in generation_policy[label])
+        ):
+            raise SetupError(f"documentation template catalog generation_policy.{label} is invalid")
+
+    seen: set[str] = set()
+    required_profile_fields = {
+        "id",
+        "document_type",
+        "primary_purpose",
+        "primary_question",
+        "choose_when",
+        "avoid_when",
+        "required_topics",
+        "optional_sections",
+        "template",
+    }
+    for item in manifest_profiles:
+        if not isinstance(item, dict) or not required_profile_fields.issubset(item):
+            raise SetupError("documentation template profile fields are invalid")
+        profile = item["id"]
+        document_type = item["document_type"]
+        file_name = item["template"]
+        if not isinstance(profile, str) or CHANGE_ARCHIVE_TEMPLATE_PROFILE.fullmatch(profile) is None:
+            raise SetupError("documentation template profile id is invalid")
+        if document_type not in DOCUMENT_TEMPLATE_TYPES:
+            raise SetupError("documentation template document_type is invalid")
+        if profile in seen:
+            raise SetupError("documentation template catalog contains duplicate profiles")
+        seen.add(profile)
+        for label in ("primary_purpose", "primary_question"):
+            if not isinstance(item[label], str) or not item[label].strip():
+                raise SetupError(f"documentation template profile {label} is invalid")
+        for label in ("choose_when", "avoid_when"):
+            if (
+                not isinstance(item[label], list)
+                or not item[label]
+                or any(not isinstance(value, str) or not value.strip() for value in item[label])
+            ):
+                raise SetupError(f"documentation template profile {label} is invalid")
+        for label in ("required_topics", "optional_sections"):
+            if (
+                not isinstance(item[label], list)
+                or not item[label]
+                or any(not isinstance(value, str) or not value.strip() for value in item[label])
+            ):
+                raise SetupError(f"documentation template profile {label} is invalid")
+        version_match = re.search(r"-v([1-9][0-9]*)$", profile)
+        if version_match is None:
+            raise SetupError("documentation template profile must end with -v<positive integer>")
+        if not isinstance(file_name, str):
+            raise SetupError("documentation template profile template is invalid")
+        relative = PurePosixPath(file_name.replace("\\", "/"))
+        if (
+            relative.is_absolute()
+            or any(part in {"", ".", ".."} for part in relative.parts)
+            or relative.suffix.casefold() != ".md"
+        ):
+            raise SetupError("documentation template catalog file must be a relative Markdown file")
+        template_target = target.joinpath(*relative.parts).resolve(strict=False)
+        try:
+            template_target.relative_to(target.resolve(strict=False))
+        except ValueError as exc:
+            raise SetupError("documentation template catalog file escapes the catalog") from exc
+        if not template_target.is_file():
+            raise SetupError("documentation template catalog references an absent file")
+        if template_target.stat().st_size > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
+            raise SetupError("documentation template exceeds 65536 bytes")
+    return {
+        "path_kind": str(path_kind),
+        "path": normalized_path,
+    }
 
 
 def _path_separator(value: str) -> str:
@@ -1038,7 +1240,7 @@ def _parse_existing_project_values(
                 raise SetupError("managed Pi model routing is malformed")
             route, model = match.groups()
             pi_model_bindings.append({"route": route, "model": model})
-    documentation: dict[str, str | None] = {}
+    documentation: dict[str, object] = {}
     documentation_section = re.search(
         r"(?ms)^### Project documentation\s*\n(.*?)(?=^### |^## |\Z)",
         text,
@@ -1070,6 +1272,17 @@ def _parse_existing_project_values(
                 else "portable" if root else "not-applicable"
             ),
             "write_authorization": authorization,
+        }
+    catalog_binding = re.search(
+        r"(?m)^- document-template catalog：path kind = `([^`]+)`；"
+        r"path = `([^`]+)`(?:；manifest sha256 = `[^`]+`)?\r?$",
+        text,
+    )
+    if catalog_binding:
+        path_kind, path = catalog_binding.groups()
+        documentation["template_catalog"] = {
+            "path_kind": path_kind,
+            "path": path,
         }
     spec_storage: dict[str, str | None] = {}
     compact_spec = re.search(r"(?m)^- Spec：`([^`]+)`\r?$", text)
@@ -1370,17 +1583,31 @@ def _discover_project_integration(
         status = "needs_decision"
     else:
         status = "complete"
+    public_rule_candidates = [
+        {key: value for key, value in item.items() if key != "sha256"}
+        for item in rule_candidates
+    ]
+    public_groups = [
+        {
+            **group,
+            "members": [
+                {key: value for key, value in member.items() if key != "sha256"}
+                for member in group["members"]
+            ],
+        }
+        for group in groups
+    ]
     return {
         "status": status,
         "agents_path": agents_rel,
         "workflow_rule_path": workflow_rel,
         "scm": {"provider": selected_provider, "evidence": scm_evidence},
-        "rule_candidates": rule_candidates,
+        "rule_candidates": public_rule_candidates,
         "rule_bindings": [effective_rule_bindings[path] for path in sorted(effective_rule_bindings)],
         "ignored_rule_candidates": sorted(ignored_rule_set),
-        "rule_files": scanned_rules,
+        "rule_files": [{"path": item["path"]} for item in scanned_rules],
         "skill_roots": [{"path": path, "sources": sorted(skill_roots[path]["sources"])} for path in sorted(skill_roots)],
-        "skill_groups": groups,
+        "skill_groups": public_groups,
         "skill_root_bindings": [root_binding_map[path] for path in sorted(root_binding_map)],
         "skills": scanned_skills,
         "unresolved": unresolved,
@@ -1464,7 +1691,7 @@ def render_workflow_rule(
     discovery: Mapping[str, object],
     capability_bindings: tuple[dict[str, str], ...],
     pi_model_bindings: tuple[dict[str, str], ...],
-    documentation: Mapping[str, str | None],
+    documentation: Mapping[str, object],
 ) -> bytes:
     scm = discovery["scm"]
     evidence = [item["source"] for item in scm["evidence"] if item["provider"] == scm["provider"]]
@@ -1546,6 +1773,12 @@ def render_workflow_rule(
             f"- 项目文档：`{documentation['policy']}` -> `{documentation['root']}`；"
             f"write = `{documentation['write_authorization']}`"
         )
+        catalog = documentation.get("template_catalog")
+        if catalog:
+            storage_lines.append(
+                f"- document-template catalog：path kind = `{catalog['path_kind']}`；"
+                f"path = `{catalog['path']}`"
+            )
     storage_lines.append(
         f"- 项目 Context：`{_project_context_path(spec_storage)}`"
         "（术语与跨任务约束；setup 只记录 path，不创建正文）"
@@ -1648,23 +1881,13 @@ def _extract_project_rules(
             content_start += 1
         else:
             raise SetupError("Project AGENTS project rules marker must end its line")
-        declared_hash = None
         first_line_end = managed.find("\n", content_start)
         if first_line_end >= 0:
             first_line = managed[content_start:first_line_end].rstrip("\r")
             if first_line.startswith(PROJECT_RULES_HASH):
                 if not first_line.endswith(" -->"):
                     raise SetupError("Project AGENTS contains a broken project rules source hash")
-                declared_hash = _normalize_hash(
-                    first_line[len(PROJECT_RULES_HASH):-len(" -->")],
-                    "project rules source SHA-256",
-                )
                 content_start = first_line_end + 1
-        if declared_hash is None and not replace_legacy:
-            raise SetupError(
-                f"Project AGENTS project rules source hash is missing: {skill}; "
-                "refresh the canonical asset with --replace-legacy-project-rules"
-            )
         end_marker = f"{PROJECT_RULES_END}{skill} -->"
         content_end = managed.find(end_marker, content_start)
         if content_end < 0:
@@ -1673,8 +1896,6 @@ def _extract_project_rules(
             raise SetupError(f"Project AGENTS contains duplicate project rules source: {skill}")
         raw_content = managed[content_start:content_end].rstrip("\r\n").encode("utf-8")
         normalized_content = _normalize_project_rules_content(raw_content)
-        if declared_hash is not None and declared_hash != sha256_bytes(normalized_content):
-            raise SetupError(f"Project AGENTS project rules source hash is stale: {skill}")
         rules[skill] = normalized_content
         cursor = content_end + len(end_marker)
     if managed.count(PROJECT_RULES_BEGIN) != len(rules) or managed.count(PROJECT_RULES_END) != len(rules):
@@ -1682,43 +1903,17 @@ def _extract_project_rules(
     return rules
 
 
-def _project_rules_replacement_requirements(preimage: bytes | None) -> tuple[bool, tuple[str, ...]]:
-    """Return unattributed legacy and per-source hash refresh requirements.
-
-    Call only after ``_extract_project_rules`` has validated the managed block.
-    """
+def _has_legacy_project_rules(preimage: bytes | None) -> bool:
+    """Return whether the validated managed block contains unattributed legacy rules."""
     if preimage is None:
-        return False, ()
+        return False
     text = preimage.decode("utf-8")
     if AGENTS_BEGIN not in text:
-        return False, ()
+        return False
     start = text.index(AGENTS_BEGIN) + len(AGENTS_BEGIN)
     finish = text.index(AGENTS_END, start)
     managed = text[start:finish]
-    if LEGACY_PROJECT_RULES_HEADING in managed:
-        return True, ()
-    missing_hashes: list[str] = []
-    cursor = 0
-    while True:
-        begin = managed.find(PROJECT_RULES_BEGIN, cursor)
-        if begin < 0:
-            break
-        header_end = managed.find(" -->", begin)
-        skill = _normalize_project_rules_skill(
-            managed[begin + len(PROJECT_RULES_BEGIN):header_end]
-        )
-        content_start = header_end + len(" -->")
-        if managed.startswith("\r\n", content_start):
-            content_start += 2
-        else:
-            content_start += 1
-        first_line_end = managed.find("\n", content_start)
-        first_line = managed[content_start:first_line_end].rstrip("\r")
-        if not first_line.startswith(PROJECT_RULES_HASH):
-            missing_hashes.append(skill)
-        end_marker = f"{PROJECT_RULES_END}{skill} -->"
-        cursor = managed.find(end_marker, content_start) + len(end_marker)
-    return False, tuple(missing_hashes)
+    return LEGACY_PROJECT_RULES_HEADING in managed
 
 
 def _reconcile_project_rules(
@@ -1772,7 +1967,6 @@ def render_agents_block(workflow_rule_path: str, project_rules: Mapping[str, byt
             rules_text = _normalize_project_rules_content(content).decode("utf-8")
             entries.append(
                 f"{PROJECT_RULES_BEGIN}{normalized_skill} -->\n"
-                f"{PROJECT_RULES_HASH}{sha256_bytes(rules_text.encode('utf-8'))} -->\n"
                 f"{rules_text}\n"
                 f"{PROJECT_RULES_END}{normalized_skill} -->"
             )
@@ -1838,13 +2032,11 @@ def _base_result(
     }
 
 
-def _target_record(relative: str, existed: bool, pre_hash: str | None, generated: bytes) -> dict[str, object]:
+def _target_record(relative: str, existed: bool, pre_hash: str | None) -> dict[str, object]:
     return {
         "path": relative,
         "existed": existed,
         "preimage_sha256": pre_hash,
-        "generated_sha256": sha256_bytes(generated),
-        "current_sha256": pre_hash,
     }
 
 
@@ -1948,8 +2140,10 @@ def run_setup(
         effective_human_guide = config.human_guide or existing_values.get("human_guide")
         if effective_human_guide:
             _, human_guide = _normalize_relative_path(root, str(effective_human_guide), "human_guide")
+        existing_documentation = existing_values.get("documentation", {})
+        if not isinstance(existing_documentation, dict):
+            existing_documentation = {}
         if config.documentation_policy is None:
-            existing_documentation = existing_values.get("documentation", {})
             documentation_policy = existing_documentation.get("policy")
             documentation_root_kind = existing_documentation.get("root_kind")
             documentation_root = existing_documentation.get("root")
@@ -1968,6 +2162,39 @@ def run_setup(
             documentation_root=documentation_root,
             write_authorization=documentation_write_authorization,
         )
+        configured_catalog_values = (
+            config.documentation_template_catalog_path_kind,
+            config.documentation_template_catalog_path,
+        )
+        if config.clear_documentation_template_catalog and any(
+            value is not None for value in configured_catalog_values
+        ):
+            raise SetupError(
+                "clear_documentation_template_catalog cannot be combined with a new catalog binding"
+            )
+        existing_catalog = existing_documentation.get("template_catalog")
+        if documentation["policy"] == "disabled":
+            if any(value is not None for value in configured_catalog_values):
+                raise SetupError("disabled documentation must not bind a template catalog")
+            template_catalog = None
+        elif config.clear_documentation_template_catalog:
+            template_catalog = None
+        elif any(value is not None for value in configured_catalog_values):
+            template_catalog = _normalize_documentation_template_catalog(
+                root,
+                path_kind=config.documentation_template_catalog_path_kind,
+                catalog_path=config.documentation_template_catalog_path,
+            )
+        elif isinstance(existing_catalog, dict):
+            template_catalog = _normalize_documentation_template_catalog(
+                root,
+                path_kind=existing_catalog.get("path_kind"),
+                catalog_path=existing_catalog.get("path"),
+            )
+        else:
+            template_catalog = None
+        if template_catalog is not None:
+            documentation["template_catalog"] = template_catalog
         if config.spec_base_kind is None:
             existing_spec_storage = existing_values.get("spec_storage", {})
             if existing_spec_storage:
@@ -2156,11 +2383,9 @@ def run_setup(
         result["workflow_rule"] = {
             "path": workflow_rel,
             "action": workflow_action,
-            "preimage_sha256": workflow_hash,
-            "generated_sha256": sha256_bytes(workflow_generated),
             "planned_content": workflow_generated.decode("utf-8"),
         }
-        result["targets"][workflow_rel] = _target_record(workflow_rel, workflow_existed, workflow_hash, workflow_generated)
+        result["targets"][workflow_rel] = _target_record(workflow_rel, workflow_existed, workflow_hash)
         if workflow_existed:
             assert workflow_preimage is not None
             has_generator = GENERATOR_MARKER.encode("utf-8") in workflow_preimage
@@ -2207,14 +2432,11 @@ def run_setup(
         result["workflow_state"] = {
             "path": workflow_state_rel,
             "action": workflow_state_action,
-            "preimage_sha256": workflow_state_hash,
-            "generated_sha256": sha256_bytes(workflow_state_generated),
         }
         result["targets"][workflow_state_rel] = _target_record(
             workflow_state_rel,
             workflow_state_existed,
             workflow_state_hash,
-            workflow_state_generated,
         )
         if workflow_state_action != "unchanged":
             targets.append({
@@ -2233,15 +2455,11 @@ def run_setup(
                 "path": agents_rel,
                 "enabled": True,
                 "action": "refuse",
-                "preimage_sha256": agents_hash,
-                "generated_sha256": None,
             }
             result["targets"][agents_rel] = {
                 "path": agents_rel,
                 "existed": agents_existed,
                 "preimage_sha256": agents_hash,
-                "generated_sha256": None,
-                "current_sha256": agents_hash,
             }
             if agents_existed and write and expected_agents is None:
                 raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
@@ -2251,9 +2469,7 @@ def run_setup(
                 agents_preimage,
                 replace_legacy=config.replace_legacy_project_rules,
             )
-            legacy_rules, hashless_rules = _project_rules_replacement_requirements(
-                agents_preimage
-            )
+            legacy_rules = _has_legacy_project_rules(agents_preimage)
             source_skills = {
                 _normalize_project_rules_skill(skill)
                 for skill, _ in config.project_rules_sources
@@ -2262,12 +2478,6 @@ def run_setup(
                 raise SetupError(
                     "Project AGENTS legacy project rules require at least one canonical "
                     "project rules asset with --replace-legacy-project-rules"
-                )
-            missing_assets = sorted(set(hashless_rules) - source_skills)
-            if missing_assets:
-                raise SetupError(
-                    "Project AGENTS project rules source hash is missing; provide the "
-                    f"canonical asset for: {missing_assets[0]}"
                 )
             planned_project_rules, project_rules_reconciliation = _reconcile_project_rules(
                 existing_project_rules,
@@ -2284,10 +2494,8 @@ def run_setup(
                 "path": agents_rel,
                 "enabled": True,
                 "action": agents_action,
-                "preimage_sha256": agents_hash,
-                "generated_sha256": sha256_bytes(agents_generated),
             }
-            result["targets"][agents_rel] = _target_record(agents_rel, agents_existed, agents_hash, agents_generated)
+            result["targets"][agents_rel] = _target_record(agents_rel, agents_existed, agents_hash)
             if agents_action != "unchanged":
                 targets.append({
                     "path": agents_path,
@@ -2328,12 +2536,12 @@ def run_setup(
         "changed_files": result["changed_files"],
         "targets": [
             {
-                "path": relative,
+                "path": target["relative"],
                 "existed": target["existed"],
-                "preimage_sha256": target["preimage_sha256"],
-                "generated_sha256": target["generated_sha256"],
+                "preimage_sha256": target["pre_hash"],
+                "generated_sha256": target["generated_hash"],
             }
-            for relative, target in sorted(result["targets"].items())
+            for target in targets
         ],
         "warnings": result["warnings"],
     }
@@ -2422,13 +2630,11 @@ def run_setup(
             # must still enter compensation accounting.
             replaced_targets.append(target)
             result["replaced"].append(target["relative"])
-            result["targets"][target["relative"]]["current_sha256"] = None
             hook = hooks.get("after_replace")
             if hook:
                 hook(index, target["relative"], target["path"])
             if sha256_bytes(target["path"].read_bytes()) != target["generated_hash"]:
                 raise OSError("post-replacement hash validation failed")
-            result["targets"][target["relative"]]["current_sha256"] = target["generated_hash"]
     except Exception as exc:  # fault injection deliberately exercises this boundary
         result["conflicts"].append(f"replacement failed: {type(exc).__name__}")
         if not replaced_targets:
@@ -2456,14 +2662,13 @@ def run_setup(
                 if restored_exists != target["existed"] or restored_hash != target["pre_hash"]:
                     raise OSError("compensating restore validation failed")
                 result["restored"].append(relative)
-                result["targets"][relative]["current_sha256"] = restored_hash
             except Exception as restore_exc:
                 result["restore_failed"].append(relative)
                 try:
                     _, _, current_hash = _file_state(target["path"])
                 except (OSError, SetupError):
                     current_hash = None
-                result["targets"][relative]["current_sha256"] = current_hash
+                result["targets"][relative]["recovery_current_sha256"] = current_hash
                 if target["existed"]:
                     step = (
                         f"从可信备份恢复 `{relative}` 到 preimage SHA-256 {target['pre_hash']}；"
@@ -2535,6 +2740,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--documentation-write-authorization",
         choices=tuple(sorted(DOCUMENTATION_WRITE_AUTHORIZATIONS)),
     )
+    parser.add_argument(
+        "--documentation-template-catalog-path-kind",
+        choices=tuple(sorted(CHANGE_ARCHIVE_TEMPLATE_PATH_KINDS)),
+    )
+    parser.add_argument("--documentation-template-catalog-path")
+    parser.add_argument("--clear-documentation-template-catalog", action="store_true")
     parser.add_argument("--rule-path", action="append", default=[])
     parser.add_argument("--skill-root", action="append", default=[])
     parser.add_argument("--scm-provider", choices=("git", "svn", "none"))
@@ -2593,6 +2804,9 @@ def main() -> int:
         documentation_root_kind=args.documentation_root_kind,
         documentation_root=args.documentation_root,
         documentation_write_authorization=args.documentation_write_authorization,
+        documentation_template_catalog_path_kind=args.documentation_template_catalog_path_kind,
+        documentation_template_catalog_path=args.documentation_template_catalog_path,
+        clear_documentation_template_catalog=args.clear_documentation_template_catalog,
         rule_paths=tuple(args.rule_path),
         skill_roots=tuple(args.skill_root),
         scm_provider=args.scm_provider,

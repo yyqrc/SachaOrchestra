@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.7.0` Clarification loop and path semantics
+> 当前 release：`0.7.1` Project documentation closeout and template determinism
 > 当前 source candidate：无
-> 当前主线：收口复合模糊需求、澄清对话、Spec 落盘与路径术语
-> 发布边界：`0.7.0` 让 using-sacha 识别表面清晰但语义未收口的复合需求，Clarify 只询问 Human-owned 决策并正确消费自由输入，Planner 先落盘 Spec 再请求批准；Project Integration 统一 base/root/path/reference，并以 Spec base 派生 storage root 与 Project Context path
+> 当前主线：项目文档收尾、确定性模板与 hash/命名减负
+> 发布边界：`0.7.1` 让复杂 Spec 的持久实现与运行验证在 closeout 进入一次文档候选判断，简单或无持久变化任务静默跳过；项目显式绑定模板目录，生成时确定性选择最相关 profile，不扫描文档目录猜文风；执行证据、发布文档和 Project CONTEXT 保持独立生命周期，并删除无消费者或重复展示的 hash
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -58,6 +58,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Planner Alignment and Project Context | `0.6.5` released | Planner 实质新方案 Human Review、批准后自动执行、Clarify 可恢复决定、A/B/C 验收、项目 Context 有界维护与 Sacha Agent 命名空间 | source/static 已验证；安装、cache、fresh discovery、真实 Planner/Clarify/Project Documentation Runtime 行为不在本次 Scope |
 | Semantic-preserving Prompt Compression | `0.6.6` released | 恢复 Clarify/Planner 的顺序、进入/退出、恢复与决策原则；移除说明正文长度和逐句文案锁定 | 普通 source/static 验证与精确安装、cache parity 纳入本次发版；fresh task 行为留待新任务使用验证 |
 | Clarification Loop and Path Semantics | `0.7.0` released | 复合模糊需求重评估、Human-owned 提问过滤、自由输入续接、及时 `decisions.md`、Spec 先落盘；Spec base 派生 storage/context path并统一 base/root/path/reference | `--spec-root*` 与 `SetupConfig.spec_root*` 被 `--spec-base*` / `spec_base*` 取代，不保留旧接口；普通 source/static、精确安装与 source/cache `46/46` parity 已通过，fresh task 行为未验证 |
+| Project Documentation Closeout and Template Determinism | `0.7.1` released | 有持久产品变化的复杂 Spec 在 closeout 检查 change archive/system guide 候选；项目绑定模板 catalog path并按 manifest 决定 profile；`document-project` 统一 Skill 命名；setup 与文档输出减少重复 hash 和固定元数据卡片 | execution report、项目发布文档与 Project CONTEXT 分属不同 owner；简单修复、纯问答和无持久 delta 静默跳过；模板目录不作运行时随机文风样本；fresh task 行为未验证 |
 
 ## 3. 不变量
 
@@ -331,6 +332,14 @@ Project Setup `38/38`、单元测试 `18/18`、九个受影响 Skill official va
 同一 release 按项目术语规则把配置输入目录称为 `base`、派生生效目录称为 `root`、文件位置称为 `path`、非文件指向称为 `reference`。Setup 的公开 Python/CLI 输入从 `spec_root*` / `--spec-root*` 改为 `spec_base*` / `--spec-base*`，再唯一派生 `<base>/plan` Spec storage root 与 `<base>/CONTEXT.md` Project Context path；旧接口不保留兼容，属于 `0.7.0` breaking boundary。
 
 Project Setup `40/40`、Spec Artifact contract `3/3`、单元测试 `17/17`、Pi fake CLI、六个受影响 Skill official validator、plugin validator 与 `0.7.0` candidate coherence 已通过。Codex 已精确安装 `sacha-orchestra@sacha 0.7.0`，source/cache `46/46`、missing/extra/hash mismatch 均为 `0`；fresh task discovery 和真实 Planner/Clarify 行为仍未验证。
+
+### 4.28 Released：项目文档收尾与确定性模板
+
+`0.7.1` 修复真实 closeout 偏差：完整批准并执行、产生持久代码变化且完成实际运行验证的复杂 Spec，必须在根任务结束前检查一次项目文档候选；只有项目 policy 要求 Human 决定或写入授权为 `per-write-confirmation` 时才询问一次。简单一行修复、纯问答、无持久 delta 或没有合格发布内容的任务静默跳过。Execution Report 继续记录本次执行证据，change archive/system guide 面向项目读者，Project CONTEXT 只维护跨任务稳定术语与入口，三者不互相替代。
+
+Project Integration 可显式绑定 document-template catalog path。运行时先读取固定 `profiles.json` 做 profile 决策，再只读取选中的模板；禁止扫描文档根目录、随机抽样或隐式模仿既有文风，没有绑定时使用 plugin bundled fallback。Canonical fallback 保留语义主题而不输出固定“档案卡片”；项目发布文档中的范围、版本、验证边界只在影响读者判断时自然进入正文。Skill 从 `project-documentation` 统一更名为 `document-project`，display name 保持 `Sacha Orchestra` 命名空间。
+
+同一 release 删除 setup/project-rules/setup-agents 和文档模板绑定中无消费者、重复或展示性的 hash。精确内容仍只在并发/覆盖保护、不可变产物身份或跨边界字节一致性确有消费者时保留；工具可传递的 planned delta 不要求 Human 手工复述。Project Setup `45/45`、Spec Artifact contract `4/4`、单元测试 `17/17`、十个 Skill official validator、plugin validator 与 `0.7.1` candidate coherence 已通过；安装与 cache parity 作为发布后的独立证据核对，不替代 source release 身份。
 
 ## 5. `1.0.0` 决策
 

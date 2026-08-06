@@ -1,6 +1,6 @@
 # Workflow Contract
 
-> Contract Version: 11
+> Contract Version: 12
 > Status: Normative Core kernel
 
 ## 1. 范围
@@ -40,7 +40,7 @@ Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. Lifecycle 与 Human 路由
 
-生命周期：Intake acceptance → Route → Plan（按需）→ Human 确认实质新方案（按需）→ Coordinate（按需）→ Execute → Review（按需）→ Close/Handoff。
+生命周期：Intake acceptance → Route → Plan（按需）→ Human 确认实质新方案（按需）→ Coordinate（按需）→ Execute → Review（按需）→ Documentation candidate check（按需）→ Close/Handoff。
 
 Human 是技术项目协作者。先给判断及证据，再给影响或下一步；按问题自然组织，不要求 Human 理解内部 Gate、Packet、状态码或字段表。
 只有缺失决定会改变实现、验收或高影响动作时才问一个具体问题，并给推荐与取舍。进度只报新事实、风险或阻塞。
@@ -55,3 +55,11 @@ Planner 形成 Human 此前未确认的实质方案时，先把拟执行 Spec �
 Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
 
 Role completion、已批准方案向 Executor 的 transition、同 Scope 返修/补证据/复验、唯一 owner 路由和已授权 closeout 不是 Human checkpoint。Direct Scope 由用户目标与明确约束界定；预计文件列表不是 hard allowlist，除非 Human/Spec 明确如此。
+
+## 5. Project Documentation closeout
+
+完成实现及所需验证/Review 后，workflow owner 只用当前任务最终事实检查一次项目文档候选。候选必须有持久产品 delta，并至少满足一项：已批准 Spec 的实质方案已经落地；形成对后续消费者有用的新/改能力、架构、数据、运维或恢复知识；存在经最终实现和证据证实、且有跨任务消费者的 Project Context 候选。实际 Runtime 验证可加强候选证据，但不能把无持久 delta 的任务变成候选。
+
+纯问答、无持久 delta、仅完成任务证据索引，或没有上述持久知识的一行/局部修复，均静默跳过；没有 confirmed Project Integration、策略为 `disabled` 或候选不成立时也不询问 Human。候选成立时才读取 `document-project`：`on-request` 只询问一次是否生成，并以 Human 的肯定答复形成 request；`required-at-closeout` 进入合法 closeout。写入仍服从 Project Integration 的 `bounded-closeout | per-write-confirmation`，不得用候选判断扩大授权。
+
+Documentation 跳过、Human 拒绝或尚待写入确认不改变 Execution Report/Review 的事实，也不阻止如实关闭已完成任务；项目策略明确把文档列为 blocking Acceptance 时除外。

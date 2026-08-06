@@ -22,10 +22,35 @@ TRIGGERS = {"human-request", "goal-closeout"}
 POLICIES = {"disabled", "on-request", "required-at-closeout"}
 ROOT_KINDS = {"project-relative", "external-absolute"}
 WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
+TEMPLATE_PATH_KINDS = {"project-relative", "external-absolute"}
+CANONICAL_CHANGE_ARCHIVE_PROFILE = "canonical-change-archive-v1"
+CANONICAL_CHANGE_ARCHIVE_TEMPLATE = (
+    Path(__file__).resolve().parents[1] / "assets" / "change-archive.md"
+)
+CANONICAL_SYSTEM_GUIDE_PROFILE = "canonical-system-guide-v1"
+CANONICAL_SYSTEM_GUIDE_TEMPLATE = (
+    Path(__file__).resolve().parents[1] / "assets" / "system-guide.md"
+)
+BUNDLED_GENERATION_POLICY = {
+    "minimum_section_count": 0,
+    "minimum_word_count": 0,
+    "output_gate": (
+        "不得残留花括号占位符",
+        "不得残留模板生成说明",
+        "不得存在无实质正文的标题",
+    ),
+}
+BUNDLED_REQUIRED_TOPICS = {
+    "change-archive": ("背景或触发原因", "目标", "实际结果与范围", "关键约束或根因", "验证结论与未验证边界"),
+    "system-guide": ("系统用途与边界", "主数据流或执行流", "权威基准", "当前限制或验证边界"),
+}
+TEMPLATE_PROFILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+TEMPLATE_VERSION = re.compile(r"^[1-9][0-9]*$")
 MAX_TITLE_CHARS = 120
 MAX_SECTION_CHARS = 8000
 MAX_DOCUMENT_CHARS = 24000
 MAX_DOCUMENT_BYTES = 64 * 1024
+MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES = 64 * 1024
 MAX_CONTEXT_ENTRIES = 32
 CONTEXT_FILE_NAME = "CONTEXT.md"
 CONTEXT_BEGIN = "<!-- BEGIN SACHA PROJECT CONTEXT: terminology -->"
@@ -127,10 +152,29 @@ def _expected_context_path(text: str) -> str:
     return f"{spec_base}{separator}{CONTEXT_FILE_NAME}"
 
 
+def _template_catalog_binding(text: str) -> dict[str, Any] | None:
+    catalogs = re.findall(
+        r"(?m)^- document-template catalog：path kind = `([^`]+)`；"
+        r"path = `([^`]+)`(?:；manifest sha256 = `[^`]+`)?\r?$",
+        text,
+    )
+    if not catalogs:
+        return None
+    if len(catalogs) != 1:
+        raise DocumentError("Project Integration template catalog binding is duplicated")
+    path_kind, path = catalogs[0]
+    if path_kind not in TEMPLATE_PATH_KINDS:
+        raise DocumentError("template catalog path kind is invalid")
+    return {
+        "path_kind": path_kind,
+        "path": path,
+    }
+
+
 def _attach_context_path(
     text: str,
-    documentation: dict[str, str | None],
-) -> dict[str, str | None]:
+    documentation: dict[str, Any],
+) -> dict[str, Any]:
     expected = _expected_context_path(text)
     match = re.search(r"(?m)^- 项目 Context：`([^`]+)`(?:（[^\r\n]*）)?\r?$", text)
     if match is not None and match.group(1) != expected:
@@ -138,7 +182,7 @@ def _attach_context_path(
     return {**documentation, "context_path": expected}
 
 
-def parse_project_integration(data: bytes) -> dict[str, str | None]:
+def parse_project_integration(data: bytes) -> dict[str, Any]:
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
@@ -160,6 +204,8 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
     if compact:
         policy, root, authorization = compact.groups()
         if policy == "disabled":
+            if _template_catalog_binding(text) is not None:
+                raise DocumentError("disabled Project documentation must not bind a template")
             return _attach_context_path(text, {
                 "policy": policy,
                 "root_kind": None,
@@ -181,6 +227,9 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             raise DocumentError("Project documentation policy is invalid")
         if authorization not in WRITE_AUTHORIZATIONS:
             raise DocumentError("Project documentation write authorization is invalid")
+        template_catalog = _template_catalog_binding(text)
+        if template_catalog is not None:
+            result["template_catalog"] = template_catalog
         return _attach_context_path(text, result)
 
     documentation = _section(text, "### Project documentation")
@@ -211,6 +260,8 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
             )
         ):
             raise DocumentError("disabled documentation contains active root or authorization")
+        if _template_catalog_binding(text) is not None:
+            raise DocumentError("disabled Project documentation must not bind a template")
         return _attach_context_path(text, result)
     if result["root_kind"] not in ROOT_KINDS:
         raise DocumentError("Project Documentation root kind is invalid")
@@ -223,6 +274,9 @@ def parse_project_integration(data: bytes) -> dict[str, str | None]:
     )
     if result["portability"] != expected_portability:
         raise DocumentError("Project documentation portability is inconsistent")
+    template_catalog = _template_catalog_binding(text)
+    if template_catalog is not None:
+        result["template_catalog"] = template_catalog
     return _attach_context_path(text, result)
 
 
@@ -245,7 +299,7 @@ def _normalized_relative_path(raw: Any, label: str) -> PurePosixPath:
 
 def _resolve_document_root(
     project_root: Path,
-    documentation: dict[str, str | None],
+    documentation: dict[str, Any],
 ) -> Path:
     if documentation["policy"] == "disabled":
         raise DocumentError("Project documentation is disabled")
@@ -283,6 +337,210 @@ def _resolve_document_root(
     except OSError as exc:
         raise DocumentError("Project Documentation root is unreachable") from exc
     return root
+
+
+def _legacy_structured_template(document_type: str) -> dict[str, Any]:
+    body = "# {{title}}\n\n" + "\n\n".join(
+        f"## {heading}\n\n{{{{{key}}}}}" for key, heading in SECTIONS
+    ) + "\n"
+    data = body.encode("utf-8")
+    return {
+        "source": "legacy-structured-default",
+        "profile": f"legacy-{document_type}-v1",
+        "version": "1",
+        "path_kind": "generated",
+        "path": "none",
+        "sha256": sha256_bytes(data),
+        "body": body,
+        "fields": tuple(key for key, _ in SECTIONS),
+        "headings": tuple(heading for _, heading in SECTIONS),
+    }
+
+
+def _resolve_change_archive_template(
+    project_root: Path,
+    documentation: dict[str, Any],
+) -> dict[str, Any]:
+    return _legacy_structured_template("change-archive")
+
+
+def _resolve_canonical_system_guide_template() -> dict[str, Any]:
+    return _legacy_structured_template("system-guide")
+
+
+def _resolve_bundled_profile_template(document_type: str, profile: str) -> dict[str, Any]:
+    expected_profile, target = (
+        (CANONICAL_CHANGE_ARCHIVE_PROFILE, CANONICAL_CHANGE_ARCHIVE_TEMPLATE)
+        if document_type == "change-archive"
+        else (CANONICAL_SYSTEM_GUIDE_PROFILE, CANONICAL_SYSTEM_GUIDE_TEMPLATE)
+    )
+    if profile != expected_profile:
+        raise DocumentError("selected template profile requires a bound project catalog")
+    try:
+        data = target.read_bytes()
+        text = data.decode("utf-8-sig")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise DocumentError("bundled fallback template is unreachable or not UTF-8") from exc
+    if len(data) > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
+        raise DocumentError("bundled fallback template exceeds 65536 bytes")
+    headings = tuple(re.findall(r"(?m)^(#{1,6}) ([^\r\n]+)\r?$", text))
+    if not headings or headings[0][0] != "#":
+        raise DocumentError("bundled fallback template must start with a title")
+    return {
+        "source": "bundled-fallback",
+        "profile": expected_profile,
+        "version": "1",
+        "path_kind": "plugin-bundled",
+        "path": str(target),
+        "sha256": sha256_bytes(data),
+        "text": text,
+        "headings": headings,
+        "generation_policy": BUNDLED_GENERATION_POLICY,
+        "required_topics": BUNDLED_REQUIRED_TOPICS[document_type],
+        "optional_sections": (),
+    }
+
+
+def _resolve_catalog_root(
+    project_root: Path,
+    documentation: dict[str, Any],
+) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+    catalog = documentation.get("template_catalog")
+    if not isinstance(catalog, dict):
+        raise DocumentError("Project Integration has no bound template catalog")
+    raw_path = str(catalog["path"])
+    if catalog["path_kind"] == "project-relative":
+        pure = _normalized_relative_path(raw_path, "template catalog path")
+        root = project_root.joinpath(*pure.parts).resolve(strict=False)
+        try:
+            root.relative_to(project_root)
+        except ValueError as exc:
+            raise DocumentError("template catalog path escapes project root") from exc
+    elif catalog["path_kind"] == "external-absolute":
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            raise DocumentError("external template catalog path is not absolute")
+        root = candidate.resolve(strict=False)
+        if root == Path(root.anchor):
+            raise DocumentError("external template catalog must not be a filesystem root")
+        try:
+            root.relative_to(project_root)
+        except ValueError:
+            pass
+        else:
+            raise DocumentError("project-local template catalog path must be project-relative")
+    else:
+        raise DocumentError("template catalog path kind is invalid")
+    try:
+        if not root.is_dir():
+            raise DocumentError("template catalog is absent or not a directory")
+        manifest_data = (root / "profiles.json").read_bytes()
+    except OSError as exc:
+        raise DocumentError("template catalog is unreachable") from exc
+    try:
+        manifest = json.loads(manifest_data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DocumentError("template catalog manifest must be UTF-8 JSON") from exc
+    selection = manifest.get("selection") if isinstance(manifest, dict) else None
+    generation_policy = manifest.get("generation_policy") if isinstance(manifest, dict) else None
+    manifest_profiles = manifest.get("profiles") if isinstance(manifest, dict) else None
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("schema_version") != 1
+        or not isinstance(selection, dict)
+        or selection.get("strategy") != "manifest-ranked"
+        or selection.get("read_templates_before_selection") is not False
+        or selection.get("tie_policy") != "ask-human"
+        or selection.get("allow_profile_merge") is not False
+        or selection.get("allow_ad_hoc_profile", False) is not False
+        or not isinstance(generation_policy, dict)
+        or generation_policy.get("minimum_section_count") != 0
+        or generation_policy.get("minimum_word_count") != 0
+        or not isinstance(generation_policy.get("output_gate"), list)
+        or not generation_policy.get("output_gate")
+        or not isinstance(manifest_profiles, list)
+    ):
+        raise DocumentError("template catalog selection contract is invalid")
+    seen_profiles: set[str] = set()
+    for item in manifest_profiles:
+        if not isinstance(item, dict):
+            raise DocumentError("template catalog profile metadata is invalid")
+        profile = item.get("id")
+        document_type = item.get("document_type")
+        file_name = item.get("template")
+        if (
+            not all(isinstance(value, str) for value in (profile, document_type, file_name))
+            or document_type not in {"change-archive", "system-guide"}
+            or TEMPLATE_PROFILE.fullmatch(profile) is None
+            or profile in seen_profiles
+        ):
+            raise DocumentError("template catalog profile metadata is invalid")
+        seen_profiles.add(profile)
+        version_match = re.search(r"-v([1-9][0-9]*)$", profile)
+        if version_match is None:
+            raise DocumentError("template catalog profile version is invalid")
+        pure = _normalized_relative_path(file_name, "template profile file")
+        if pure.suffix.casefold() != ".md":
+            raise DocumentError("template profile file must be a relative Markdown file")
+    return root, catalog, manifest
+
+
+def _resolve_profile_template(
+    project_root: Path,
+    documentation: dict[str, Any],
+    *,
+    document_type: str,
+    profile: str,
+) -> dict[str, Any]:
+    if "template_catalog" not in documentation:
+        return _resolve_bundled_profile_template(document_type, profile)
+    root, catalog, manifest = _resolve_catalog_root(project_root, documentation)
+    manifest_matches = [item for item in manifest["profiles"] if item.get("id") == profile]
+    if len(manifest_matches) != 1:
+        raise DocumentError("selected template profile metadata is absent or duplicated")
+    manifest_profile = manifest_matches[0]
+    if manifest_profile.get("document_type") != document_type:
+        raise DocumentError("selected template profile has the wrong document type")
+    version_match = re.search(r"-v([1-9][0-9]*)$", profile)
+    if version_match is None:
+        raise DocumentError("selected template profile version is invalid")
+    pure = _normalized_relative_path(manifest_profile.get("template"), "template profile file")
+    target = root.joinpath(*pure.parts).resolve(strict=False)
+    try:
+        target.relative_to(root)
+    except ValueError as exc:
+        raise DocumentError("template profile file escapes the catalog") from exc
+    try:
+        if not target.is_file():
+            raise DocumentError("selected template profile file is absent")
+        data = target.read_bytes()
+    except OSError as exc:
+        raise DocumentError("selected template profile file is unreachable") from exc
+    if len(data) > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
+        raise DocumentError("selected template profile exceeds 65536 bytes")
+    actual_hash = sha256_bytes(data)
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise DocumentError("selected template profile must be UTF-8") from exc
+    headings = tuple(re.findall(r"(?m)^(#{1,6}) ([^\r\n]+)\r?$", text))
+    if not headings or headings[0][0] != "#":
+        raise DocumentError("selected template profile must start with a title")
+    return {
+        "document_type": document_type,
+        "profile": profile,
+        "file": pure.as_posix(),
+        "version": version_match.group(1),
+        "source": "project-catalog",
+        "path_kind": catalog["path_kind"],
+        "path": str(target),
+        "sha256": actual_hash,
+        "text": text,
+        "headings": headings,
+        "generation_policy": manifest["generation_policy"],
+        "required_topics": tuple(manifest_profile["required_topics"]),
+        "optional_sections": tuple(manifest_profile["optional_sections"]),
+    }
 
 
 def _resolve_context_target(
@@ -403,6 +661,40 @@ def parse_document_input(value: Any) -> dict[str, Any]:
         raise DocumentError("document input root must be an object")
     if value.get("document_type") == "project-context":
         return _parse_context_input(value)
+    if "template_profile" in value or "rendered_markdown" in value:
+        expected_profile_input = {
+            "schema_version",
+            "document_type",
+            "title",
+            "trigger",
+            "persistent_product_delta",
+            "output_path",
+            "template_profile",
+            "rendered_markdown",
+        }
+        if set(value) != expected_profile_input:
+            raise DocumentError(
+                f"profile document input fields must be exactly {sorted(expected_profile_input)}"
+            )
+        if value.get("document_type") not in {"change-archive", "system-guide"}:
+            raise DocumentError("template profiles only support change-archive or system-guide")
+        profile = value.get("template_profile")
+        if not isinstance(profile, str) or TEMPLATE_PROFILE.fullmatch(profile) is None:
+            raise DocumentError("template_profile is invalid")
+        rendered = value.get("rendered_markdown")
+        if not isinstance(rendered, str) or not rendered.strip():
+            raise DocumentError("rendered_markdown must not be empty")
+        if len(rendered) > MAX_DOCUMENT_CHARS:
+            raise DocumentError(f"document content exceeds {MAX_DOCUMENT_CHARS} characters")
+        common = dict(value)
+        common.pop("template_profile")
+        common.pop("rendered_markdown")
+        common["sections"] = {key: value for key, value in SECTIONS}
+        parsed = parse_document_input(common)
+        parsed.pop("sections")
+        parsed["template_profile"] = profile
+        parsed["rendered_markdown"] = rendered.strip() + "\n"
+        return parsed
     expected = {
         "schema_version",
         "document_type",
@@ -441,7 +733,7 @@ def parse_document_input(value: Any) -> dict[str, Any]:
         raise DocumentError("output_path must end in .md")
     sections = value["sections"]
     if not isinstance(sections, dict) or set(sections) != {key for key, _ in SECTIONS}:
-        raise DocumentError("sections must contain the exact publication section keys")
+        raise DocumentError("canonical document sections must contain the canonical semantic fields")
     parsed_sections = {
         key: _public_text(sections[key], f"sections.{key}") for key, _ in SECTIONS
     }
@@ -488,14 +780,74 @@ def _authorize(
         raise DocumentError("this document requires explicit per-write confirmation")
 
 
-def render_document(document: dict[str, Any]) -> bytes:
-    blocks = [f"# {document['title']}"]
-    for key, heading in SECTIONS:
-        blocks.append(f"## {heading}\n\n{document['sections'][key]}")
-    return ("\n\n".join(blocks) + "\n").encode("utf-8")
+def render_document(
+    document: dict[str, Any],
+    *,
+    document_template: dict[str, Any] | None = None,
+) -> bytes:
+    if document["document_type"] in {"change-archive", "system-guide"}:
+        if document_template is None:
+            raise DocumentError(f"{document['document_type']} rendering requires a resolved template")
+        required_fields = set(document_template["fields"])
+        if set(document["sections"]) != required_fields:
+            raise DocumentError(
+                f"{document['document_type']} input fields do not match the resolved template contract"
+            )
+        text = str(document_template["body"])
+        replacements = {"title": document["title"], **document["sections"]}
+        for key, value in replacements.items():
+            text = text.replace(f"{{{{{key}}}}}", value)
+        if "{{" in text or "}}" in text:
+            raise DocumentError(f"{document['document_type']} template contains unresolved placeholders")
+        return text.encode("utf-8")
+    raise DocumentError("unsupported publication document type")
 
 
-def parse_generated_document(data: bytes) -> dict[str, Any]:
+def render_profile_document(
+    document: dict[str, Any],
+    template: dict[str, Any],
+) -> bytes:
+    text = str(document["rendered_markdown"])
+    for pattern in INTERNAL_REFERENCES:
+        if pattern.search(text):
+            raise DocumentError("rendered_markdown contains an internal or machine-local reference")
+    generated_headings = tuple(re.findall(r"(?m)^(#{1,6}) ([^\r\n]+)\r?$", text))
+    if (
+        not generated_headings
+        or generated_headings[0][0] != "#"
+        or generated_headings[0][1] != document["title"]
+    ):
+        raise DocumentError("rendered_markdown title must equal title")
+    if "<!--" in text or "-->" in text or "生成说明" in text:
+        raise DocumentError("rendered_markdown still contains template-author instructions")
+    placeholders = set(re.findall(r"\{[^{}\r\n]+\}", template["text"]))
+    unresolved = sorted(placeholder for placeholder in placeholders if placeholder in text)
+    if unresolved:
+        raise DocumentError("rendered_markdown still contains template placeholders")
+    heading_matches = list(re.finditer(r"(?m)^(#{1,6}) [^\r\n]+\r?$", text))
+    for index, match in enumerate(heading_matches):
+        level = len(match.group(1))
+        section_end = len(text)
+        for following in heading_matches[index + 1:]:
+            if len(following.group(1)) <= level:
+                section_end = following.start()
+                break
+        section_body = text[match.end():section_end]
+        substantive = re.sub(r"(?m)^\s*(?:---+|\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?)\s*$", "", section_body)
+        substantive = re.sub(r"(?m)^#{1,6} [^\r\n]+$", "", substantive).strip()
+        if not substantive:
+            raise DocumentError("rendered_markdown contains a heading without substantive content")
+    data = text.encode("utf-8")
+    if len(data) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"generated document exceeds {MAX_DOCUMENT_BYTES} bytes")
+    return data
+
+
+def parse_generated_document(
+    data: bytes,
+    *,
+    expected_headings: tuple[str, ...] | None = None,
+) -> dict[str, Any]:
     if len(data) > MAX_DOCUMENT_BYTES:
         raise DocumentError(f"generated document exceeds {MAX_DOCUMENT_BYTES} bytes")
     try:
@@ -506,11 +858,20 @@ def parse_generated_document(data: bytes) -> dict[str, Any]:
     if title_match is None or len(re.findall(r"(?m)^# ", text)) != 1:
         raise DocumentError("generated document must have exactly one title")
     headings = re.findall(r"(?m)^## ([^\r\n]+)\r?$", text)
-    expected_headings = [heading for _, heading in SECTIONS]
-    if headings != expected_headings:
+    required_headings = (
+        tuple(heading for _, heading in SECTIONS)
+        if expected_headings is None
+        else expected_headings
+    )
+    if tuple(headings) != required_headings:
         raise DocumentError("generated document headings are missing, duplicated or out of order")
     sections: dict[str, str] = {}
-    for key, heading in SECTIONS:
+    section_pairs = (
+        SECTIONS
+        if expected_headings is None
+        else tuple((heading, heading) for heading in expected_headings)
+    )
+    for key, heading in section_pairs:
         match = re.search(
             rf"(?ms)^## {re.escape(heading)}\s*\r?\n(.*?)(?=^## |\Z)",
             text,
@@ -808,8 +1169,32 @@ def generate_project_document(
             return result
         root = _resolve_document_root(project, documentation)
         target = _target_path(root, document["output_path"])
-        generated = render_document(document)
-        parsed = parse_generated_document(generated)
+        if "template_profile" in document:
+            document_template = _resolve_profile_template(
+                project,
+                documentation,
+                document_type=document["document_type"],
+                profile=document["template_profile"],
+            )
+            generated = render_profile_document(document, document_template)
+            parsed_title = document["title"]
+            parsed_sections = [heading for level, heading in document_template["headings"] if level == "##"]
+        else:
+            document_template = (
+                _resolve_change_archive_template(project, documentation)
+                if document["document_type"] == "change-archive"
+                else _resolve_canonical_system_guide_template()
+            )
+            generated = render_document(
+                document,
+                document_template=document_template,
+            )
+            parsed = parse_generated_document(
+                generated,
+                expected_headings=document_template["headings"],
+            )
+            parsed_title = parsed["title"]
+            parsed_sections = list(parsed["sections"])
         generated_hash = sha256_bytes(generated)
         result.update(
             status="ready",
@@ -817,13 +1202,41 @@ def generate_project_document(
             document_type=document["document_type"],
             target=str(target),
             sha256=generated_hash,
-            parsed={"title": parsed["title"], "sections": list(parsed["sections"])},
+            parsed={"title": parsed_title, "sections": parsed_sections},
+            template={
+                key: document_template[key]
+                for key in (
+                    "source",
+                    "profile",
+                    "version",
+                    "path_kind",
+                    "path",
+                )
+            },
         )
+        if "required_topics" in document_template:
+            result["template"]["required_topics"] = list(document_template["required_topics"])
         if not write:
             return result
         write_started = True
         if sha256_bytes(workflow.read_bytes()) != workflow_hash:
             raise DocumentError("Project Integration changed after validation")
+        current_template = (
+            _resolve_profile_template(
+                project,
+                documentation,
+                document_type=document["document_type"],
+                profile=document["template_profile"],
+            )
+            if "template_profile" in document
+            else (
+                _resolve_change_archive_template(project, documentation)
+                if document["document_type"] == "change-archive"
+                else _resolve_canonical_system_guide_template()
+            )
+        )
+        if current_template["sha256"] != document_template["sha256"]:
+            raise DocumentError(f"{document['document_type']} template changed after validation")
         root = _resolve_document_root(project, documentation)
         target = _target_path(root, document["output_path"])
 
@@ -856,7 +1269,14 @@ def generate_project_document(
             written = target.read_bytes()
             if sha256_bytes(written) != generated_hash:
                 raise DocumentError("post-write SHA-256 validation failed")
-            parse_generated_document(written)
+            if "template_profile" in document:
+                if written != render_profile_document(document, document_template):
+                    raise DocumentError("post-write profile document validation failed")
+            else:
+                parse_generated_document(
+                    written,
+                    expected_headings=document_template["headings"],
+                )
         except (OSError, DocumentError) as exc:
             try:
                 if target.is_file() and sha256_bytes(target.read_bytes()) == generated_hash:

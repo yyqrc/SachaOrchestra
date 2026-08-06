@@ -16,6 +16,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 6. 只记录消费者需要的 delta、验证、偏离、风险和恢复入口。
    Reviewer/Manager Gate 打开时分别读取 [Assurance Contract](../../core/assurance-contract.md) 或 [Coordination Contract](../../core/coordination-contract.md)。
 7. 持久记录或正式恢复时才读取 [Artifact Protocol](../../core/artifact-protocol.md)，然后按 Adapter 返回 workflow owner。
+8. 实现、验证及所需 Review 结束后，按 Workflow Contract 只检查一次 Documentation candidate。无候选静默跳过；命中时才读取 `document-project` 与 confirmed Project Integration，按 policy 路由询问或合法 closeout，不用任务报告替代项目文档。
 
 ## 暂停与路由
 

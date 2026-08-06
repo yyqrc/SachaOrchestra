@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sacha Orchestra Document Project（项目文档）"
+  short_description: "按项目策略生成存档/指南，并安全维护跨任务项目 CONTEXT。"
+  default_prompt: "使用 $sacha-orchestra:document-project 按已确认策略生成项目文档或维护 CONTEXT。"

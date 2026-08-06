@@ -33,13 +33,13 @@ LUNA_WORKER_TEMPLATES = {
     SETUP_AGENTS / "assets" / "sacha-luna-worker-xhigh.toml": ("sacha_luna_worker_xhigh", "xhigh"),
 }
 SETUP_AGENTS_TEST = ROOT / "tests" / "test_setup_agents.py"
-PROJECT_DOCUMENTATION = PLUGIN / "skills" / "project-documentation"
+DOCUMENT_PROJECT = PLUGIN / "skills" / "document-project"
 DOCUMENTATION_GENERATOR = (
-    PROJECT_DOCUMENTATION / "scripts" / "generate_project_document.py"
+    DOCUMENT_PROJECT / "scripts" / "generate_project_document.py"
 )
 DOCUMENTATION_TEMPLATES = (
-    PROJECT_DOCUMENTATION / "assets" / "change-archive.md",
-    PROJECT_DOCUMENTATION / "assets" / "system-guide.md",
+    DOCUMENT_PROJECT / "assets" / "change-archive.md",
+    DOCUMENT_PROJECT / "assets" / "system-guide.md",
 )
 CAPABILITY_PROVIDER_GUIDE = ROOT / "docs" / "integrations" / "capability-provider-guide.md"
 EVOLUTION = ROOT / "docs" / "architecture" / "evolution.md"
@@ -161,7 +161,7 @@ def main() -> int:
         "Intake Contract schema is not current",
     )
     check(
-        core_version is not None and core_version.group(1) == "11",
+        core_version is not None and core_version.group(1) == "12",
         "Workflow Contract schema is not current",
     )
     check(
@@ -173,7 +173,7 @@ def main() -> int:
         "Coordination Contract schema is not current",
     )
     check(
-        artifact_version is not None and artifact_version.group(1) == "5",
+        artifact_version is not None and artifact_version.group(1) == "6",
         "Artifact Protocol schema changed",
     )
     expected_mapping = (

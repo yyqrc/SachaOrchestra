@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter
 
-> Implements: Intake Contract 4；Workflow Contract 11；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 5
+> Implements: Intake Contract 4；Workflow Contract 12；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 6
 > Status: Normative Claude Code mapping
 
 ## 1. Boundary

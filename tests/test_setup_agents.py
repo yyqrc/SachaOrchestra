@@ -99,7 +99,9 @@ class SetupAgentsTests(unittest.TestCase):
     def test_create_and_repeated_run_are_idempotent(self) -> None:
         plan = self.dry_run()
         self.assertEqual(plan["action"], "create")
-        self.assertEqual(len(plan["planned_delta_sha256"]), 64)
+        self.assertNotIn("planned_delta_sha256", plan)
+        self.assertNotIn("current_sha256", self.agent(plan, "sacha_luna_worker"))
+        self.assertNotIn("generated_sha256", self.agent(plan, "sacha_luna_worker"))
         self.assertIn(str(self.target.resolve()), plan["delta"])
         self.assertIn(str(self.xhigh_target.resolve()), plan["delta"])
         self.assertGreaterEqual(
@@ -112,6 +114,11 @@ class SetupAgentsTests(unittest.TestCase):
         self.assertFalse(self.xhigh_target.exists())
         result = self.apply(plan)
         self.assertEqual((result["status"], result["transaction"]), ("ok", "written"))
+        self.assertEqual(
+            result["written_paths"],
+            [str(self.target.resolve()), str(self.xhigh_target.resolve())],
+        )
+        self.assertNotIn("installed_sha256", result)
         self.assertEqual(self.target.read_bytes(), self.template)
         self.assertEqual(self.xhigh_target.read_bytes(), self.xhigh_template)
         parsed = tomllib.loads(self.target.read_text(encoding="utf-8"))

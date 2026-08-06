@@ -1,6 +1,6 @@
 # Artifact Protocol
 
-> Contract Version: 5
+> Contract Version: 6
 > Status: Normative Core contract
 
 ## 1. 范围与权威
@@ -32,6 +32,8 @@ Review 与 return 分别由 [Assurance Contract](assurance-contract.md)、[Coord
 没有消费者就不创建 Artifact。澄清决定记录使用项目既有载体；无约定且确有规划或恢复消费者时可用任务目录中的 `decisions.md`，不保存完整对话、调查流水账或完整决策树。恢复 frontier 只保留会改变方案且压缩后必须重建的最小分支信息，旧项确认或失效后原位压缩。Planner 读取它形成 Spec 并沿用已确认术语，批准后 Spec 成为唯一执行基线；两者不要求合并为同一文件，也不建立并行状态系统。项目 context 候选不因记录而成为项目事实，只有 closeout 基于最终实现/Review 证据复核且文档授权覆盖后才可进入项目 `CONTEXT.md`。
 一个事实只写一次：Spec 只吸收执行所需的冻结决定，不重抄澄清过程；Goal/Scope/AC/Handoff 不复述同一决策；Report/Review 不重抄上游或原始日志，只给消费者所需 delta 与 reference。Human Review Focus 和当轮最终建议清单直接出现在回复中，不因沟通收口写入业务 Spec。
 长度按风险和恢复需要自适应，不为格式拆文件。失败、未验证、授权、风险、Evidence 与 Entry Condition 不得为压缩而删除。
+
+Execution Report 只在恢复、证据索引或正式 Review 有消费者时随任务形成，保存到 Spec/任务约定的 Artifact 位置。Project Documentation 不属于本协议的任务 Artifact：`change-archive`/done 文档面向变更后的项目消费者，`system-guide` 面向长期使用与维护，二者写入 Project Documentation root；项目 `CONTEXT.md` 只保存跨任务稳定术语和约束，写入 Project Integration 指定的 Project Context path。它们都不能复制任务状态或把 Execution Report 当作发布正文，具体候选与写入授权由 Workflow closeout 和 `document-project` 决定。
 
 ## 3. Handoff
 

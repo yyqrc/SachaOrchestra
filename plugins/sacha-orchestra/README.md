@@ -23,7 +23,7 @@ flowchart TD
 
 ## 项目接入与运行环境
 
-`setup-project` 先预演改动。Spec base 与 Project Documentation root 是两项独立输入，可以相隔很远；Setup 派生 Spec storage root `<spec-base>/plan`，把 Project Context path 固定为 `<spec-base>/CONTEXT.md`，并原样保存 Project Documentation root，不追加目录。任务写入 Spec storage root 的 `<YYYY-MM-DD>-<short-slug>/` 子目录；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。
+`setup-project` 先预演改动。Spec base 与 Project Documentation root 是两项独立输入，可以相隔很远；Setup 派生 Spec storage root `<spec-base>/plan`，把 Project Context path 固定为 `<spec-base>/CONTEXT.md`，并原样保存 Project Documentation root，不追加目录。任务写入 Spec storage root 的 `<YYYY-MM-DD>-<short-slug>/` 子目录；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。收尾只对“持久产品变化 + 明确后续消费者”的高价值候选检查一次；纯问答、无持久 delta 和没有新增持久知识的局部修复静默跳过，`on-request` 候选只询问一次。
 
 ```mermaid
 flowchart TD
@@ -35,6 +35,6 @@ flowchart TD
     WF -.-> AH["当前任务记录 / 正式交接"]; OUT -.-> NEXT["使用者 / 后续智能体"]; AH -.-> NEXT
 ```
 
-规划文件和项目存档可以放在不同目录。`experience.extract` 只返回事实与候选，再由当前任务整理成项目文档；维护能力插件知识库还需用户同意。生成器对 change archive/system guide 仍只安全新建；`project-context` 只在已确认的 `CONTEXT.md` managed 术语区按 preimage 有界合并，修改既有定义需要显式确认。它不创建目录、更新索引或执行 Git/wiki 发布；当前任务仍以正式任务记录和交接为准。
+规划文件和项目存档可以放在不同目录。`experience.extract` 只返回事实与候选，再由当前任务整理成项目文档；维护能力插件知识库还需用户同意。项目可在 setup-project 显式绑定一个带 `profiles.json` 的 template catalog；Integration 只保存目录，归档时 AI 读取当前 manifest 先选唯一 Profile、再只读并校验对应模板，并按 generation policy 回答 required topics、裁剪无实质内容的候选章节；其他模板可独立更新，未绑定才使用插件 bundled fallback。Runtime 不扫描存档目录或历史正文猜文风。生成器对 change archive/system guide 仍只安全新建；`project-context` 只在已确认的 `CONTEXT.md` managed 术语区按 preimage 有界合并，修改既有定义需要显式确认。它不创建目录、更新索引或执行 Git/wiki 发布；当前任务仍以正式任务记录和交接为准。
 
 [任务记录与交接协议](core/artifact-protocol.md)定义正式记录；[Codex 运行适配](adapters/codex/runtime-adapter.md)与[Claude Code 运行适配](adapters/claudecode/runtime-adapter.md)定义平台行为。[版本演进](../../docs/architecture/evolution.md)记录当前方向、发布边界与迁移结论。安装、刷新、移除或重新安装必须获得用户明确授权，并用新任务验证插件能被重新发现。

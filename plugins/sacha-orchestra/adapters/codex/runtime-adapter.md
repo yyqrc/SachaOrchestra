@@ -1,6 +1,6 @@
 # Codex Runtime Adapter
 
-> Implements: Intake Contract 4；Workflow Contract 11；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 5
+> Implements: Intake Contract 4；Workflow Contract 12；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 6
 > Status: Normative Codex mapping
 
 ## 1. Boundary
@@ -113,7 +113,7 @@ Core objective 不要求原生 Goal；只有 Human 明确要求 exact Goal 时�
 
 ## 5. Skill discovery 与 Project setup
 
-Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`、`planner`、`executor`、`reviewer`、`manager`、`feedback`、`project-documentation`、`setup-project`、`setup-agents`、`clarify`。
+Manifest `"skills": "./skills/"` 在 `sacha-orchestra:` 下暴露 `using-sacha`、`planner`、`executor`、`reviewer`、`manager`、`feedback`、`document-project`、`setup-project`、`setup-agents`、`clarify`。
 
 `agents/openai.yaml` 只定义 metadata，不是 Codex 自定义 Agent TOML，也不参与 named `agent_type` discovery。Clarify/setup explicit-only；Documentation 受 confirmed policy/授权约束；生产 Role 须显式调用或经 Intake 接受。
 

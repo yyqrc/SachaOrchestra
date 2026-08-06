@@ -51,7 +51,7 @@ Catalog 不保存 summary、触发、前置、具体影响或输出；这些事�
 5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
 6. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
 7. Binding 只保存 `capability id → canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、路径、query、前置或输出，rerun 重新读取。
-8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径、内容 SHA-256 和 marker，再与既有段做 keep/add/update/remove reconciliation。规则 owner=provider，不进 Binding、不需 load policy。
+8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，不进 Binding、不需 load policy。
 
 Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换 mapping。
 
@@ -63,7 +63,7 @@ Setup 分别确认四类项目值，不得互相推导：
 | --- | --- | --- | --- |
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
 | Spec storage root | Setup/Human、Planner/Clarify 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
-| Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path |
+| Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization；可选 template catalog path kind/path | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path，也不冻结 catalog manifest 或模板 hash |
 | Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
 
 Provider query 只展开 capability 候选；不得选择 Spec base、Project Documentation policy、Project Documentation root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
@@ -95,7 +95,9 @@ Provider 可声明 `experience.extract` 一类 `read_only` capability，把真�
 - 只以当前源码、配置、产物、日志或 Runtime 观察为证据，会话总结和 Agent 自报只作 reference；
 - 返回项目事实，以及候选短句、适用边界、现有 Reference 缺口、最短 evidence reference 和静态/编译/Runtime 验证边界；无合格候选时明确返回“无”。
 
-调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review path 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。
+调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review path 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。项目/provider 文风以 Project Integration 显式绑定一个 template catalog 目录；目录用 `profiles.json` 声明选择规则、`generation_policy`、`document_type`、`primary_purpose`、`primary_question`、`choose_when`、`avoid_when`、`required_topics`、`optional_sections`、版本化 profile 和模板相对 path。Integration 只保存 catalog path kind/path；归档时 AI 读取当前 manifest 选唯一 profile，再只读取并校验该模板。其他模板可独立演进，不使项目绑定失效。禁止扫描文档根或历史正文猜文风。
+
+迁移保持无隐式写入：旧 Project Integration 没有 template catalog 时行为确定为 bundled fallback；已有 catalog 按 path kind/path 由 Setup 刷新保留，旧的 manifest/profile/hash 快照在下一次确认写入时收敛为 path-only；只有绑定目录变化才改变项目 planned delta。移除使用 `--clear-documentation-template-catalog`。不会从既有 done/archive 文件反推绑定。消费项目的名称、绝对路径和领域文风只留在其 Project Integration/catalog，不进入跨项目 Core、Skill 或默认模板。
 
 项目事实归项目文档。跨项目候选要进入 provider 时，须在正常任务交付后取得 Human 同意，再路由到 provider 维护流程，以当前证据独立复核后迭代 canonical Skill/reference；不得让只读 `experience.extract` 自动 self-modify、创建任务、写文件或发 PR。维护流程不是公开消费能力时，不因存在于 `skills/` 就加入 capability catalog。
 
