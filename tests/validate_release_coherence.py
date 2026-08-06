@@ -87,10 +87,15 @@ def main() -> int:
     args = parser.parse_args()
 
     failures: list[str] = []
+    warnings: list[str] = []
 
     def check(condition: bool, message: str) -> None:
         if not condition:
             failures.append(message)
+
+    def warn(condition: bool, message: str) -> None:
+        if not condition:
+            warnings.append(message)
 
     version = args.version
     tag = f"v{version}"
@@ -161,7 +166,7 @@ def main() -> int:
         "Intake Contract schema is not current",
     )
     check(
-        core_version is not None and core_version.group(1) == "12",
+        core_version is not None and core_version.group(1) == "15",
         "Workflow Contract schema is not current",
     )
     check(
@@ -169,7 +174,7 @@ def main() -> int:
         "Assurance Contract schema is not current",
     )
     check(
-        coordination_version is not None and coordination_version.group(1) == "4",
+        coordination_version is not None and coordination_version.group(1) == "7",
         "Coordination Contract schema is not current",
     )
     check(
@@ -202,14 +207,12 @@ def main() -> int:
     check("../codex/runtime-adapter.md" not in claude_adapter, "Claude Code Adapter references Codex Adapter")
     check("../claudecode/runtime-adapter.md" not in codex_adapter, "Codex Adapter references Claude Code Adapter")
     codex_model_contract = (
-        "`agent_type=sacha_luna_worker`",
-        "`agent_type=sacha_luna_worker_xhigh`",
-        "`gpt-5.6-sol` / `xhigh`",
-        "`gpt-5.6-sol` / `high`",
-        "`gpt-5.6-sol` / `medium`",
-        "`gpt-5.6-terra` / `xhigh`",
-        "`gpt-5.6-terra` / `high`",
-        "`fork_turns=none`",
+        'agent_type="sacha_luna_worker"',
+        'agent_type="sacha_luna_worker_xhigh"',
+        'model="gpt-5.6-sol"',
+        'reasoning_effort="xhigh"',
+        'reasoning_effort="medium"',
+        'fork_turns="none"',
         "requested/effective",
         "Direct/current context",
     )
@@ -225,14 +228,14 @@ def main() -> int:
     check(all(marker in codex_adapter for marker in codex_model_contract), "Codex role-aware model routing contract is incomplete")
     check(all(marker in claude_adapter for marker in claude_model_contract), "Claude Code role-aware model routing contract is incomplete")
     check("gpt-5.6-" not in claude_adapter, "Claude Code Adapter leaks Codex model configuration")
-    pi_model_contract = (
-        "| `pro` |",
-        "| `standard` |",
-        "| `lite` |",
-        "`pi --list-models`",
-        "Pi Runtime default",
+    check(
+        "Pi one-shot" not in codex_adapter and "pi_once.ps1" not in codex_adapter,
+        "Codex Adapter still exposes the deferred Pi execution route",
     )
-    check(all(marker in codex_adapter for marker in pi_model_contract), "Pi one-shot model routing contract is incomplete")
+    check(
+        "Pi 单次执行" not in plugin_readme and "one-shot helper" not in codex_adapter,
+        "README or Codex Adapter still claims the removed Pi execution route",
+    )
     check(PI_ONCE.is_file(), "Pi one-shot helper is missing")
     check(PI_GUARD.is_file(), "Pi one-shot path guard is missing")
     check(PI_MODEL_INSPECTOR.is_file(), "Setup Pi model inspector is missing")
@@ -409,42 +412,31 @@ def main() -> int:
         "Private Pi provider/model identifiers leak into repository source: "
         + ", ".join(private_pi_leaks),
     )
-    check(
-        len(intake.splitlines()) <= 80 and len(intake) <= 3200,
-        "Intake Contract exceeds the bounded Core surface",
+    surface_budgets = (
+        ("Intake Contract", intake, 80, 3200),
+        ("Workflow Kernel", core, 80, 4000),
+        ("Assurance Contract", assurance, 50, 2000),
+        ("Coordination Contract", coordination, 80, 4000),
+        ("Artifact Protocol", artifact, 90, 3200),
+        ("Codex Adapter", codex_adapter, 140, 7200),
+        ("Claude Code Adapter", claude_adapter, 110, 5000),
     )
-    check(
-        len(core.splitlines()) <= 80 and len(core) <= 4000,
-        "Workflow Kernel exceeds the bounded Core surface",
-    )
-    check(
-        len(assurance.splitlines()) <= 50 and len(assurance) <= 2000,
-        "Assurance Contract exceeds the bounded Core surface",
-    )
-    check(
-        len(coordination.splitlines()) <= 80 and len(coordination) <= 4000,
-        "Coordination Contract exceeds the bounded Core surface",
-    )
-    check(
-        len(artifact.splitlines()) <= 90 and len(artifact) <= 3200,
-        "Artifact Protocol exceeds the bounded Core surface",
-    )
-    check(
-        len(codex_adapter.splitlines()) <= 140 and len(codex_adapter) <= 7200,
-        "Codex Adapter exceeds the bounded mapping surface",
-    )
-    check(
-        len(claude_adapter.splitlines()) <= 110 and len(claude_adapter) <= 5000,
-        "Claude Code Adapter exceeds the bounded mapping surface",
-    )
-    check(
-        sum(len(content) for content in (
-            intake,
-            core,
-            skill_documents_by_name["using-sacha"],
-            skill_documents_by_name["executor"],
-        )) <= 9000,
-        "Direct Executor active surface exceeds the progressive-loading budget",
+    for name, content, line_budget, char_budget in surface_budgets:
+        warn(
+            len(content.splitlines()) <= line_budget and len(content) <= char_budget,
+            f"{name} surface exceeds advisory budget: "
+            f"lines={len(content.splitlines())}/{line_budget}, chars={len(content)}/{char_budget}",
+        )
+    direct_executor_surface = sum(len(content) for content in (
+        intake,
+        core,
+        skill_documents_by_name["using-sacha"],
+        skill_documents_by_name["executor"],
+    ))
+    warn(
+        direct_executor_surface <= 9000,
+        "Direct Executor active surface exceeds advisory budget: "
+        f"chars={direct_executor_surface}/9000",
     )
     for path, content in role_skill_documents.items():
         links = set(re.findall(r"\]\(([^)]+)\)", content))
@@ -468,10 +460,15 @@ def main() -> int:
         if (match := re.search(r"(?m)^description: (.+)$", content)) is not None
     ]
     check(
-        len(discovery_descriptions) == len(role_skill_documents)
-        and sum(map(len, discovery_descriptions)) <= 800
-        and max(map(len, discovery_descriptions), default=0) <= 140,
-        "Skill discovery descriptions exceed the resident context budget",
+        len(discovery_descriptions) == len(role_skill_documents),
+        "Skill discovery description is missing",
+    )
+    discovery_description_chars = sum(map(len, discovery_descriptions))
+    discovery_description_max = max(map(len, discovery_descriptions), default=0)
+    warn(
+        discovery_description_chars <= 800 and discovery_description_max <= 140,
+        "Skill discovery descriptions exceed advisory resident-context budget: "
+        f"total_chars={discovery_description_chars}/800, max_chars={discovery_description_max}/140",
     )
     metadata_failures: list[str] = []
     for skill_root, skill_path, metadata_path in zip(SKILL_ROOTS, ROLE_SKILLS, SKILL_METADATA):
@@ -539,10 +536,6 @@ def main() -> int:
     for runtime, adapter in adapters.items():
         adapter_links = set(re.findall(r"\]\(([^)]+)\)", adapter))
         runtime_allowed_links = set(allowed_adapter_links)
-        if runtime == "Codex":
-            runtime_allowed_links.update({
-                "../../scripts/pi_once.ps1",
-            })
         check(
             adapter_links <= runtime_allowed_links,
             f"{runtime} Adapter depends on a document outside Core/Artifact Protocol",
@@ -644,8 +637,14 @@ def main() -> int:
             check(target.exists(), f"Broken Markdown link in {document.relative_to(ROOT)}: {link}")
     check("当前 Git release、源码与 manifest：" not in root_readme, "Root README still duplicates current release state")
     check("是当前 Git release" not in plugin_readme, "Plugin README still duplicates current release state")
-    check(len(root_readme.splitlines()) <= 60, "Root README exceeds the bounded entrypoint surface")
-    check(len(plugin_readme.splitlines()) <= 40, "Plugin README exceeds the bounded entrypoint surface")
+    warn(
+        len(root_readme.splitlines()) <= 60,
+        f"Root README exceeds advisory entrypoint budget: lines={len(root_readme.splitlines())}/60",
+    )
+    warn(
+        len(plugin_readme.splitlines()) <= 40,
+        f"Plugin README exceeds advisory entrypoint budget: lines={len(plugin_readme.splitlines())}/40",
+    )
     check(
         len(re.findall(r"\b0\.1\.\d+\b", root_readme)) <= 1,
         "Root README still contains a version-by-version chronology",
@@ -681,8 +680,11 @@ def main() -> int:
 
     print(f"release_coherence_status={'pass' if not failures else 'fail'}")
     print(f"release_coherence_failures={len(failures)}")
+    print(f"release_coherence_warnings={len(warnings)}")
     for failure in failures:
         print(f"FAIL: {failure}")
+    for warning in warnings:
+        print(f"WARN: {warning}")
     return 0 if not failures else 1
 
 

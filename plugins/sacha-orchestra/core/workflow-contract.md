@@ -1,12 +1,12 @@
 # Workflow Contract
 
-> Contract Version: 12
+> Contract Version: 15
 > Status: Normative Core kernel
 
 ## 1. 范围
 
-本文只定义 Intake 接受后的 Role、Gate、生命周期和 Human 路由。入口见 [Intake Contract](intake-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
-调度与 return 见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+本文定义 Intake 接受后的 Role、Gate、生命周期和 Human 路由；显式 Clarify 保持窄授权，不因此进入完整 lifecycle。入口见 [Intake Contract](intake-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
+分解、readiness、调度、取消、归并、return 与迁移 owner transfer 见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
 
 Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 Project Integration/Domain Skill，Role procedure 归 Skill。只在当前 consumer 出现时加载对应合同，不预加载可能出现的下游面。
 
@@ -17,8 +17,9 @@ Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 
 - 原始文件、外部状态和命令结果决定事实；Artifact/报告/自报只索引。
 - workflow owner 推进到根终态；Role/helper completion 只是中间结果。
 - 授权、Reviewer provenance、single writer、return identity/dedup、安全、Handoff 必要语义与原始证据权威不可降级。
-- 能在当前 context 完成就不持久化；澄清决定需防止压缩丢失时先写最小决定记录，只有批准、breaking 或恢复需要才写 Spec Artifact。Plan 只表示按需规划活动或 inline plan，没有消费者就不建 Artifact。
-- 单个 Executor 或有界 helper 足够时不启用 Manager；多个独立单元、依赖图或多环境才协调。验证按真实风险从 diff/parse 扩到集成、发布或真实环境，不按固定套餐联动。
+- 能在当前 context 完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、breaking 或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
+- 当前 owner 发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；Workflow 不要求 owner 先完整拆分。单一职责内工作仍可在当前 owner 内完成，验证按风险从 diff/parse 扩到集成、发布或真实环境，不联动固定套餐。
+- 显式 Clarify 的研究保持只读窄授权；出现多个候选问题、依赖图或正式恢复需要协调时同样打开 Manager Gate。一个窄研究可由 Clarify owner 直接消费，readiness 与派发规则只由 Coordination 定义。
 - 三个 Gate 全关且无需恢复时，Executor 在当前 context 完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 
 ## 3. Role 与 Gate
@@ -33,7 +34,7 @@ Core platform/project-neutral；Runtime transport 归 Adapter，项目知识归 
 | --- | --- | --- |
 | Planner | 目标、验收/owner 不清；实施前需关键 Human 澄清；需冻结/持久化 Spec；实质方案或难回退跨 owner 决策 | 复杂、文件多、耗时、多平台、无分歧修改 |
 | Reviewer | 安全/权限/持久数据、breaking、困难回退、关键验证缺失/证据冲突或 Human 要求 | 文档标签、版本封装、可回退且完整验证的局部修改 |
-| Manager | 多个 delegated 单元、依赖图、安全并发、正式恢复或多环境需要 owner | 困难、耗时、多文件、只想增加 Agent |
+| Manager | 多个候选单元、依赖图、安全并发、正式恢复或多环境需要协调 owner | 单一职责内工作；困难、耗时、多文件、只想增加 Agent |
 
 Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实。Direct 或 active workflow 出现表中新的打开事实时必须重评估。
 名称或新 context 不证明 Reviewer 独立；参与当前方案/实现者不能作独立 Reviewer。
@@ -45,9 +46,13 @@ Gate 绑定 Scope、验收、owner、交付、安全/权限和依赖事实。Dir
 Human 是技术项目协作者。先给判断及证据，再给影响或下一步；按问题自然组织，不要求 Human 理解内部 Gate、Packet、状态码或字段表。
 只有缺失决定会改变实现、验收或高影响动作时才问一个具体问题，并给推荐与取舍。进度只报新事实、风险或阻塞。
 
-Planner 形成 Human 此前未确认的实质方案时，先把拟执行 Spec 交给 Human 看见并说明本轮优先检查处；确认前不得进入 Execute。Human 批准后，若没有未决方案、额外授权或阻塞性 Entry Condition，workflow owner 必须在同一任务立即路由 Executor；`批准`、`都 OK` 等清晰短答已足够，不得再索要“开始实施”。
+Planner 的实质新方案先给 Human 看 Spec；确认前不 Execute。无未决方案、额外授权或阻塞性 Entry Condition时，`批准`、`都 OK` 已足够立即路由，不再问“开始实施”。普通批准默认在同一任务执行，不得静默创建用户可见任务。
 
-一次回复处理多个问题，或形成多项建议、取舍、异议点时，正文之后用自然中文和稳定编号收齐本轮最终建议与待决定事项，说明结论、关键影响以及是否仍需 Human 决定；不得遗漏正文建议或新增正文未论证方案。单一简单结论、进度或纯事实回报不强制总结。它只是当轮沟通收口，不是 Artifact、Gate、状态或第二份决定日志。
+Spec 已持久化且可达，并有 Runtime 高 context 占用/compaction 事实，或可直接观察的多阶段长历史且执行不依赖未落盘对话时，可明确推荐“批准并新开执行任务”；没有可靠信号时不得伪造占用遥测。只有 Human 明确选择新开才由 Adapter 迁移。Spec/批准/Entry Condition/唯一 owner 任一不足，或旧写入者未 terminal 时不得迁移；identity/dedup、single writer 与 owner transfer 归 Coordination。
+
+task migration 把剩余 lifecycle 交给新 workflow owner；旧 task handoff 后结束，不等待 return。新 owner 继续同一 lifecycle 与独立 Review，迁移不改变 Gate；调度和 owner transfer 由 Coordination 处理。
+
+一次回复含多个问题、建议、取舍或异议点时，正文后用稳定编号收齐结论、关键影响、待决定事项及是否需 Human 决定；不得遗漏或新增方案。单一结论、进度或纯事实不强制总结。这只是沟通收口，不是 Artifact、Gate、状态或决定日志。
 
 不得为简短而隐藏授权影响、安全/数据风险、失败、未验证、Scope 偏离、reference、Entry Condition、schema 或脆弱步骤。
 

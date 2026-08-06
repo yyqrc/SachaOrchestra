@@ -33,7 +33,7 @@ Reviewer 与 Manager 不是入口选项。已存在的下游 Gate 事实可进�
 - reference、日志、进度、非语义文案或仅估算变化不触发重问。
 - 重复抑制只依赖当前 context 或正式恢复证据；不得新增跨会话 Registry。
 
-以下输入视为已接受：显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer、Manager、Feedback canonical capability。Clarify 与 Setup Project 只授权其 explicit-only narrow scope，后续开发目标重新判断入口。
+以下输入视为已接受：显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer、Manager、Feedback canonical capability。Clarify 与 Setup Project 只授权其 explicit-only narrow scope，后续开发目标重新判断入口；其中显式 Clarify 的窄授权包含当前 Clarify owner 直接管理一个有界只读 research helper，或按 Manager Gate 协调多个 research-ready 单元，但不等同接受完整 Sacha，也不授权写入、冻结方案/验收或外部动作。active Planner 路由 Clarify 时继续沿用既有 Sacha acceptance 和 owner。
 
 入口判断是当前 objective/Scope 的临时事实，不是 Role、Gate、Artifact、Handoff 字段、完成证据或写入授权。接受 Sacha 不批准 Planner 后续形成的实质新方案，也不授权 workspace 写入、安装、Git、发布、远程资源、权限或高影响动作；方案确认及批准后的自动执行由 Workflow Contract 处理。拒绝也不关闭适用的安全与工程规则。
 

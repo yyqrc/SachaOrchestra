@@ -16,8 +16,8 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 ## 路由
 
 - 关键澄清、Spec 冻结/持久化或难回退跨 owner 决策会改变实现边界 → Planner；Planner 在形成 Spec 前检查目标、边界、验收和实质决定，未收口时显式调用 `$sacha-orchestra:clarify`。
-- 上游说“需要规划/Review”不等于 Human 已批准新方案。Planner 提出实质新方案时先给 Human 看拟执行 Spec；Human 清晰批准且没有其他阻塞后，同一任务立即进入 Executor。
-- Scope/验收已明确但需跨 context owner/恢复或正式协调 → Executor，再按事实打开 downstream Gate。
+- 上游要求规划/Review 不等于批准新方案。先给 Human 看 Spec；普通批准无阻塞时同 task 立即执行。持久 Spec 可恢复且有可靠 context/compaction 或可观察长历史时，可建议“批准并新开执行任务”；普通“批准”不得静默创建用户 task。
+- Scope/验收已明确但当前 owner 发现多个候选单元、依赖或恢复协调 → 接受后交给目标 Role，按 [Coordination Contract](../../core/coordination-contract.md) 调用或消费 Manager；using-sacha 不自行拆分或派发。
 - Reviewer/Manager 只作为 downstream Gate；打开后分别按 Assurance/Coordination Contract 执行。
 - Clarify 不由 Intake 隐式触发，但 active Planner 命中条件后必须显式调用；Setup Project 保持 Human explicit-only。Clarify 完成返回原 Planner，不建立新入口或 Gate。
 - Intake 不创建 Goal、Artifact 或 Handoff，也不授权写入、安装、Git、发布、远程资源或高影响动作。

@@ -13,9 +13,9 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 4. 当前 context 可恢复时用 inline plan；只有方案需 Human 批准、breaking 或跨 context 恢复需要时写 Spec Artifact。命中持久化条件后，先把完整方案写入 `spec.md` 并回读，再向 Human 交付摘要、path 和优先检查点；对话中的完整或简化 Spec 都不能替代落盘文件。
    持久化优先使用 confirmed Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需 `decisions.md` 同目录；不为此调用 Setup。
 5. Spec 详细到 Executor 不需重新设计，但不替 Executor 逐行写代码。实施越依赖顺序、owner、数据边界和领域约束，步骤越接近可直接执行；只剩局部代码表达时停止细化。每步用自然中文说明目标位置、预期改动、约束与不变量、依赖与顺序、检查与证据，以及需要返回规划的条件。
-6. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件，以及 A/B/C 验收路线；不要求无消费者的字段、ID 或表格。
-7. 形成 Human 此前未确认的实质方案时，把已落盘的拟执行 Spec 交给 Human，并在回复中直接说明 path、方案摘要和优先阅读哪些改动敏感部分；无需在对话中重抄全文。Review Focus 不是 Spec 固定章节。多问题或多项建议按 Workflow Contract 在回复末尾编号收口，不能遗漏正文建议或增加未论证方案。
-8. 需要持久记录或正式恢复时才读取 [Artifact Protocol](../../core/artifact-protocol.md)。把当前任务 project-context 候选及 `decisions.md` path 保留给 closeout Documentation writer，候选不进入 Spec 执行权威。批准后若无未决方案、额外授权或阻塞性 Entry Condition，返回 workflow owner 并立即进入 Executor，不再等待第二次开始确认；Planner 不自行实施生产修改。
+6. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件，以及 A/B/C 验收路线。若当前 owner 发现多个候选单元、依赖或恢复协调，调用 [Coordination Contract](../../core/coordination-contract.md) 的 Manager；不要求 Planner 先完整拆分。消费 Manager 返回的分解、依赖、串行/派发结论和 evidence，再交付可执行 Spec；不为凑并行强拆依赖单元，也不要求无消费者的字段、ID 或表格。
+7. 形成 Human 此前未确认的实质方案时，把已落盘的拟执行 Spec 交给 Human，并在回复中直接说明 path、方案摘要和优先阅读哪些改动敏感部分；无需在对话中重抄全文。Review Focus 不是 Spec 固定章节。迁移建议、context 信号和普通批准路径按 Workflow Contract 消费，不在本 Skill 重复；多问题或多项建议按 Workflow Contract 在回复末尾编号收口，不能遗漏正文建议或增加未论证方案。
+8. 需要持久记录或正式恢复时才读取 [Artifact Protocol](../../core/artifact-protocol.md)。把当前任务 project-context 候选及 `decisions.md` path 保留给 closeout Documentation writer，候选不进入 Spec 执行权威。普通批准后若无未决方案、额外授权或阻塞性 Entry Condition，返回 workflow owner 并立即在当前 task 进入 Executor；Human 明确选择新开时按 Workflow/Coordination 交接，不再等待第二次开始确认。Planner 不自行实施生产修改。
 
 ## 暂停与路由
 

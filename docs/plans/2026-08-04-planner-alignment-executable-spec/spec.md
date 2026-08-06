@@ -5,6 +5,8 @@
 > 更新时间：2026-08-04
 >
 > 权威：本文件冻结本轮候选 Scope、决定、实施边界与验收；源码、真实 diff、命令输出和 Runtime 结果仍是实现与验证事实。
+>
+> Historical baseline / 部分 superseded：本文件保存 2026-08-04 已批准决定，但 §5.8～§5.9 的 Codex 模型、fallback 和 subagent 路由已被 `0.8.0` candidate 替代，不得作为当前执行规则。现行唯一 owner 为 [`plugins/sacha-orchestra/adapters/codex/runtime-adapter.md`](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3；Manager/readiness 以 [`coordination-contract.md`](../../../plugins/sacha-orchestra/core/coordination-contract.md) 为准。
 
 ## 1. 直白结论
 
@@ -298,7 +300,7 @@ Worker/helper 的 done、自报和摘要只作为 reference。Owner 在接收结
 - 同名文件若没有 owner marker、identity 不匹配、解析失败或调用期间 preimage 变化，整批拒绝且不写入；删除 `--replace-conflict` 或任何覆盖非 owned 文件的通道。
 - 多文件更新继续采用预检、临时文件、原子替换、写后回读和失败补偿；安装插件本身、普通 Sacha 流程或 `setup-project` 不得静默触发。
 - 自动覆盖只指已显式调用后的 Sacha-owned 文件，不授权修改其他 `.codex/agents` 文件、全局配置、cache 或 Runtime。
-- Adapter 不把 `setup-agents` 变成普通 Sacha 的安装前置：Human 已明确指定且验证可用的精确 route 优先；否则使用当前 Sacha namespaced Agent；缺失时按已验证的 Sol/Terra Executor 路线或 Runtime default 安全 fallback，并记录 requested/effective route 与原因。
+- Historical/superseded route：本轮当时曾规定 named Agent 缺失后使用 Sol/Terra 或 Runtime default；该模型与 fallback 映射已失效，只保留“`setup-agents` 不是普通 Sacha 安装前置、Human exact 优先、记录 requested/effective”这些未被替代的边界。当前组合与失败处理只读 [Codex Adapter](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3。
 - Runtime 真正支持原生精确 Luna model/effort 后，路由优先 Human 精确配置和原生精确 spawn，Sacha custom Agent 只作兼容 fallback；不能以官方文档或工具参数存在提前切换。
 - `setup-agents` 不进入主要 Workflow 或 `setup-project`，README 只在 Codex 兼容/故障恢复位置给 reference；旧通用 `luna_worker*` 仅在确认带 Sacha owner marker 时作为兼容输入，非 Sacha-owned 文件不修改、不删除。
 
@@ -320,7 +322,7 @@ Worker/helper 的 done、自报和摘要只作为 reference。Owner 在接收结
 - Human 方案 Review 发生在实施前；Reviewer 是实施后的独立 Assurance consumer。上游可提前记录预计需要 Reviewer，但 Reviewer 不能批准方案，也不能用来替代 Human Review。
 - Human 确认后，若无未决项或阻塞前置，root owner 立即在同一任务启动/恢复 Executor，并自动继续按风险 Review、同 Scope 返修/补证据和收尾；不能停在“已批准、Executor 尚未启动”。只有新的实质方案、Scope/验收变化、新高影响授权或写入前必需 Entry Condition 再次返回 Human。
 - 外部 one-shot 进程按 Adapter 保存实际参数、退出状态、stdout/stderr reference、最终结果和 effective route；Codex 原生 subagent 已由 Runtime 保存 transport 时不为每次派发另建 Manifest。
-- 模型/Agent fallback 或升级只依据能力不支持、真实验证失败、高风险/跨系统事实、长依赖链无法处理或 requested/effective 不一致；不建立 `simple/medium/hard` 或 Luna→Terra→Sol 固定升级状态机。
+- 模型/Agent fallback 或升级只依据能力不支持、真实验证失败、高风险/跨系统事实、长依赖链无法处理或 requested/effective 不一致；不建立额外难度 taxonomy 或固定多档升级状态机。具体 route 已由当前 Codex Adapter supersede。
 
 ## 6. 实施步骤
 
@@ -498,7 +500,7 @@ Worker/helper 的 done、自报和摘要只作为 reference。Owner 在接收结
 - 不强制所有步骤机械填写六个字段、所有任务达到 WaterReflection 篇幅或提前逐行代写代码。
 - 不新增固定 Worker Packet schema、Writer 状态表、强制 worktree、递归 Worker 树或所有 Worker 独立 Reviewer。
 - 不把新 context 名称当成 Reviewer 独立性证明，不把 Worker `done` 或自报当成集成证据。
-- 不为每次 Codex 原生 subagent 派发生成 Manifest，不建立 `simple/medium/hard` 或 Luna→Terra→Sol 固定升级状态机。
+- 不为每次 Codex 原生 subagent 派发生成 Manifest，也不建立 Adapter 之外的难度 taxonomy 或固定多档升级状态机。
 - 不让 Worker 自动 commit、push、建 PR/MR、merge 或发布，不让 Manager/Worktree 消除 single-writer 与 integration owner 责任。
 - 不让 cgame-unity/cgame-engine 自建 Planner/Executor/Reviewer、写 Sacha Artifact、批准方案或拥有 verdict。
 - 不因存在 `setup-agents` 就要求普通 Sacha 流程先安装 custom Agent，不把第三方/用户 Agent 当成 Sacha-owned 覆盖。

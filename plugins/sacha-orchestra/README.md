@@ -1,40 +1,48 @@
 # Sacha Orchestra
 
-跨运行环境的项目工作流插件。Git 发布版本、源码候选和验证层级以[版本演进](../../docs/architecture/evolution.md)为唯一权威。
+跨运行环境的项目工作流插件。Git 发布版本、源码候选和验证层级以[版本演进](../../docs/architecture/evolution.md)为唯一权威；本页只说明用户流程。
 
 ## 唯一默认入口
 
-直接调用 `$sacha-orchestra:using-sacha`，或让运行环境在初次接收任务及 Direct 执行中的语义转折点重新判断。清晰任务直接执行；只有预计需要关键澄清、先冻结/持久化 Spec、跨 context owner/恢复、难回退跨 owner 决策、正式协调或独立复核会实质改变执行方式时才建议进入 Sacha。同一 candidate 只询问一次；复杂、耗时、多文件或多平台本身不触发。
+直接调用 `$sacha-orchestra:using-sacha`，或在任务初次接收及语义转折点重评估。清晰任务留在当前 context；只有执行方式会因澄清、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一 candidate 只询问一次。
+
+## 主流程
 
 ```mermaid
 flowchart TD
-    U["用户目标 / 任务演变"] --> S["初次与语义转折重评估<br/>using-sacha"]; S --> L["清晰任务直接处理"]; S --> Q["执行方式需要改变<br/>说明影响并询问一次"]; Q -->|"拒绝"| L; Q -->|"接受"| PG{"是否需要先规划？"}
-    PG -->|"否"| E["进入执行阶段"]; PG -->|"是"| P["规划<br/>确认任务范围和完成标准"]; P --> H["用户查看实质新方案"]; H -->|"批准且无其他阻塞"| E; E --> EQ{"能否拆成互不冲突的任务？"}; EQ -->|"不能"| SE["单个执行者完成"]; EQ -->|"可以"| M["Manager<br/>组织安全并行"]
-    M --> A["执行任务 A"]; M --> B["执行任务 B"]; A --> I["集成负责人汇总"]; B --> I; SE --> IV["整体验证"]; I --> IV; IV --> RG{"是否需要独立复核？"}; RG -->|"否"| C["负责人收尾 / 交接"]; RG -->|"是"| R["复核"]
-    R --> V{"复核结果"}; V -->|"通过，可附后续事项"| C; V -.->|"需要返修"| E; V -.->|"范围或完成标准需调整"| P
-    P -.->|"目标或完成标准不清"| CL["需求澄清<br/>Clarify"]; CL -.->|"澄清结果返回"| P; CL -.->|"需要独立研究"| RM["Manager<br/>协调独立研究"]; RM -.->|"研究结果返回"| CL
+    U["用户目标"] --> I{"using-sacha"}
+    I -->|"直接处理"| D["当前 task"]
+    I -->|"需要改变方式"| P["Planner / Clarify + Human"]
+    P -->|"普通批准"| E["当前 task Executor"]
+    P -->|"明确批准并新开"| T["Adapter create_thread：一次"]
+    T --> E2["target 接管剩余 lifecycle；source 结束"]
+    E --> O{"owner 发现多个候选 / 依赖 / 恢复协调？"}
+    E2 --> O
+    O -->|"否"| L["invoking owner 直接执行"]
+    O -->|"是"| C["Manager：评估 / 拆分 / 依赖"]
+    C --> M{"Manager ready 评估"}
+    M -->|">=2 且隔离"| G["并行派发当前波次"]
+    M -->|"一个 ready / 不可隔离"| S["invoking owner 串行当前波次"]
+    M -->|"没有 ready"| B["返回阻塞 / 恢复条件"]
+    S --> W["聚合本波结果 / 重算剩余依赖图"]
+    G --> W
+    W -->|"尚未耗尽"| C
+    W -->|"已经耗尽"| V["按风险验证"]
+    L --> V
+    V -->|"需要独立复核"| R["独立 Reviewer"]
+    V -->|"否则"| Z["close / handoff"]
+    R -->|"通过"| Z
+    R -->|"同 Scope 返修"| E
 ```
 
-实线是默认处理流程，虚线是按需辅助或返修。单个有界 helper 由当前 owner 直接管理；多个独立单元才交给 Manager。共享工作树不并行写同一文件，隔离 patch/候选实现可并行并由集成负责人串行应用；Git 和整体验证仍串行。详细进入条件见[入口规则](core/intake-contract.md)和[工作流规则](core/workflow-contract.md)，复核见[验收规则](core/assurance-contract.md)，任务协调见[协调规则](core/coordination-contract.md)。
+owner 发现多个候选单元、依赖图或恢复协调时调用 Manager。Manager 是评估、拆分、依赖、ready、派发和归并 owner；串行结论只作用于当前波次，本波结束后重算剩余依赖图。某波次至少两个 execution-ready 或 research-ready 单元且写入隔离时，必须在该波次首次 wait 前实际派发多个实例；没有 ready 时返回阻塞与恢复条件。Git、公共 schema、共享生成物和整体验证由 integration owner 串行。
 
-- 高级用户可直接调用 `planner`、`executor`、`reviewer`、`manager` 或 `feedback`；这表示同意使用 Sacha，但不会扩大写入、安装、Git 或发布授权。显式 `feedback` 在修复 owner 唯一时会创建或复用其真实 workspace task并等待终态，不以 Source-local 调查 helper 或报告代替。
-- `clarify` 可由 Human 直接调用，也由 active Planner 在目标、边界、验收或实质决定未收口时显式调用；`setup-project` 与 `setup-agents` 只接受 Human 明确调用。`setup-agents` 配置 Sacha 命名空间下的 `sacha_luna_worker`（max）和 `sacha_luna_worker_xhigh`（xhigh），不属于项目接入。
-- 正式跨 context dispatch 由目标 Runtime Adapter 按 Role、风险和能力选择模型。Codex 还可把低返工、自包含工作交给本地 Pi 单次执行，具体型号由 setup-project 巡检后保存在项目内，未配置则使用 Pi 默认值。具体映射见 [Codex](adapters/codex/runtime-adapter.md) 与 [Claude Code](adapters/claudecode/runtime-adapter.md)。
+普通“批准”不创建第二个用户 task，也不再询问开始。只有批准 Spec 已持久化且可达、存在可靠长历史/compaction 事实，并且 Human 明确选择“批准并新开执行任务”时，Codex Adapter 才创建一个 target；target 接管 Execute、subagent、Review、返修与 closeout，旧 task 不等待 return。无可靠 context 信号时不得声称占用过高。
 
-## 项目接入与运行环境
+Clarify 只在窄授权内管理自包含、默认只读研究；研究事实回 invoking owner，多个研究单元交同一个 Manager，不跳 Executor。正式 Review 必须使用未参与当前方案/实现的独立 provenance。
 
-`setup-project` 先预演改动。Spec base 与 Project Documentation root 是两项独立输入，可以相隔很远；Setup 派生 Spec storage root `<spec-base>/plan`，把 Project Context path 固定为 `<spec-base>/CONTEXT.md`，并原样保存 Project Documentation root，不追加目录。任务写入 Spec storage root 的 `<YYYY-MM-DD>-<short-slug>/` 子目录；Setup 不创建正文。无 provider catalog 的项目 Skill 只要正文证明可独立调用、当前 Runtime 可见且依赖成立，也可成为待确认 mapping；没有 mapping 时 Role 仍回退项目规则和原生路线。确认后以回滚保护写入项目接入配置。收尾只对“持久产品变化 + 明确后续消费者”的高价值候选检查一次；纯问答、无持久 delta 和没有新增持久知识的局部修复静默跳过，`on-request` 候选只询问一次。
+## 入口与运行环境
 
-```mermaid
-flowchart TD
-    SP["项目接入 setup-project"] --> PI["已确认的项目接入配置"]; PI --> PS["规划存储<br/>独立根目录"]; PI --> DP["项目存档<br/>策略 / 根目录 / 写入授权"]
-    PS -->|"需要保存规划文件"| PL["持久规划文件"]; PS -->|"无需保存规划文件"| WF["执行 / 复核 / 合法收尾"]; PL --> WF
-    WF --> EV["实际改动 / 验证 / 风险 / 公开证据"]; EV --> EX{"是否产生值得沉淀的经验？"}; EX -->|"否"| DW["文档编写者<br/>组装自包含正文"]; EX -->|"是"| KN["项目事实 + 可复用经验候选"]; KN --> DW; KN -->|"用户同意"| RI["维护能力插件知识库<br/>reference-iteration"]
-    DP --> DG{"当前是否允许生成存档？"}; DW --> DG; DG -->|"否"| SK["跳过"]; DG -->|"是"| IN["结构化文档内容"]
-    IN --> DR["生成器预演<br/>dry-run"]; DR --> WR["原子新建 + 写后复核"]; WR --> OUT["变更存档 / 系统指南<br/>文件路径 + 文件指纹 + 写入结果"]
-    WF -.-> AH["当前任务记录 / 正式交接"]; OUT -.-> NEXT["使用者 / 后续智能体"]; AH -.-> NEXT
-```
-
-规划文件和项目存档可以放在不同目录。`experience.extract` 只返回事实与候选，再由当前任务整理成项目文档；维护能力插件知识库还需用户同意。项目可在 setup-project 显式绑定一个带 `profiles.json` 的 template catalog；Integration 只保存目录，归档时 AI 读取当前 manifest 先选唯一 Profile、再只读并校验对应模板，并按 generation policy 回答 required topics、裁剪无实质内容的候选章节；其他模板可独立更新，未绑定才使用插件 bundled fallback。Runtime 不扫描存档目录或历史正文猜文风。生成器对 change archive/system guide 仍只安全新建；`project-context` 只在已确认的 `CONTEXT.md` managed 术语区按 preimage 有界合并，修改既有定义需要显式确认。它不创建目录、更新索引或执行 Git/wiki 发布；当前任务仍以正式任务记录和交接为准。
-
-[任务记录与交接协议](core/artifact-protocol.md)定义正式记录；[Codex 运行适配](adapters/codex/runtime-adapter.md)与[Claude Code 运行适配](adapters/claudecode/runtime-adapter.md)定义平台行为。[版本演进](../../docs/architecture/evolution.md)记录当前方向、发布边界与迁移结论。安装、刷新、移除或重新安装必须获得用户明确授权，并用新任务验证插件能被重新发现。
+- 高级用户可直接调用 `planner`、`executor`、`reviewer`、`manager`、`feedback` 或显式 `clarify`；不会扩大写入、安装、Git 或发布授权。`setup-project`、`setup-agents` 与安装/刷新/移除/重装都须 Human 明确调用或授权。
+- Codex 的 route requirement、首个命中路由、`spawn_agent` 参数、单次 fallback 和 `create_thread` 映射见 [Codex Runtime Adapter](adapters/codex/runtime-adapter.md)；Claude Code 只描述自身 transport。
+- 静态文字不证明 Runtime dispatch、安装或 fresh discovery。规范入口：[Intake](core/intake-contract.md)、[Workflow](core/workflow-contract.md)、[Coordination](core/coordination-contract.md)、[Assurance](core/assurance-contract.md)、[Artifact](core/artifact-protocol.md)。

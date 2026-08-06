@@ -19,7 +19,7 @@ description: 显式澄清、脑暴、现状调查或方案打磨，或已接受 
    - Human 反问“这是什么”“以前怎么做”“帮我看看”时，先调查真实来源再解释。先用 3～5 句业务语言给概要；仍有需要再展开数据流，最后给文件、symbol 或其他 reference。Human 已理解就停止展开，并回到刚才尚未解决的决策，不丢失追问上下文。
    - 多选工具的自由输入仍是普通 Human 对话，不按已选选项机械消费：明确选择或约束就记录；纠正前提或新方向时先说明理解与方案影响，再更新锚点和未决分支；疑问或调查请求先回答，再回到原问题；含义不清时只澄清这一点。输入改变目标、Scope 或验收时返回 Planner/Human，不继续原问卷。
    - 同词多义、同义多名、两个概念被错误合并、模糊词或 Human/文档/代码定义冲突时，先查工程用法，再确认采用与排除的含义。输入与证据冲突时展示差异并询问真正需要 Human 决定的部分，不静默选边；`grill` 暴露的新边界可返回 `survey` 查证，调查结果也可触发新的方案比较。
-5. 必要事实不可低成本取得时，给一个有界只读 helper 明确问题、范围、预期证据和停止条件；多个研究单元或正式恢复才按 [Coordination Contract](../../core/coordination-contract.md) 交给 Manager。
+5. 必要事实不可低成本取得时，给当前 owner 一个有界只读 helper，明确问题、查询范围、预期证据、停止条件和所需输入；若发现多个候选问题、依赖或恢复协调，调用 [Coordination Contract](../../core/coordination-contract.md) 的 Manager，不先自行拆分。只消费 Manager 返回的事实、冲突、未验证项和 evidence reference，再由 active Planner 核对是否足以冻结 Spec。
 6. 已知后续会形成 Spec 或需要恢复时，第一个会影响方案的决定一经确认，就在提出下一问题前写入项目既有决定载体；其他情况下仅在出现多个未决项、分支打断或压缩/跨 context 风险时建立“澄清锚点”。无约定时在 Spec task directory 使用最小 `decisions.md`。除原始问题/目标、已确认决定、当前关注点、阻塞性未决项、暂存的新思路和 reference 外，只增加最小可恢复 frontier：尚未探索/解决的实质问题、其上游决定或事实 reference，以及遗忘后会被错误重开的关键排除依据；不保存完整树、状态表或对话。恢复后先读锚点与当前证据，重建工作挑战图再继续。
 7. 新思路不能静默替换澄清锚点：它只能用于解决当前未决项、加入新的阻塞性未决项，或作为不阻塞当前目标的候选暂存。每次提出下一问题前，以及解释、调查、helper 返回或 context 恢复后，先核对锚点并回到依赖最靠前的未决决策；新思路若改变原目标、Scope 或验收，返回 Planner/Human，不由 Clarify 擅自换题。
 8. 已确认且需恢复/供 Spec 消费的术语写入决定记录，Planner 必须沿用；疑似稳定、项目特有且能指出任务外消费者或稳定接口的术语只记录为 project-context 候选，包含定义、排除含义、证据、边界、消费者与 Unknown，留给实施 closeout 按最终事实复核，不在澄清早期提升。
@@ -27,7 +27,7 @@ description: 显式澄清、脑暴、现状调查或方案打磨，或已接受 
 
 ## 边界
 
-- 不选择 Gate，不冻结 Scope，不授予权限，不创建 Handoff，不实施或验收。
+- 不选择 Planner/Reviewer Gate；只按 Coordination 返回的研究事实调用或消费 Manager，不冻结 Scope，不授予权限，不创建 Handoff，不实施或验收。
 - 研究默认只读；结果不授予规划、Review、写入或外部动作权限。
 - 不自行选择 Project Context path、领域 provider 或固定决定模板；按 Project Integration 和 Artifact Protocol 使用已有 path/载体。决定记录不冻结 Scope、不替代批准后的 Spec，context 候选不授权项目文档写入。
 - 不把 `brainstorm`、`survey`、`grill` 拆成新 Role、Gate、Skill 或固定产物；领域 Skill 可以提供项目特定的调查、候选和压力场景，但不拥有 Clarify 的 Human 对话与退出判断。

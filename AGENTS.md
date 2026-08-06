@@ -11,22 +11,24 @@
 
 | 路径 | Owner 与用途 |
 | --- | --- |
-| `docs/architecture/evolution.md` | release、candidate、长期架构与 breaking change 权威 |
+| `docs/architecture/evolution.md` | 当前 release/candidate、长期架构与 breaking change 权威；历史 release 段只保存当时事实，不定义现行机制 |
 | 两个 deployment manifest | 当前源码版本与部署接口元数据 |
 | `plugins/sacha-orchestra/core/intake-contract.md` | 入口判断、接受/拒绝、重复抑制和授权边界的规范性 contract |
-| `plugins/sacha-orchestra/core/workflow-contract.md` | Workflow Kernel：不变量、Role/Gate 和 high-level lifecycle |
+| `plugins/sacha-orchestra/core/workflow-contract.md` | Workflow Kernel：不变量、Role/Gate、Human 路由和 high-level lifecycle；不定义 readiness、模型或宿主参数 |
 | `plugins/sacha-orchestra/core/assurance-contract.md` | Review、Baseline、Outcome 与 evidence 语义 |
-| `plugins/sacha-orchestra/core/coordination-contract.md` | Manager、dispatch、return、identity/dedup 与 deviation |
+| `plugins/sacha-orchestra/core/coordination-contract.md` | Manager 的 assessment、拆分、依赖、readiness、route requirement、dispatch/return、identity/dedup 与 deviation 的唯一 Core owner |
 | `plugins/sacha-orchestra/core/artifact-protocol.md` | Artifact 与 Handoff 的规范性 contract |
-| `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单 Runtime discovery、transport、恢复与验证映射 |
-| `plugins/sacha-orchestra/skills/*` | Runtime-neutral trigger 与 Role-local procedure |
-| `plugins/sacha-orchestra/README.md` | 非规范性用户入口 |
+| `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单 Runtime transport、自动模型/强度选择、精确调用参数、fallback、恢复与验证映射；不得反向定义 Gate/readiness |
+| `plugins/sacha-orchestra/skills/*` | Runtime-neutral trigger、调用 owner 与 Role-local 结果消费；不复制 Core 判断或 Adapter 参数 |
+| `plugins/sacha-orchestra/README.md` | 从当前 owner 推导的非规范性用户入口和流程图；不得成为第二套 contract |
 
 ## 读取路由
 
 - 入口、Workflow、Assurance、Coordination、Artifact 只按当前 consumer 读取；只查询 trigger 时读取目标 `SKILL.md` 和 metadata。
 - Runtime 局部任务只读目标 Adapter；Core 或跨 Runtime 审查按 Scope 比较。
 - release、长期架构、Manager/并行、`1.0.0` 或 Core breaking：读取 Evolution；只有 Human 确认具体改动后才修改。
+- 读取 Evolution 时，当前 release/source candidate 和明确标注的现行方向优先；`Released` 历史段只证明当时版本，不得覆盖当前 Core/Adapter/Skill。旧 Spec/Report/Review 也只按其 Baseline 读取，除非当前任务明确以它为批准 Scope。
+- 普通实施不遍历历史计划目录寻找“更多规则”。历史文字与当前 owner 冲突时，以当前源码 owner 为准，并把冲突历史段标成 superseded 后指向现行 owner；不得让已知误导继续留在可检索文本中。
 - Project Integration 和 Domain Skill 归各自项目所有。不得将项目特定命令或证据规则导入此 Core。
 
 ## Plugin Development Direct
@@ -41,6 +43,11 @@
 ## 内容归属与信息密度
 
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
+- 改机制时执行 `需求不变量 → 唯一 owner → 直接 consumer → README/Evolution → 测试` 的顺序。先改 owner，再删除或改成引用所有旧副本；不得在多个文件分别补一句形成并行规则。
+- Manager/路由改动的固定分层是：Workflow 只开 Gate；Coordination 产生 runtime-neutral route requirement；Manager 执行协调算法；Adapter 选择模型并组装 Runtime 参数；Role Skill 只调用和消费；README 最后绘图。任一层越权时先删重复，不新增解释圆场。
+- Codex 自动模型组合、选择条件、`agent_type/model/reasoning_effort/fork_turns` 与 fallback 只在 Codex Adapter 存在。validator/test 直接解析真实映射和禁止分支，不要求 Adapter 为测试添加 shorthand；Core、Skill、README 和通用历史说明不得复制当前型号表。
+- 当前机制替代已发布机制时，不改写当时发生过的 release 事实，但必须在仍可能被当作操作说明的表格行、章节或冻结文档入口添加 `historical/superseded` 标记、替代版本和当前 owner path。只在 Git 历史保留旧文本、不更新可检索文档，不算完成 consumer 对齐。
+- 测试只保护结构、唯一 owner、分支顺序、参数映射、禁止组合或真实生成行为；不得用自然语言整句存在性断言迫使规则保留同义重复。
 - 路径术语是硬约束：Human 或配置提供的目录用 `base`；解析、派生后实际生效的目录用 `root`；文件及其位置用 `path`；非文件的证据、owner、Runtime 标识或间接指向用 `reference`。不得使用 `locator`，也不得用 `reference` 代替本应明确的文件 `path`；修改既有内容时按该分类消除混用。
 - `description` 只回答“何时用/何时不用”；正文才写首查位置、扩大条件、动作、交付和停止边界。metadata prompt 只给自然入口，不复述正文流程。
 - Adapter 单 Runtime；Role Skill Runtime-neutral；显式 setup 只管对应配置；README 只保留入口、最小用法和必要 path/reference；历史/迁移归具名文档。
@@ -67,6 +74,7 @@
 | Coordination Manager、dispatch、return、identity/dedup 或 deviation | Workflow、Manager/Feedback/Clarify、各 Adapter、Artifact、validator |
 | Artifact 或 Handoff schema/权威边界 | Workflow 引用、各 Runtime Adapter、生产 Role/Manager/Feedback Skill、Project Integration 生成器、validator |
 | 单 Runtime discovery、transport、identity、installation 或 recovery | 仅对应 Runtime Adapter、该 Runtime metadata/manifest、安装与 release validator；不得联动其他 Adapter |
+| Codex 自动模型、推理强度、调用参数或 fallback | Codex Adapter §3 是唯一 owner；同步 route structural test、release coherence 的真实映射 consumer、当前 candidate/Spec；给冲突历史段加 superseded 指向，不把型号表复制到 Core/Skill/README |
 | Skill trigger、local procedure 或 metadata | 对应 `SKILL.md`、生成的 metadata、直接调用/返回方、Adapter discovery 清单、README 入口与 plugin validator |
 | Provider catalog/Binding 格式、resolver/generator 或 mapping 消费 | 必须同步 `docs/integrations/capability-provider-guide.md`；核查 `setup-project`、Role/Adapter、生成结果、测试/validator |
 | `render_agents_block` 内容、managed_block 注入格式或 project-rules 模板契约 | 必须同步 `setup-project` SKILL.md 与生成器；核查 `capability-provider-guide.md`、`validate_project_setup.py`、provider `project-rules` skill 消费者 |
@@ -92,7 +100,7 @@ cprobe summary <affected-path-or-directory> --json
 
 - Python 默认由 Codex 全局 `shell_environment_policy` 注入 `PYTHONUTF8=1`；生产脚本仍显式使用 `encoding="utf-8"`。不得给每条命令机械添加 `-X utf8`；只有实测 `sys.flags.utf8_mode != 1` 或出现解码错误时，才对受影响命令使用该 fallback。
 - `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
-- Source validator 只检查可解析结构、稳定标识、owner/link、真实 consumer 预算和禁止边界；不得逐句锁定可等价改写的说明文字。按需加载的 Skill 正文不以总字数、行数或单行长度作为 release blocker；压缩不得删除流程判断。
+- Source validator 以可解析结构、稳定标识、owner/link、真实 consumer 和禁止边界作为 release blocker；不得逐句锁定可等价改写的说明文字。Core、Adapter、Skill 或组合 active surface 的总字数、行数和单行长度只作 advisory warning，不得阻塞 candidate/release 或驱动删除流程判断。
 - 生产脚本用隔离临时目录的正反例/幂等/失败恢复测试；Skill trigger、Role 路由与 Runtime 调用用真实 scenario smoke。前一层不得替代后一层。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。
 

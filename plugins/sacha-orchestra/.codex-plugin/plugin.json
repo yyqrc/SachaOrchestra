@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Codex deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework.",
   "author": {
     "name": "Sacha Orchestra"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Sacha Orchestra",
     "shortDescription": "Sense tasks before routing Planner, Executor, and Reviewer.",
-    "longDescription": "Provides using-sacha as one smart intake, lean platform-neutral dispatch contracts, capability-aware Runtime adapters with role-aware model routing, Codex-managed Pi one-shot execution, three production Roles, Manager coordination, Feedback intake, explicit Clarify, Schema v3 project setup, and policy-bound project documentation. Clear authorized tasks stay direct while authorization, safe integration, original evidence, independent review, and recoverable handoff remain explicit.",
+    "longDescription": "Provides using-sacha as one smart intake, lean platform-neutral dispatch contracts, capability-aware Runtime adapters with role-aware model routing, approved-Spec Executor task migration, three production Roles, Manager coordination, Feedback intake, explicit Clarify, Schema v3 project setup, and policy-bound project documentation. Clear authorized tasks stay direct while authorization, safe integration, original evidence, independent review, and recoverable handoff remain explicit.",
     "developerName": "Sacha Orchestra",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],

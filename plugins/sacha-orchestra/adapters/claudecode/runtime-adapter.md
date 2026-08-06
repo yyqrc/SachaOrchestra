@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter
 
-> Implements: Intake Contract 4；Workflow Contract 12；Assurance Contract 2；Coordination Contract 4；Artifact Protocol 6
+> Implements: Intake Contract 4；Workflow Contract 15；Assurance Contract 2；Coordination Contract 7；Artifact Protocol 6
 > Status: Normative Claude Code mapping
 
 ## 1. Boundary
@@ -24,7 +24,7 @@ Adapter 不定义入口、Role、Gate、Artifact、项目知识或发布状态�
 | Executor | 明确 owner 的主对话或独立 `Agent` context |
 | Reviewer | 未参与方案/实现的独立 `Agent` context |
 | Manager | 主对话或控制面 `Agent` 协调独立任务 |
-| Workflow owner | Human 接受后的主对话，持续推进到根终态 |
+| Workflow owner | 默认是 Human 接受后的主对话；明确会话迁移后转为唯一 target |
 
 Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；直接任务不读取生产 Core/Role/Binding。显式 using-sacha、明确 Sacha 请求或 direct canonical Role 调用视为接受；Clarify/Setup 只授权 narrow scope。
 
@@ -44,7 +44,7 @@ Runtime 常驻面只暴露 metadata。`using-sacha` 先加载 Intake Contract；
 
 前台执行由主对话消费 terminal result；后台执行由 owner 保持 phase，以正式 completion notification 和 identity 消费一次结果，不留给 Human 唤醒，也不因启动成功提前结束。
 
-Planner 提案由主对话展示并等待 Human；清晰批准且无其他阻塞时，主对话在同一 Task 立即进入 Executor，不创建第二个用户会话或再次询问是否开始。
+Planner 提案由主对话展示并等待 Human；普通批准且无其他阻塞时，主对话在同一 Task 立即进入 Executor，不创建第二个用户会话或再次询问是否开始。本 Adapter 不把 Codex `create_thread` 语义映射为 Agent helper；只有 Human 明确选择且 Runtime 有可验证的等价用户会话 transport、唯一 owner 与单向 handoff 时才可迁移，旧会话不等待 return；否则保持同一 Task 或报告能力缺口。
 
 Target completion 返回结果/delta、实际验证、阻塞/风险和必要 reference；原生 notification 未携带且消歧必需时才补 route identity/revision/dedup。错误、陈旧或重复结果不产生额外 transition。
 
