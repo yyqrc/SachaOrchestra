@@ -1,7 +1,7 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.7.1` Project documentation closeout and template determinism
-> 当前 source candidate：`0.8.0`
+> 当前 release：`0.8.0` Approved-Spec migration and Manager coordination
+> 当前 source candidate：无
 > 当前主线：批准 Spec 后的 workflow owner transfer、独立单元派发与最小恢复
 > 发布边界：`0.8.0` 保持普通批准在当前 task 立即执行；只有持久 Spec 可恢复、context 膨胀信号可靠且 Human 明确选择时，Codex 才创建或复用一个用户可见 task并完整移交剩余 lifecycle，旧 task 交接后结束、不等待 return；已有上游 return consumer 的 task 不迁移；迁移不替代 Manager 对独立 ready 单元的实际派发或独立 Reviewer
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
@@ -47,7 +47,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Context Budget Hardening | `0.2.1` released | 精简 discovery metadata/Project AGENTS；D0 延迟 Adapter；工具/Artifact/transport 预算；Workflow 按需拆层；Manager 管理 Clarify 研究；Provider Catalog Schema v2；独立 Spec storage root / Project Documentation root | source/static 独立 Review 均为 `Accepted with follow-up`、阻塞 finding `0`；精确安装与 `35/35` parity 已通过；fresh discovery、真实 Planner/closeout 消费、Research Packet 调度和无效 catalog fallback 未验证 |
 | Runtime Adapter Boundary Cleanup | `0.2.2` released | 删除 Codex Adapter 的插件发布维护段；移除两个 Adapter 无消费者的安装加载条件；压缩 Claude Code Adapter 重复授权枚举 | source/static、精确安装与 source/cache `33/33` parity 已通过；fresh discovery 与 Runtime 行为未验证 |
 | Direct Iteration and Adaptive Runtime Rules | `0.2.3` released | 归档预设举证；打包 helper；清晰任务直执行、单 helper 直管、能力感知 transport、自适应 timeout/budget、扩展 Handoff 与完整终态 | breaking migration 已记录；source/static 独立 Review `Accepted with follow-up`，安装后发现与目标项目调用未验证 |
-| Role-Aware Model Routing | `0.3.0` released；Codex 映射已被 `0.8.0` candidate superseded | 历史行为为 Codex `sol/terra` 与 Claude Code `opus/sonnet/haiku`；当前 Codex 自动组合以 §4.29 和 Codex Adapter 为准 | 保留当时 release 事实；不得从本行恢复旧路由 |
+| Role-Aware Model Routing | `0.3.0` released；Codex 映射已被 `0.8.0` release superseded | 历史行为为 Codex `sol/terra` 与 Claude Code `opus/sonnet/haiku`；当前 Codex 自动组合以 §4.29 和 Codex Adapter 为准 | 保留当时 release 事实；不得从本行恢复旧路由 |
 | Project Integration Compression | `0.3.1` released | 聚合 Rule/Capability load policy，删除空节点、重复 fallback/reference 与可推导 Storage 字段 | Schema v3 项目值与授权语义不变；setup/project-documentation 解析和 LookDev 幂等 dry-run 已通过，安装与真实 Runtime 消费未验证 |
 | Setup Confirmation and Repair Isolation | `0.3.2` released | setup planned-delta 确认 guard；Feedback full-identity 复用、隔离 dispatch 与单次 terminal join 合同 | setup 行为测试与 Skill/plugin static 已通过；安装与真实 Runtime 自动建 task/join 未验证 |
 | Project Skill Capability Admission | `0.3.3` released | setup 完整读取 authority/independent 项目 Skill 正文，拆分 goal unit 并只映射可调度能力 | 正文证据与 deterministic guard、真实项目只读 dry-run 已通过；安装、fresh Runtime discovery 与消费项目写入未验证 |
@@ -59,7 +59,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Semantic-preserving Prompt Compression | `0.6.6` released | 恢复 Clarify/Planner 的顺序、进入/退出、恢复与决策原则；移除说明正文长度和逐句文案锁定 | 普通 source/static 验证与精确安装、cache parity 纳入本次发版；fresh task 行为留待新任务使用验证 |
 | Clarification Loop and Path Semantics | `0.7.0` released | 复合模糊需求重评估、Human-owned 提问过滤、自由输入续接、及时 `decisions.md`、Spec 先落盘；Spec base 派生 storage/context path并统一 base/root/path/reference | `--spec-root*` 与 `SetupConfig.spec_root*` 被 `--spec-base*` / `spec_base*` 取代，不保留旧接口；普通 source/static、精确安装与 source/cache `46/46` parity 已通过，fresh task 行为未验证 |
 | Project Documentation Closeout and Template Determinism | `0.7.1` released | 有持久产品变化的复杂 Spec 在 closeout 检查 change archive/system guide 候选；项目绑定模板 catalog path并按 manifest 决定 profile；`document-project` 统一 Skill 命名；setup 与文档输出减少重复 hash 和固定元数据卡片 | execution report、项目发布文档与 Project CONTEXT 分属不同 owner；简单修复、纯问答和无持久 delta 静默跳过；模板目录不作运行时随机文风样本；fresh task 行为未验证 |
-| Approved-Spec Executor Task Migration | `0.8.0` source candidate | 普通批准同 task 立即执行；可靠长历史信号下明确建议独立 task；Codex create/reuse exactly once、最小恢复与完整 owner transfer；Feedback 使用独立 query/create/wait transport；Manager 继续派发独立 ready 单元并独立 Review | source/static 与候选安装正在验证；真实 `create_thread`/`wait_threads` Runtime 行为仍需单独证据 |
+| Approved-Spec Executor Task Migration | `0.8.0` released | 普通批准同 task 立即执行；可靠长历史信号下明确建议独立 task；Codex create/reuse exactly once、最小恢复与完整 owner transfer；Feedback 使用独立 query/create/wait transport；Manager 继续派发独立 ready 单元并独立 Review | source/static、精确安装、`45/45` parity 与 fresh installed dry-run 已通过；真实 task/subagent transport 未执行 |
 
 ## 3. 不变量
 
@@ -264,7 +264,7 @@ Codex 本地读取使用 FastCtx，VCS diff 使用全局 `diff_digest.ps1`，项
 
 ### 4.20 Released：Role-Aware Model Routing
 
-> Historical snapshot / superseded：本节只记录 `0.3.0` 发布时的路由，不是当前操作说明。Codex 当前自动模型与 fallback 已由 `0.8.0` source candidate 改写；现行唯一 owner 是 [`adapters/codex/runtime-adapter.md`](../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3，方向摘要见 §4.29。不得用下述 `Sol/Terra` 组合覆盖当前 Adapter。
+> Historical snapshot / superseded：本节只记录 `0.3.0` 发布时的路由，不是当前操作说明。Codex 当前自动模型与 fallback 已由 `0.8.0` release 改写；现行唯一 owner 是 [`adapters/codex/runtime-adapter.md`](../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3，方向摘要见 §4.29。不得用下述 `Sol/Terra` 组合覆盖当前 Adapter。
 
 Human 批准 `0.3.0 Role-Aware Model Routing Spec`：Codex 正式跨 context dispatch 使用原生 subagent 的 `model`/`reasoning_effort`，Planner 选择 `gpt-5.6-sol high/xhigh`，普通 Executor 选择 `gpt-5.6-terra high/xhigh`，高风险 Executor 选择 `gpt-5.6-sol medium/high`；Claude Code 独立映射 `opus/sonnet/haiku`。
 
@@ -336,7 +336,7 @@ Project Integration 可显式绑定 document-template catalog path。运行时�
 
 同一 release 删除 setup/project-rules/setup-agents 和文档模板绑定中无消费者、重复或展示性的 hash。精确内容仍只在并发/覆盖保护、不可变产物身份或跨边界字节一致性确有消费者时保留；工具可传递的 planned delta 不要求 Human 手工复述。Project Setup `45/45`、Spec Artifact contract `4/4`、单元测试 `17/17`、十个 Skill official validator、plugin validator 与 `0.7.1` candidate coherence 已通过；安装与 cache parity 作为发布后的独立证据核对，不替代 source release 身份。
 
-### 4.29 Source candidate：批准 Spec 后迁移独立 Executor task
+### 4.29 Released：批准 Spec 后迁移独立 Executor task
 
 `docs/plan/2026-08-06-executor-task-migration/spec.md` 冻结真实 MobileDevTool iOS 任务暴露的缺口：大量调查已经压缩进持久 Spec 后，普通批准仍应立即推进，但可靠高占用/compaction 或可直接观察的多阶段长历史可触发一次明确建议。只有 Human 选择“批准并新开执行任务”才授权用户可见 task migration；普通“批准”不得被静默解释为创建 task，无可靠 Runtime 信号时不得伪造遥测。
 

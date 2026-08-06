@@ -41,7 +41,7 @@
 - 显式 Feedback Source 以原生 task 查询复用唯一 repair target，无匹配时创建恰好一个，并用原生 terminal join 消费一次；repair target 不再嵌套迁移。
 - 真实案例的通用形态可拆为独立实现单元、独立只读 consumer/bridge 检查和集成验证；至少两个单元同时 ready 时实际并行派发，完成后使用独立 Reviewer。
 - 无可靠 context 信号时不伪造遥测；仅响应 Human 的明确迁移选择。
-- 受影响 Core/Adapter/Skill source/static tests、项目测试和官方 validator 通过；真实安装、fresh discovery 与 Runtime `create_thread` 行为明确标记未验证。
+- 受影响 Core/Adapter/Skill source/static tests、项目测试和官方 validator 通过；精确安装、cache parity 与 fresh installed dry-run 单独取证，真实 Runtime `create_thread`/`wait_threads`/`spawn_agent` 行为仍明确标记未验证。
 - 超过文本长度建议值时 coherence 返回成功并显示 warning；错误版本等真实 coherence 缺陷仍返回失败。
 - 显式 Clarify 可在窄授权内派发一个只读 helper；至少两个 research-ready 查询在首次 wait 前实际并行派发，自包含查询不复制父历史，所有结果回到 invoking Clarify owner；Gate 关闭或 transport fallback 均不路由 Executor、不写入或扩权。
 - 全部自动 `spawn_agent` 在首次调用前均有明确 requested route 和最小 `fork_turns`；自动 route 精确限制为 Sol xhigh、Sol medium、Luna max、Luna xhigh，Human exact 不受该列表替换。自动 fallback 至多一次且不得引入第五种组合。
@@ -51,6 +51,6 @@
 
 ## Non-goals 与停止条件
 
-- 不修改 cpTools、COD、安装 cache、Marketplace、Git 历史或远程状态。
+- 实施不修改 cpTools、COD 或 Marketplace；Human 后续明确授权的本插件安装、commit、tag 与 push 只在 release closeout 执行并单独验证。
 - 不新增 Registry、后台服务、Hook、MCP、生产 Role 或跨 Runtime 通用 context 遥测。
 - 若实现需要新增用户可见状态系统、扩展授权或改变 Artifact 权威，返回 Planner 修订。

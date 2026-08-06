@@ -34,9 +34,10 @@
 - 最终 release Reviewer 的 R10 发现 Clarify research 与 Luna named definition 接受条件冲突；修复模板和 active-consumer 测试后，R11 scoped re-review 为 `Accepted（source/static Scope）`、0 blocking finding。
 - 候选安装后的 fresh Feedback dry-run 发现 Adapter 在语义压缩时遗漏 Feedback task 查询/创建/等待映射，并使 repair target 是否还能再次 migration 产生 return consumer 冲突。现已恢复独立 Feedback transport，并以“存在上游 return consumer 时不得迁移”关闭双 owner/丢 return 分支；等待 R13 scoped re-review。
 - R13 独立 Sol/xhigh scoped re-review 为 `Accepted（source/static Scope）`、0 blocking finding；targeted 3/3、完整 unit 22/22、Project Setup 45/45、candidate coherence 0 failure/4 advisory、Feedback quick validator、plugin validator 与 scoped `cprobe` 均通过。
+- 精确安装 `sacha-orchestra@sacha 0.8.0` 成功且 enabled；source/cache `45/45`，missing/extra/mismatch 均为 0。只读 fresh installed Feedback simulation 判定 `顺畅（source/static）`：唯一 repair transport、普通批准同 task、禁止 nested migration、Manager 波次与四档 route 均能从安装包闭环推导。
 
 ## 剩余边界
 
-- source/static 只证明 owner、结构、参数和禁止分支已表达；候选安装、cache parity 与 fresh dry-run 已产生独立证据，但尚未验证真实 context/compaction signal、Codex `create_thread`/`wait_threads` 去重与 owner transfer、实际自动模型选择、fallback、wait/cancel 或 migrated target 的完整 Execute→Review→closeout。
+- source/static 只证明 owner、结构、参数和禁止分支已表达；精确安装、cache parity 与 fresh installed dry-run 已产生独立证据，但尚未验证真实 context/compaction signal、Codex `create_thread`/`wait_threads` 去重与 owner transfer、实际自动模型选择、fallback、wait/cancel 或 migrated target 的完整 Execute→Review→closeout。
 - 字符/行数 advisory 当前仍报告 Workflow、Coordination、Direct active surface 与 README 超建议值；不会限制迭代或改变退出码。
-- 未修改 `E:\cpTools`、`G:\COD` 或 Marketplace。已创建 source candidate commit并安装过候选 `0.8.0`；本次 Feedback 修复后的最终提交、重装、tag、push 与 release coherence 尚待完成。
+- 未修改 `E:\cpTools`、`G:\COD` 或 Marketplace。`0.8.0` 已从最终 source candidate 精确重装；commit、annotated tag、push 与 release coherence 作为 release Git 证据完成。

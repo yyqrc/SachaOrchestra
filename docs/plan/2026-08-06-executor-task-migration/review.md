@@ -131,3 +131,7 @@ R12 两项已关闭：Feedback Source 通过独立原生 transport 查询、唯�
 独立重跑：targeted scenario 3/3、完整 unit 22/22、Project Setup 45/45、candidate coherence 0 failure/4 advisory、Feedback quick validator、plugin validator 与 scoped `cprobe` 全部通过。release validator 只检查 section/tool 结构，return-consumer 语义由 scenario test 覆盖，未重新引入中文整句发布阻塞。
 
 剩余 Runtime 边界：尚未实测真实 `list_threads`/`read_thread` 唯一匹配、无匹配 `create_thread`、cursor timeout、`wait_threads` 根终态一次消费、重复输入 dedup，以及 repair target 实际拒绝嵌套 migration。
+
+## Installed dry-run
+
+最终 source candidate 精确重装后，fresh installed Feedback simulation 判定 `顺畅（source/static）`：安装包可以从显式 Feedback 的唯一 query/create/wait transport，连续推导到 target 内 Planner/Clarify、普通批准同 task Executor、Manager 依赖波次、四档 subagent route、独立 Reviewer、closeout 和唯一 terminal return；有上游 consumer 的 repair target 不再嵌套迁移。该结果没有实际调用 task/subagent transport，不提升 R13 的 Runtime 证据等级。

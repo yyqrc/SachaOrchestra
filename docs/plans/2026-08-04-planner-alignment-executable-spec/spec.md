@@ -6,7 +6,7 @@
 >
 > 权威：本文件冻结本轮候选 Scope、决定、实施边界与验收；源码、真实 diff、命令输出和 Runtime 结果仍是实现与验证事实。
 >
-> Historical baseline / 部分 superseded：本文件保存 2026-08-04 已批准决定，但 §5.8～§5.9 的 Codex 模型、fallback 和 subagent 路由已被 `0.8.0` candidate 替代，不得作为当前执行规则。现行唯一 owner 为 [`plugins/sacha-orchestra/adapters/codex/runtime-adapter.md`](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3；Manager/readiness 以 [`coordination-contract.md`](../../../plugins/sacha-orchestra/core/coordination-contract.md) 为准。
+> Historical baseline / 部分 superseded：本文件保存 2026-08-04 已批准决定，但 §5.8～§5.9 的 Codex 模型、fallback 和 subagent 路由已被 `0.8.0` release 替代，不得作为当前执行规则。现行唯一 owner 为 [`plugins/sacha-orchestra/adapters/codex/runtime-adapter.md`](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) §3；Manager/readiness 以 [`coordination-contract.md`](../../../plugins/sacha-orchestra/core/coordination-contract.md) 为准。
 
 ## 1. 直白结论
 
