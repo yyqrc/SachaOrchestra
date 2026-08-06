@@ -22,15 +22,24 @@ Adapter 不定义 Intake、Role、Gate、ready、Manager 职责、批准语义�
 | 有界 subagent | `spawn_agent` | 每个 unit 至多一次首次创建；参数来自第 3 节，不复制父历史 |
 | 完成等待 | `wait_agent` | 只消费 terminal/result；timeout 只报告 liveness，不改变 route |
 | 取消/接管 | `interrupt_agent`（下称 `cancel`） | 仅 Human 取消、失活或继续会造成双写/增险时使用；确认 `terminal/cancelled` 后才接管 |
+| Feedback target 查询 | `list_threads` + 有界 `read_thread` | 只为唯一 repair identity 查询；候选需要消歧或进度证据时才读对应 task |
+| Feedback repair owner | `create_thread` | 显式 Feedback、无唯一匹配时创建恰好一次；不是 migration 或 bounded helper |
+| Feedback terminal join | `wait_threads` | Source 对唯一 target 等待根终态并消费一次；timeout 只作有界进度检查 |
 | 用户可见 task migration | `create_thread` | 只处理明确迁移；不是 bounded helper，也不等待旧 owner 的 terminal return |
 
 ### 2.1 Codex role surface
 
 Planner、Manager、Reviewer、Executor 和 Clarify research 都走同一套第 3 节 route；Role 只作为 assessment 输入，不改变 spawn 参数契约。当前 context 能完成的工作不调用 `spawn_agent`。
 
-### 2.2 User-visible task migration
+### 2.2 Explicit Feedback repair transport
 
-迁移 identity 由 Task/Scope revision、批准 Spec reference 和 workflow transfer 组成。Adapter 先按该 identity 查询可复用的 target：
+Adapter 按 Coordination Contract 的 repair workspace、Scope、objective 和 owner identity 调用 `list_threads`；只有候选 identity、进度或 terminal 需要有界确认时才调用 `read_thread`。唯一匹配直接复用；多个匹配无法消歧时暂停；无匹配且显式 Feedback transport 可用时调用恰好一次 `create_thread`，保留原生 target identity。
+
+Feedback Source 用 `wait_threads` 对该唯一 target 做带 cursor 的有界等待，timeout 只检查最新进度，不 busy polling、不创建替代 owner；收到根终态后消费一次并结束。repair target 因而有上游 return consumer，必须保持 workflow owner 到根终态，不得再进入下节的用户可见 task migration。`spawn_agent`、full-history helper 或 migration handoff 都不能代替这一 transport。
+
+### 2.3 User-visible task migration
+
+只有当前 task 没有上游 return consumer 时才可迁移。迁移 identity 由 Task/Scope revision、批准 Spec reference 和 workflow transfer 组成。Adapter 先按该 identity 查询可复用的 target：
 
 1. 唯一 target 直接复用；不唯一或 Spec/Entry Condition/owner 不可证明时暂停。
 2. 无匹配且 Human 已明确选择迁移时调用恰好一次 `create_thread`；创建失败且尚未产生 target owner 时可回当前 task，并保留原始错误。

@@ -3,7 +3,7 @@
 > 当前 release：`0.7.1` Project documentation closeout and template determinism
 > 当前 source candidate：`0.8.0`
 > 当前主线：批准 Spec 后的 workflow owner transfer、独立单元派发与最小恢复
-> 发布边界：`0.8.0` 保持普通批准在当前 task 立即执行；只有持久 Spec 可恢复、context 膨胀信号可靠且 Human 明确选择时，Codex 才创建或复用一个用户可见 task并完整移交剩余 lifecycle，旧 task 交接后结束、不等待 return；迁移不替代 Manager 对独立 ready 单元的实际派发或独立 Reviewer
+> 发布边界：`0.8.0` 保持普通批准在当前 task 立即执行；只有持久 Spec 可恢复、context 膨胀信号可靠且 Human 明确选择时，Codex 才创建或复用一个用户可见 task并完整移交剩余 lifecycle，旧 task 交接后结束、不等待 return；已有上游 return consumer 的 task 不迁移；迁移不替代 Manager 对独立 ready 单元的实际派发或独立 Reviewer
 > 本文只定义方向和 breaking boundary，不授权实现、安装或发布
 
 Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手动返回的问题，并进一步冻结“任务应持续到目标完成”的原则。批准的 `0.1.12 Autonomous Goal Completion Spec` 由根 workflow owner 自动推进 Plan、Execute、Manager、Review、返修/补证据、re-review 和已授权 closeout，直到 `goal_complete`；required subagent completion 由父 Manager 消费。`0.1.12` 当时把独立 Role return 映射为向 root callback；`0.1.17` 根据真实偏差把 Codex 映射收紧为 root owner 主动 `wait_threads` terminal join，Target final payload 只承载 return 数据，不承担唤醒 owner 的责任。只有重大方案决策、Plan/实际不相容、新授权、不可消歧冲突或外部/Runtime 无法恢复才请求 Human。`0.1.11` 的 Reject 审计链保留且不改写。
@@ -59,7 +59,7 @@ Human 已于 2026-07-16 要求修复 dispatch 完成后依赖 Human 发现并手
 | Semantic-preserving Prompt Compression | `0.6.6` released | 恢复 Clarify/Planner 的顺序、进入/退出、恢复与决策原则；移除说明正文长度和逐句文案锁定 | 普通 source/static 验证与精确安装、cache parity 纳入本次发版；fresh task 行为留待新任务使用验证 |
 | Clarification Loop and Path Semantics | `0.7.0` released | 复合模糊需求重评估、Human-owned 提问过滤、自由输入续接、及时 `decisions.md`、Spec 先落盘；Spec base 派生 storage/context path并统一 base/root/path/reference | `--spec-root*` 与 `SetupConfig.spec_root*` 被 `--spec-base*` / `spec_base*` 取代，不保留旧接口；普通 source/static、精确安装与 source/cache `46/46` parity 已通过，fresh task 行为未验证 |
 | Project Documentation Closeout and Template Determinism | `0.7.1` released | 有持久产品变化的复杂 Spec 在 closeout 检查 change archive/system guide 候选；项目绑定模板 catalog path并按 manifest 决定 profile；`document-project` 统一 Skill 命名；setup 与文档输出减少重复 hash 和固定元数据卡片 | execution report、项目发布文档与 Project CONTEXT 分属不同 owner；简单修复、纯问答和无持久 delta 静默跳过；模板目录不作运行时随机文风样本；fresh task 行为未验证 |
-| Approved-Spec Executor Task Migration | `0.8.0` source candidate | 普通批准同 task 立即执行；可靠长历史信号下明确建议独立 task；Codex create/reuse exactly once、最小恢复与完整 owner transfer；旧 task 交接后结束，新 task 继续派发独立 ready 单元并独立 Review | source/static 待本 repair 验证；不含安装、cache、fresh discovery 或真实 `create_thread` Runtime smoke |
+| Approved-Spec Executor Task Migration | `0.8.0` source candidate | 普通批准同 task 立即执行；可靠长历史信号下明确建议独立 task；Codex create/reuse exactly once、最小恢复与完整 owner transfer；Feedback 使用独立 query/create/wait transport；Manager 继续派发独立 ready 单元并独立 Review | source/static 与候选安装正在验证；真实 `create_thread`/`wait_threads` Runtime 行为仍需单独证据 |
 
 ## 3. 不变量
 
@@ -340,7 +340,7 @@ Project Integration 可显式绑定 document-template catalog path。运行时�
 
 `docs/plan/2026-08-06-executor-task-migration/spec.md` 冻结真实 MobileDevTool iOS 任务暴露的缺口：大量调查已经压缩进持久 Spec 后，普通批准仍应立即推进，但可靠高占用/compaction 或可直接观察的多阶段长历史可触发一次明确建议。只有 Human 选择“批准并新开执行任务”才授权用户可见 task migration；普通“批准”不得被静默解释为创建 task，无可靠 Runtime 信号时不得伪造遥测。
 
-Workflow 15、Coordination 7 与 Codex Adapter 以 Task/Scope revision、批准 Spec reference 和 workflow transfer 去重，只 create/reuse 一个 target。新 task 只消费 AGENTS、Spec、必要 Artifact/evidence reference 与最小 Entry/identity，不复制完整历史，并接管 Execute、Review/返修与 closeout；旧 task 展示 target reference 后结束，不 wait/join。创建前失败可回退原 task，创建后恢复和最终结果只在 target 推进。
+Workflow 15、Coordination 7 与 Codex Adapter 以 Task/Scope revision、批准 Spec reference 和 workflow transfer 去重，只 create/reuse 一个 target。新 task 只消费 AGENTS、Spec、必要 Artifact/evidence reference 与最小 Entry/identity，不复制完整历史，并接管 Execute、Review/返修与 closeout；旧 task 展示 target reference 后结束，不 wait/join。创建前失败可回退原 task，创建后恢复和最终结果只在 target 推进。显式 Feedback 则由 Source 以原生 query/create/wait 复用或建立唯一 repair target 并消费根终态；该 target 已有上游 return consumer，不再嵌套迁移。
 
 迁移不替代 Manager/Reviewer Gate。当前 owner 发现多个候选单元、依赖或恢复协调时调用 Manager；Manager 统一评估、拆分、建立依赖并逐波判定 readiness。串行结论只约束当前波次，本波结果回到同一 Task/Scope revision 后重算剩余依赖图；后续波次至少两个 ready 且隔离时，仍须在该波次首次 wait 前实际派发 subagent。普通同-task、迁移 target 与 Clarify research 共用该算法；共享输出由 integration owner 串行处理，正式 Reviewer 使用未参与方案/实现的独立 provenance。
 

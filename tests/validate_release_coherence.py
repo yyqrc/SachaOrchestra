@@ -226,6 +226,14 @@ def main() -> int:
         "Direct/current context",
     )
     check(all(marker in codex_adapter for marker in codex_model_contract), "Codex role-aware model routing contract is incomplete")
+    feedback_transport_contract = (
+        "### 2.2 Explicit Feedback repair transport",
+        "`list_threads`",
+        "`read_thread`",
+        "`create_thread`",
+        "`wait_threads`",
+    )
+    check(all(marker in codex_adapter for marker in feedback_transport_contract), "Codex Feedback repair transport mapping is incomplete")
     check(all(marker in claude_adapter for marker in claude_model_contract), "Claude Code role-aware model routing contract is incomplete")
     check("gpt-5.6-" not in claude_adapter, "Claude Code Adapter leaks Codex model configuration")
     check(

@@ -49,7 +49,7 @@ Clarify 先使用当前 context 可达事实。一个研究单元由当前 Clari
 
 ## 5. Executor task migration
 
-Human 明确选择把批准的持久 Spec 交给用户可见 task 执行时，迁移 identity 是 Task/Scope revision、批准 Spec reference 与 workflow transfer。首次创建后保留原生 target identity；重复批准、重试或恢复只复用，不得再次创建，也不建 Registry。
+Human 明确选择把批准的持久 Spec 交给用户可见 task 执行，且当前 task 没有上游 return consumer 时，迁移 identity 是 Task/Scope revision、批准 Spec reference 与 workflow transfer。首次创建后保留原生 target identity；重复批准、重试或恢复只复用，不得再次创建，也不建 Registry。
 
 新 target 接管 workflow owner、Execute、Review/返修和 closeout；原 owner 停止写入，交付原生 task reference 后结束，不 join、不等待 return。target 只消费项目规则、Spec、必要 Artifact/evidence reference 与 transport 未携带的最小 Handoff，不得复制完整对话。helper/subagent 不取得迁移 identity 或 workflow owner，full-history helper 也不得冒充 context 减负。
 
@@ -63,7 +63,7 @@ Owner 保存 objective、Scope、授权和完成条件。每个 delegated unit/R
 原生 transport 无法消歧时才补 Task/Scope revision、Source/Target、owner 或 dedup；更正使用新 revision。
 
 显式 Feedback 的窄授权包含只读取证和完成 repair route。repair workspace、Scope、objective、owner 唯一且 transport 可用时，Source 必须复用唯一匹配，或在无匹配时创建恰好一个 owner context并消费 terminal。
-Source 不能以调查报告结束或重复询问同一创建授权；只读 investigation helper 不取得 repair owner、Role 或 identity。Target 独立核对实施与外部副作用授权。
+Source 不能以调查报告结束或重复询问同一创建授权；只读 investigation helper 不取得 repair owner、Role 或 identity。Target 独立核对实施与外部副作用授权。Feedback Source 是该 repair target 的上游 return consumer；在 Source 消费根终态前，target 保持 workflow owner，不得再做用户可见 task migration。
 
 同一 payload 兼作 report/completion 时不重复；仅有消费者时落完整 report/evidence Artifact。Human final 不是 transport，不展示内部字段表。
 

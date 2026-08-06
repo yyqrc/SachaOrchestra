@@ -30,7 +30,13 @@ class ExecutorTaskMigrationContractTests(unittest.TestCase):
         cls.claude = read("adapters/claudecode/runtime-adapter.md")
 
     def test_explicit_migration_has_single_owner_transfer_and_no_source_join(self) -> None:
-        migration = section(self.codex, "### 2.2 User-visible task migration", "## 3.")
+        feedback = section(self.codex, "### 2.2 Explicit Feedback repair transport", "### 2.3")
+        migration = section(self.codex, "### 2.3 User-visible task migration", "## 3.")
+        for transport in ("list_threads", "read_thread", "create_thread", "wait_threads"):
+            self.assertIn(f"`{transport}`", feedback)
+        self.assertRegex(feedback, r"唯一匹配.*复用")
+        self.assertRegex(feedback, r"无匹配.*恰好一次 `create_thread`")
+        self.assertRegex(feedback, r"上游 return consumer.*不得再进入.*migration")
         for pattern in (
             r"Task/Scope revision",
             r"批准 Spec reference",
@@ -48,6 +54,9 @@ class ExecutorTaskMigrationContractTests(unittest.TestCase):
         self.assertNotRegex(migration, r"Source.*等待.*return")
         self.assertRegex(self.coordination, r"target 接管 workflow owner")
         self.assertRegex(self.coordination, r"原 owner.*不 join、不等待 return")
+        self.assertRegex(self.coordination, r"Feedback Source.*上游 return consumer")
+        self.assertRegex(self.coordination, r"target 保持 workflow owner.*不得再做用户可见 task migration")
+        self.assertRegex(migration, r"没有上游 return consumer")
 
     def test_plain_approval_and_dependency_wave_dispatch_are_distinct(self) -> None:
         self.assertRegex(self.workflow, r"普通.*批准.*同一任务")

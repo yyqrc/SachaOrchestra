@@ -115,3 +115,19 @@ R10 finding 已关闭：两个 Luna definition 现在都明确接受 `execution-
 独立重跑：Setup Agents 13/13、完整 unit 22/22、candidate coherence 0 failure/4 advisory、Setup Agents quick validator 与 plugin validator 全部通过；scoped `cprobe` 完整、0 conflict、0 whitespace error。最终 blocking finding 为 0。
 
 剩余 Runtime 边界：安装/cache parity、fresh discovery、真实 Clarify research 自动路由、模型/fallback、`create_thread`、wait/cancel、依赖波次与 migrated target 完整 lifecycle 尚未由本 source/static verdict 证明。
+
+## R12 Verdict
+
+Needs Fix。
+
+候选安装后的 fresh Feedback dry-run 发现两个相连缺口：Codex Adapter 在压缩时丢失了 Feedback 所需的原生 task 查询、唯一创建和 terminal join 映射；若该 repair target 再按普通批准迁移，上游 Feedback Source 仍等待旧 target，而合同没有安全重绑 return consumer 的 transport。Executor 已恢复 Feedback 的 `list_threads`/有界 `read_thread`、`create_thread`、`wait_threads` 映射，并禁止有上游 return consumer 的 task 做用户可见 migration，等待 R13 scoped re-review。
+
+## R13 Verdict
+
+Accepted（source/static Scope）。
+
+R12 两项已关闭：Feedback Source 通过独立原生 transport 查询、唯一复用/创建 repair target，并以带 cursor 的有界 `wait_threads` 消费一次根终态；repair target 有上游 return consumer，保持唯一 workflow owner，不得嵌套 migration。普通批准后的用户可见 migration 仍只在无上游 consumer 时做 no-wait 单向 owner transfer，两条路径的 single writer 与 identity/dedup 无冲突。
+
+独立重跑：targeted scenario 3/3、完整 unit 22/22、Project Setup 45/45、candidate coherence 0 failure/4 advisory、Feedback quick validator、plugin validator 与 scoped `cprobe` 全部通过。release validator 只检查 section/tool 结构，return-consumer 语义由 scenario test 覆盖，未重新引入中文整句发布阻塞。
+
+剩余 Runtime 边界：尚未实测真实 `list_threads`/`read_thread` 唯一匹配、无匹配 `create_thread`、cursor timeout、`wait_threads` 根终态一次消费、重复输入 dedup，以及 repair target 实际拒绝嵌套 migration。

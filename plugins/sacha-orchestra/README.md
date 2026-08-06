@@ -39,6 +39,8 @@ owner 发现多个候选单元、依赖图或恢复协调时调用 Manager。Man
 
 普通“批准”不创建第二个用户 task，也不再询问开始。只有批准 Spec 已持久化且可达、存在可靠长历史/compaction 事实，并且 Human 明确选择“批准并新开执行任务”时，Codex Adapter 才创建一个 target；target 接管 Execute、subagent、Review、返修与 closeout，旧 task 不等待 return。无可靠 context 信号时不得声称占用过高。
 
+显式 Feedback 是另一条 transport：Source 查询并复用唯一 repair target，无匹配时创建一个，然后等待其根终态。该 target 已有上游 return consumer，因此保持 owner 到完成，不再嵌套迁移；内部独立单元仍照常交给 Manager 派发。
+
 Clarify 只在窄授权内管理自包含、默认只读研究；研究事实回 invoking owner，多个研究单元交同一个 Manager，不跳 Executor。正式 Review 必须使用未参与当前方案/实现的独立 provenance。
 
 ## 入口与运行环境

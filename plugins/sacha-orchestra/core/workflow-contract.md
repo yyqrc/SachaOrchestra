@@ -48,7 +48,7 @@ Human 是技术项目协作者。先给判断及证据，再给影响或下一�
 
 Planner 的实质新方案先给 Human 看 Spec；确认前不 Execute。无未决方案、额外授权或阻塞性 Entry Condition时，`批准`、`都 OK` 已足够立即路由，不再问“开始实施”。普通批准默认在同一任务执行，不得静默创建用户可见任务。
 
-Spec 已持久化且可达，并有 Runtime 高 context 占用/compaction 事实，或可直接观察的多阶段长历史且执行不依赖未落盘对话时，可明确推荐“批准并新开执行任务”；没有可靠信号时不得伪造占用遥测。只有 Human 明确选择新开才由 Adapter 迁移。Spec/批准/Entry Condition/唯一 owner 任一不足，或旧写入者未 terminal 时不得迁移；identity/dedup、single writer 与 owner transfer 归 Coordination。
+Spec 已持久化且可达，并有 Runtime 高 context 占用/compaction 事实，或可直接观察的多阶段长历史且执行不依赖未落盘对话时，可明确推荐“批准并新开执行任务”；没有可靠信号时不得伪造占用遥测。只有 Human 明确选择新开才由 Adapter 迁移。Spec/批准/Entry Condition/唯一 owner 任一不足、旧写入者未 terminal，或当前 task 已有等待其 terminal 的上游 return consumer 时不得迁移；identity/dedup、single writer 与 owner transfer 归 Coordination。
 
 task migration 把剩余 lifecycle 交给新 workflow owner；旧 task handoff 后结束，不等待 return。新 owner 继续同一 lifecycle 与独立 Review，迁移不改变 Gate；调度和 owner transfer 由 Coordination 处理。
 

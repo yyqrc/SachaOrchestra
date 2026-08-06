@@ -11,6 +11,7 @@
 - 自动 fallback 至多一次：named Luna 未启动即失败时只尝试 Sol medium；Sol、Human 精确配置、可能已启动/写入、旧 writer 未终止或独立性不明时停止。
 - 两个 Luna named definition 同时接受 `execution-ready` 与只读 `research-ready`；Clarify research 不再被错误要求冻结实施 Scope/验收，也不取得写入、架构、跨 owner 或独立 Review 权限。
 - 明确“批准并新开执行任务”才 create/reuse 一个用户可见 target；target 接管完整剩余 lifecycle，Source 最小 handoff 后结束，不 wait/join。普通批准仍在当前 task 立即执行。
+- 显式 Feedback 使用独立的 `list_threads`/有界 `read_thread`、唯一 `create_thread` 和 `wait_threads` terminal join；repair target 因有上游 return consumer 保持 owner 到根终态，不再嵌套 migration。
 - Codex Adapter active surface 不再暴露 Pi one-shot；Pi 脚本、Setup 配置和历史记录按 Scope 保留。
 - README 从冻结需求反推主流程，不再作为规范来源；图中 Manager 自己评估 ready。
 - 文本预算继续只输出 advisory warning，不进入 failure，也不驱动语义压缩。
@@ -31,9 +32,11 @@
 - Project AGENTS 新增唯一 owner、改动顺序、删除旧副本、Adapter-only 模型参数、测试和历史 superseded 纪律。Evolution `0.3.0` 表格/§4.20 与 2026-08-04 旧 Spec 入口已标明历史 Baseline、替代版本和当前 owner，保留事实但不再伪装现行规则。
 - 依赖波次回环 delta 经独立 Sol/xhigh Reviewer 复核为 `Accepted`、0 blocking finding：串行结论只约束当前波次，结果回到同一 Task/Scope revision 后重算；该裁决只覆盖 source/static，不证明真实两波 Runtime 派发。
 - 最终 release Reviewer 的 R10 发现 Clarify research 与 Luna named definition 接受条件冲突；修复模板和 active-consumer 测试后，R11 scoped re-review 为 `Accepted（source/static Scope）`、0 blocking finding。
+- 候选安装后的 fresh Feedback dry-run 发现 Adapter 在语义压缩时遗漏 Feedback task 查询/创建/等待映射，并使 repair target 是否还能再次 migration 产生 return consumer 冲突。现已恢复独立 Feedback transport，并以“存在上游 return consumer 时不得迁移”关闭双 owner/丢 return 分支；等待 R13 scoped re-review。
+- R13 独立 Sol/xhigh scoped re-review 为 `Accepted（source/static Scope）`、0 blocking finding；targeted 3/3、完整 unit 22/22、Project Setup 45/45、candidate coherence 0 failure/4 advisory、Feedback quick validator、plugin validator 与 scoped `cprobe` 均通过。
 
 ## 剩余边界
 
-- source/static 只证明 owner、结构、参数和禁止分支已表达；未验证安装后 fresh discovery、真实 context/compaction signal、Codex `create_thread` 去重/owner transfer、实际自动模型选择、fallback、wait/cancel 或 migrated target 的完整 Execute→Review→closeout。
+- source/static 只证明 owner、结构、参数和禁止分支已表达；候选安装、cache parity 与 fresh dry-run 已产生独立证据，但尚未验证真实 context/compaction signal、Codex `create_thread`/`wait_threads` 去重与 owner transfer、实际自动模型选择、fallback、wait/cancel 或 migrated target 的完整 Execute→Review→closeout。
 - 字符/行数 advisory 当前仍报告 Workflow、Coordination、Direct active surface 与 README 超建议值；不会限制迭代或改变退出码。
-- 未修改 `E:\cpTools`、`G:\COD`、安装 cache 或 Marketplace；未提交、push、安装或发布。
+- 未修改 `E:\cpTools`、`G:\COD` 或 Marketplace。已创建 source candidate commit并安装过候选 `0.8.0`；本次 Feedback 修复后的最终提交、重装、tag、push 与 release coherence 尚待完成。
