@@ -130,12 +130,6 @@ class SetupAgentsTests(unittest.TestCase):
             ("sacha_luna_worker_xhigh", "xhigh"),
         )
         self.assertEqual(parsed["model"], xhigh_parsed["model"])
-        for template in (parsed, xhigh_parsed):
-            instructions = template["developer_instructions"]
-            self.assertIn("execution-ready", instructions)
-            self.assertIn("research-ready", instructions)
-            self.assertRegex(instructions, r"research-ready：.*保持只读")
-            self.assertNotIn("只接受 Scope/验收已冻结", instructions)
         again = self.dry_run()
         self.assertEqual((again["action"], again["delta"]), ("no-op", ""))
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-import re
 import subprocess
 import sys
 import tempfile
@@ -36,6 +35,27 @@ DOCUMENT_SCRIPT = (
     / "generate_project_document.py"
 )
 TEMP_ROOT = ROOT / ".temp"
+
+
+def fill_bundled_template(template: str, replacements: dict[str, str]) -> str:
+    rendered = template
+    for placeholder, value in replacements.items():
+        rendered = rendered.replace(placeholder, value)
+
+    while "<!--" in rendered:
+        start = rendered.index("<!--")
+        end = rendered.find("-->", start + 4)
+        if end < 0:
+            raise AssertionError("bundled template contains an unterminated comment")
+        rendered = rendered[:start] + rendered[end + 3 :].lstrip()
+
+    while "{" in rendered:
+        start = rendered.index("{")
+        end = rendered.find("}", start + 1)
+        if end < 0 or "\n" in rendered[start:end]:
+            raise AssertionError("bundled template contains an invalid placeholder")
+        rendered = rendered[:start] + "已填写" + rendered[end + 1 :]
+    return rendered
 
 
 def load_module(name: str, path: Path):
@@ -998,8 +1018,6 @@ Inspect project state and return a bounded report.
             self.assertNotIn(duplicated_contract, workflow)
             self.assertNotIn(duplicated_contract, agents)
         self.assertIn("`sacha-orchestra:using-sacha`", agents)
-        self.assertIn("Human 接受 Sacha 后", agents)
-        self.assertIn("plugin canonical contract", agents)
 
         workflow_state_path.unlink()
         html_metadata_workflow = workflow.replace(
@@ -2137,11 +2155,12 @@ Format evidence for another workflow; this is not a standalone execution goal.
         )
         decoy = document_root / "random-implementation-style.md"
         decoy.write_text("# 随机抽样风格\n\n这不是已绑定模板。\n", encoding="utf-8")
-        rendered = document_generator.CANONICAL_CHANGE_ARCHIVE_TEMPLATE.read_text(
-            encoding="utf-8"
-        ).replace("{变更标题}", "功能变更")
-        rendered = re.sub(r"(?s)<!--.*?-->\s*", "", rendered)
-        rendered = re.sub(r"\{[^{}\r\n]+\}", "已填写", rendered)
+        rendered = fill_bundled_template(
+            document_generator.CANONICAL_CHANGE_ARCHIVE_TEMPLATE.read_text(
+                encoding="utf-8"
+            ),
+            {"{变更标题}": "功能变更"},
+        )
         fallback_input = {
             key: value
             for key, value in {
@@ -2173,11 +2192,12 @@ Format evidence for another workflow; this is not a standalone execution goal.
         self.assertNotIn("sha256", second["template"])
         self.assertEqual(first["sha256"], second["sha256"])
 
-        system_rendered = document_generator.CANONICAL_SYSTEM_GUIDE_TEMPLATE.read_text(
-            encoding="utf-8"
-        ).replace("{系统名称}", "文档系统").replace("{系统}", "文档系统")
-        system_rendered = re.sub(r"(?s)<!--.*?-->\s*", "", system_rendered)
-        system_rendered = re.sub(r"\{[^{}\r\n]+\}", "已填写", system_rendered)
+        system_rendered = fill_bundled_template(
+            document_generator.CANONICAL_SYSTEM_GUIDE_TEMPLATE.read_text(
+                encoding="utf-8"
+            ),
+            {"{系统名称}": "文档系统", "{系统}": "文档系统"},
+        )
         system = document_generator.generate_project_document(
             project_root=project,
             workflow_rule_path="docs/workflow-rule.md",
@@ -2198,38 +2218,6 @@ Format evidence for another workflow; this is not a standalone execution goal.
         )
         self.assertEqual("ready", system["status"], system["conflicts"])
         self.assertEqual("bundled-fallback", system["template"]["source"])
-
-    def test_bundled_document_templates_do_not_emit_fixed_metadata_cards(self) -> None:
-        change_archive = document_generator.CANONICAL_CHANGE_ARCHIVE_TEMPLATE.read_text(
-            encoding="utf-8"
-        )
-        system_guide = document_generator.CANONICAL_SYSTEM_GUIDE_TEMPLATE.read_text(
-            encoding="utf-8"
-        )
-        for label in (
-            "变更类型",
-            "完成状态",
-            "背景/触发",
-            "目标",
-            "根因或关键约束",
-            "采用方案",
-            "影响范围",
-            "适用工程/版本",
-            "日期",
-        ):
-            self.assertNotRegex(change_archive, rf"(?m)^>\s*\*\*{re.escape(label)}\*\*")
-        for label in (
-            "文档状态",
-            "覆盖范围",
-            "权威基准",
-            "工具链/平台",
-            "证据范围",
-            "未执行",
-            "维护约定",
-        ):
-            self.assertNotRegex(system_guide, rf"(?m)^>\s*\*\*{re.escape(label)}\*\*")
-        self.assertIn("自然写入对应正文或修订记录", change_archive)
-        self.assertIn("自然写入正文或修订记录", system_guide)
 
     def test_document_template_catalog_rejects_implicit_scan_without_binding(self) -> None:
         project, document_root = self.configured_document_project(

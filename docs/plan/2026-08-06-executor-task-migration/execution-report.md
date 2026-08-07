@@ -1,6 +1,6 @@
 # Executor task migration Execution Report
 
-> Historical `0.8.0` evidence：Feedback terminal join 与上游 return consumer 是当时实际 delta/验证记录，已被 `0.8.1` candidate superseded。当前机制见 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md) 与 Coordination Contract 8。
+> Historical `0.8.0` evidence：Feedback terminal join 与上游 return consumer 是当时实际 delta/验证记录，已被 `0.8.1` candidate superseded。当前机制见 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md) 与 Coordination Contract 10。
 
 ## 实际 delta
 

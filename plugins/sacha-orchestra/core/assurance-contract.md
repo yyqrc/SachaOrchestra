@@ -5,7 +5,7 @@
 
 ## 1. 范围
 
-本文是 Reviewer Gate 打开后的 Baseline、验收矩阵、Outcome 与 re-review 权威。Role/Gate 由 [Workflow Contract](workflow-contract.md) 定义。
+本文是 Reviewer Gate 打开后的 Baseline、验收矩阵、Outcome 与 re-review 权威。Role/Gate 与 Runtime 路由由 [Workflow Contract](workflow-contract.md) 定义；Outcome 只能返回 Executor、Planner、evidence/recovery owner 或 closeout，不另建流程旁路。
 持久 Review/Handoff 由 [Artifact Protocol](artifact-protocol.md) 定义。Reviewer Gate 关闭时不加载本文。
 
 ## 2. Baseline 与证据
@@ -16,9 +16,9 @@ Baseline/`acceptance_revision` 变化使旧 verdict 失效；evidence-only delta
 验收矩阵使用稳定 `check_id`。摘要保留 Scope/revision、required/attempted、result、reference、risk、resume entry、人工状态与计数。
 人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、stale、不可达或计数不一致保持未验证；Provider、报告和自报不拥有 verdict。
 
-Reviewer 检查真实状态并只重跑能改变 verdict 的高风险验证。缺证据不等于实现缺陷；自动化不能证明的检查给出具体 Human/external 路线。
+Reviewer 检查真实状态并只重跑能改变 verdict 的高风险验证。自动化无法证明的检查给出具体 Human/external 路线，并按证据状态选择 Outcome。
 
-验收按实际执行者路由，不增加 Outcome：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。B 类等待期间保持同一 workflow 的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。release-blocking 的 B/C 未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项才可 `Accepted with follow-up`。
+验收按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。B 类等待期间保持同一 workflow 的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。release-blocking 的 B/C 未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
 
 ## 3. Outcome 与路由
 
@@ -31,4 +31,4 @@ Reviewer 检查真实状态并只重跑能改变 verdict 的高风险验证。�
 | `Needs Replan` | 批准合同缺失、错误或失效 |
 | `Blocked` | 安全替代耗尽，依赖 Human/外部状态 |
 
-实现缺陷 → 原 Executor；合同问题 → Planner；缺证据 → 唯一 evidence owner。局部 blocker 只暂停冲突范围；其他安全且已授权分支继续。Reviewer 不为通过改合同、不默认修复、不用 Executor 自报替代独立判断。
+`Needs Fix` 返回原 Executor；`Needs Replan` 返回 Planner；`Needs Evidence` 返回唯一 evidence owner。局部 blocker 只暂停冲突范围；其他安全且已授权分支继续。Reviewer 保持独立，只依据真实状态和原始证据裁决；合同修订与实现修复分别由 Planner 和 Executor 完成。

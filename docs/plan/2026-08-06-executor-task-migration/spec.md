@@ -1,6 +1,6 @@
 # Executor task migration Spec
 
-> Historical `0.8.0` Baseline：本文中的 Feedback query/create/wait 与上游 return consumer 只记录当时批准行为，已被 `0.8.1` candidate superseded。当前 owner 是 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md)、Coordination Contract 8 与当前 Runtime Adapter/Feedback Skill。
+> Historical `0.8.0` Baseline：本文中的 Feedback query/create/wait 与上游 return consumer 只记录当时批准行为，已被 `0.8.1` candidate superseded。当前 owner 是 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md)、Coordination Contract 10 与当前 Runtime Adapter/Feedback Skill。
 
 ## 目标
 

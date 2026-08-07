@@ -5,19 +5,24 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 
 # Using Sacha（智能入口）
 
-## 工作流
+## 功能
 
-1. 读取 [Intake Contract](../../core/intake-contract.md)，核对目标、Scope、授权、验收和项目规则。
-2. 初次判断及 Direct 执行期间都检查语义转折。用户列出多个功能点、入口、文件或调用位置只证明表面 Scope，不证明数据语义、用户可见行为、持久化/迁移、跨 owner 责任和验收已经明确；其中仍有会改变方案且需 Human 决定的内容时，按关键澄清/Spec candidate 重评估。
-3. 复杂调试、耗时、多文件、多平台或持续验证本身仍保持 Direct。只有执行方式会改变时才建议 Sacha；一句说明收益、成本和推荐，同一 candidate 只问一次。
-4. 显式 using-sacha、明确使用 Sacha 或直接调用 canonical Role 视为接受。接受后读取 [Workflow Contract](../../core/workflow-contract.md) 与目标 Role；只有 transport、恢复或外部状态需要时才读 Adapter。
-5. 拒绝后按当前事实直接处理；目标、Scope、验收、风险、授权或交付模型实质变化可形成新 candidate，reference、日志或进度变化不得触发重问。
+拥有 [Intake Contract](../../core/intake-contract.md) 的默认入口 procedure：决定保持 Direct，或在 Human 接受后把路由交给 [Workflow Contract](../../core/workflow-contract.md)。
 
-## 路由
+## 输入与首查
 
-- 关键澄清、Spec 冻结/持久化或难回退跨 owner 决策会改变实现边界 → Planner；Planner 在形成 Spec 前检查目标、边界、验收和实质决定，未收口时显式调用 `$sacha-orchestra:clarify`。
-- 上游要求规划/Review 不等于批准新方案。先给 Human 看 Spec；普通批准无阻塞时同 task 立即执行。持久 Spec 可恢复且有可靠 context/compaction 或可观察长历史时，可建议“批准并新开执行任务”；普通“批准”不得静默创建用户 task。
-- Scope/验收已明确但当前 owner 发现多个候选单元、依赖或恢复协调 → 接受后交给目标 Role，按 [Coordination Contract](../../core/coordination-contract.md) 调用或消费 Manager；using-sacha 不自行拆分或派发。
-- Reviewer/Manager 只作为 downstream Gate；打开后分别按 Assurance/Coordination Contract 执行。
-- Clarify 不由 Intake 隐式触发，但 active Planner 命中条件后必须显式调用；Setup Project 保持 Human explicit-only。Clarify 完成返回原 Planner，不建立新入口或 Gate。
-- Intake 不创建 Goal、Artifact 或 Handoff，也不授权写入、安装、Git、发布、远程资源或高影响动作。
+1. 读取 Intake Contract，核对目标、Scope、授权、验收和项目规则。
+2. 初次判断及 Direct 执行期间检查语义转折。目标、Scope、验收、风险、授权或交付模型的实质变化形成新 candidate；reference、日志和进度变化沿用原判断。
+
+## 动作与输出
+
+1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
+2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一 candidate 只询问一次。
+3. 显式 using-sacha、明确使用 Sacha 或直接调用 canonical Role 视为接受。接受后读取 Workflow Contract 与目标 Role；transport、恢复或外部状态需要映射时读取目标 Adapter。
+4. 拒绝后保持 Direct；新 candidate 重新执行入口判断。
+
+## 停止与禁止边界
+
+- 本 Skill 的产出是 Direct 或 Sacha 入口结果；拆分、派发、实施和验收由 downstream owner 处理。
+- 接受后的 Role、Gate、Clarify、Manager、迁移与收尾路线由 Workflow Contract 处理。
+- Goal、Artifact、Handoff、写入、安装、Git、发布、远程资源和高影响动作使用各自 owner 与授权。

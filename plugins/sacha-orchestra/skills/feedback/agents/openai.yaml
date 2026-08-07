@@ -1,4 +1,6 @@
 interface:
-  display_name: "Sacha Orchestra Feedback（流程反馈）"
-  short_description: "只读调查 Sacha 流程偏差并完成唯一修复目标的路由与终态返回"
-  default_prompt: "使用 $sacha-orchestra:feedback 只读调查这个 Sacha 流程或 plugin 偏差，创建或复用唯一修复目标并等待终态返回。"
+  display_name: "Sacha Orchestra Feedback（独立反馈任务）"
+  short_description: "由 Human 手动提交具体流程问题、使用反馈或插件开发想法"
+  default_prompt: "使用 $sacha-orchestra:feedback 调查这项具体的插件反馈，并单向移交给唯一反馈目标任务。"
+policy:
+  allow_implicit_invocation: false

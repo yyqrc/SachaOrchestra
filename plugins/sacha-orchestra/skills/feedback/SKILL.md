@@ -1,23 +1,34 @@
 ---
 name: feedback
-description: 显式流程反馈，或已接受的 lifecycle 出现 deviation 时使用；只读调查、路由唯一 repair target 并等待终态。普通开发不用。
+description: 当 Human 在另一个真实任务中显式提交流程问题、使用反馈或插件开发想法时使用；有界只读调查并单向移交唯一反馈目标任务。
 ---
 
-# Feedback（流程反馈）
+# Feedback（插件反馈）
 
-## 工作流
+## 功能
 
-1. 显式 Feedback 视为接受调查与路由这一窄 Scope；自动调用须有现存 deviation。
-   读取 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 和当前 Adapter 的调查/return 映射。
-2. Source 只读核对真实 task/project、Scope、owner、失败和原始 evidence；不重复询问已知事实。
-   有界只读 helper 只补证，不取得 owner、Role 或 repair identity，也不能替代目标 workspace/context。
-3. 按 Coordination 的 identity/dedup 规则筛选 target；无法消歧就问 Human。
-4. 通过 Adapter 复用或创建合法 target并等待 terminal，不以调查报告代替 repair route。自动 Feedback 仅在已接受 lifecycle 允许时路由。
-5. Target 按 Coordination 独立核对实施与外部副作用授权。Source 不设计或实施修复，也不修改 repair source。
-6. Source owner 按 Adapter 等待并消费一次 terminal result，核对 identity/revision 后返回原 workflow owner；不得在 dispatch 或报告后提前结束，也不向其他 task 发送结果或 follow-up。
+执行 [Coordination Contract](../../core/coordination-contract.md) 定义的 Feedback 单向 owner transfer：Human 在另一个真实任务手动调用，来源任务有界只读调查、定位并交付唯一反馈目标任务后结束。
 
-## 边界
+## 输入与首查
 
-- 调查与路由不扩大 Target 实施或外部动作授权。
-- 不重定义 Core、Artifact、Assurance Outcome 或根终态。
-- 无安全 return path 时保留现场、精确错误和恢复入口，不让 Human 搬运内部 verdict。
+1. 输入为 Human 在另一个真实任务中显式提交的流程问题、使用反馈、插件开发建议或能力想法。该调用授权来源任务执行有界只读调查和一次 owner transfer。
+2. 读取 [Workflow Contract](../../core/workflow-contract.md)、Coordination Contract 和当前 Adapter 的调查/owner transfer 映射。
+3. 围绕具体反馈目标核对插件现状，以及 Human 已提供的任务、项目或原始 evidence。
+
+## 动作顺序
+
+1. 按 Coordination Contract 的反馈身份、可恢复状态与去重规则筛选目标任务。无法消歧时读取 [Human Interaction Contract](../../core/human-interaction-contract.md) 并询问唯一关键差异。
+2. 通过 Adapter 复用合法目标任务；无可复用目标时，在本次调用授权内创建唯一目标任务。
+3. 来源任务向目标任务交付反馈 objective、必要规则/evidence reference 和原生目标任务 reference，然后结束。
+4. 精确重复返回既有目标任务 reference；目标任务按 [Intake Contract](../../core/intake-contract.md) 执行普通任务流程。
+
+## 输出
+
+- 向 Human 交付目标任务 reference、已核实事实和未验证边界；格式遵循 [Human Interaction Contract](../../core/human-interaction-contract.md)。
+- 来源任务在交付 reference 后结束，不等待或转述目标任务终态。
+
+## 停止与禁止边界
+
+- 显式调用只授权来源任务的调查与 owner transfer；目标任务独立核对方案、实施、Review 和外部动作授权。
+- 来源任务保持只读；helper 只补证，目标 workspace/context 承担后续 owner 职责。
+- 没有安全 owner transfer 路径时保留现场、精确错误和恢复入口并停止。
