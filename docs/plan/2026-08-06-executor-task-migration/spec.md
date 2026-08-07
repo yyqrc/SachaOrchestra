@@ -1,5 +1,7 @@
 # Executor task migration Spec
 
+> Historical `0.8.0` Baseline：本文中的 Feedback query/create/wait 与上游 return consumer 只记录当时批准行为，已被 `0.8.1` candidate superseded。当前 owner 是 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md)、Coordination Contract 8 与当前 Runtime Adapter/Feedback Skill。
+
 ## 目标
 
 修复批准 Spec 后无条件在已膨胀的原 task 中执行，以及 subagent 分解、难度/风险路由和 Manager 职责散落在多层、实际派发不可靠的问题。先以本 Spec 的可判定不变量推导 flow 与 owner，再由 Core、Role Skill 和 Runtime Adapter 分层实现；README 只展示推导后的用户流程。

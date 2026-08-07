@@ -1,5 +1,7 @@
 # Executor task migration Review
 
+> Historical `0.8.0` Review：R12/R13 与 Installed dry-run 只裁决当时的 Feedback query/create/wait Baseline，已被 `0.8.1` candidate superseded，不是当前操作说明。当前 owner 是 [`2026-08-07 Feedback Spec`](../2026-08-07-feedback-owner-transfer/spec.md)、Coordination Contract 8 与当前 Adapter/Skill。
+
 ## R1 Verdict（已失效）
 
 Accepted；后续 owner-transfer 语义改变使该 Baseline 失效，等待 R2。
