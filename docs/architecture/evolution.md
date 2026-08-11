@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.8.1` Flow-first design and Runtime owner convergence
+> 当前 release：`0.9.0` 双协作界面适配与中文合同表达统一
 > 当前 source candidate：未开始
-> 当前主线：`0.8.1` 发布边界稳定，下一 candidate 尚未启动
-> 发布边界：`0.8.1` 把完整流程骨架与 Role/Skill 职责抽离到仓库根 `PLUGIN_DESIGN.md` 开发控制面，且不随插件发布；Workflow/Core/Skill 自包含 Runtime 局部语义；主工作流直接入口收敛为三个生产 Role 与 Clarify，Manager/document-project 只接受内部路由；Feedback 由 Human 在另一真实任务显式调用，可提交具体流程问题、使用反馈或插件开发想法，调用即授权单向 owner transfer，目标任务回到普通流程；wait 收敛为有结果消费者的依赖屏障；不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权
+> 当前主线：`0.9.0` 发布边界稳定；Codex Adapter 按当前工具面自适应 v1/v2 协作界面，Core、Adapter、Skill 与开发控制文档使用同一中文表达规则
+> 发布边界：`0.9.0` 保持既有三个生产 Role、Gate、Artifact、Owner 与通用生命周期不变；Codex Adapter 分离 Runtime 路由与 v1/v2 传输编码，Claude Code Adapter 沿用同一内容归属和表达规则；不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,7 +27,7 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.8.1` release | 根目录 `PLUGIN_DESIGN.md` 先行定义顶层流程与职责；主工作流仅三个生产 Role 与 Clarify 可显式调用；Manager/document-project 由内部 owner 路由；Feedback 由 Human 在另一真实任务显式启动，可提交流程问题、使用反馈或开发想法并单向交付唯一目标任务；目标任务随后按普通任务处理；delegation 只在依赖屏障等待 | annotated tag 表示已发布源码；安装/cache/fresh discovery/Runtime 证据分别判断 |
+| `0.9.0` release | 保持 `PLUGIN_DESIGN.md` 定义的产品面与三个生产 Role；Codex Adapter 根据当前会话参数结构唯一选择 v1/v2 协作界面并使用各自传输参数，Core/Skill 不复制 Runtime 映射；Core、Adapter、Skill 与开发控制文档的普通流程叙述统一使用中文 | 附注 tag 表示已发布源码；安装/缓存、新任务发现与 Runtime 证据分别判断；v1 已有当前会话冒烟验证，v2 复用未失效的既有 Runtime 验证 |
 
 两个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
@@ -45,38 +45,26 @@
 
 改变生产 Role、Gate、Handoff 必要语义、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.8.1`
+## 4. 当前 release：`0.9.0`
 
-批准 Scope：[`Flow-first 与 Skill 职责边界 Spec`](../plan/2026-08-07-flow-first-skill-boundaries/spec.md)；[`Feedback 单向 owner transfer Spec`](../plan/2026-08-07-feedback-owner-transfer/spec.md)。
+批准 Scope：Human 本轮明确要求迭代 Codex/Claude Adapter、统一 AGENTS/Core/Skill 表达，并授权发版、提交、push 与安装。
 
-### 4.1 Flow-first 与 Skill 职责
+### 4.1 Codex v1/v2 协作界面
 
-- `PLUGIN_DESIGN.md` 先定义 Direct、Planner/Clarify/Human、Executor、Reviewer、Documentation、Feedback、Manager 协调闭环及 Role/Skill 职责；改变顶层设计先改该文件，再改 Runtime owner 与直接消费者。
-- 主工作流的显式 surface 只保留 Planner、Executor、Reviewer 与 Clarify；Manager 由调用 owner 的 Gate 调用，document-project 由收尾候选路由。Feedback 是另一真实任务中由 Human 手动调用的独立支持入口，可承接流程问题、使用反馈或插件开发想法。
-- Workflow Contract 19 定义图中 Role/Gate 和节点/连线条件；Human Interaction Contract 1 定义跨节点 Human 可见交互；Assurance、Coordination 与 Intake 分别实现自己的分支。
-- Planner、Executor、Reviewer 明确职责、输入输出和禁止边界；支持/控制 Skill 映射图中节点，setup 等具体 Skill 在主流程外声明独立功能和副作用。
-- 删除以产品 Markdown 为被测对象的正则、marker、句子存在性和段落顺序测试；release coherence 只核对机器可解析部署身份、生产入口、配置与 Git release identity。
+- Adapter 只依据当前会话实际暴露的命名空间、工具集和参数结构选择 v1 或 v2；模型目录、配置和父会话先例不能替代工具面证据。
+- Runtime 路由先产生唯一 `route_id`，再按已选协作界面组装 `spawn_agent` 参数；v1 使用 `fork_context` 与 `send_input/wait_agent/close_agent`，v2 使用 `fork_turns` 与 `send_message/followup_task/wait_agent/interrupt_agent/list_agents`，两套字段不得混用。
+- Luna 主路由尚未建立 Owner 时，可按当前协作界面的唯一映射回退到 Sol medium；精确 Human 路由、已启动实例、超时、结果失败或用户取消不自动回退。
 
-### 4.2 Feedback 独立入口与 owner transfer
+### 4.2 内容归属与表达
 
-- Feedback 的输入是具体流程问题、使用反馈、插件开发建议或能力想法；Human 可提供原任务、项目或 evidence reference。
-- 完整反馈身份由反馈 workspace、具体 objective、owner，以及 Human 已提供时的来源 reference 组成。
-- 来源任务只复用身份精确匹配且仍 active/resumable 的唯一目标任务；无可复用匹配时在 Human 本次显式 Feedback 调用的授权内创建恰好一个目标任务，不再追加创建确认。
-- 已 terminal 的同一反馈身份精确重复只返回既有 reference 并记为 `no_op`；其他 terminal/stale 候选不算匹配，无法消歧时停止。
-- 来源任务交付原生目标任务 reference 后结束，不 join、不等待 terminal、不转述目标任务最终结果，也不取得目标任务写入权。
-- 目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Planner、Review、协调、验证和收尾规则。
+- 插件内 Core、Adapter、Skill 与开发控制文档的普通流程叙述使用中文；产品、Role、Skill、Runtime、API、字段、枚举、状态、模型和已定义硬术语保留原标识。
+- 六份 Core 合同与十份 Skill 只调整表达，不改变 Contract Version、触发条件、Role 职责、Gate、Owner、Outcome 或根终态；直接失配的 Skill metadata 同步更新。
+- Claude Code Adapter 保持原传输和模型映射，只按同一规则清理普通英文流程叙述。
 
-### 4.3 Productive wait
+### 4.3 发布证据边界
 
-- 派发不自动触发 wait。当前 owner 先重算依赖图并推进所有不依赖未完成结果、且不与活跃工作冲突的 ready 单元。
-- 只有目标已启动、当前 owner 是 result consumer、下一 transition 依赖结果且没有其他 ready 工作时，才进入依赖屏障并等待。
-- timeout 只接受新的 liveness 证据；不 busy polling、不重复读取相同进度、不因 timeout 重建 target。
-- 安装后 fresh 验证只有在 Human 已授权安装与 fresh Runtime 验证时才由目标任务派发；目标任务完成其他已就绪工作后在验收依赖屏障消费结果，否则明确标记未验证。
-
-### 4.4 Release 证据边界
-
-- Core、Skill、Adapter 与 Runtime owner 导航按本 release 边界对齐；流程行为由任务包 scenario 验证，Markdown validator 不替代 Runtime 证据。
-- annotated tag 只证明已发布源码；安装/cache/fresh discovery 与当前 Runtime 行为使用各自直接证据。
+- 当前 Codex 会话已验证 v1 的 Luna xhigh 创建、等待、结果消费和关闭；v2 的既有创建、消息、继续、等待、取消与标识查询语义未改变，本次只调整归属位置和中文表达，复用此前未失效的 Runtime 验证，不重复执行。
+- 源码/静态、附注 tag、安装/缓存、新任务发现与真实 Runtime 行为分别判断；任一层不得替代另一层。
 
 ## 5. `1.0.0` 与后续方向
 

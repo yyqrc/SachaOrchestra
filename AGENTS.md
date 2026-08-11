@@ -44,7 +44,7 @@
 
 ## 内容归属与信息密度
 
-- 插件内的 Core、Adapter、Skill 与开发控制文档默认使用中文；Role、Skill、Runtime、API、字段名等只有保留英文才能避免歧义时才使用英文，不得用整段英文或未解释的英文缩写承载关键流程判断。
+- 插件内的 Core、Adapter、Skill 与开发控制文档默认使用中文。仅以下正式标识保留英文：产品、Role、Skill、Runtime、API 名；工具、参数、字段、枚举、状态、模型和协议节点的原始标识；Core 合同或本文件已定义且能指出 Owner 的硬术语。其余流程叙述（如上下文、传输、标识、终态、回退、发现和进度）使用中文；中文可能产生歧义时，首次写“中文（英文原词）”，后续使用中文或正式标识。不得用整段英文或未解释的英文缩写承载关键流程判断。
 - 规则按“主体 → 进入条件 → 动作 → 结果/限制”陈述。只保留影响路由、授权、安全、恢复或验收的限制；删除背景解释、反向释义和同义补充。
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
 - 根目录 `PLUGIN_DESIGN.md` 是插件开发/评审顶层设计的唯一 owner，完整保存流程骨架和 Role/Skill 职责；它与 `AGENTS.md` 同属开发控制面，不进入 deployment manifest 所描述的插件包，也不是安装后 Runtime 依赖。只有维护者和 scenario evaluator 读取完整设计；Workflow Contract 自包含唯一 Runtime 路由，其他 Core 只定义局部判断，Skill 只携带自身职责/流程/边界，Adapter 只做 transport。Core、Skill、Adapter 不得要求消费者读取顶层设计，也不得复制整张流程骨架。

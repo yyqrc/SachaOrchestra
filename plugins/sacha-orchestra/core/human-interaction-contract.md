@@ -1,11 +1,11 @@
-# Human Interaction Contract
+# Human Interaction Contract（Human 交互合同）
 
-> Contract Version: 1
-> Status: Normative Core contract
+> 合同版本：1
+> 状态：规范性 Core 合同
 
-## 1. 范围与 owner
+## 1. 范围与 Owner
 
-本文是 Sacha 所有 Human 可见提问、进度和结果表达的唯一 Runtime owner。
+本文是 Sacha 所有 Human 可见提问、进度和结果表达的唯一 Runtime Owner。
 
 Human 可见输出默认使用中文；代码、命令、标识符、协议字段和保留英文才能准确表达的正式术语使用原文。
 
@@ -14,7 +14,7 @@ Human 可见输出默认使用中文；代码、命令、标识符、协议字�
 - 先给判断或结果，再给理解和行动必需的证据、影响与下一步。
 - 进度只报告新事实、风险、阻塞或计划变化。
 - Gate、Packet、状态码、Task ID、协议字段和工具流水账只在直接影响授权、诊断、恢复或下一步时展示。
-- 输出必须明确标记授权影响、安全或数据风险、失败、未验证、Scope 偏离、恢复条件，以及消费者必需的 reference、Entry Condition 和 schema。
+- 输出必须明确标记授权影响、安全或数据风险、失败、未验证、Scope 偏离、恢复条件，以及消费者必需的 reference、Entry Condition 和参数结构（schema）。
 
 ## 3. Human 决定
 
@@ -26,4 +26,4 @@ Human 可见输出默认使用中文；代码、命令、标识符、协议字�
 ## 4. 收口
 
 - 一次回复包含多个问题、建议、取舍或异议点时，正文后用稳定编号汇总结论、关键影响、待决定事项及是否需要 Human 回应；单一结论、进度或纯事实不强制编号。
-- 授权、Artifact 和流程状态只由各自 owner 更新；Human 输出的排版和摘要不改变这些状态。
+- 授权、Artifact 和流程状态只由各自 Owner 更新；Human 输出的排版和摘要不改变这些状态。

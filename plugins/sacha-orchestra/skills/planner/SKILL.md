@@ -7,29 +7,29 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 
 ## 职责
 
-把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收，并把结果交回 [Workflow Contract](../../core/workflow-contract.md) 的 workflow owner。
+把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收，并把结果交回 [Workflow Contract](../../core/workflow-contract.md) 的工作流 Owner。
 
 ## 输入与首查
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 确认 Planner Gate；两者皆无时不接管。
-2. 先读项目规则和真实状态。mapping 可用才调用对应 Skill；缺 Binding/mapping 时用 AGENTS、Domain Skill 或原生路线，不调用 Setup。
+2. 先读项目规则和真实状态。映射可用时才调用对应 Skill；缺少 Binding/映射时用 AGENTS、Domain Skill 或原生路线，不调用 Setup。
 3. 读取已落盘决定和相关项目 `CONTEXT.md`，检查目标结果、Scope/Non-goals、验收和会改变方案的 Human 决定。未收口项显式调用 `$sacha-orchestra:clarify`；代码、项目规则或 Skill 可确认的事实先自行调查。
-4. Clarify 返回后核对原问题、已确认决定、阻塞项、未验证项和关键术语；仍不足以冻结 Spec 时继续 Clarify。一个有界研究 helper 足够时直接调用，不打开 Manager。
+4. Clarify 返回后核对原问题、已确认决定、阻塞项、未验证项和关键术语；仍不足以冻结 Spec 时继续 Clarify。一个有界研究辅助 Agent 足够时直接调用，不打开 Manager。
 
 ## 动作顺序
 
-1. 当前 context 可恢复时使用 inline plan；方案需 Human 批准、属于 breaking 或需要跨 context 恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
+1. 当前上下文可恢复时使用内联 Plan；方案需 Human 批准、属于破坏性变更或需要跨上下文恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
 2. 命中持久化条件后，先把完整方案写入 `spec.md` 并回读，再向 Human 交付。
-   持久化优先使用 confirmed Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需 `decisions.md` 同目录。
+   持久化优先使用已确认的 Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需将 `decisions.md` 写入同一目录。
 3. Spec 细化到 Executor 可直接实施；每步说明目标 path、预期改动、约束与不变量、依赖与顺序、检查与证据，以及返回 Planner 的条件。
-4. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件和 A/B/C 验收路线。出现多个候选单元、依赖或恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager 并消费其分解、依赖、串行/派发结论和 evidence。
+4. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件和 A/B/C 验收路线。出现多个候选单元、依赖或恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager 并消费其分解、依赖、串行/派发结论和证据。
 
 ## 输出
 
 1. 向 Human 提交此前未确认的实质方案前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，交付已落盘 Spec 的 path、方案摘要和优先检查点。
-2. 批准、迁移与下一 Role 路由按 Workflow Contract 返回 workflow owner。project-context 候选及 `decisions.md` path 留给 closeout Documentation writer。
+2. 批准、迁移与下一 Role 路由按 Workflow Contract 返回工作流 Owner。`project-context` 候选及 `decisions.md` path 留给收尾文档写入者。
 
 ## 停止与禁止边界
 
 - 缺失决策会实质改变 Scope、架构、验收或高影响授权时等待 Human。
-- Planner 不实施生产修改；Scope、合同或验收变化由 workflow owner 返回 Planner 修订。
+- Planner 不实施生产修改；Scope、合同或验收变化由工作流 Owner 返回 Planner 修订。
