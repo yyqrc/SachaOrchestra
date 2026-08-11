@@ -16,7 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "sacha-orchestra"
 MANIFEST = PLUGIN / ".codex-plugin" / "plugin.json"
 CLAUDE_MANIFEST = PLUGIN / ".claude-plugin" / "plugin.json"
+AGENT_PLUGIN_MANIFEST = PLUGIN / "plugin.json"
 MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
+CURSOR_MARKETPLACE = ROOT / ".cursor-plugin" / "marketplace.json"
 
 SETUP_PROJECT_SCRIPT = (
     PLUGIN / "skills" / "setup-project" / "scripts" / "generate_project_integration.py"
@@ -68,14 +70,25 @@ def main() -> int:
     version = args.version
     manifest = load_json(MANIFEST)
     claude_manifest = load_json(CLAUDE_MANIFEST)
+    agent_plugin_manifest = load_json(AGENT_PLUGIN_MANIFEST)
     marketplace = load_json(MARKETPLACE)
+    cursor_marketplace = load_json(CURSOR_MARKETPLACE)
 
     check(
         isinstance(manifest, dict)
         and isinstance(claude_manifest, dict)
+        and isinstance(agent_plugin_manifest, dict)
         and manifest.get("version") == version
-        and claude_manifest.get("version") == version,
+        and claude_manifest.get("version") == version
+        and agent_plugin_manifest.get("version") == version,
         "Deployment manifest versions do not match --version",
+    )
+    check(
+        isinstance(agent_plugin_manifest, dict)
+        and agent_plugin_manifest.get("$schema")
+        == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+        and agent_plugin_manifest.get("name") == "sacha-orchestra",
+        "Agent Plugins manifest identity or schema is invalid",
     )
 
     marketplace_plugins = marketplace.get("plugins", []) if isinstance(marketplace, dict) else []
@@ -88,6 +101,21 @@ def main() -> int:
         and marketplace_plugins[0].get("source")
         == {"source": "local", "path": "./plugins/sacha-orchestra"},
         "Marketplace identity or local plugin source is invalid",
+    )
+    cursor_plugins = (
+        cursor_marketplace.get("plugins", [])
+        if isinstance(cursor_marketplace, dict)
+        else []
+    )
+    check(
+        isinstance(cursor_marketplace, dict)
+        and cursor_marketplace.get("name") == "sacha"
+        and cursor_marketplace.get("metadata", {}).get("version") == version
+        and len(cursor_plugins) == 1
+        and cursor_plugins[0].get("name") == "sacha-orchestra"
+        and cursor_plugins[0].get("source") == "plugins/sacha-orchestra"
+        and cursor_plugins[0].get("version") == version,
+        "Cursor marketplace identity, version, or plugin source is invalid",
     )
 
     for entrypoint in REQUIRED_ENTRYPOINTS:
@@ -104,7 +132,10 @@ def main() -> int:
         except SyntaxError as exc:
             failures.append(f"Python entrypoint syntax is invalid: {script.name}: {exc}")
 
-    manifest_has_hooks = isinstance(manifest, dict) and "hooks" in manifest
+    manifest_has_hooks = any(
+        isinstance(candidate, dict) and "hooks" in candidate
+        for candidate in (manifest, claude_manifest, agent_plugin_manifest)
+    )
     check(
         not manifest_has_hooks and not (PLUGIN / "hooks").exists(),
         "Plugin adds an unapproved Hook surface",

@@ -12,9 +12,9 @@
 | [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |
 | [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
 | [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 权威、渐进生成条件、Handoff 与恢复语义 | 流程路由、保存路径、原始事实 |
-| [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复与证据映射 | Gate、就绪判定、Role 和通用流程 |
+| [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复与证据映射 | Gate、就绪判定、Role 和通用流程 |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。Deployment manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
+Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
 
 ## 2. 产品入口
 

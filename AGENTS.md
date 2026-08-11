@@ -12,7 +12,8 @@
 | 路径 | Owner 与用途 |
 | --- | --- |
 | `docs/architecture/evolution.md` | 当前 release/candidate、长期架构与 breaking change 权威；不保存版本流水账 |
-| 两个 deployment manifest | 当前源码版本与部署接口元数据 |
+| 三个 deployment manifest | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准供 Cursor 等兼容 Runtime 加载 |
+| `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | 各 Runtime 的 repo-local marketplace 入口；只保存部署路由，不拥有流程语义 |
 | `plugins/sacha-orchestra/core/intake-contract.md` | 入口判断、接受/拒绝、重复抑制和授权边界的规范性 contract |
 | `PLUGIN_DESIGN.md` | 与本文件并列的插件开发/评审顶层设计：完整流程骨架、Role/Skill 职责、Core owner 与自上而下变更顺序；不随插件发布，也不是 Runtime 依赖 |
 | `plugins/sacha-orchestra/README.md` | 安装后入口、最小用法与 Runtime owner 导航；不保存顶层设计 |
@@ -80,7 +81,7 @@
 | Role 或支持 Skill 的局部 procedure | 必须落在已声明职责/功能内；同步 metadata 和直接调用/返回方，超界则升级为高层流程变化 |
 | 单 Runtime transport、模型、安装或恢复 | 只改目标 Adapter、相关 metadata/manifest 与真实 Runtime 验证；不联动其他 Runtime 或 Core |
 | Setup/生成器/Provider Binding | 修改具体 Skill 与生产脚本，核查 capability provider guide 和真实生成行为测试；不把生成格式提升为 Core 流程 |
-| 产品版本、source candidate 或 release 状态 | Evolution、两个 deployment manifest 与 Git tag；release validator 只核对机器可解析部署身份和可执行入口 |
+| 产品版本、source candidate 或 release 状态 | Evolution、三个 deployment manifest 与 Git tag；release validator 只核对机器可解析部署身份和可执行入口 |
 
 ## Creator 与生成器
 
@@ -111,7 +112,7 @@ cprobe summary <affected-path-or-directory> --json
 
 发布分两种模式：
 
-- Human 说“快速发版”时，默认递增 patch 版本；只人工核对 Evolution 的 release/candidate 状态，并机器核对两个 deployment manifest、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 runtime。
+- Human 说“快速发版”时，默认递增 patch 版本；只人工核对 Evolution 的 release/candidate 状态，并机器核对三个 deployment manifest、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 runtime。
 - Human 说“发版”时，运行风险对应的普通验证与完整 metadata coherence；安装和 runtime 仍按明确授权与发布目标决定。
 
 普通发版收尾运行 metadata coherence：

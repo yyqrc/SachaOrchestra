@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.9.0` 双协作界面适配与中文合同表达统一
+> 当前 release：`0.10.0` Cursor Agent Plugins 与 Runtime Adapter
 > 当前 source candidate：未开始
-> 当前主线：`0.9.0` 发布边界稳定；Codex Adapter 按当前工具面自适应 v1/v2 协作界面，Core、Adapter、Skill 与开发控制文档使用同一中文表达规则
-> 发布边界：`0.9.0` 保持既有三个生产 Role、Gate、Artifact、Owner 与通用生命周期不变；Codex Adapter 分离 Runtime 路由与 v1/v2 传输编码，Claude Code Adapter 沿用同一内容归属和表达规则；不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权
+> 当前主线：`0.10.0` 发布边界稳定；Cursor 通过 Agent Plugins `1.0.0` 复用现有 Skills，并按 Teams Premium seat 使用 Grok 4.5 / Composer 2.5 分层预算路由
+> 发布边界：`0.10.0` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；Cursor 用户任务迁移与 Feedback 新目标创建在无等价原生 task 能力时保持未支持，不用 Subagent 冒充
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,9 +27,9 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.9.0` release | 保持 `PLUGIN_DESIGN.md` 定义的产品面与三个生产 Role；Codex Adapter 根据当前会话参数结构唯一选择 v1/v2 协作界面并使用各自传输参数，Core/Skill 不复制 Runtime 映射；Core、Adapter、Skill 与开发控制文档的普通流程叙述统一使用中文 | 附注 tag 表示已发布源码；安装/缓存、新任务发现与 Runtime 证据分别判断；v1 已有当前会话冒烟验证，v2 复用未失效的既有 Runtime 验证 |
+| `0.10.0` release | 新增 Agent Plugins 根 manifest、Cursor repo-local marketplace 与 Cursor Adapter；复用现有十个 Skill，按 Teams Premium seat 以 Grok 4.5 为生产 Role 默认、Composer 2.5 为辅助/并行默认并保留第三方高风险 Review，不复制 Core/Skill，不增加 Cursor-specific Hook/MCP/Rule | 附注 tag 表示已发布源码；Agent Plugins Schema、项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static。Cursor 安装、fresh discovery、Skill 触发、Subagent/模型/恢复和用户 task 能力仍需真实 Runtime 验证 |
 
-两个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
+三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
 ## 3. 长期架构边界
 
@@ -45,26 +45,26 @@
 
 改变生产 Role、Gate、Handoff 必要语义、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.9.0`
+## 4. 当前 release：`0.10.0`
 
-批准 Scope：Human 本轮明确要求迭代 Codex/Claude Adapter、统一 AGENTS/Core/Skill 表达，并授权发版、提交、push 与安装。
+批准 Scope：Human 明确要求增加 Cursor 平台支持，按 Teams Premium seat 设计 Grok 4.5 / Composer 2.5 模型路由，并选择提交、annotated tag 与原子 push；本次不安装。
 
-### 4.1 Codex v1/v2 协作界面
+### 4.1 Agent Plugins 与 Cursor Runtime
 
-- Adapter 只依据当前会话实际暴露的命名空间、工具集和参数结构选择 v1 或 v2；模型目录、配置和父会话先例不能替代工具面证据。
-- Runtime 路由先产生唯一 `route_id`，再按已选协作界面组装 `spawn_agent` 参数；v1 使用 `fork_context` 与 `send_input/wait_agent/close_agent`，v2 使用 `fork_turns` 与 `send_message/followup_task/wait_agent/interrupt_agent/list_agents`，两套字段不得混用。
-- Luna 主路由尚未建立 Owner 时，可按当前协作界面的唯一映射回退到 Sol medium；精确 Human 路由、已启动实例、超时、结果失败或用户取消不自动回退。
+- 插件根 `plugin.json` 遵循 Agent Plugins `1.0.0`，Cursor repo-local marketplace 指向同一插件源码；Cursor 只复用现有十个 Skill，不复制 Core、Skill 或 Runtime-neutral 流程。
+- Cursor Adapter 映射主对话、Subagent、前后台等待、resume、模型、恢复与证据边界；Agent Plugins 不携带 Cursor-specific Rule、Hook、MCP、command 或自定义 Subagent。
+- Cursor 没有等价用户 task 查询/创建能力时，普通 Scope 保持当前主对话，迁移与 Feedback 新目标报告能力缺口；不得用 Subagent 或 Cloud Agent 冒充用户 task Owner。
 
-### 4.2 内容归属与表达
+### 4.2 Teams Premium 模型路由
 
-- 插件内 Core、Adapter、Skill 与开发控制文档的普通流程叙述使用中文；产品、Role、Skill、Runtime、API、字段、枚举、状态、模型和已定义硬术语保留原标识。
-- 六份 Core 合同与十份 Skill 只调整表达，不改变 Contract Version、触发条件、Role 职责、Gate、Owner、Outcome 或根终态；直接失配的 Skill metadata 同步更新。
-- Claude Code Adapter 保持原传输和模型映射，只按同一规则清理普通英文流程叙述。
+- Human 精确配置最高优先；生产 Role 默认使用当前 Runtime 发现的 Cursor Grok 4.5 medium non-fast，高风险 Planner/Executor 使用 Grok 4.5 high non-fast。
+- 高风险 Reviewer 使用 `claude-opus-5[effort=high]` 保留第三方独立复核；Manager/Clarify 有界研究、轻任务与多个并行辅助单元使用 `composer-2.5[fast=false]`。
+- Fast、Max、Cloud 与额外消费不因 Premium seat 自动启用；First-party/Third-party 池接近告警线时按 Adapter 的未启动、无写入与证据边界处理，不静默改写 Human exact 或高风险路由。
 
 ### 4.3 发布证据边界
 
-- 当前 Codex 会话已验证 v1 的 Luna xhigh 创建、等待、结果消费和关闭；v2 的既有创建、消息、继续、等待、取消与标识查询语义未改变，本次只调整归属位置和中文表达，复用此前未失效的 Runtime 验证，不重复执行。
-- 源码/静态、附注 tag、安装/缓存、新任务发现与真实 Runtime 行为分别判断；任一层不得替代另一层。
+- Agent Plugins Schema、十个 Skill、Plugin validator、项目测试与 candidate/release coherence 构成 source/static 证据；annotated tag 与远端指向构成 Git 发布身份。
+- 当前机器未发现 `cursor-agent`，本次也未授权安装；Cursor IDE/CLI/Cloud 的安装、fresh discovery、Skill 触发、Subagent、模型实际命中、恢复与用户 task 能力保持未验证。
 
 ## 5. `1.0.0` 与后续方向
 

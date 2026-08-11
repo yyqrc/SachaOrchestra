@@ -4,7 +4,7 @@
 
 ## 默认入口
 
-直接调用 `$sacha-orchestra:using-sacha`，或在任务初次接收及语义转折点重评估。目标、Scope、授权与验收清晰时保持当前 task Direct；只有执行方式会因澄清、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一 candidate 只询问一次。
+Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或 `/using-sacha` 调用。也可在任务初次接收及语义转折点重评估。目标、Scope、授权与验收清晰时保持当前 task Direct；只有执行方式会因澄清、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一 candidate 只询问一次。
 
 ## 显式入口
 
@@ -23,6 +23,6 @@
 - [Assurance Contract](core/assurance-contract.md)：Review、Baseline 与 Outcome。
 - [Coordination Contract](core/coordination-contract.md)：Manager、readiness、dispatch/wait/return 与 owner transfer。
 - [Artifact Protocol](core/artifact-protocol.md)：Artifact 与必要 Handoff。
-- [Codex Adapter](adapters/codex/runtime-adapter.md)与 [Claude Code Adapter](adapters/claudecode/runtime-adapter.md)：各自 Runtime transport。
+- [Codex Adapter](adapters/codex/runtime-adapter.md)、[Claude Code Adapter](adapters/claudecode/runtime-adapter.md)与 [Cursor Adapter](adapters/cursor/runtime-adapter.md)：各自 Runtime transport。
 
 静态源码与说明不证明安装、fresh discovery、dispatch 或真实 Runtime 行为；这些必须用对应 Runtime scenario 单独验证。
