@@ -39,15 +39,18 @@
 - 普通 plugin `change`、`build`、`fix`、`sync` 或 `iterate` 请求默认在当前 task 执行；多文件、耗时或验证步骤多不单独打开任何 Gate。
 - Direct Scope 以用户语义目标和明确约束为边界。预计文件列表不是穷尽 allowlist，只有用户或已批准 Spec 明确写出 exact file allowlist 时才是硬边界。
 - 当前 Executor 可修改同一目标直接必需的源码、文档、断言和验证配置；同 Scope 漏改/失败直接修复重验，不创建额外流程。
+- 插件开发的当前执行者遇到同词多义、同义多名、概念误合并或代码、合同、文档定义冲突时，先只读核对现行 Owner、直接消费者、真实行为与冲突；事实足以消歧时在当前授权和 Scope 内按现行 Owner 统一，只有不同解释会改变产品面、Scope、验收、授权或破坏性边界时才交 Human 决定。该调查本身保持 Direct，不自动调用 Clarify，也不因术语核对打开 Planner Gate 或 Manager Gate。
 - 出现实质新方案、breaking contract/schema、权限、安全、持久数据、验收改变、未授权外部动作或无法完整验证时，停止相关写入并按三个 Gate 路由。
 - 每次只验证当前 Runtime 和交付层；除非 Human 明确要求跨 Runtime 验收，其他 Runtime 的安装、发现、行为或证据缺口只作后续反馈，不扩大或阻塞 source release。
 - Review 只拦截会错误交付的关键问题；非 release-blocking 缺证据/改进项用 `Accepted with follow-up`。不追求全历史/全 Runtime，也不把“还能补证据”升级为 `Needs Fix`。
 
 ## 内容归属与信息密度
 
-- 插件内的 Core、Adapter、Skill 与开发控制文档默认使用中文。仅以下正式标识保留英文：产品、Role、Skill、Runtime、API 名；工具、参数、字段、枚举、状态、模型和协议节点的原始标识；Core 合同或本文件已定义且能指出 Owner 的硬术语。其余流程叙述（如上下文、传输、标识、终态、回退、发现和进度）使用中文；中文可能产生歧义时，首次写“中文（英文原词）”，后续使用中文或正式标识。不得用整段英文或未解释的英文缩写承载关键流程判断。
+- Core、Adapter、Skill 与开发控制文档属于全局【表达要求】覆盖的 Human 可读内容；除全局定义的正式标识外，本项目没有额外语言豁免。
 - 规则按“主体 → 进入条件 → 动作 → 结果/限制”陈述。只保留影响路由、授权、安全、恢复或验收的限制；删除背景解释、反向释义和同义补充。
 - 一个事实一个 owner：项目事实归本文件，Runtime 机制归 Adapter，Role procedure 归 Skill，跨消费者稳定语义才进 Core；下游只引用 owner。
+- 同一流程判断在多个直接消费者中重复、出现歧义或已造成真实失败时，唯一语义 owner 一次定义术语、进入条件、动作和结果/限制，并明确直接消费者与可证伪方式；下游只引用术语并保留自身映射，不复制定义。术语只提高表达密度，除非已有机器消费者和实际判断需要，不得自动升级为字段、状态、枚举、Artifact、必填格式或产品面。
+- 术语核对后的当前执行者按既有归属处理：已有 Owner 时以其为准，当前授权包含修改时在该 Owner 中修正定义，并删除现行下游的重复定义或改为 Owner 引用；无 Owner、但至少两个直接消费者依赖该术语改变判断时，按本节既有 Owner 分层和【产品边界】选择唯一 Owner；仅当前任务消费时不新建长期 Owner，已有 Spec 或决定记录时留在其中；只有无现行 Owner、且存在跨任务项目消费者时才列为项目上下文（`project-context`）候选。
 - 根目录 `PLUGIN_DESIGN.md` 是插件开发/评审顶层设计的唯一 owner，完整保存流程骨架和 Role/Skill 职责；它与 `AGENTS.md` 同属开发控制面，不进入 deployment manifest 所描述的插件包，也不是安装后 Runtime 依赖。只有维护者和 scenario evaluator 读取完整设计；Workflow Contract 自包含唯一 Runtime 路由，其他 Core 只定义局部判断，Skill 只携带自身职责/流程/边界，Adapter 只做 transport。Core、Skill、Adapter 不得要求消费者读取顶层设计，也不得复制整张流程骨架。
 - 高层流程的节点、先后关系、分支、Role/Skill 职责或回路变化，按 `需求不变量 → PLUGIN_DESIGN.md → Workflow/对应 Core → 节点 Skill/Adapter 消费者 → Evolution（若改变长期或 breaking boundary）` 修改。节点内部判断或职责内 procedure 没有改变顶层设计时，直接修改唯一 Core/Adapter/Skill owner，不为“保持同步”改设计文档。
 - Manager/路由分层固定为：`PLUGIN_DESIGN.md` 画出协调闭环；Workflow 只决定何时进入；Coordination 定义 assessment、依赖、readiness、dispatch/wait/return；Manager Skill 调用并消费；Adapter 组装 Runtime 参数。任一层越权时删除重复，不用补句解释。
@@ -61,7 +64,6 @@
 - Planner、Executor、Reviewer 三个 Role Skill 必须分别写清职责、工作流和边界。修改前先判断 delta 是否仍在该 Role 已声明的输入、输出和禁止边界内；如果新增职责、输出类型、调用 owner 或跨节点路线，先按高层流程变更处理，不能直接给 Skill 补一步。
 - Manager、Clarify、Feedback、using-sacha、document-project 等控制/支持 Skill 只实现 `PLUGIN_DESIGN.md` 中的对应节点或闭环；setup-project、setup-agents 等主流程外 Skill 必须写清功能、概略工作流和副作用边界。迭代可改已声明功能内做法；新增功能、触发方式、外部副作用或跨节点接管属于顶层设计变化，不得以局部修复混入。
 - 新增或扩展规则、Role、Gate、Artifact、状态、字段、模板或 validator 必须对应真实失败或重复低效，并明确唯一 owner、直接 consumer、改变的判断与可证伪方式；优先补强现有 owner，缺一项就不增加。“更完整/更规范”不是扩产品面的理由，示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
-- Hash 不是通用确认字段或展示信息。新增或保留 hash 前必须指出直接校验它的 consumer 和它防止的真实失败；仅在并发/覆盖保护、不可变产物身份或跨边界字节一致性确实依赖精确内容时使用。路径、稳定标识、版本、结构校验或直接内容比较已足够时不得再加 hash；不得要求 Human 手工读取、复制或复述可由工具传递和校验的 hash，也不得在结果中重复展示只供内部事务使用的 hash。修改相关流程时一并删除无消费者、重复或纯装饰性的旧 hash。
 - 精简或压缩只提高表达密度，不得以语义模糊换字数：可删除铺垫、常识、历史、同义重复和无消费者说明；必须保留明确的主体、trigger/进入条件、动作及先后依赖、退出/停止/恢复条件、例外、Owner/Human 决策点、授权、安全、失败/未验证、Evidence、验收、Entry Condition 和 schema。压缩后若需要依赖上下文猜测、存在多种合理解释或无法证明语义等价，则保留原文；若会改变流程判断，停止该部分并把语义 delta 交给 Human 二次确认。
 - 多种做法成立时写判断原则；稳定参数写配置；脆弱且重复的机械顺序写 script 并实跑。
 - 主流程脱离 Sacha、固定 Gate、Scope/Handoff 仍能完成；编排只增强协调、恢复或独立验收。
@@ -69,7 +71,7 @@
 
 ## 产品边界
 
-- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 是主工作流唯一可显式调用的支持节点。Manager 只能由调用 owner 在 Gate 打开后调用，document-project 只能由收尾候选路由，二者都不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
+- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 是主工作流唯一可显式调用的支持节点。Manager 只能由主任务在 Gate 打开后调用，document-project 只能由收尾候选路由，二者都不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
 - 任何新增 Role、Skill 功能、节点、连线、Outcome 去向或跨节点 owner transfer 都先改 `PLUGIN_DESIGN.md` 并取得 Human 对产品面变化的明确确认，再修改 Core 与直接消费者。现有职责内 procedure、提示词或证据细节不自动升级为顶层设计变化。
 - Core 只容纳流程节点间被多个消费者共享的稳定判断；单 Skill 的 trigger、procedure、局部状态或格式留在 Skill，单 Runtime 的 transport/模型/恢复留在 Adapter，项目特例留在 Project Integration/Domain Skill。不能指出第二个真实消费者时，不新增 Core taxonomy 或必填字段。
 - Hook 不得接受/替代 Sacha、扩大授权或参与恢复。新增 hook/MCP/app/外部服务/权限字段需明确批准；目标必需的 repo-local asset/script/manifest 元数据按 Scope 修改验证。
@@ -105,7 +107,7 @@ cprobe summary <affected-path-or-directory> --json
 - `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
 - Source validator 只核对 JSON/TOML/YAML 等机器可解析部署身份、实际文件结构、可执行入口和 Git release identity；Markdown 链接与语义由 owner review/官方 Plugin/Skill validator 负责，不写正则、marker、句子存在性、段落顺序或字数 Gate。
 - 生产脚本用隔离临时目录的正反例、幂等、失败恢复和真实副作用测试；Skill trigger、Role 路由与 Runtime 调用用真实 scenario smoke。前一层不得替代后一层。
-- Role/流程 scenario 使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行 Agent 只看中性 task、隔离 workspace 规则与正式入口 Skill/Core，不读取插件 README 或 scenario oracle；独立 evaluator 才用顶层图核对偏移。必须真实发起 clean-context subagent、运行 verifier 并检查原生派发/return 与 workspace delta。嵌套 target 消失前由 evidence recipient 保存首次 wait 前的 live tree 和 target 直接 start/terminal，不得用执行者事后自报替代。未安装或不是 fresh task 时只能记为 `source-scenario`，不得宣称 fresh discovery/Runtime 已验证。
+- Role/流程场景使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行者只看中性任务、隔离工作区规则与正式入口 Skill/Core，不读取插件 README 或场景裁决标准；独立评估者才用顶层图核对偏移。不要求 Manager 派发的场景使用不携带父对话历史的委派 Agent；要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行，并遵守单层派发。运行者保存首次等待前的实时 Agent 树、首次创建参数和委派 Agent 的直接启动/终态记录，再核对验证器、原生派发/返回与工作区 `delta`；不得用执行者事后自报替代。未安装或不是全新任务时只能记为 `source-scenario`，不得宣称全新发现或 Runtime 已验证。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。
 
 `plugin-eval` 可用于结构、描述和 token budget 诊断，但不是必跑 Gate，也不能替代官方 validator、真实 schema、代码测试或 runtime smoke。不得仅为提高评分添加无权威依据的 manifest 字段、英文触发词、reference 或其他产品内容；评估器输入兼容问题使用 task-local 等价镜像并报告限制，不修改安装 cache 或正式源码迁就工具。

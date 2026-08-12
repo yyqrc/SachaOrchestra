@@ -18,7 +18,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 动作顺序
 
 1. 按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改。
-2. 出现多个候选单元、依赖、并发安全或正式恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager，消费其串行结论或派发结果；共享输出由集成 Owner 串行处理。
+2. 主任务出现多个候选单元、依赖、并发安全或正式恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager，消费其串行结论或派发结果；Executor 委派 Agent 返回协调请求；共享输出由集成 Owner 串行处理。
 3. 按风险验证并读取退出状态、错误、警告和失败计数。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
 4. Scope 内实现缺陷或验证失败由当前 Executor 修复并重验。
 
@@ -26,7 +26,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 1. 只返回消费者需要的 `delta`、验证、偏离、风险、未验证项和恢复入口。
 2. 向 Human 请求 B/C 类证据、报告进度或交付结果前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-3. 需要持久记录或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按目标 Adapter 返回工作流 Owner。
+3. 需要持久记录或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回工作流 Owner。
 
 ## 停止与禁止边界
 

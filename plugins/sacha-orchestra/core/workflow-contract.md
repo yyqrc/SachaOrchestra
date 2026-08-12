@@ -1,12 +1,14 @@
 # Workflow Contract（工作流合同）
 
-> 合同版本：19
+> 合同版本：20
 > 状态：规范性 Core 内核
 
 ## 1. 范围
 
 本文是 Role、Gate、节点进入/退出条件和 Human 路由的唯一 Runtime Owner；显式 Clarify 保持窄授权。入口见 [Intake Contract](intake-contract.md)，Human 可见交互见 [Human Interaction Contract](human-interaction-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
-分解、就绪判定、调度、取消、归并、返回与迁移 Owner 转移见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+单层派发、委派 Agent、协调请求、分解、就绪判定、调度、取消、归并、返回与迁移 Owner 转移见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+
+本文将当前持有工作流 Owner 并负责推进根终态的用户任务称为“主任务”；用户任务迁移成功后，“主任务”指新 Owner 所在的目标任务。
 
 Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Project Integration/Domain Skill，Role 流程归 Skill。只在当前消费者出现时加载对应合同，不预加载可能出现的下游面。
 
@@ -15,12 +17,12 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 默认仅使用 Executor；Gate 无事实依据时关闭。同一文件或共享可变输出只有一个活跃写入者；隔离补丁/候选实现由集成 Owner 串行应用。
 - Human 保留目标、Scope、高影响动作和工作区外状态授权。
 - 原始文件、外部状态和命令结果决定事实；Artifact/报告/自报只索引。
-- 工作流 Owner 推进到根终态；Role/辅助 Agent 的完成结果只是中间结果。
+- 主任务推进到根终态并独占 Manager 与派发；委派 Agent 的完成结果和协调请求只是中间结果。
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
 - 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
-- 当前 Owner 发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；Owner 可在候选尚未完整拆分时调用。单一职责内工作仍可由当前 Owner 完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
-- 显式 Clarify 的研究保持只读窄授权；出现多个候选问题、依赖图或正式恢复需要协调时同样打开 Manager Gate。一个窄研究可由 Clarify Owner 直接消费，就绪判定与派发规则只由 Coordination 定义。
+- 主任务发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；可在候选尚未完整拆分时调用。委派 Agent 发现相同事实时向主任务返回协调请求。单一职责内工作仍可由当前 Owner 完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
+- 显式 Clarify 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Clarify 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
 - 三个 Gate 全关且无需恢复时，Executor 在当前上下文完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 
 ## 3. Role 与 Gate
@@ -42,13 +44,13 @@ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. 生命周期与 Human 路由
 
-通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 是任一调用 Owner 内的协调闭环。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
+通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
 
 Planner 的实质新方案先给 Human 看 Spec；确认前不 Execute。无未决方案、额外授权或阻塞性 Entry Condition 时，`批准`、`都 OK` 已足够立即路由，不再问“开始实施”。普通批准默认在同一任务执行，不得静默创建用户可见任务。
 
 Spec 已持久化且可达，并有 Runtime 上下文占用高/压缩事实，或可直接观察的多阶段长历史且执行不依赖未落盘对话时，可明确推荐“批准并新开执行任务”；没有可靠信号时不得伪造占用遥测。只有 Human 明确选择新开才由 Adapter 迁移。Spec/批准/Entry Condition/唯一 Owner 任一不足或旧写入者尚未终止时不得迁移；标识/去重、单写入者与 Owner 转移归 Coordination。
 
-任务迁移把剩余生命周期交给新工作流 Owner；旧任务交接后结束，不等待返回。新 Owner 继续同一生命周期与独立 Review，迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
+任务迁移把剩余生命周期与派发权交给新工作流 Owner；旧任务交接后结束，不等待返回。新 Owner 继续同一生命周期与独立 Review，迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
 
 Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Clarify、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
 

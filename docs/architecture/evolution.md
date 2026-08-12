@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.10.0` Cursor Agent Plugins 与 Runtime Adapter
+> 当前 release：`0.11.0` 单层 Manager 派发与协调请求
 > 当前 source candidate：未开始
-> 当前主线：`0.10.0` 发布边界稳定；Cursor 通过 Agent Plugins `1.0.0` 复用现有 Skills，并按 Teams Premium seat 使用 Grok 4.5 / Composer 2.5 分层预算路由
-> 发布边界：`0.10.0` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；Cursor 用户任务迁移与 Feedback 新目标创建在无等价原生 task 能力时保持未支持，不用 Subagent 冒充
+> 当前主线：主任务独占 Manager 并执行单层派发；委派 Agent 只返回工作单元结果或协调请求
+> 发布边界：`0.11.0` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；单层派发的真实 Runtime 行为仍由全新主任务场景单独验证
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,7 +27,7 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.10.0` release | 新增 Agent Plugins 根 manifest、Cursor repo-local marketplace 与 Cursor Adapter；复用现有十个 Skill，按 Teams Premium seat 以 Grok 4.5 为生产 Role 默认、Composer 2.5 为辅助/并行默认并保留第三方高风险 Review，不复制 Core/Skill，不增加 Cursor-specific Hook/MCP/Rule | 附注 tag 表示已发布源码；Agent Plugins Schema、项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static。Cursor 安装、fresh discovery、Skill 触发、Subagent/模型/恢复和用户 task 能力仍需真实 Runtime 验证 |
+| `0.11.0` release | 主任务独占 Manager 与首次创建；委派 Agent 只完成当前单元并返回结果或协调请求；迁移后派发权随工作流 Owner 转移 | 附注 tag 表示已发布源码；项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static，安装只证明本机包版本。单层派发、参数、模型命中、返回与恢复仍需全新主任务中的真实 Runtime 场景验证 |
 
 三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
@@ -37,34 +37,34 @@
 2. `using-sacha` 是唯一默认入口；Planner、Executor、Reviewer 是高级直接入口，Clarify 只有显式窄授权；Manager 与 document-project 只接受图中的内部路由。Feedback 由 Human 在另一真实任务显式调用；调用授权来源任务调查与 owner transfer，目标任务的写入、安装、Git、发布或外部动作另行授权。
 3. 普通清晰任务保持 Direct；复杂、耗时、多文件、多平台或想增加 Agent 本身不打开 Gate。
 4. 根目录 `PLUGIN_DESIGN.md` 拥有完整顶层流程与 Role/Skill 职责，只供开发/评审且不随插件发布；Workflow 自包含唯一 Runtime 路由；Human Interaction 拥有 Human 可见交互规则；Coordination 拥有拆分、依赖、readiness、dispatch/wait/return 与 owner transfer；Adapter 只映射 Runtime；Skill 只实现已声明职责或主流程外功能，Runtime 不读取顶层设计。
-5. 同一文件或共享可变输出只有一个活跃写入者；隔离候选由 integration owner 串行应用。
-6. Spec 是批准 Scope 的持久权威；Artifact 按真实持久化/交接消费者渐进生成，简单任务不制造文档。
-7. 原始文件、Diff、运行状态和命令输出决定事实；source/static、安装/cache、fresh discovery 与真实 Runtime 证据不得互相替代。
-8. 不预建 Runtime Registry、数据库、后台服务、第四 Role、自动授权或跨项目特例；真实失败出现后再收紧现有 owner。
-9. 所有任务优先复用同一通用 lifecycle；通过关闭无依据 Gate 与跳过无候选节点加速。新增特殊流程、专属 target 限制或隐藏旁路必须有通用流程无法覆盖的真实失败，并由 Human 明确批准后先改 `PLUGIN_DESIGN.md`。
+5. 主任务独占 Manager 并执行单层派发；委派 Agent 需要继续拆分或协调时返回协调请求。迁移后派发权随工作流 Owner 转移。
+6. 同一文件或共享可变输出只有一个活跃写入者；隔离候选由 integration owner 串行应用。
+7. Spec 是批准 Scope 的持久权威；Artifact 按真实持久化/交接消费者渐进生成，简单任务不制造文档。
+8. 原始文件、Diff、运行状态和命令输出决定事实；source/static、安装/cache、fresh discovery 与真实 Runtime 证据不得互相替代。
+9. 不预建 Runtime Registry、数据库、后台服务、第四 Role、自动授权或跨项目特例；真实失败出现后再收紧现有 owner。
+10. 所有任务优先复用同一通用 lifecycle；通过关闭无依据 Gate 与跳过无候选节点加速。新增特殊流程、专属 target 限制或隐藏旁路必须有通用流程无法覆盖的真实失败，并由 Human 明确批准后先改 `PLUGIN_DESIGN.md`。
 
-改变生产 Role、Gate、Handoff 必要语义、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
+改变生产 Role、Gate、Handoff 必要语义、单层派发、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.10.0`
+## 4. 当前 release：`0.11.0`
 
-批准 Scope：Human 明确要求增加 Cursor 平台支持，按 Teams Premium seat 设计 Grok 4.5 / Composer 2.5 模型路由，并选择提交、annotated tag 与原子 push；本次不安装。
+实现 Scope：Human 已批准主任务独占 Manager、单层派发、委派 Agent 协调请求、对应 Runtime 场景修正与插件开发术语治理。
 
-### 4.1 Agent Plugins 与 Cursor Runtime
+### 4.1 单层派发
 
-- 插件根 `plugin.json` 遵循 Agent Plugins `1.0.0`，Cursor repo-local marketplace 指向同一插件源码；Cursor 只复用现有十个 Skill，不复制 Core、Skill 或 Runtime-neutral 流程。
-- Cursor Adapter 映射主对话、Subagent、前后台等待、resume、模型、恢复与证据边界；Agent Plugins 不携带 Cursor-specific Rule、Hook、MCP、command 或自定义 Subagent。
-- Cursor 没有等价用户 task 查询/创建能力时，普通 Scope 保持当前主对话，迁移与 Feedback 新目标报告能力缺口；不得用 Subagent 或 Cloud Agent 冒充用户 task Owner。
+- Workflow 定义主任务；Coordination 一次定义单层派发、委派 Agent 与协调请求。主任务独占 Manager 和首次创建，委派 Agent 不调用 Manager 或创建下级 Agent。
+- Planner、Executor、Reviewer、Clarify 与 Manager Skill 只消费该边界；Codex、Claude Code、Cursor Adapter 只映射各自 Runtime 的首次创建、等待、取消、返回和证据。
+- 用户任务迁移成功后，派发权随工作流 Owner 转移；来源任务与委派 Agent 不再派发。
 
-### 4.2 Teams Premium 模型路由
+### 4.2 场景与开发控制
 
-- Human 精确配置最高优先；生产 Role 默认使用当前 Runtime 发现的 Cursor Grok 4.5 medium non-fast，高风险 Planner/Executor 使用 Grok 4.5 high non-fast。
-- 高风险 Reviewer 使用 `claude-opus-5[effort=high]` 保留第三方独立复核；Manager/Clarify 有界研究、轻任务与多个并行辅助单元使用 `composer-2.5[fast=false]`。
-- Fast、Max、Cloud 与额外消费不因 Premium seat 自动启用；First-party/Third-party 池接近告警线时按 Adapter 的未启动、无写入与证据边界处理，不静默改写 Human exact 或高风险路由。
+- 要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行；首次等待前保存实时 Agent 树、首次创建参数和委派 Agent 的直接启动/终态记录。
+- 插件开发中的术语冲突先在当前授权和 Scope 内只读核对；事实不能消歧且会改变产品面、Scope、验收、授权或破坏性边界时才交 Human 决定。术语按既有 Owner 分层归属，不自动新增字段、状态、Artifact 或产品面。
 
 ### 4.3 发布证据边界
 
-- Agent Plugins Schema、十个 Skill、Plugin validator、项目测试与 candidate/release coherence 构成 source/static 证据；annotated tag 与远端指向构成 Git 发布身份。
-- 当前机器未发现 `cursor-agent`，本次也未授权安装；Cursor IDE/CLI/Cloud 的安装、fresh discovery、Skill 触发、Subagent、模型实际命中、恢复与用户 task 能力保持未验证。
+- 三个 deployment manifest、项目测试、Skill/Plugin validator 与 candidate/release coherence 构成 source/static 证据；annotated tag 与远端指向构成 Git 发布身份。
+- Codex 安装与列表只证明本机安装版本；全新发现、Skill 触发、单层派发、实际模型、返回和恢复仍需独立 Runtime 证据。
 
 ## 5. `1.0.0` 与后续方向
 

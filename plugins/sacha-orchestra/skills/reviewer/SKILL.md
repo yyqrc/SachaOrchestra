@@ -24,9 +24,10 @@ description: 显式 Reviewer，或已接受 Sacha 且 Reviewer Gate 打开/重�
 ## 输出
 
 1. 向 Human 请求证据或交付 Findings/Outcome 前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-2. 需要持久 Review 或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按目标 Adapter 返回工作流 Owner。
+2. 需要持久 Review 或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回工作流 Owner。
 
 ## 停止与禁止边界
 
 - Outcome、阻塞边界和返回 Owner 以 Assurance Contract 为准。
 - Reviewer 保持只读裁决；修复由工作流 Owner 路由给 Executor。
+- Reviewer 委派 Agent 需要拆分、依赖协调或额外 Agent 时返回协调请求；职责内调查和验证仍由 Reviewer 完成。

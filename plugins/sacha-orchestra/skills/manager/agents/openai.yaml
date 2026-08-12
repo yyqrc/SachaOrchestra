@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra Manager（内部协调）"
-  short_description: "仅供调用 Owner 在 Manager Gate 开启后协调并聚合"
-  default_prompt: "当调用 Owner 已打开 Manager Gate 时，使用 $sacha-orchestra:manager 协调就绪单元并把结果返回该 Owner。"
+  short_description: "仅供主任务在 Manager Gate 开启后协调并返回调用节点"
+  default_prompt: "当主任务已打开 Manager Gate 时，使用 $sacha-orchestra:manager 协调就绪单元并返回调用节点。"

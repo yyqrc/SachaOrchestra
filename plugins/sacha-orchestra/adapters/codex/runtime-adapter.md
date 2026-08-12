@@ -1,6 +1,6 @@
 # Codex Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 6；Workflow Contract 19；Human Interaction Contract 1；Assurance Contract 2；Coordination Contract 10；Artifact Protocol 6
+> 实现：Intake Contract 7；Workflow Contract 20；Human Interaction Contract 1；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
 > 状态：规范性 Codex 传输映射
 
 ## 1. 边界
@@ -14,7 +14,7 @@
 - [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-Intake、Role、Gate、readiness、Manager 职责、批准语义和 Artifact 结构由对应 Core/Skill 拥有。本 Adapter 消费已确定的 Human 交互动作与路由要求，执行 Codex 传输。Direct/当前上下文保持当前模型与 Owner。
+Intake、Role、Gate、readiness、Manager 职责、批准语义和 Artifact 结构由对应 Core/Skill 拥有。本 Adapter 消费已确定的 Human 交互动作与路由要求；只有主任务执行 Codex 子代理传输。Direct/当前上下文保持当前模型与 Owner。
 
 ## 2. 原生传输与协作界面选择
 
@@ -45,8 +45,8 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 
 | 动作 | `v1` | `v2` | 共同约束 |
 | --- | --- | --- | --- |
-| 首次创建 | `multi_agent_v1.spawn_agent` | `collaboration.spawn_agent` | 每个工作单元至多一次；使用第 3 节参数 |
-| 运行中补充或改向 | `send_input`；立即改向时显式 `interrupt=true` | `send_message` | 只复用同一 Owner 下、强依赖既有上下文的目标 Agent；新 Scope 新建工作单元 |
+| 首次创建 | `multi_agent_v1.spawn_agent` | `collaboration.spawn_agent` | 只由主任务调用；每个工作单元至多一次；使用第 3 节参数 |
+| 运行中补充或改向 | `send_input`；立即改向时显式 `interrupt=true` | `send_message` | 只复用同一 Owner 下、强依赖既有上下文的委派 Agent；新 Scope 新建工作单元 |
 | 终态后继续同一目标 | 目标仍未关闭时直接 `send_input`；已关闭时先 `resume_agent` 再 `send_input` | `followup_task` | 仅同一标识、Owner 和连续目标；不得借复用绕过新的 readiness 判断 |
 | 等待结果 | `wait_agent` | `wait_agent` | 仅在 Coordination 判定依赖屏障后消费终态/结果；超时只报告存活状态 |
 | 取消或停止写入者 | `close_agent`，再用 `wait_agent` 确认 `shutdown` 或其他终态 | `interrupt_agent`，再用 `wait_agent` 确认 `terminal/cancelled` | 仅 Human 取消、失活或继续会造成双写/增险时使用；确认终止后才接管 |
@@ -55,7 +55,7 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 
 ### 2.3 Codex Role 调用面
 
-Planner、Manager、Reviewer、Executor 和 Clarify 研究共用第 3 节路由；Role 作为评估输入，协作界面只决定传输编码。当前上下文可完成的工作保持 Direct。
+主任务按第 3 节为 Planner、Reviewer、Executor、Clarify 研究和普通工作单元组装首次创建参数；Role 作为评估输入，协作界面只决定传输编码。Manager 在主任务内运行，不是委派 Agent。委派 Agent 满足条件时返回协调请求，不调用子代理传输。
 
 ### 2.4 Human 手动调用的 Feedback 转移
 
@@ -69,8 +69,8 @@ Adapter 消费 Workflow/Coordination 已确认的迁移标识与转移动作：
 
 1. 唯一目标直接复用；不唯一或 Spec/Entry Condition/Owner 不可证明时暂停。
 2. 无匹配且 Human 已明确选择迁移时调用恰好一次 `create_thread`；创建失败且尚未产生目标 Owner 时可回当前任务，并保留原始错误。
-3. 创建成功后只交付最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）。Source 展示目标 reference 后结束，不调用任一协作界面的 `wait_agent`、`wait_threads` 或其他终态等待；后续 Execute、子代理、Review、返修和收尾由目标任务负责。
-4. 重复批准、重试或恢复只复用同一目标 reference；成功创建后 Source 不恢复写入者。`spawn_agent`、完整历史分叉和辅助 Agent 都不取得迁移标识。
+3. 创建成功后只交付最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）。Source 展示目标 reference 后结束，不调用任一协作界面的 `wait_agent`、`wait_threads` 或其他终态等待；后续 Execute、委派 Agent、Review、返修和收尾由目标任务负责。
+4. 重复批准、重试或恢复只复用同一目标 reference；成功创建后 Source 不恢复写入者。`spawn_agent`、完整历史分叉和委派 Agent 都不取得迁移标识。
 
 ### 2.6 依赖等待
 
@@ -83,7 +83,7 @@ Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 
 ## 3. 子代理路由合同
 
-每次首次创建前按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装原生参数；路由与协作界面是两个独立判断。
+主任务每次首次创建前按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装原生参数；路由与协作界面是两个独立判断。
 
 ### A. 评估输入（不依赖 Runtime）
 
@@ -110,9 +110,9 @@ Adapter 读取 Coordination Contract 产生的路由要求，归纳四项 Runtim
 4. `luna_max`：`bounded + nontrivial`。
 5. `luna_xhigh`：`bounded + light`。
 
-无法可靠判定 `broad/bounded`、`bounded` 输入不自包含、Scope 不明确或 Reviewer 独立性不足时暂停。Planner、Manager、Reviewer、Executor 和 Clarify 研究共用这四档自动选择。
+无法可靠判定 `broad/bounded`、`bounded` 输入不自包含、Scope 不明确或 Reviewer 独立性不足时暂停。Planner、Reviewer、Executor、Clarify 研究和普通委派 Agent 共用这四档自动选择。
 
-Clarify 的单个研究辅助 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用 Owner。
+Clarify 的单个研究委派 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用节点。
 
 ### C. 按协作界面映射 `spawn_agent`
 
@@ -125,7 +125,7 @@ C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用�
 | `v1` | `multi_agent_v1.spawn_agent(message=<工作单元>)`；v1 没有 `task_name` | 自包含输入固定 `fork_context=false`。不得自动使用 `true` 复制完整父历史；缺少未落盘事实时先把最小事实写入 `message`，无法自包含则暂停 |
 | `v2` | `collaboration.spawn_agent(message=<工作单元>)`；参数结构暴露 `task_name` 时另传 `task_name=<稳定短名>`，未暴露时禁止发送 | 自包含输入固定 `fork_turns="none"`；确需携带未落盘 Human 决定时只传能补足决定的最小正整数轮数。不得使用完整历史分叉 |
 
-`message` 必须自包含该工作单元的目标、Scope、输入 reference、完成检查和停止条件；可用的 `task_name` 只标识工作单元，不承载语义。Adapter 不根据旧版本先例向当前参数结构添加未声明字段。
+`message` 必须自包含该工作单元的目标、Scope、输入 reference、完成检查和停止条件，并要求满足条件时返回协调请求；可用的 `task_name` 只标识工作单元，不承载语义。Adapter 不根据旧版本先例向当前参数结构添加未声明字段。
 
 #### C.2 路由字段
 
@@ -164,4 +164,4 @@ C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用�
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、协作界面/命名空间、`accepted/started/terminal/cancelled`、工具错误和结果 reference。`spawn_agent` 被接受只证明参数有效且目标已创建；子代理自报只证明其输出，不能替代实际模型/提供方遥测。静态源码/测试的证据范围为本文结构与分支约束；协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、`accepted/started/terminal/cancelled`、工具错误和结果 reference。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；单层派发须由首次等待前的实时 Agent 树证明。委派 Agent 自报只证明其输出，不能替代实际模型/提供方遥测。静态源码/测试的证据范围为本文结构与分支约束；协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

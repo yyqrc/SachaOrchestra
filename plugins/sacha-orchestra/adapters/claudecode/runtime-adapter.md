@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 6；Workflow Contract 19；Human Interaction Contract 1；Assurance Contract 2；Coordination Contract 10；Artifact Protocol 6
+> 实现：Intake Contract 7；Workflow Contract 20；Human Interaction Contract 1；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
 > 状态：规范性 Claude Code 传输映射
 
 ## 1. 边界
@@ -14,17 +14,17 @@
 - [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-入口、Role、Gate、Artifact、项目知识和发布状态由对应 Core、Skill、Project Integration 与 Evolution 拥有。本 Adapter 消费已确定的动作并映射 Claude Code 传输。
+入口、Role、Gate、Artifact、项目知识和发布状态由对应 Core、Skill、Project Integration 与 Evolution 拥有。本 Adapter 消费已确定的动作；只有主任务映射 Claude Code Agent 传输。
 
 ## 2. Intake、Role 与上下文
 
 | Core 职责 | Claude Code 映射 |
 | --- | --- |
 | Intake/路由 Owner | 主对话通过正式 Skill 发现机制装载 `using-sacha` |
-| Planner | 独立 `Agent` 上下文装载 Planner 指令 |
-| Executor | 明确 Owner 的主对话或独立 `Agent` 上下文 |
-| Reviewer | 未参与方案/实现的独立 `Agent` 上下文 |
-| Manager | 主对话或控制面 `Agent` 协调独立任务 |
+| Planner | 主对话内运行，或独立 `Agent` 上下文装载 Planner 指令，成为 Planner 委派 Agent 并返回结果/协调请求 |
+| Executor | 主对话内运行，或独立 `Agent` 上下文成为 Executor 委派 Agent，完成有界单元并返回结果/协调请求 |
+| Reviewer | 未参与方案/实现的独立 `Agent` 上下文成为 Reviewer 委派 Agent |
+| Manager | 只在主任务内协调，不创建控制面 `Agent` |
 | 工作流 Owner | 默认是 Human 接受后的主对话；明确会话迁移后转为唯一目标 |
 | Human 互斥选择 | 使用已验证的原生选择能力；当前 Runtime 无可用映射时使用普通文本提问 |
 | Human 进度与结果 | 由当前工作流 Owner 在主对话展示 |
@@ -38,8 +38,8 @@ Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机�
 每次转换先核对 Runtime 可用能力：
 
 1. 核对 Task/Scope、Role、Artifact 可达性、来源、Owner 和返回路径。
-2. 同一上下文的工作在主对话执行；需要独立来源的正式 Role 转换使用可保留标识/终态的 Agent 传输。有界辅助 Agent 由当前 Owner 直接管理。
-3. Source 负载由路由意图、Scope/Handoff reference、必要约束与 Runtime 标识组成。
+2. 同一上下文的工作在主任务执行；需要独立来源的正式 Role 转换使用可保留标识/终态的 Agent 传输。委派 Agent 只由主任务直接管理并遵守单层派发。
+3. Source 负载由路由意图、Scope/Handoff reference、必要约束、Runtime 标识和协调请求返回条件组成。
 4. 独立 Review 使用新 `Agent` 上下文；同一 Task/Scope 的返修、补证据和重新 Review 保持原 Owner。
 5. 当前传输不可用时先尝试同一 Scope 的安全替代；Owner/Role/返回仍无法唯一确定时才进入 Core 阻塞路线。
 
@@ -67,7 +67,7 @@ Adapter 消费 Coordination Contract 返回的 Feedback 标识、匹配和 Owner
 | Executor | `opus` | 安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容/发布风险 |
 | Executor | `sonnet` | Scope/验收已冻结、实现与验证明确且属于普通风险 |
 | Reviewer | `opus` | 独立验收 |
-| 有界只读辅助 Agent | `haiku` | 自包含调查，只返回事实与 reference |
+| 有界只读委派 Agent | `haiku` | 自包含调查，只返回事实、协调请求与 reference |
 
 Planner/Reviewer/Manager Gate 结果来自 Core。普通 Executor 只有输入自包含时使用 `sonnet`。Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime 默认值。Owner 核对并记录请求/实际模型与宿主覆盖原因；旧写入者进入 `terminal/cancelled` 前不得以其他模型启动同一 Scope 写入。Direct/当前上下文保持当前模型和路由状态。
 
@@ -79,9 +79,9 @@ Human 输出按 Human Interaction Contract 展示。存活状态证据来自当�
 
 ## 4. Agent 协调与 Artifact 映射
 
-Manager Gate 开启后，每个就绪单元使用独立 `Agent` 上下文；`parallel_expected` 成立时在消费完成结果前启动至少两个实例。共享工作树的同一文件/输出由集成 Owner 串行处理；隔离补丁/候选实现使用并行 `Agent` 上下文。
+主任务打开 Manager Gate 后，为每个就绪单元创建一个委派 Agent；`parallel_expected` 成立时在消费完成结果前启动至少两个实例。委派 Agent 满足条件时返回协调请求。共享工作树的同一文件/输出由集成 Owner 串行处理；隔离补丁/候选实现使用并行 `Agent` 上下文。
 
-完成结果在传输需要时核对 revision/dedup；结果按消费者和风险保留必要变更，Artifact 只在消费者需要时落盘。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。
+完成结果在传输需要时核对 revision/dedup；结果按消费者和风险保留必要变更，Artifact 只在消费者需要时落盘。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。单层派发由首次等待前的实时 Agent 树和直接父子标识证明。
 
 Agent 上下文通过稳定 reference 读取 Scope、Artifact、原始证据和当前消费者所需 Handoff 语义。恢复以可用路由标识、Scope、revision 与 Entry Condition 为依据；reference 不可达时停止转换并记录唯一入口。
 
