@@ -1,6 +1,6 @@
 # Cursor Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 7；Workflow Contract 20；Human Interaction Contract 1；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
+> 实现：Intake Contract 8；Workflow Contract 21；Human Interaction Contract 2；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
 > 状态：规范性 Cursor 传输映射；源码接入，安装、fresh discovery 与真实 Runtime 行为需单独验证
 
 ## 1. 边界

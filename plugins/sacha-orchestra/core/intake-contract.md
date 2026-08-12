@@ -1,6 +1,6 @@
 # Intake Contract（入口合同）
 
-> 合同版本：7
+> 合同版本：8
 > 状态：规范性 Core 合同
 
 ## 1. 范围
@@ -30,7 +30,7 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 
 ## 4. 入口决定
 
-- 初次判断及直接执行期间都必须检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求时，只有这些事实会改变执行方式才重评估。
+- 初次判断及 Direct 执行期间，当前 Owner 必须在继续形成实质方案、实施或持久化前检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求，且这些事实会改变执行方式时，必须停止当前 Direct 推进并重新执行入口判断；完成入口决定前不得继续形成单一路线的实施方案。
 - 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节候选事实时保持 L0。
 - 自动感知到候选事实时，只询问一次是否进入 Sacha，并按 Human Interaction Contract 说明新增能力、成本、执行影响与推荐。
 - Human 接受后，当前根 Owner 按需加载 Workflow Contract、当前 Adapter、已确认的 Project Integration 与目标 Role。

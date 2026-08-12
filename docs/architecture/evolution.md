@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.11.0` 单层 Manager 派发与协调请求
+> 当前 release：`0.11.1` Direct 语义转折与 Planner/Clarify 路由硬化
 > 当前 source candidate：未开始
-> 当前主线：主任务独占 Manager 并执行单层派发；委派 Agent 只返回工作单元结果或协调请求
-> 发布边界：`0.11.0` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；单层派发的真实 Runtime 行为仍由全新主任务场景单独验证
+> 当前主线：主任务独占 Manager 并执行单层派发；Direct 出现改变执行方式的新事实时重新 Intake，Planner 冻结条件不足时先 Clarify
+> 发布边界：`0.11.1` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；路由硬化与单层派发的真实 Runtime 行为仍由全新主任务场景单独验证
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,7 +27,7 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.11.0` release | 主任务独占 Manager 与首次创建；委派 Agent 只完成当前单元并返回结果或协调请求；迁移后派发权随工作流 Owner 转移 | 附注 tag 表示已发布源码；项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static，安装只证明本机包版本。单层派发、参数、模型命中、返回与恢复仍需全新主任务中的真实 Runtime 场景验证 |
+| `0.11.1` release | 主任务独占 Manager 与首次创建；Direct 语义转折必须重新 Intake；Planner 冻结条件不足必须先 Clarify；阻塞性上游决定未收口时不得提前展开下游实施方案 | 附注 tag 表示已发布源码；项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static，安装只证明本机包版本。路由硬化、单层派发、参数、模型命中、返回与恢复仍需全新主任务中的真实 Runtime 场景验证 |
 
 三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
@@ -46,9 +46,9 @@
 
 改变生产 Role、Gate、Handoff 必要语义、单层派发、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.11.0`
+## 4. 当前 release：`0.11.1`
 
-实现 Scope：Human 已批准主任务独占 Manager、单层派发、委派 Agent 协调请求、对应 Runtime 场景修正与插件开发术语治理。
+实现 Scope：Human 已批准主任务独占 Manager、单层派发、委派 Agent 协调请求、对应 Runtime 场景修正与插件开发术语治理；并基于真实路由失败强化 Direct 重评估、Planner 到 Clarify 的冻结顺序与未收口时的 Human 输出边界。
 
 ### 4.1 单层派发
 
