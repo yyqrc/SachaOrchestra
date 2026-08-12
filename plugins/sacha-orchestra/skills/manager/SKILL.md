@@ -17,7 +17,7 @@ description: 主任务已接受 Sacha 或显式 Clarify 且 Manager Gate 打开�
 ## 动作顺序
 
 1. 调用 Coordination Contract 的评估、拆分、依赖、就绪判定、路由要求、单层派发、等待、取消、归并、去重和返回算法。
-2. 同一普通任务、迁移目标任务与 Clarify 共用同一算法；当前波次存在需要派发的已就绪单元时，Manager 按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得逐单元首次创建参数并派发，未取得时返回偏差。
+2. 同一普通任务、迁移目标任务与 Clarify 共用同一算法；当前波次存在需要派发的已就绪单元时，Manager 必须按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得逐单元完整首次创建参数并原样派发；未取得时按 Coordination Contract 返回偏差。
 
 ## 输出
 

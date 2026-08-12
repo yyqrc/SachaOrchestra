@@ -83,7 +83,7 @@ Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 
 ## 3. 子代理路由合同
 
-主任务每次首次创建前按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装原生参数；路由与协作界面是两个独立判断。
+主任务每次首次创建前必须按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装完整原生参数；路由与协作界面是两个独立判断。A、B 或 C 任一步未完成时不得调用 `spawn_agent`。
 
 ### A. 评估输入（不依赖 Runtime）
 
@@ -116,7 +116,7 @@ Clarify 的单个研究委派 Agent 和 Manager 协调的研究单元复用同�
 
 ### C. 按协作界面映射 `spawn_agent`
 
-C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用参数由“协作界面字段 + 路由字段”组成；表中未列出的界面参数不得传入另一版本。
+C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用参数必须由“协作界面字段 + 路由字段”完整组成并原样提交；表中未列出的界面参数不得传入另一版本。不得用单独的通用 `agent_type`、父任务默认模型/推理强度继承，或只修补某个被拒字段来替代 B/C。调用因协作界面或路由字段不完整、不匹配而在 `accepted/started` 前被拒绝时，主任务必须从 A 重新核对并执行完整 A → B → C，不得只修补被拒字段后重试。已按 B/C 完整提交的主路由实际报告 `unavailable/failed` 时，不重新提交主路由；只有满足第 3.1 节全部条件时才直接执行该节唯一回退。
 
 #### C.1 协作界面字段
 
@@ -137,7 +137,7 @@ C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用�
 | `luna_max` | `agent_type="sacha_luna_worker"`；命名定义固定 Luna/max，不覆盖 `model`、`reasoning_effort` 或 `service_tier` |
 | `luna_xhigh` | `agent_type="sacha_luna_worker_xhigh"`；命名定义固定 Luna/xhigh，不覆盖 `model`、`reasoning_effort` 或 `service_tier` |
 
-自动路由只有上述四种组合，不选择 Terra、Sol `high/max/ultra`、带提供方前缀的模型或未限定的通用 `worker/default`。其他模型只在 `human_exact` 中按当前协作界面能力原样使用，不因模型目录可见或一次冒烟验证自动进入路由表。
+自动路由只有上述四种组合，不选择 Terra、Sol `high/max/ultra`、带提供方前缀的模型或未限定的通用 `explorer/worker/default`。除表内明确要求的组合外，主任务不得单独传入这些通用 `agent_type`，也不得省略路由字段以继承父任务默认值。其他模型只在 `human_exact` 中按当前协作界面能力原样使用，不因模型目录可见或一次冒烟验证自动进入路由表。
 
 `sol_xhigh` 与 `sol_medium` 要求当前参数结构支持覆盖 `model` 和 `reasoning_effort`。`luna_max` 与 `luna_xhigh` 要求当前参数结构支持 `agent_type` 且已发现对应带命名空间的 Agent 类型；仅有磁盘配置或安装记录不构成运行时发现。任一要求不成立时按主路由不可用处理，且只有满足第 3.1 节全部条件才可走一次回退。
 
