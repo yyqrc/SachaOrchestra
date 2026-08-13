@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "Claude Code deployment package for Sacha Orchestra. Keeps clear authorized tasks direct and uses lean dispatch, capability-aware Runtime and role-aware model routing only when orchestration materially changes execution, with three production Roles, Manager coordination, explicit Clarify, project setup, and policy-bound documentation.",
   "author": {
     "name": "Sacha Orchestra"

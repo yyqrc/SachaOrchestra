@@ -12,6 +12,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -34,14 +35,17 @@ def run(
     check: bool = True,
     cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        args,
-        cwd=cwd or ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    try:
+        result = subprocess.run(
+            args,
+            cwd=cwd or ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise ReleaseError(f"命令无法启动：{' '.join(args)}\n{exc}") from exc
     if check and result.returncode:
         detail = result.stderr.strip() or result.stdout.strip()
         raise ReleaseError(f"命令失败（{result.returncode}）：{' '.join(args)}\n{detail}")
@@ -62,6 +66,15 @@ def creator_script(creator: str, script: str) -> Path:
     if not path.is_file():
         raise ReleaseError(f"未找到 Creator 脚本：{path}")
     return path
+
+
+def codex_cli() -> str:
+    candidates = ("codex.cmd", "codex.exe") if sys.platform == "win32" else ("codex",)
+    for candidate in candidates:
+        path = shutil.which(candidate)
+        if path:
+            return path
+    raise ReleaseError("未找到可执行的 Codex CLI")
 
 
 def normalize_candidate_paths(expected: list[str]) -> list[str]:
@@ -279,6 +292,7 @@ def tree_hashes(root: Path) -> dict[str, str]:
 
 def install(version: str) -> None:
     started = time.perf_counter()
+    codex = codex_cli()
     helper = creator_script("plugin-creator", "read_marketplace_name.py")
     marketplace = run(
         current_python(),
@@ -288,7 +302,7 @@ def install(version: str) -> None:
         str(ROOT / ".agents" / "plugins" / "marketplace.json"),
     ).stdout.strip()
     try:
-        result = run("codex", "plugin", "add", f"sacha-orchestra@{marketplace}", "--json")
+        result = run(codex, "plugin", "add", f"sacha-orchestra@{marketplace}", "--json")
     except ReleaseError as exc:
         if "拒绝访问" in str(exc) or "os error 5" in str(exc):
             raise ReleaseError("安装被拒绝访问；关闭本次发布中已终态的辅助 Agent 后，不修改 cache，重新运行 install") from exc
@@ -297,7 +311,7 @@ def install(version: str) -> None:
     installed_path = Path(payload.get("installedPath", ""))
     if payload.get("version") != version or not installed_path.is_dir():
         raise ReleaseError("安装版本或 path 与目标 release 不一致")
-    listing = run("codex", "plugin", "list").stdout
+    listing = run(codex, "plugin", "list").stdout
     expected = re.compile(rf"^sacha-orchestra@{re.escape(marketplace)}\s+installed, enabled\s+{re.escape(version)}\s+", re.MULTILINE)
     if not expected.search(listing):
         raise ReleaseError("插件列表未显示目标安装版本")

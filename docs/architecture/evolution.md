@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.11.4` 统一术语合同与 Human 审阅迁移路由
+> 当前 release：`0.11.5` 修复 Windows 安装 CLI 入口解析
 > 当前待发布源码版本：未开始
 > 当前主线：主任务独占 Manager 并执行单层派发；Human 审阅 Spec 时明确区分普通批准、明确迁移批准与要求调整，Feedback 保持独立 Owner 转移
-> 发布边界：`0.11.4` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；术语同步、选项推荐与任务迁移的真实 Runtime 行为仍由全新主任务场景单独验证
+> 发布边界：`0.11.5` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；只修复 Windows 安装 CLI 入口解析，术语同步、选项推荐与任务迁移的真实 Runtime 行为仍由全新主任务场景单独验证
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,7 +27,7 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.11.4` release | 插件内术语合同与开发侧上下文强双向同步；Human 审阅 Spec 明确分流普通批准、明确迁移批准与要求调整；可靠迁移信号只决定推荐顺序；Feedback Owner 转移保持独立 | 附注 tag 表示已发布源码；项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static，安装只证明本机包版本。选项展示、迁移、Owner 转移和恢复仍需全新主任务中的真实 Runtime 场景验证 |
+| `0.11.5` release | 在 Windows 上解析可执行的 `codex.cmd` 或 `codex.exe` 后执行安装，避免把无扩展 npm 包装文件直接交给 Python 子进程 | 附注 tag 表示已发布源码；项目测试、Plugin validator 与 metadata coherence 只证明 source/static，安装结果以 CLI 返回、插件列表和源码/cache 一致性为准 |
 
 三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
@@ -46,27 +46,19 @@
 
 改变生产 Role、Gate、Handoff 必要语义、单层派发、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.11.4`
+## 4. 当前 release：`0.11.5`
 
-实现 Scope：统一插件内术语与开发侧同步副本；明确 Human 审阅 Spec 的批准分支、推荐顺序和执行任务迁移边界；保持 Feedback Owner 转移为独立支持流程；增加消费既有授权与审阅结论的机械发布脚本。
+实现 Scope：沿用 `0.11.4` 的术语与迁移路由；修复机械发布脚本在 Windows 上选择 Codex CLI 可执行入口的方式，并增加对应回归测试。
 
-### 4.1 术语与开发边界
+### 4.1 Windows CLI 入口
 
-- 插件内术语合同只定义术语与边界；`docs/CONTEXT.md` 保存插件开发使用的同步副本和直接消费者，不进入发布插件。
-- 两边新增、改名、改变语义或删除提炼术语时强双向同步；运行语义冲突时以插件内术语合同恢复。
-- Workflow、Coordination、Artifact、Skill 与 Adapter 只引用统一术语并保留自身流程映射，不复制术语定义。
+- 安装脚本在 Windows 上只选择 PATH 中可执行的 `codex.cmd` 或 `codex.exe`；不直接启动无扩展 npm 包装文件。
+- CLI 无法解析或启动时，脚本报告明确失败并停止，不读取、删除或改写插件 cache。
 
-### 4.2 Human 审阅与任务迁移
+### 4.2 发布证据边界
 
-- 主任务在 Human 审阅 Spec 前给出普通批准、明确迁移批准和要求调整；可靠迁移信号只决定前两项的推荐顺序。
-- 普通批准直接进入 Executor；明确迁移批准先核对执行任务迁移前提，满足后才查询、复用或创建唯一目标任务并转移工作流 Owner。
-- Feedback 仍由 Human 在另一真实任务显式调用，不使用执行任务迁移前提；来源任务只读调查并把反馈目标交给唯一目标任务，目标任务重新进入普通 Intake。
-
-### 4.3 发布机械化与证据边界
-
-- `scripts/release.py` 只消费已决定的版本、审阅结论和发布/安装授权；候选验证使用精确暂存快照，发布使用附注 tag、原子推送和远端指向核对。
-- 三个 deployment manifest、项目测试、Skill/Plugin validator 与 candidate/release coherence 构成 source/static 证据；附注 tag 与远端指向构成 Git 发布身份。
-- Codex 安装、列表和源码/cache 一致性只证明本机安装版本；选项展示、Skill 触发、迁移、Owner 转移和恢复仍需独立 Runtime 证据。
+- 三个 deployment manifest、项目测试、Plugin validator 与 candidate/release coherence 构成 source/static 证据；附注 tag 与远端指向构成 Git 发布身份。
+- Codex 安装、列表和源码/cache 一致性只证明本机安装版本；选项展示、Skill 触发、迁移、Owner 转移和恢复仍沿用 `0.11.4` 的独立 Runtime 证据边界。
 
 ## 5. `1.0.0` 与后续方向
 

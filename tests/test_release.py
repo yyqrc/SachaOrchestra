@@ -58,6 +58,22 @@ class ReleaseScriptTests(unittest.TestCase):
             (right / "extra.txt").write_text("extra", encoding="utf-8")
             self.assertNotEqual(release.tree_hashes(left), release.tree_hashes(right))
 
+    def test_windows_codex_cli_prefers_executable_wrapper(self) -> None:
+        paths = {
+            "codex.cmd": r"C:\Tools\codex.cmd",
+            "codex.exe": r"C:\Tools\codex.exe",
+        }
+        with mock.patch.object(release.sys, "platform", "win32"), mock.patch.object(
+            release.shutil, "which", side_effect=paths.get
+        ):
+            self.assertEqual(release.codex_cli(), paths["codex.cmd"])
+
+    def test_codex_cli_missing_is_reported(self) -> None:
+        with mock.patch.object(release.shutil, "which", return_value=None), self.assertRaisesRegex(
+            release.ReleaseError, "未找到可执行的 Codex CLI"
+        ):
+            release.codex_cli()
+
     def test_publish_requires_explicit_review_disposition(self) -> None:
         parser = release.parser()
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
@@ -261,6 +277,8 @@ class ReleaseScriptTests(unittest.TestCase):
             with mock.patch.object(release, "ROOT", root), mock.patch.object(
                 release, "PLUGIN", plugin
             ), mock.patch.object(release, "creator_script", return_value=helper), mock.patch.object(
+                release, "codex_cli", return_value="codex.cmd"
+            ), mock.patch.object(
                 release, "run", side_effect=responses
             ):
                 output = io.StringIO()
@@ -281,6 +299,8 @@ class ReleaseScriptTests(unittest.TestCase):
             ]
             with mock.patch.object(release, "ROOT", root), mock.patch.object(
                 release, "creator_script", return_value=helper
+            ), mock.patch.object(
+                release, "codex_cli", return_value="codex.cmd"
             ), mock.patch.object(release, "run", side_effect=responses):
                 with self.assertRaisesRegex(release.ReleaseError, "关闭本次发布中已终态的辅助 Agent"):
                     release.install("0.1.0")
