@@ -1,6 +1,5 @@
 # Coordination Contract（协调合同）
 
-> 合同版本：14
 > 状态：规范性 Core 协调合同
 
 ## 1. 范围与 Owner

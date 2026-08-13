@@ -12,7 +12,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 ## 输入与首查
 
 1. 接收 Human 显式 project base；未提供时由[解析器](scripts/resolve_capability_queries.py)从 Binding、AGENTS 和 SCM 定位唯一 project root。多候选保持 `unresolved`。
-2. Catalog 提供 `id`、规范 Skill（canonical Skill）和副作用；Human 确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的目标。
+2. Catalog 提供 `id`、规范 Skill（canonical Skill）和副作用；Human 按 [Workflow Contract](../../core/workflow-contract.md) 确认每项能力加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的目标。
 3. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
 
 ## 动作顺序

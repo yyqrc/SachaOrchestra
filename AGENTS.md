@@ -5,21 +5,21 @@
 ## Workspace 事实
 
 - 本文件是 Project `AGENTS.md`；Global AGENTS 的安全/授权/证据/Git/用户改动保护仍生效。
-- 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md` 与 `docs/**` 供插件开发使用，不进入发布插件。
+- 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md` 与 `docs/**` 供插件开发使用，不进入发布插件。
 - 本 workspace 是 repo-local marketplace，唯一 plugin 源码位于 `plugins/sacha-orchestra`。
-- 当前 release、当前待发布源码版本与 breaking boundary 以 [`docs/architecture/evolution.md`](docs/architecture/evolution.md) 为权威；manifest=当前源码版本，tag=已发布版本；Core/Adapter 合同版本仅为 schema。
+- 当前 release、当前待发布源码版本与 breaking boundary 以 [`EVOLUTION.md`](EVOLUTION.md) 为权威；manifest=当前源码版本，tag=已发布版本。
 - Evolution 只给方向、版本和 breaking boundary，不授权实施。
 
 ## Owner 与直接入口
 
 | 路径 | Owner 与用途 |
 | --- | --- |
-| `docs/CONTEXT.md` | 开发控制面已提炼术语与规则的完整副本；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
-| `docs/architecture/evolution.md` | 当前 release、当前待发布源码版本、长期架构与 breaking change 权威；不保存版本流水账 |
+| `docs/CONTEXT.md` | 开发控制面提炼术语与规则的统一入口及开发专用术语 Owner；完整包含插件内共享术语的同步视图，并可额外拥有仅供插件开发、维护和评审消费的术语；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
+| `EVOLUTION.md` | 当前 release、当前待发布源码版本、长期架构与 breaking change 权威；不保存版本流水账 |
 | 三个 deployment manifest | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准供 Cursor 等兼容 Runtime 加载 |
 | `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | 各 Runtime 的 repo-local marketplace 入口；只保存部署路由，不拥有流程语义 |
 | `plugins/sacha-orchestra/core/intake-contract.md` | 入口判断、接受/拒绝、重复抑制和授权边界的规范性 contract |
-| `plugins/sacha-orchestra/core/terminology-contract.md` | 多个直接消费者共同使用且不属于单一 Runtime 的提炼术语唯一 Runtime Owner；与 `docs/CONTEXT.md` 强双向同步 |
+| `plugins/sacha-orchestra/core/terminology-contract.md` | 多个发布插件直接消费者共同使用且不属于单一 Runtime 的提炼术语唯一 Runtime Owner；与 `docs/CONTEXT.md` 中对应的共享术语强双向同步 |
 | `PLUGIN_DESIGN.md` | 与本文件并列的插件开发/评审顶层设计：完整流程骨架、Role/Skill 职责、Core owner 与自上而下变更顺序；不随插件发布，也不是 Runtime 依赖 |
 | `plugins/sacha-orchestra/README.md` | 发布插件入口、最小用法与 Runtime Owner 导航；不保存顶层设计 |
 | `plugins/sacha-orchestra/core/workflow-contract.md` | 唯一 Runtime 路由：Role/Gate、节点进入/退出条件和 Human 路由；沿用插件内术语合同，不定义就绪判定、模型或宿主参数 |
@@ -62,21 +62,21 @@
 ## 术语提炼与同步
 
 - 当前执行者 → 遇到同词多义、同义多名、概念误合并或代码、合同、文档定义冲突 → 必须先只读核对现行 Owner、直接消费者、真实行为与冲突 → 事实足以消歧时在当前授权和 Scope 内统一；不同解释会改变产品面、Scope、验收、授权或破坏性边界时才交 Human 决定。该调查保持 Direct，不打开 Clarify、Planner Gate 或 Manager Gate。
-- 当前执行者 → 流程判断被多个直接消费者重复、出现歧义或已造成真实失败 → 必须在插件内术语合同提炼术语；没有第二个现行消费者时，当前任务语义必须留在 Spec 或决定记录，存在跨任务项目消费者时才能列为 `project-context` 候选 → 术语合同必须只定义含义与边界，`docs/CONTEXT.md` 必须记录直接消费者和可证伪方式，具体进入条件与动作仍归相应 Core，其他下游只保留映射。术语提炼必须只命名既有判断；改变判断时必须按新增或扩展规则处理。没有机器消费者和实际判断需要时，不得升级为字段、状态、枚举、Artifact、必填格式或产品面。
-- 修改者 → 新增、改名、改变语义/边界或删除已提炼术语与规则 → 必须同次更新 `docs/CONTEXT.md`、插件内术语合同、相应 Core 和受影响映射 → 两边不一致时以插件内术语合同恢复词义，以相应 Core 恢复流程；同步完成前不得使用受影响术语或声明完成。
+- 当前执行者 → 同一术语或流程判断被多个发布插件直接消费者重复、出现歧义或已造成真实失败 → 必须在插件内术语合同提炼术语，并在 `docs/CONTEXT.md` 保存开发侧同步视图、直接消费者和可证伪方式 → 术语合同只定义含义与边界，具体进入条件与动作仍归相应 Core，其他发布插件下游只保留映射。只有多个开发控制面直接消费者共同使用的术语归 `docs/CONTEXT.md`，不得为保持集合相等写入术语合同。没有第二个现行消费者时，当前任务语义必须留在 Spec 或决定记录，存在跨任务项目消费者时才能列为 `project-context` 候选。术语提炼必须只命名既有判断；改变判断时必须按新增或扩展规则处理。没有机器消费者和实际判断需要时，不得升级为字段、状态、枚举、Artifact、必填格式或产品面。
+- 修改者 → 新增、改名、改变语义/边界或删除插件内共享术语与规则 → 必须同次更新 `docs/CONTEXT.md`、插件内术语合同、相应 Core 和受影响映射 → 两边不一致时以插件内术语合同恢复 Runtime 词义，以相应 Core 恢复流程。修改仅供开发控制面消费的术语时，只更新 `docs/CONTEXT.md` 与开发侧直接消费者；该术语新增多个发布插件直接消费者时，必须先提升到术语合同并完成共享同步。同步完成前不得使用受影响术语或声明完成。
 
 ## 内容归属与信息密度（必须遵守）
 
 - Core、Adapter、Skill 与开发控制文档必须遵守全局【表达要求】；除全局定义的正式标识外，不得增加语言豁免。
 - 规则必须按“主体 → 进入条件 → 动作 → 结果/限制”陈述；必须只保留影响内容归属、直接消费者、流程判断、授权、安全、恢复、验收、证据或维护动作的限制，并删除背景解释、反向释义和同义补充。
-- 内容归属必须遵循一个事实一个 Owner：项目事实必须归本文件，完整顶层设计必须归 `PLUGIN_DESIGN.md`，多个直接消费者共同使用且不属于单一 Runtime 的提炼术语必须归插件内术语合同，流程判断必须归相应 Core，Role 内部流程必须归 Skill，单一 Runtime 的传输、模型与恢复必须归 Adapter；`docs/CONTEXT.md` 只能作为开发控制面的强同步副本，不取得规范性 Owner，`PLUGIN_DESIGN.md` 必须引用该副本，插件内下游必须只引用插件内 Owner 或保留自身映射。
+- 内容归属必须遵循一个事实一个 Owner：项目事实必须归本文件，完整顶层设计必须归 `PLUGIN_DESIGN.md`，多个发布插件直接消费者共同使用且不属于单一 Runtime 的提炼术语必须归插件内术语合同，只有多个开发控制面直接消费者共同使用的提炼术语必须归 `docs/CONTEXT.md`，流程判断必须归相应 Core，Role 内部流程必须归 Skill，单一 Runtime 的传输、模型与恢复必须归 Adapter；`docs/CONTEXT.md` 必须完整包含插件内共享术语的开发侧同步视图，并可拥有开发专用术语，`PLUGIN_DESIGN.md` 必须引用它，插件内下游必须只引用插件内 Owner 或保留自身映射。
 - `PLUGIN_DESIGN.md` 必须作为插件开发/评审顶层设计的唯一 Owner，完整保存流程骨架和 Role/Skill 职责；必须与 `AGENTS.md` 同属开发控制面，不得进入发布插件或成为安装后 Runtime 依赖。完整设计只能由插件开发者、Reviewer 和场景评估者读取；Workflow Contract 必须唯一且完整定义 Runtime 路由并沿用插件内术语合同，其他 Core 必须只定义局部判断，Skill 必须只携带自身职责、流程与边界，Adapter 必须只负责传输。Core、Skill、Adapter 不得要求消费者读取顶层设计，也不得复制整张流程骨架。
 - Human 明确确认高层流程的节点、先后关系、分支、Role/Skill 职责或回路变化后，必须按 `需求不变量 → PLUGIN_DESIGN.md → Workflow/对应 Core → 节点 Skill/Adapter 消费者 → Evolution（若改变长期或 breaking boundary）` 修改；节点内部判断或职责内流程未改变顶层设计时，必须直接修改唯一 Core、Adapter 或 Skill Owner，不得为“保持同步”修改设计文档。
 - Manager/路由必须按以下层次归属：`PLUGIN_DESIGN.md` 必须画出协调闭环；Workflow 必须只决定何时进入 Manager 协调闭环及返回哪个调用节点；Coordination 必须定义评估、依赖、就绪判定、派发、等待和返回；Manager Skill 必须调用并消费；Adapter 必须组装 Runtime 参数。任一层越权时必须删除重复，不得补句解释。
 - Codex 自动模型组合、选择条件、`agent_type/model/reasoning_effort/fork_turns` 与回退必须只存在于 Codex Adapter。顶层设计、Core、Skill、README 和通用历史说明不得复制当前型号表；Markdown 映射必须由 Owner 复核与 Runtime 场景验证，不得用正则或固定标记测试锁定文字。将来存在机器可读配置时，必须测试配置消费者，不得测试说明文本。
 - 当前机制替代旧机制时，现行内容必须删除旧副本并引用现行 Owner；冻结历史文档必须只保留最短的“已取代”入口，Evolution 不得新增历史表格行或版本章节。
 - 测试或校验器不得读取顶层设计、README、Core、Adapter 或 `SKILL.md` 后用正则、固定标记、整句存在/缺失、段落顺序或字数断言证明语义。生产脚本测试必须调用真实入口，检查可解析状态、文件/副作用、幂等、失败恢复和禁止行为；生成 Markdown 只有自身是生产输出时才能作为结果核对，且不得借此证明 Role 路由或 Runtime 行为。Skill 触发、Role 路由、派发/返回与 Runtime 参数必须使用真实场景冒烟验证，否则必须明确标记未验证。
-- 路径术语必须遵循以下分类：Human 或配置提供的目录必须用 `base`；解析、派生后实际生效的目录必须用 `root`；文件及其位置必须用 `path`；非文件的证据、Owner、Runtime 标识或间接指向必须用 `reference`。不得使用 `locator`，不得用 `reference` 代替文件 `path`；修改既有内容时必须消除混用。
+- 开发者或发布插件消费者 → 使用 `base`、`root`、`path` 或 `reference` → 必须分别沿用 `docs/CONTEXT.md` 的开发定义与插件内术语合同的 Runtime 定义，修改既有内容时消除混用 → 不得另建 `locator` 作为同义术语。
 - `description` 必须只回答“何时用/何时不用”；正文必须写首查位置、扩大条件、动作、交付和停止边界；元数据提示词必须只给自然入口，不得复述正文流程。
 - Skill 正文必须默认按“职责/功能 → 输入与首查 → 动作顺序 → 输出 → 停止与禁止边界”组织；Adapter 必须默认按“实现的 Core 合同 → Runtime 能力映射 → 调用参数 → 回退/恢复 → Runtime 证据边界”组织。章节名称必须服从实际语义，不得为套用结构重复内容。
 - Adapter 必须只服务单一 Runtime；Skill 必须不绑定具体 Runtime；显式 setup 必须只管对应配置；根目录 `README.md` 必须只保留仓库导航，`plugins/sacha-orchestra/README.md` 必须只保留入口、最小用法和 Runtime Owner 导航；完整顶层流程骨架与 Role/Skill 职责必须只在根目录 `PLUGIN_DESIGN.md`，Runtime 路由必须由 Workflow Contract 唯一定义并沿用插件内术语合同；历史记录或版本迁移说明必须归具名文档。
@@ -112,19 +112,23 @@
 
 ## 验证命令与声明
 
-普通 plugin 改动只运行风险对应的最小集合：
+当前执行者 → 完成普通 plugin 改动后 → 按实际 `delta` 从以下入口选择最小充分证据，不得把命令列表当作默认全跑清单 → 每项只声明其直接覆盖范围：
 
 ```powershell
-python -B tests/validate_project_setup.py
 python -B -m unittest discover -s tests -p 'test_*.py'
 & <validator-python> -B <skill-creator>/scripts/quick_validate.py <affected-skill-root>
 & <validator-python> -B <plugin-creator>/scripts/validate_plugin.py <plugin-root>
 cprobe summary <affected-path-or-directory> --json
 ```
 
+- 改动只涉及 Core、Adapter、Skill 正文或开发文档，且未改变 frontmatter、metadata、资源/打包 path、manifest、机器合同或生产脚本 → 复核唯一 Owner、直接消费者、链接与 diff，并对受影响 Scope 运行 `cprobe` → 不得仅因文件位于 Skill 或 plugin 内运行 Skill/Plugin validator。
+- 改动涉及 Skill frontmatter 或 `agents/openai.yaml` → 对受影响 Skill 运行 `quick_validate.py` → 该结果只证明 Skill/metadata 结构；正文语义和行为另行验证。
+- 改动涉及 plugin manifest、Skill 目录结构、Agent metadata、MCP/App、资源或打包 path → 运行 `validate_plugin.py` → 该结果只证明 plugin ingestion 与结构合同；纯正文改动不得运行。
+- 改动涉及生产脚本、生成器、解析器或机器可读 schema/consumer → 运行覆盖受影响入口的最窄测试；只有影响横跨完整测试面时才运行全量单元测试 → 结果不得外推到未执行的 Runtime 行为。
+- 改动涉及 Skill 触发、Role 路由、派发/返回或 Runtime 调用语义 → 使用真实场景冒烟验证；只完成源码/Owner 复核时明确标记 Runtime 未验证 → Skill/Plugin validator 和文本断言不得替代场景证据。
 - Python 默认由 Codex 全局 `shell_environment_policy` 注入 `PYTHONUTF8=1`；生产脚本仍显式使用 `encoding="utf-8"`。不得给每条命令机械添加 `-X utf8`；只有实测 `sys.flags.utf8_mode != 1` 或出现解码错误时，才对受影响命令使用该 fallback。
 - `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
-- 源码校验器只核对 JSON/TOML/YAML 等机器可解析部署身份、实际文件结构、可执行入口和 Git 发布身份；Markdown 链接与语义由 Owner 复核及官方 Plugin/Skill 校验器负责，不写正则、固定标记、句子存在性、段落顺序或字数 Gate。
+- 源码校验器只核对 JSON/TOML/YAML 等机器可解析部署身份、实际文件结构、可执行入口和 Git 发布身份；Markdown 链接与语义由 Owner 和直接消费者复核，不写正则、固定标记、句子存在性、段落顺序或字数 Gate。
 - 生产脚本用隔离临时目录的正反例、幂等、失败恢复和真实副作用测试；Skill 触发、Role 路由与 Runtime 调用用真实场景冒烟验证。前一层不得替代后一层。
 - Role/流程场景使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行者只看中性任务、隔离工作区规则与正式入口 Skill/Core，不读取插件 README 或场景裁决标准；独立评估者才用顶层图核对偏移。不要求 Manager 派发的场景使用不携带父对话历史的委派 Agent；要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行，并遵守单层派发。运行者保存首次等待前的实时 Agent 树、首次创建参数和委派 Agent 的直接启动/终态记录，再核对验证器、原生派发/返回与工作区 `delta`；不得用执行者事后自报替代。未安装或不是全新任务时只能记为 `source-scenario`，不得宣称全新发现或 Runtime 已验证。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。

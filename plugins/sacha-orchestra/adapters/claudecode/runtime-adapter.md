@@ -1,6 +1,5 @@
 # Claude Code Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 10；术语合同 5；Workflow Contract 26；Human Interaction Contract 2；Assurance Contract 3；Coordination Contract 14；Artifact Protocol 7
 > 状态：规范性 Claude Code 传输映射
 
 ## 1. 边界

@@ -4,14 +4,14 @@
 
 本文与仓库根 `AGENTS.md` 并列，是供插件开发与评审阶段的 AI 和 Human 共同读取的顶层设计权威，保存产品入口、流程骨架、Role/Skill 职责和 Core owner。它不复制 Runtime 细节，不随插件发布，也不是任务执行依赖。
 
-本文使用的提炼术语与规则见开发侧[项目上下文](docs/CONTEXT.md)；发布插件中的唯一术语 Owner 是[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)，两边强双向同步。
+本文使用的开发控制面提炼术语与规则见[项目上下文](docs/CONTEXT.md)；其中被多个发布插件消费者共享的术语以[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)为 Runtime Owner，并与项目上下文中的对应条目强双向同步。项目上下文可以额外拥有仅供插件开发、维护和评审消费的术语，不要求写入发布插件。
 
 ## 1. Core 与 Runtime Owner
 
 | Owner | 负责 | 不负责 |
 | --- | --- | --- |
 | [Intake Contract](plugins/sacha-orchestra/core/intake-contract.md) | 入口分类、接受/拒绝、重复抑制与入口授权 | 接受后的流程、Review、协调、Runtime transport |
-| [术语合同](plugins/sacha-orchestra/core/terminology-contract.md) | 多个直接消费者共同使用且不属于单一 Runtime 的提炼术语、定义与边界 | 流程路由、Human 交互形式、协调动作、Artifact 生成/权威/恢复规则、Runtime 传输 |
+| [术语合同](plugins/sacha-orchestra/core/terminology-contract.md) | 多个发布插件直接消费者共同使用且不属于单一 Runtime 的提炼术语、定义与边界 | 开发控制面专用术语、流程路由、Human 交互形式、协调动作、Artifact 生成/权威/恢复规则、Runtime 传输 |
 | [Workflow Contract](plugins/sacha-orchestra/core/workflow-contract.md) | 唯一 Runtime 生命周期；Role/Gate、节点进入/退出、Human 路由与收尾 | 就绪判定/派发、Review 证据、Artifact、模型参数 |
 | [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) | Human 可见提问、进度、结果顺序与必须披露的信息 | 流程路由、授权结果、Role procedure、Runtime 工具参数 |
 | [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |

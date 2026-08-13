@@ -1,6 +1,5 @@
 # Workflow Contract（工作流合同）
 
-> 合同版本：26
 > 状态：规范性 Core 内核
 
 ## 1. 范围
@@ -22,6 +21,16 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 主任务发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；可在候选尚未完整拆分时调用。委派 Agent 发现相同事实时向主任务返回协调请求。单一职责内工作仍可由主任务完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
 - 显式 Clarify 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Clarify 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
 - 三个 Gate 全关且无需恢复时，Executor 在当前上下文完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
+
+### 2.1 能力加载
+
+本节沿用[术语合同](terminology-contract.md)的能力加载策略；Project Integration 没有已确认 Binding 时不推导策略：
+
+- `on-demand`：当前节点需要该 capability 的领域结果时加载。
+- `after-write-authorization`：目标 Scope 已有 Human 写入授权，且当前节点需要实施前约束或领域输入时加载；不表示可以执行 Skill 内的写入或运行操作。
+- `review-only`：当前节点是显式或本合同路由的 Reviewer，且该 capability 会改变裁决时加载。
+- `risk-matched`：当前 Scope、验收或已识别风险需要该 capability 的验证输入或证据时加载；不为形式完整自动执行编译、Runtime 或其他高成本动作。
+- 当前节点 → 策略允许加载 → 完整读取规范 Skill 并另行核对 Role 边界、前置、副作用与授权 → 任一项不满足时只使用安全子集或回退项目规则、可发现 Domain Skill 和原生路线，并保留未验证项。
 
 ## 3. Role 与 Gate
 

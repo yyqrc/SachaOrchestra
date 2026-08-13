@@ -40,18 +40,18 @@ Provider 可在 plugin 根提供 `capabilities.json`：
 - `skill` 必须属于该 provider，并在当前 Runtime context 可见。
 - `side_effect` 只能是 `read_only` 或 `project_generated_state`，表示副作用上界，不是授权或 load policy。
 
-Catalog 不保存 summary、触发、前置、具体影响或输出；这些事实只有 canonical `SKILL.md` 拥有。Catalog 也不保存 load policy：Setup 必须展示候选，Human 选择 `on-demand`、`after-write-authorization`、`review-only` 或 `risk-matched` 后，才能形成可写入 Binding 的 mapping。
+Catalog 不保存 summary、触发、前置、具体影响或输出；这些事实只有 canonical `SKILL.md` 拥有。Catalog 也不保存 load policy：Setup 必须展示候选，Human 按 [Workflow Contract](../../plugins/sacha-orchestra/core/workflow-contract.md) 选择 `on-demand`、`after-write-authorization`、`review-only` 或 `risk-matched` 后，才能形成可写入 Binding 的 mapping。
 
 ## Setup 消费
 
-1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 catalog path 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；无效 catalog 回退 metadata 并 warning。
+1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 catalog path 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；没有稳定 catalog path 时使用 metadata 候选，已读取的 catalog 无效时拒绝本轮 Provider 解析并报告错误，不静默降级。
 2. Project-local Skill：Setup 只扫描目标项目内已确认的 authority/independent root，完整读取每个 `SKILL.md` 正文；mirror 复用 authority，ignore 不消费。仅在正文声明为调用必需时读取项目内直接 path。
 3. 项目 Skill 的 id、目录名、frontmatter name/description 和关键词只用于定位，不得推导 capability。Setup 从正文拆分零到多个 goal unit，记录 goal、类型、副作用、静态入口、运行时前置、reason、覆盖步骤/输出的正文行与 Skill SHA-256，并判定 `schedulable`、`support_only` 或 `unavailable`。
 4. 只有正文定义可独立交付的有界目标、Skill 在当前 Runtime 可见且必需静态入口存在的 unit 才可进入候选；capability id 在该判定后分配。support/helper/reference/maintenance-only 或不可用 unit 不生成 mapping。
 5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
 6. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
 7. Binding 只保存 `capability id → canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、路径、query、前置或输出，rerun 重新读取。
-8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，不进 Binding、不需 load policy。
+8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，Setup 注入不依赖 Capability Binding 或 load policy；若同一 Skill 还支持 Human 直接查询工程纪律，可作为公开 capability 进入 catalog 和 Binding。
 
 Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换 mapping。
 
@@ -64,9 +64,9 @@ Setup 分别确认四类项目值，不得互相推导：
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
 | Spec storage root | Setup/Human、Planner/Clarify 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
 | Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization；可选 template catalog path kind/path | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path，也不冻结 catalog manifest 或模板 hash |
-| Pi one-shot model routing | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | plugin 默认型号、完整模型清单、运行授权 |
+| Pi one-shot 兼容路由 | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | 当前 Adapter 执行、plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Spec base、Project Documentation policy、Project Documentation root、写入授权或 Pi 型号。需要 Pi one-shot 时，Setup 定点核对可信 `pi --list-models`；已有项目 route 优先，其余按 `glm-5.2`、`kimi k3`、`deepseek`、`gpt-5.6 luna` 家族名模糊筛选。只在当次交互展示候选，Human 确认后才保存项目内路由；不持久化完整清单，也不向 plugin 源码复制完整 provider/model。配置项当前不可见时保留并 warning，不自动替换；无匹配时 helper 使用 Pi Runtime default。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开 capability 候选；不得选择 Spec base、Project Documentation policy、Project Documentation root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider 能力消费链。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
 首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Project Documentation 另收独立 Project Documentation root 并原样保存，不追加目录；两项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
 
@@ -74,7 +74,7 @@ Provider query 只展开 capability 候选；不得选择 Spec base、Project Do
 
 Human 接受 Sacha 且任务需要项目能力时，Role：
 
-1. 从 confirmed Binding 读取 capability、Skill 与 load policy。
+1. 从已确认 Binding 读取 capability、Skill 与 load policy。
 2. 按 policy 判断是否加载；mapping 本身不授权。
 3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据。
 4. Provider 返回领域结果与 evidence reference；最终路由和 verdict 仍由 Sacha 合同决定。

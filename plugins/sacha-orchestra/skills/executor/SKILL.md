@@ -12,7 +12,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 输入与首查
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 接受事实、Scope、授权、Entry Condition；Spec 须已批准且无修订。迁移任务从规则、Spec、必要 reference 自足恢复，确认是唯一写入者，不复制旧对话。两者皆无时不执行。
-2. 读取项目规则和真实状态。映射可用时才调用对应 Skill；缺少 Binding/映射时使用 AGENTS、Domain Skill 或原生路线。
+2. 读取项目规则和真实状态。已确认的 Binding 可用时按 [Workflow Contract](../../core/workflow-contract.md) 的能力加载策略决定是否加载对应 Skill；加载后完整读取正文并另行核对前置、副作用、Scope 和授权。策略不允许或缺少 Binding、映射、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项。
 3. 保护用户改动并确认单写入者；依赖、Scope 或基线不足时停止受影响写入。
 
 ## 动作顺序

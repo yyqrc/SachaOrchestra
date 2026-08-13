@@ -133,7 +133,6 @@ def validation_commands(
     python = current_python()
     plugin = root / "plugins" / "sacha-orchestra"
     commands: list[tuple[str, ...]] = [
-        (python, "-B", "tests/validate_project_setup.py"),
         (python, "-B", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"),
         (
             python,

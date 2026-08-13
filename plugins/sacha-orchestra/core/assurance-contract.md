@@ -1,6 +1,5 @@
 # Assurance Contract（验收合同）
 
-> 合同版本：3
 > 状态：规范性 Core 验收合同
 
 ## 1. 范围

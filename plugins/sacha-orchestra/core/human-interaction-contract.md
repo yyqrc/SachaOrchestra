@@ -1,6 +1,5 @@
 # Human Interaction Contract（Human 交互合同）
 
-> 合同版本：2
 > 状态：规范性 Core 合同
 
 ## 1. 范围与 Owner

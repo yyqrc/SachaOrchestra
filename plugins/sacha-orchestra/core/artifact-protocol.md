@@ -1,6 +1,5 @@
 # Artifact Protocol（产物协议）
 
-> 合同版本：7
 > 状态：规范性 Core 合同
 
 ## 1. 范围与权威

@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.11.6` 统一候选类术语并保留机器接口
+> 当前 release：`0.11.7` 收口能力加载策略、验证选择与开发控制面 Owner
 > 当前待发布源码版本：未开始
 > 当前主线：主任务独占 Manager 并执行单层派发；Human 审阅 Spec 时明确区分普通批准、明确迁移批准与要求调整，Feedback 保持独立 Owner 转移
-> 发布边界：`0.11.6` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；只统一 Human 可读候选类术语、合同版本映射和脚本诊断，机器接口与 Runtime 路由不变
+> 发布边界：`0.11.7` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；只收口能力加载策略、Provider 接入、路径/开发术语 Owner、验证选择和维护结构，既有 capability id、Binding schema 与顶层路由不变
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,9 +27,9 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.11.6` release | 统一入口、发布和知识沉淀中的候选类术语，保留 `candidate` 机器接口与冻结历史 | 附注 tag 表示已发布源码；独立 Review、项目测试、Skill/Plugin validator、Pi 脚本与 metadata coherence 只证明 source/static 和脚本行为，未执行安装与 Runtime 验收 |
+| `0.11.7` release | 收口 capability load policy 的 Runtime Owner、Provider 接入与验证选择；整理开发术语、Evolution path、合同版本行和测试结构 | 附注 tag 表示已发布源码；独立 Review、项目测试、Skill/Plugin validator 与 metadata coherence 只证明 source/static 和脚本行为，安装与 Runtime 证据分别报告 |
 
-三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
+三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本。README 只链接当前入口，不复制版本状态。
 
 ## 3. 长期架构边界
 
@@ -46,14 +46,14 @@
 
 改变生产 Role、Gate、Handoff 必要语义、单层派发、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.11.6`
+## 4. 当前 release：`0.11.7`
 
-实现 Scope：统一 Human 可读流程中的入口候选、当前待发布源码版本和领域/参考知识候选；同步术语与 Intake 合同版本映射并汉化相关脚本诊断。`--candidate-path`、`--phase candidate`、JSON 字段/状态、代码标识、Runtime 模型路由和 Manager 规则保持不变。
+实现 Scope：定义并消费四种 capability load policy，修正 Provider catalog、`project.rules` 与 Pi 兼容边界；整理开发术语 Owner、Evolution path、合同版本行、测试结构和验证选择。既有 capability id、Binding schema、顶层路由、Runtime 模型路由和 Manager 规则保持不变。
 
-### 4.1 术语与机器接口
+### 4.1 能力与维护边界
 
-- 入口判断统一使用“入口候选”；发布流程使用“当前待发布源码版本”和“精确暂存发布内容”；知识沉淀使用“领域/参考知识候选”或“备选项”。
-- `--candidate-path`、`--phase candidate`、JSON 字段/状态、代码标识与冻结历史保持不变；Runtime 模型路由和 Manager 规则不变。
+- Workflow 拥有四种能力加载条件，术语合同只拥有概念边界；Role/Clarify/setup-project 只保留直接消费映射。
+- 开发术语、Evolution 根位置、合同版本行、测试拆分和验证选择只调整维护控制面，不新增 Runtime 状态、字段或旁路。
 
 ### 4.2 发布证据边界
 

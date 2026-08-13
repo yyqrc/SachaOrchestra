@@ -12,7 +12,7 @@ description: 显式澄清、脑暴、现状调查或方案打磨，或已接受 
 ## 输入与首查
 
 1. 入口为 Human 显式调用，或活跃 Planner 发现目标结果、Scope/Non-goals、验收或实质决定未收口后的显式路由。
-2. 先从代码、项目规则和已提供的 Domain/项目 Skill 核对事实。Project Integration 给出 Project Context path 时，按当前术语、架构或跨任务约束查询相关 `CONTEXT.md`，不遍历历史任务目录。
+2. 先从代码、项目规则和已提供的 Domain/项目 Skill 核对事实。Project Integration 的已确认 Binding 可用时按 [Workflow Contract](../../core/workflow-contract.md) 的能力加载策略决定是否加载对应 Skill；加载后完整读取正文并另行核对只读边界、前置、副作用和授权，不满足时回退项目规则、可发现 Domain Skill 或原生路线并保留未验证项。Project Integration 给出 Project Context path 时，按当前术语、架构或跨任务约束查询相关 `CONTEXT.md`，不遍历历史任务目录。
 3. 只把无法自行确认、会改变方案且决定权属于 Human 的内容列为问题。Planner/Executor 可依据已确认语义安全决定的局部实现选择直接进入方案。
 
 ## 动作顺序
