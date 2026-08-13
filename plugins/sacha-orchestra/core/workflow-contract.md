@@ -51,7 +51,7 @@ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. 生命周期与 Human 路由
 
-通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Clarify，不得冻结或持久化 Spec，全部收口后才可形成 Spec。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
+通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Clarify，不得冻结或持久化 Spec，全部收口后才可形成 Spec。Human 显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
 
 本节沿用术语合同定义的普通批准、明确迁移批准、可靠迁移信号和执行任务迁移前提；本合同只规定这些判断产生的流程路由。
 
@@ -76,7 +76,9 @@ Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽�
 
 主任务直接推进 Role 完成结果、已批准方案向 Executor 的转换、同 Scope 返修/补证据/复验、唯一 Owner 路由和已授权收尾。Direct Scope 由用户目标与明确约束界定；只有 Human 或 Spec 明确指定时，预计文件列表才成为硬性允许列表。
 
-## 5. 项目文档收尾
+## 5. 项目文档
+
+Human 显式调用 document-project 时，当前文档请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选；该调用只处理当前文档目标，写入继续服从已确认的 Project Integration 与 Human 授权。
 
 完成实现及所需验证/Review 后，主任务只用当前任务最终事实检查一次项目文档候选。候选必须有持久产品变更（delta），并至少满足一项：已批准 Spec 的实质方案已经落地；形成对后续消费者有用的新/改能力、架构、数据、运维或恢复知识；存在经最终实现和证据证实、且有跨任务消费者的项目上下文（Project Context）候选。
 

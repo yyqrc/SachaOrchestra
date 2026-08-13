@@ -75,6 +75,20 @@ class DocumentProjectTests(ProjectTestCase):
         )
         self.assertEqual(("ready", "dry_run"), (bounded["status"], bounded["transaction"]))
 
+        explicit_without_confirmation = document_generator.generate_project_document(
+            project_root=required,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.document_input(trigger="human-request"),
+        )
+        self.assertEqual("refused", explicit_without_confirmation["status"])
+        explicit = document_generator.generate_project_document(
+            project_root=required,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.document_input(trigger="human-request"),
+            per_write_confirmed=True,
+        )
+        self.assertEqual(("ready", "dry_run"), (explicit["status"], explicit["transaction"]))
+
     def test_document_template_catalog_binding_and_profile_selection_are_deterministic(self) -> None:
         option_strings = generator.build_parser()._option_string_actions
         for option in (

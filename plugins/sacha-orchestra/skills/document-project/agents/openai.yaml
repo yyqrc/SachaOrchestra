@@ -1,4 +1,4 @@
 interface:
-  display_name: "Sacha Orchestra Document Project（内部收尾）"
-  short_description: "仅处理 Workflow 收尾候选成立后的项目文档写入"
-  default_prompt: "当 Workflow 收尾候选已成立时，使用 $sacha-orchestra:document-project 按已确认策略生成项目文档或维护 CONTEXT。"
+  display_name: "Sacha Orchestra Document Project（项目文档）"
+  short_description: "处理 Human 显式请求或 Workflow 收尾项目文档"
+  default_prompt: "使用 $sacha-orchestra:document-project 按已确认策略生成当前请求或 Workflow 收尾对应的项目文档。"

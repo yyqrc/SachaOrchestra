@@ -19,7 +19,8 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
 2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
 3. 显式 using-sacha、明确使用 Sacha 或直接调用规范 Role（canonical Role）视为接受。接受后读取 Workflow Contract 与目标 Role；传输、恢复或外部状态需要映射时读取目标 Adapter。
-4. 拒绝后保持 Direct；新入口候选重新执行入口判断。
+4. 显式 document-project 由 Intake Contract 直接路由到当前文档目标，不视为接受 Sacha，也不得为满足其前置条件补走生产 Role。
+5. 拒绝后保持 Direct；新入口候选重新执行入口判断。
 
 ## 停止与禁止边界
 

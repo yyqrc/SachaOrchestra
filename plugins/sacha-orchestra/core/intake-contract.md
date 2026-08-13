@@ -4,7 +4,7 @@
 
 ## 1. 范围
 
-本文是 `using-sacha / 显式生产 Role / 显式 Clarify` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
+本文是 `using-sacha / 显式生产 Role / 显式 Clarify / 显式 document-project` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
 
 Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `using-sacha`；项目知识仍归 Project Integration 或 Domain Skill。
 
@@ -22,8 +22,9 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 
 - Planner、Executor、Reviewer 接受 Human 直接调用。
 - Clarify 接受 Human 显式窄授权，或由活跃 Planner 路由。
+- document-project 接受 Human 显式文档请求，或由 Workflow 收尾候选路由。
 - Feedback 接受 Human 在另一个真实任务手动提交的流程问题、使用反馈、插件开发建议或能力想法。
-- Manager 和 document-project 只接受内部 Owner 路由；Reviewer Gate 与 Manager Gate 由 Workflow 在接受后判断。
+- Manager 只接受内部 Owner 路由；Reviewer Gate 与 Manager Gate 由 Workflow 在接受后判断。
 
 复杂度、文件数量、耗时、多平台、持续验证、Skill/插件关键词或插件已安装不构成入口事实。
 
@@ -42,9 +43,10 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 | 显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；主任务按 Workflow Contract 推进 |
 | 显式 Clarify | 授权主任务在窄 Scope 内澄清并管理一个有界只读研究委派 Agent；Clarify 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
 | 活跃 Planner 路由 Clarify | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
+| 显式 document-project | 直接路由当前文档目标到 document-project；不接受 Sacha、不补走生产 Role，也不替代正常 Workflow 的收尾候选检查；实际写入继续服从项目策略和写入授权 |
 | 显式 Setup Project | 只授权本次项目配置 Scope；后续开发目标重新判断入口 |
 | 在另一个真实任务显式调用 Feedback | 授权来源任务围绕具体反馈目标有界只读调查，并查询、复用或创建唯一反馈目标任务；Human 可提供原任务、项目或证据 reference；目标任务另行核对写入与外部动作授权 |
-| 直接调用 Manager 或 document-project | 返回当前目标给 `using-sacha` 或主任务；两者分别由 Manager Gate 与 Workflow 收尾候选路由 |
+| 直接调用 Manager | 返回当前目标给 `using-sacha` 或主任务，由 Manager Gate 路由 |
 
 入口授权只作用于当前目标/Scope。工作区写入、安装、Git、发布、远程资源、权限、高影响动作和 Planner 后续形成的实质方案分别取得对应授权；安全与工程规则持续生效。
 

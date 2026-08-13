@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "0.11.7",
+  "version": "0.11.8",
   "description": "Codex deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework.",
   "author": {
     "name": "Sacha Orchestra"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Sacha Orchestra",
     "shortDescription": "Sense tasks before routing Planner, Executor, and Reviewer.",
-    "longDescription": "Provides using-sacha as one smart intake, lean platform-neutral dispatch contracts, capability-aware Runtime adapters with role-aware model routing, approved-Spec Executor task migration, three directly callable production Roles, explicit Clarify, internal Manager coordination, Human-invoked Feedback transfer from a separate task, Schema v3 project setup, and policy-bound closeout documentation. Clear authorized tasks stay direct while authorization, safe integration, original evidence, independent review, and recoverable handoff remain explicit.",
+    "longDescription": "提供 using-sacha 智能入口、平台无关派发合同、按能力与 Role 选择模型的 Runtime Adapter、批准 Spec 的 Executor 任务迁移、三个可直接调用的生产 Role、显式 Clarify、内部 Manager 协调、Human 在独立任务调用的 Feedback 转移、Schema v3 项目配置，以及 Human 显式请求或策略驱动的收尾文档。清晰且已授权的任务保持 Direct，并持续保留授权、安全集成、原始证据、独立 Review 和可恢复 Handoff 边界。",
     "developerName": "Sacha Orchestra",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],

@@ -24,8 +24,9 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 ## 2. 产品入口
 
 - `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct。
-- Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Clarify 是主工作流唯一显式支持入口。
-- Manager 只能由主任务在 Manager Gate 打开后调用；document-project 只能由收尾候选路由，二者不是用户入口。
+- Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Clarify 接受显式窄授权。
+- `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式调用只授权当前文档目标，不接受 Sacha、不补走生产 Role，也不替代正常流程的候选检查。
+- Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
 - Feedback 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。调用本身授权来源任务有界只读调查并转移 owner；来源任务交付唯一目标任务 reference 后结束，目标任务作为普通任务重新进入通用流程。
 - setup-project、setup-agents 是主流程外的显式配置能力，不进入主工作流。
 
@@ -73,6 +74,7 @@ flowchart TD
     ENTRY -->|"显式 Executor"| EXECUTOR
     ENTRY -->|"显式 Reviewer"| REVIEWER
     ENTRY -->|"显式 Clarify：仅窄授权"| CLARIFY
+    ENTRY -->|"显式 document-project：当前文档目标"| DOCUMENT
 
     EXECUTOR -->|"Planner Gate 新开：Scope、方案或验收实质变化"| PLANNER
     EXECUTOR -->|"只缺新增高影响授权"| EXEC_AUTH["Human 决定新增高影响授权"]
@@ -90,13 +92,14 @@ flowchart TD
     EVIDENCE_OWNER -->|"补证或恢复后重新 Review"| REVIEWER
 
     DOC_CANDIDATE -->|"否"| CLOSE
-    DOC_CANDIDATE -->|"是"| DOC_POLICY{"已确认的 Project Integration / 策略"}
+    DOC_CANDIDATE -->|"是"| DOCUMENT["document-project：当前请求或收尾候选"]
+    DOCUMENT --> DOC_POLICY{"已确认的 Project Integration / 策略"}
     DOC_POLICY -->|"disabled、无配置或策略跳过"| CLOSE
-    DOC_POLICY -->|"已有本次写入授权"| DOCUMENT["document-project：按项目策略写入"]
+    DOC_POLICY -->|"已有本次写入授权"| DOC_WRITE["按项目策略生成 / 维护文档"]
     DOC_POLICY -->|"需要本次 Human 确认"| DOC_HUMAN["Human 确认项目文档写入"]
-    DOC_HUMAN -->|"确认"| DOCUMENT
+    DOC_HUMAN -->|"确认"| DOC_WRITE
     DOC_HUMAN -->|"拒绝"| CLOSE
-    DOCUMENT --> CLOSE
+    DOC_WRITE --> CLOSE
 
     subgraph COORDINATION["Manager 是主任务内的协调闭环，不是第四个生产 Role"]
         INVOKER["主任务中的 Planner / Clarify / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
@@ -165,7 +168,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 支持节点 | clarify | 补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用或活跃 Planner 调用；只读，不冻结 Scope |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
-| 内部写入者 | document-project | 按项目策略生成收尾文档或维护 Context | 候选 → 策略/授权 → 选模板/生成 → 验证/报告 | 仅收尾路由；不替代 Artifact 或改变 Review |
+| 显式支持/内部收尾 | document-project | 按项目策略生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，并可维护 Context | 显式请求或收尾候选 → 策略/授权 → 选模板/生成 → 验证/报告 | 显式调用只覆盖当前文档目标；不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
 | 工具/配置 | setup-project | 生成或刷新 Project Integration、Capability Binding、存储/文档策略与可选兼容配置 | 显式 project root/policy → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不执行项目任务或配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
 

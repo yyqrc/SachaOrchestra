@@ -7,15 +7,15 @@
 - 本文件是 Project `AGENTS.md`；Global AGENTS 的安全/授权/证据/Git/用户改动保护仍生效。
 - 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md` 与 `docs/**` 供插件开发使用，不进入发布插件。
 - 本 workspace 是 repo-local marketplace，唯一 plugin 源码位于 `plugins/sacha-orchestra`。
-- 当前 release、当前待发布源码版本与 breaking boundary 以 [`EVOLUTION.md`](EVOLUTION.md) 为权威；manifest=当前源码版本，tag=已发布版本。
-- Evolution 只给方向、版本和 breaking boundary，不授权实施。
+- 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向以 [`EVOLUTION.md`](EVOLUTION.md) 为权威；现行架构与流程仍归 `PLUGIN_DESIGN.md` 和对应 Runtime Owner，manifest=当前源码版本，tag=已发布版本。
+- Evolution 只给版本、当前 breaking boundary、成熟度和尚未实施的方向，不授权实施。
 
 ## Owner 与直接入口
 
 | 路径 | Owner 与用途 |
 | --- | --- |
 | `docs/CONTEXT.md` | 开发控制面提炼术语与规则的统一入口及开发专用术语 Owner；完整包含插件内共享术语的同步视图，并可额外拥有仅供插件开发、维护和评审消费的术语；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
-| `EVOLUTION.md` | 当前 release、当前待发布源码版本、长期架构与 breaking change 权威；不保存版本流水账 |
+| `EVOLUTION.md` | 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向；不复制现行架构/流程或保存版本流水账 |
 | 三个 deployment manifest | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准供 Cursor 等兼容 Runtime 加载 |
 | `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | 各 Runtime 的 repo-local marketplace 入口；只保存部署路由，不拥有流程语义 |
 | `plugins/sacha-orchestra/core/intake-contract.md` | 入口判断、接受/拒绝、重复抑制和授权边界的规范性 contract |
@@ -45,8 +45,8 @@
 - 插件开发或评审者 → 涉及已提炼术语与规则 → 必须先读 `docs/CONTEXT.md`，再核对表中插件内定义 → 发布插件不得引用该文件。
 - 插件开发或评审者 → 讨论或修改入口、高层流程、Role/Skill 职责 → 必须在完成适用的术语读取后读取根目录 `PLUGIN_DESIGN.md`，再按受影响节点读取 Intake、Workflow、Human Interaction、Assurance、Coordination、Artifact 或目标 Skill → 只查询触发条件或局部流程且不涉及已提炼术语时，只读目标 `SKILL.md` 和元数据。
 - Runtime 局部任务只读目标 Adapter；Core 或跨运行环境审查按 Scope 比较。
-- release、长期架构、Manager/并行、`1.0.0` 或 Core breaking：读取 Evolution；只有 Human 确认具体改动后才修改。
-- Evolution 只读取当前 release、当前待发布源码版本、当前 breaking boundary 与仍有效的长期决策；历史事实按具名版本、Spec/Report/Review 或 Git 查询，不从 Evolution 恢复旧机制。
+- release、`1.0.0`、尚未实施的长期方向或 Core breaking boundary：读取 Evolution；现行架构、Manager/并行与产品流程先读 `PLUGIN_DESIGN.md`，只有改变上述 Evolution 独占内容时才修改 Evolution。
+- Evolution 只读取当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向；历史事实按具名版本、Spec/Report/Review 或 Git 查询，不从 Evolution 恢复旧机制。
 - 普通实施不遍历历史计划目录寻找“更多规则”。现行内容与当前 Owner 冲突时删除副本或改成 Owner 引用；冻结历史文档仅在仍可能误导当前操作时添加最短的“已取代”入口。
 - Project Integration 和 Domain Skill 归各自项目所有。不得将项目特定命令或证据规则导入此 Core。
 
@@ -90,7 +90,7 @@
 
 ## 产品边界
 
-- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 是主工作流唯一可显式调用的支持节点。Manager 只能由主任务在 Gate 打开后调用，document-project 只能由收尾候选路由，二者都不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
+- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 接受显式窄授权；document-project 接受 Human 显式文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
 - 任何新增 Role、Skill 功能、节点、连线、Outcome 去向或跨节点 Owner 转移，都必须先向 Human 提交产品面变化并取得明确确认，再修改 `PLUGIN_DESIGN.md`，最后修改 Core 与直接消费者。现有职责内流程、提示词或证据细节不得自动升级为顶层设计变化。
 - Core 只容纳流程节点间被多个消费者共享且不属于单一 Runtime 的稳定判断；单 Skill 的触发条件、内部流程、局部状态或格式留在 Skill，单一 Runtime 的传输、模型与恢复留在 Adapter，项目特例留在 Project Integration/Domain Skill。不能指出第二个真实消费者时，不新增 Core 分类或必填字段。
 - Hook 不得接受/替代 Sacha、扩大授权或参与恢复。新增 hook/MCP/app/外部服务/权限字段需明确批准；目标必需的 repo-local asset/script/manifest 元数据按 Scope 修改验证。
