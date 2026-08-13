@@ -11,8 +11,8 @@ description: 仅在 Workflow 收尾候选成立后按项目策略生成存档/�
 
 ## 输入与首查
 
-1. 入口为 [Workflow Contract](../../core/workflow-contract.md) 收尾候选成立后的工作流 Owner 路由；随后读取已确认的 Project Integration。候选检查只使用当前任务最终事实；`disabled` 或无配置时静默跳过。
-2. 从当前任务最终事实选择生命周期和目标：
+1. 入口为 [Workflow Contract](../../core/workflow-contract.md) 收尾候选成立后的主任务路由；随后读取已确认的 Project Integration。候选检查只使用当前任务最终事实；`disabled` 或无配置时静默跳过。
+2. Artifact 与 Execution Report 沿用[术语合同](../../core/terminology-contract.md)，再从当前任务最终事实选择生命周期和目标：
    - Execution Report 作为任务 Artifact/证据索引，留在 Spec/任务约定位置；
    - `change-archive`/完成文档记录已交付持久变化，`system-guide` 解释长期使用与维护，均写入 Project Documentation root；
    - `project-context` 只收有跨任务消费者的稳定术语/约束，写入 Project Context path 指定的 `CONTEXT.md` 受管区。

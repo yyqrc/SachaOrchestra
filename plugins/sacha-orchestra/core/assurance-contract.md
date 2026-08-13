@@ -1,12 +1,12 @@
 # Assurance Contract（验收合同）
 
-> 合同版本：2
+> 合同版本：3
 > 状态：规范性 Core 验收合同
 
 ## 1. 范围
 
 本文是 Reviewer Gate 打开后的 Baseline、验收矩阵、Outcome 与重新 Review 权威。Role/Gate 与 Runtime 路由由 [Workflow Contract](workflow-contract.md) 定义；Outcome 只能返回 Executor、Planner、证据/恢复 Owner 或收尾，不另建流程旁路。
-持久 Review/Handoff 由 [Artifact Protocol](artifact-protocol.md) 定义。Reviewer Gate 关闭时不加载本文。
+Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)，生成与恢复规则见 [Artifact Protocol](artifact-protocol.md)。Reviewer Gate 关闭时不加载本文。
 
 ## 2. Baseline 与证据
 

@@ -25,4 +25,4 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 
 - 本 Skill 的产出是 Direct 或 Sacha 入口结果；拆分、派发、实施和验收由下游 Owner 处理。
 - 接受后的 Role、Gate、Clarify、Manager、迁移与收尾路线由 Workflow Contract 处理。
-- Goal、Artifact、Handoff、写入、安装、Git、发布、远程资源和高影响动作使用各自 Owner 与授权。
+- Artifact 与 Handoff 沿用[术语合同](../../core/terminology-contract.md)；Goal、写入、安装、Git、发布、远程资源和高影响动作使用各自 Owner 与授权。

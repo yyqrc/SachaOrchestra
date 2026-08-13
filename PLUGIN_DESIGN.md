@@ -1,19 +1,22 @@
 # Sacha Orchestra 插件顶层设计
 
+> 文档身份：插件开发使用；不进入发布插件。
+
 本文与仓库根 `AGENTS.md` 并列，是供插件开发与评审阶段的 AI 和 Human 共同读取的顶层设计权威，保存产品入口、流程骨架、Role/Skill 职责和 Core owner。它不复制 Runtime 细节，不随插件发布，也不是任务执行依赖。
 
-本文沿用 [Workflow Contract](plugins/sacha-orchestra/core/workflow-contract.md) 定义的“主任务”，以及 [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) 定义的“单层派发”“委派 Agent”和“协调请求”。
+本文使用的提炼术语与规则见开发侧[项目上下文](docs/CONTEXT.md)；发布插件中的唯一术语 Owner 是[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)，两边强双向同步。
 
 ## 1. Core 与 Runtime Owner
 
 | Owner | 负责 | 不负责 |
 | --- | --- | --- |
 | [Intake Contract](plugins/sacha-orchestra/core/intake-contract.md) | 入口分类、接受/拒绝、重复抑制与入口授权 | 接受后的流程、Review、协调、Runtime transport |
+| [术语合同](plugins/sacha-orchestra/core/terminology-contract.md) | 多个直接消费者共同使用且不属于单一 Runtime 的提炼术语、定义与边界 | 流程路由、Human 交互形式、协调动作、Artifact 生成/权威/恢复规则、Runtime 传输 |
 | [Workflow Contract](plugins/sacha-orchestra/core/workflow-contract.md) | 唯一 Runtime 生命周期；Role/Gate、节点进入/退出、Human 路由与收尾 | 就绪判定/派发、Review 证据、Artifact、模型参数 |
 | [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) | Human 可见提问、进度、结果顺序与必须披露的信息 | 流程路由、授权结果、Role procedure、Runtime 工具参数 |
 | [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |
 | [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
-| [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 权威、渐进生成条件、Handoff 与恢复语义 | 流程路由、保存路径、原始事实 |
+| [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复与证据映射 | Gate、就绪判定、Role 和通用流程 |
 
 Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
@@ -50,14 +53,20 @@ flowchart TD
     CLARIFY_RETURN -->|"活跃 Planner"| PLANNER
     CLARIFY_RETURN -->|"显式窄 Scope 已完成"| CLOSE
     CLARIFY_RETURN -->|"出现新的开发目标或写入需求"| INTAKE
-    PLAN_READY -->|"是"| NEED_APPROVAL{"存在未确认的实质方案或新增授权？"}
+    PLAN_READY -->|"是"| NEED_APPROVAL{"存在未确认的实质方案？"}
     NEED_APPROVAL -->|"否"| EXECUTOR
-    NEED_APPROVAL -->|"是"| HUMAN_APPROVAL["Human 审阅 Spec / 新增授权"]
+    NEED_APPROVAL -->|"是"| MIGRATION_SIGNAL{"可靠迁移信号？"}
+    MIGRATION_SIGNAL -->|"是：明确迁移批准置首"| HUMAN_APPROVAL["Human 审阅 Spec"]
+    MIGRATION_SIGNAL -->|"否：普通批准置首"| HUMAN_APPROVAL
     HUMAN_APPROVAL -->|"要求调整"| PLANNER
     HUMAN_APPROVAL -->|"取消或不再继续"| CLOSE
-    HUMAN_APPROVAL -->|"批准"| MIGRATION{"满足迁移前提，并明确选择新任务？"}
-    MIGRATION -->|"否"| EXECUTOR
-    MIGRATION -->|"是"| TRANSFER["Adapter 单向转移工作流 owner；来源任务结束"]
+    HUMAN_APPROVAL -->|"普通批准"| EXECUTOR
+    HUMAN_APPROVAL -->|"明确迁移批准；停止实施和写入派发"| MIGRATION{"满足执行任务迁移前提？"}
+    MIGRATION -->|"否"| MIGRATION_BLOCKED["报告缺口与恢复条件；主任务不变"]
+    MIGRATION_BLOCKED -->|"条件恢复"| MIGRATION
+    MIGRATION_BLOCKED -->|"Human 改为普通批准"| EXECUTOR
+    MIGRATION_BLOCKED -->|"取消"| CLOSE
+    MIGRATION -->|"是"| TRANSFER["唯一目标取得最小 Handoff；Adapter 使其成为主任务；来源主任务结束"]
     TRANSFER -->|"新目标任务继续同一生命周期"| EXECUTOR
 
     ENTRY -->|"显式 Planner"| PLANNER
@@ -112,7 +121,7 @@ flowchart TD
     subgraph FEEDBACK_FLOW["Feedback：独立 Human 手动入口"]
         FEEDBACK_HUMAN["Human 在另一真实任务显式调用 Feedback<br/>流程问题 / 使用反馈 / 插件开发想法"] --> FEEDBACK["Feedback 来源任务：有界只读调查"]
         FEEDBACK --> FEEDBACK_RESOLVE{"唯一反馈目标任务能否确定？"}
-        FEEDBACK_RESOLVE -->|"唯一可继续的目标任务"| FEEDBACK_TARGET["普通目标任务接管；来源任务交付 reference 后结束"]
+        FEEDBACK_RESOLVE -->|"唯一可继续的目标任务"| FEEDBACK_TARGET["目标任务接管反馈目标；来源任务交付 reference 后结束"]
         FEEDBACK_RESOLVE -->|"没有可复用目标；本次调用已授权"| FEEDBACK_CREATE["Adapter 创建唯一目标任务"]
         FEEDBACK_CREATE --> FEEDBACK_TARGET
         FEEDBACK_RESOLVE -->|"同一反馈目标的已结束精确重复"| FEEDBACK_NOOP["no_op：返回既有 reference；来源任务结束"]
@@ -128,7 +137,8 @@ flowchart TD
 
 - 节点和有向边穷尽顶层产品流转；边文字与节点进入条件定义流转性质。没有边就不能跨节点接管。
 - Manager 是可重入的调用—返回函数：进入和退出保留调用节点，生命周期 owner 不变。Handoff 只在迁移、owner transfer 或有恢复消费者时按需携带，不是节点或终态。
-- 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 需要额外拆分或协调时返回协调请求。迁移完成后派发权随工作流 Owner 转移。
+- 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 需要额外拆分或协调时返回协调请求。迁移完成后，目标任务成为主任务并取得派发权。
+- Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
 - 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向 Human 说明真实失败、通用流程为何不足和影响，并取得明确批准。
 

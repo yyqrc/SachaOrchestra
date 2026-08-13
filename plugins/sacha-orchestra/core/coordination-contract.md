@@ -1,23 +1,17 @@
 # Coordination Contract（协调合同）
 
-> 合同版本：12
+> 合同版本：14
 > 状态：规范性 Core 协调合同
 
 ## 1. 范围与 Owner
 
 本文是 Manager 协调闭环和 Owner 转移的唯一 Core Owner：定义评估、拆分、依赖、执行/研究就绪条件、逐单元且不依赖 Runtime 的路由要求、派发/必要等待/取消、归并/返回、标识/去重、Owner 转移与偏差；不得改变 Workflow Contract 的 Runtime 路由或把协调闭环变成新的生命周期。
-Gate/生命周期见 [Workflow Contract](workflow-contract.md)，Human 可见交互见 [Human Interaction Contract](human-interaction-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
+主任务、单层派发、委派 Agent、协调请求、明确迁移批准和执行任务迁移前提见[术语合同](terminology-contract.md)，Gate/生命周期见 [Workflow Contract](workflow-contract.md)，Human 可见交互见 [Human Interaction Contract](human-interaction-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
 无委派、跨上下文 Owner 转移/返回或恢复消费者时不加载。
-
-本文使用以下术语：
-
-- **单层派发**：主任务创建全部委派 Agent，且每个委派 Agent 都是主任务的直接子级；委派 Agent 不调用 Manager 或创建下级 Agent。用户任务迁移成功后，单层派发改由新主任务执行。
-- **委派 Agent**：主任务为一个工作单元创建、用于承担 Role 或辅助工作的 Agent；只完成该单元并返回，不取得工作流 Owner 或派发权。
-- **协调请求**：委派 Agent 需要继续拆分、依赖协调或额外 Agent 时，向主任务返回已知原因，以及主任务重新评估所需的候选单元、依赖或 reference。该术语只定义返回语义，不新增状态、字段或 Artifact。
 
 Manager 是主任务内调用后返回调用节点的协调控制面。主任务发现多个候选单元、依赖图、并发安全、跨上下文恢复或其他需要协调的 Owner 时调用 Manager；可提交尚未完整拆分或判定就绪的候选。
 同一任务内的普通 Executor、迁移目标任务与 Clarify 研究共用本合同的评估、拆分、依赖、就绪判定、派发、等待、取消、归并和返回算法；差异只在执行/研究就绪条件与返回节点。
-主任务在既有 Scope 与授权内只有一个有界委派 Agent 时可直接管理，并负责同等的评估、等待、取消和证据核对；仅拥有相应写入授权时才集成候选补丁。Clarify 的研究委派 Agent 保持只读；Role 与裁决仍由工作流 Owner 持有。
+主任务在既有 Scope 与授权内只有一个有界委派 Agent 时可直接管理，并负责同等的评估、等待、取消和证据核对；仅拥有相应写入授权时才集成候选补丁。Clarify 的研究委派 Agent 保持只读；Role 与裁决仍由主任务持有。
 
 ## 2. 评估、拆分、依赖与就绪判定
 
@@ -33,7 +27,7 @@ Manager 先按目标、Scope、授权、完成条件和输入事实拆分候选�
 
 只读任务可并行。共享工作树中同一文件或可变输出不得并行写；隔离工作树、仅补丁或候选实现可重叠分析，由集成 Owner 串行应用。共享生成物、公共结构、Git 和整体验证保持串行。
 
-Manager 在主任务内对同一 Task/Scope 修订号的剩余依赖图持续承担调度责任；工作流 Owner 始终保留 Role、派发、写入、集成和根终态责任。每个波次按同一闭环推进：
+Manager 在主任务内对同一 Task/Scope 修订号的剩余依赖图持续承担调度责任；主任务始终保留 Role、派发、写入、集成和根终态责任。每个波次按同一闭环推进：
 
 ```text
 评估当前波次 → 串行执行或并行派发 → 聚合本波结果 → 重算剩余依赖图 → 下一波 / 阻塞 / 耗尽
@@ -43,7 +37,7 @@ Manager 在主任务内对同一 Task/Scope 修订号的剩余依赖图持续承
 
 对每个依赖波次，若至少两个单元就绪且写入/输出隔离，Manager 必须在该波次首次等待前实际创建至少两个委派 Agent；Gate、计划记录、迁移任务或携带完整历史的委派 Agent 都不能代替实际创建。若只有一个单元就绪，或多个就绪单元的写入/输出不能隔离，Manager 返回当前波次的串行结论，不为并行而拆分；若没有单元就绪，或输入、依赖、授权使当前波次不可推进，则返回阻塞与恢复条件，不伪装成串行执行。
 
-派发不自动触发等待。每次派发后先重算当前依赖图；只要还有不依赖未完成结果、且不与活跃工作冲突的就绪单元，当前 Owner 就先执行或继续派发。只有目标已真实启动、当前 Owner 是其结果消费者、下一流程转换依赖该结果，并且没有其他就绪工作时，才到达依赖屏障并等待：
+派发不自动触发等待。每次派发后先重算当前依赖图；只要还有不依赖未完成结果、且不与活跃工作冲突的就绪单元，主任务就先执行或继续派发。只有目标已真实启动、主任务是其结果消费者、下一流程转换依赖该结果，并且没有其他就绪工作时，才到达依赖屏障并等待：
 
 ```text
 创建委派 Agent → 重算就绪单元 → 推进不冲突工作 → 依赖屏障 → 等待 → 消费结果 → 重算剩余依赖图
@@ -61,20 +55,20 @@ Clarify 先使用当前上下文可达事实。主任务可直接管理一个研
 
 ## 5. Executor 任务迁移
 
-Human 明确选择把批准的持久 Spec 交给用户可见任务执行时，迁移标识是 Task/Scope 修订号、批准 Spec reference 与工作流转移。首次创建后保留原生目标标识；重复批准、重试或恢复只复用，不得再次创建，也不建跨会话注册表。
+Workflow Contract 判定明确迁移批准且执行任务迁移前提满足时，来源主任务只执行目标查询/创建、最小 Handoff 和 reference 交付，不再实施或派发写入。迁移标识是 Task/Scope 修订号、批准 Spec reference 与工作流转移；首次创建后保留原生目标标识，重复批准、重试或恢复只复用，不得再次创建，也不建跨会话注册表。
 
-新目标任务接管工作流 Owner、派发、Execute、Review/返修和收尾；原 Owner 停止写入和派发，交付原生任务 reference 后结束，不汇合、不等待返回。目标任务只消费项目规则、Spec、必要 Artifact/证据 reference 与传输未携带的最小 Handoff，不得复制完整对话。委派 Agent 不取得迁移标识、工作流 Owner 或派发权，携带完整历史的委派 Agent 也不得冒充上下文减负。
+唯一目标任务取得项目规则、Spec、必要 Artifact/证据 reference 与传输未携带的最小 Handoff 后，接管工作流 Owner、派发、Execute、Review/返修和收尾；来源主任务交付原生任务 reference 后结束，不汇合、不等待返回。目标任务不得复制完整对话。委派 Agent 不取得迁移标识、工作流 Owner 或派发权，携带完整历史的委派 Agent 也不得冒充上下文减负。
 
 目标任务成为主任务后，按第 2、3 节通用规则评估、拆分、建立依赖并执行单层派发；Gate 沿用 Workflow Contract。实现完成后按 Reviewer Gate 进入独立 Reviewer。
 
-创建失败且没有产生目标任务 Owner 时可回退并报告；成功后恢复、失败处理和最终结果都由目标任务持续推进，原任务不恢复 Owner。重复输入只返回既有目标任务 reference。唯一标识或 Spec/Entry Condition 不可证明时停止迁移并进入偏差处理。
+查询、创建或 Handoff 失败且没有完成 Owner 转移时，来源主任务保持唯一 Owner，报告缺口与恢复条件，不进入 Executor；Human 改为普通批准后才恢复实施和写入派发。Owner 转移成功后，恢复、失败处理和最终结果都由目标任务持续推进，来源任务不恢复 Owner。重复输入只返回既有目标任务 reference。迁移标识或执行任务迁移前提不可证明时停止迁移并进入偏差处理。
 
 ## 6. 完成、返回与偏差
 
 Owner 保存目标、Scope、授权和完成条件。每个委派单元/Role 对同一修订号只返回一次结果、实际验证、阻塞/风险和必要 reference。
 原生传输无法消歧时才补 Task/Scope 修订号、Source/Target、Owner 或去重信息；更正使用新修订号。
 
-Feedback 由 Human 在另一个真实任务手动调用。该显式调用本身授权来源任务围绕具体反馈目标进行有界只读调查，并查询、复用或创建唯一反馈目标任务。Human 可提供原任务、项目或证据 reference。完整反馈标识由反馈工作区、具体目标、Owner，以及 Human 已提供时的来源 reference 组成；传输可用时，来源任务只复用标识精确匹配且仍活跃/可恢复的唯一目标任务；无此匹配时在本次调用授权内创建恰好一个目标任务，不再追加创建确认。已终止的同一反馈标识精确重复只按 `no_op` 返回既有 reference，不产生新的 Owner 转移；其他已终止/过期候选不算匹配。标识、状态或唯一性无法证明时停止并请求消歧。
+Feedback 由 Human 在另一个真实任务手动调用。该显式调用本身授权来源任务围绕具体反馈目标进行有界只读调查，并查询、复用或创建唯一反馈目标任务；不使用执行任务迁移前提。Human 可提供原任务、项目或证据 reference。完整反馈标识由反馈工作区、具体目标、Owner，以及 Human 已提供时的来源 reference 组成；传输可用时，来源任务只复用标识精确匹配且仍活跃/可恢复的唯一目标任务；无此匹配时在本次调用授权内创建恰好一个目标任务，不再追加创建确认。已终止的同一反馈标识精确重复只按 `no_op` 返回既有 reference，不产生新的 Owner 转移；其他已终止/过期候选不算匹配。标识、状态或唯一性无法证明时停止并请求消歧。
 来源任务必须交付原生目标任务 reference；调查报告不能代替 Owner 路由。只读调查委派 Agent 仅补证，不取得反馈 Owner、Role 或标识。完成 Owner 转移后，来源任务结束，不汇合、不等待终态，也不转述目标任务最终结果。Feedback 调用只授权来源任务调查与路由；目标任务另行核对写入和外部副作用授权，并按 Intake Contract 使用通用的协调、迁移、Role、验证、收尾与根终态规则。
 
 同一 `payload` 兼作报告/完成回传时只返回一次；仅有消费者时保存完整报告/证据 Artifact。返回消费者必须通过当前调用或传输的完成回传路径消费结果；Human 可见结果只呈现已消费的结果并遵循 Human Interaction Contract。
@@ -85,7 +79,7 @@ Feedback 由 Human 在另一个真实任务手动调用。该显式调用本身�
 - `goal_partial`：已授权子集完成，剩余部分明确未完成且当前目标不再继续；
 - `goal_cancelled`：Human 或上游 Owner 明确取消；
 - `goal_superseded`：目标被新目标替代；
-- `human_decision_required`：继续需要实质方案、Scope/验收变化、新高影响授权、不可消歧 Owner 或 Human/外部恢复；Planner 提案获批且无其他阻塞时，原工作流 Owner 立即消费该回复并启动 Executor；
+- `human_decision_required`：继续需要实质方案、Scope/验收变化、新高影响授权、不可消歧 Owner 或 Human/外部恢复；Planner 提案获批且无其他阻塞时，主任务立即消费该回复并启动 Executor；
 - `completion_return_blocked`：安全返回传输与替代路径均不可用；
 - `external_failure`：外部系统已终止且同 Scope 安全恢复路径耗尽。
 

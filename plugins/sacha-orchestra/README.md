@@ -1,5 +1,7 @@
 # Sacha Orchestra
 
+> 文档身份：插件发布使用；位于发布 `root` 内。
+
 跨运行环境的项目工作流插件。本文只保留安装后可用的入口、最小使用方式和 Runtime owner 导航。
 
 ## 默认入口
@@ -18,11 +20,12 @@ Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或
 ## Runtime owner
 
 - [Intake Contract](core/intake-contract.md)：入口接受/拒绝与重复抑制。
-- [Workflow Contract](core/workflow-contract.md)：唯一自包含 Runtime 路由、Role/Gate 与 Human 路由。
+- [术语合同](core/terminology-contract.md)：流程与 Artifact 的提炼术语、定义与边界。
+- [Workflow Contract](core/workflow-contract.md)：唯一 Runtime 路由、Role/Gate 与 Human 路由。
 - [Human Interaction Contract](core/human-interaction-contract.md)：Human 可见提问、进度、结果顺序与必须披露的信息。
 - [Assurance Contract](core/assurance-contract.md)：Review、Baseline 与 Outcome。
 - [Coordination Contract](core/coordination-contract.md)：Manager、readiness、dispatch/wait/return 与 owner transfer。
-- [Artifact Protocol](core/artifact-protocol.md)：Artifact 与必要 Handoff。
+- [Artifact Protocol](core/artifact-protocol.md)：Artifact 生成条件、最小内容、权威关系与恢复规则。
 - [Codex Adapter](adapters/codex/runtime-adapter.md)、[Claude Code Adapter](adapters/claudecode/runtime-adapter.md)与 [Cursor Adapter](adapters/cursor/runtime-adapter.md)：各自 Runtime transport。
 
 静态源码与说明不证明安装、fresh discovery、dispatch 或真实 Runtime 行为；这些必须用对应 Runtime scenario 单独验证。

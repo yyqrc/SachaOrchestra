@@ -17,7 +17,7 @@ description: 当 Human 在另一个真实任务中显式提交流程问题、使
 
 ## 动作顺序
 
-1. 按 Coordination Contract 的反馈身份、可恢复状态与去重规则筛选目标任务。无法消歧时读取 [Human Interaction Contract](../../core/human-interaction-contract.md) 并询问唯一关键差异。
+1. 按 Coordination Contract 的反馈身份、可恢复状态与去重规则筛选目标任务，不核对执行任务迁移前提。无法消歧时读取 [Human Interaction Contract](../../core/human-interaction-contract.md) 并询问唯一关键差异。
 2. 通过 Adapter 复用合法目标任务；无可复用目标时，在本次调用授权内创建唯一目标任务。
 3. 来源任务向目标任务交付反馈目标、必要规则/证据 reference 和原生目标任务 reference，然后结束。
 4. 精确重复返回既有目标任务 reference；目标任务按 [Intake Contract](../../core/intake-contract.md) 执行普通任务流程。

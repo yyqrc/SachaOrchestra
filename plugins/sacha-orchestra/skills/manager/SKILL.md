@@ -11,7 +11,7 @@ description: 主任务已接受 Sacha 或显式 Clarify 且 Manager Gate 打开�
 
 ## 输入与首查
 
-1. 按 [Workflow Contract](../../core/workflow-contract.md) 核对当前上下文是主任务，并已有 [Intake Contract](../../core/intake-contract.md) 的 Sacha 接受状态或显式 Clarify 窄授权，再核对 Manager Gate。
+1. 按[术语合同](../../core/terminology-contract.md)核对当前上下文是主任务，并已有 [Intake Contract](../../core/intake-contract.md) 的 Sacha 接受状态或显式 Clarify 窄授权，再按 [Workflow Contract](../../core/workflow-contract.md) 核对 Manager Gate。
 2. 用户直接调用 Manager 时，把当前目标返回 `using-sacha` 或当前流程节点判断。委派 Agent 调用时返回协调请求；其他非主任务上下文停止并返回入口缺口。Manager Gate 关闭时返回调用节点。
 
 ## 动作顺序

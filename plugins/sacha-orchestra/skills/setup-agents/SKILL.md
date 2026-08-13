@@ -31,4 +31,4 @@ description: 显式配置 Sacha 官方 Codex 自定义 Agent；普通流程不�
 
 - 写入授权仅覆盖上述带命名空间的受管安装。
 - 本 Skill 只管理用户级 Sacha Agent；`setup-project` 只管理 Project Integration，二者不互调或静默触发。
-- Sacha 接受与 Agent 派发由正式入口和工作流 Owner 处理；配置层证据与 Runtime 发现/使用证据分别报告。
+- Sacha 接受与 Agent 派发由正式入口和主任务处理；配置层证据与 Runtime 发现/使用证据分别报告。

@@ -1,11 +1,11 @@
 # Intake Contract（入口合同）
 
-> 合同版本：8
+> 合同版本：9
 > 状态：规范性 Core 合同
 
 ## 1. 范围
 
-本文是 `using-sacha / 显式生产 Role / 显式 Clarify` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。接受后的路由与主任务由 [Workflow Contract](workflow-contract.md) 定义；委派 Agent 与协调请求由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
+本文是 `using-sacha / 显式生产 Role / 显式 Clarify` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
 
 Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `using-sacha`；项目知识仍归 Project Integration 或 Domain Skill。
 
@@ -30,7 +30,7 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 
 ## 4. 入口决定
 
-- 初次判断及 Direct 执行期间，当前 Owner 必须在继续形成实质方案、实施或持久化前检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求，且这些事实会改变执行方式时，必须停止当前 Direct 推进并重新执行入口判断；完成入口决定前不得继续形成单一路线的实施方案。
+- 初次判断及 Direct 执行期间，主任务必须在继续形成实质方案、实施或持久化前检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求，且这些事实会改变执行方式时，必须停止当前 Direct 推进并重新执行入口判断；完成入口决定前不得继续形成单一路线的实施方案。
 - 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节候选事实时保持 L0。
 - 自动感知到候选事实时，只询问一次是否进入 Sacha，并按 Human Interaction Contract 说明新增能力、成本、执行影响与推荐。
 - Human 接受后，当前根 Owner 按需加载 Workflow Contract、当前 Adapter、已确认的 Project Integration 与目标 Role。
@@ -40,12 +40,12 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 
 | Human 输入 | 授权范围与下一路由 |
 | --- | --- |
-| 显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；当前 Owner 按 Workflow Contract 推进 |
+| 显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；主任务按 Workflow Contract 推进 |
 | 显式 Clarify | 授权主任务在窄 Scope 内澄清并管理一个有界只读研究委派 Agent；Clarify 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
 | 活跃 Planner 路由 Clarify | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
 | 显式 Setup Project | 只授权本次项目配置 Scope；后续开发目标重新判断入口 |
 | 在另一个真实任务显式调用 Feedback | 授权来源任务围绕具体反馈目标有界只读调查，并查询、复用或创建唯一反馈目标任务；Human 可提供原任务、项目或证据 reference；目标任务另行核对写入与外部动作授权 |
-| 直接调用 Manager 或 document-project | 返回当前目标给 `using-sacha` 或原 Owner；两者分别由 Manager Gate 与 Workflow 收尾候选路由 |
+| 直接调用 Manager 或 document-project | 返回当前目标给 `using-sacha` 或主任务；两者分别由 Manager Gate 与 Workflow 收尾候选路由 |
 
 入口授权只作用于当前目标/Scope。工作区写入、安装、Git、发布、远程资源、权限、高影响动作和 Planner 后续形成的实质方案分别取得对应授权；安全与工程规则持续生效。
 

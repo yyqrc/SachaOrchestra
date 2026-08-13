@@ -1,6 +1,6 @@
 # Cursor Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 8；Workflow Contract 21；Human Interaction Contract 2；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
+> 实现：Intake Contract 9；术语合同 4；Workflow Contract 26；Human Interaction Contract 2；Assurance Contract 3；Coordination Contract 14；Artifact Protocol 7
 > 状态：规范性 Cursor 传输映射；源码接入，安装、fresh discovery 与真实 Runtime 行为需单独验证
 
 ## 1. 边界
@@ -8,6 +8,7 @@
 本文把 Core/Role 已决定的动作映射到 Cursor Agent、Skills 与 Subagents。Owner 依据：
 
 - [Intake Contract](../../core/intake-contract.md)
+- [术语合同](../../core/terminology-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
 - [Human Interaction Contract](../../core/human-interaction-contract.md)
 - [Assurance Contract](../../core/assurance-contract.md)
@@ -83,8 +84,8 @@ Cursor Subagent 使用独立上下文，只由主任务通过当前可用的 Tas
 
 Cursor Subagent 不是新的用户可见 task，不能代替 Workflow 定义的用户任务 Owner 转移。当前 Runtime 没有暴露可查询、创建并返回唯一用户 task reference 的能力时：
 
-1. 普通批准 Scope 继续在当前主对话执行，不强制迁移。
-2. Human 明确要求迁移时报告能力缺口并保留当前 Owner，不用后台 Subagent 或 Cloud Agent 冒充目标 task。
+1. 普通批准由当前主对话继续执行。
+2. Human 给出明确迁移批准时停止实施和写入派发，报告能力缺口并由来源主任务保持唯一 Owner，不进入 Executor，也不用后台 Subagent 或 Cloud Agent 冒充目标 task。
 3. Feedback 能复用唯一现有用户 task reference 时返回该 reference；需要创建新目标而 Runtime 无等价能力时停止转移并给出恢复条件。
 
 将来当前工具面提供等价用户 task 查询/创建能力时，仍须按 Workflow/Coordination 的唯一标识、单向 Handoff 和 Source 结束条件映射，不能由 Adapter 自增流程节点。

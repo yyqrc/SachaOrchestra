@@ -1,6 +1,6 @@
 # Codex Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 8；Workflow Contract 21；Human Interaction Contract 2；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
+> 实现：Intake Contract 9；术语合同 4；Workflow Contract 26；Human Interaction Contract 2；Assurance Contract 3；Coordination Contract 14；Artifact Protocol 7
 > 状态：规范性 Codex 传输映射
 
 ## 1. 边界
@@ -8,13 +8,14 @@
 本文把 Core/Role 已决定的动作映射到 Codex 原生任务/子代理传输。Owner 依据：
 
 - [Intake Contract](../../core/intake-contract.md)
+- [术语合同](../../core/terminology-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
 - [Human Interaction Contract](../../core/human-interaction-contract.md)
 - [Assurance Contract](../../core/assurance-contract.md)
 - [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-Intake、Role、Gate、readiness、Manager 职责、批准语义和 Artifact 结构由对应 Core/Skill 拥有。本 Adapter 消费已确定的 Human 交互动作与路由要求；只有主任务执行 Codex 子代理传输。Direct/当前上下文保持当前模型与 Owner。
+提炼术语、Intake、Role、Gate、readiness、Manager 职责、批准路由和 Artifact 结构由对应 Core/Skill 拥有。本 Adapter 消费已确定的 Human 交互动作与路由要求；只有主任务执行 Codex 子代理传输。Direct/当前上下文保持当前模型与 Owner。
 
 ## 2. 原生传输与协作界面选择
 
@@ -28,7 +29,8 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 | 独立任务结果等待 | `wait_threads` | 仅用于有明确结果消费者的依赖或全新验证；Owner 转移不调用 |
 | Feedback 目标任务查询 | `list_threads` + 有界 `read_thread` | 只为唯一反馈标识查询；候选需要消歧或存活状态证据时才读对应任务 |
 | Feedback 目标任务创建 | `create_thread` | Human 在另一真实任务显式调用 Feedback 且无唯一匹配时恰好一次；类型为单向用户任务 Owner 转移 |
-| 用户可见任务迁移 | `create_thread` | 只处理明确迁移；类型为用户任务 Owner 转移，Source 交付 reference 后结束 |
+| 用户可见任务迁移 | `create_thread` | 只处理明确迁移批准；类型为用户任务 Owner 转移，Source 交付 reference 后结束 |
+| 目标任务消息交付 | `create_thread(prompt=...)` / `send_message_to_thread` | 新建目标把最小 Handoff 放入初始 `prompt`；复用目标按原生标识发送一次；交付失败时不转移 Owner |
 
 ### 2.1 协作界面判定
 
@@ -59,17 +61,17 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 
 ### 2.4 Human 手动调用的 Feedback 转移
 
-Adapter 消费 Coordination Contract 返回的反馈标识、匹配和 Owner 转移判断。查询使用 `list_threads`；候选标识或存活状态需要确认时有界调用 `read_thread`。唯一匹配或 `no_op` 返回既有 reference；需要新目标时恰好调用一次 `create_thread` 并保留原生目标任务标识；无法消歧时保留候选和原始缺口。
+Adapter 消费 Coordination Contract 返回的反馈标识、匹配和 Owner 转移判断，不核对执行任务迁移前提。查询使用 `list_threads`；候选标识或存活状态需要确认时有界调用 `read_thread`。唯一活跃/可恢复目标按原生标识调用一次 `send_message_to_thread`；需要新目标时把同一最小 Handoff 放入初始 `prompt`，恰好调用一次 `create_thread` 并保留原生目标任务标识；`no_op` 只返回既有 reference；无法消歧时保留候选和原始缺口。
 
-目标任务确认后，来源任务交付反馈目标、必要规则/证据 reference 和原生目标任务 reference，然后结束；该 Owner 转移不等待目标终态。
+目标任务消息成功交付反馈目标、必要规则/证据 reference 和 Owner 转移说明后，来源任务展示原生目标任务 reference 并结束；消息或创建失败时来源任务保持 Owner。该 Owner 转移不等待目标终态。
 
 ### 2.5 用户可见任务迁移
 
-Adapter 消费 Workflow/Coordination 已确认的迁移标识与转移动作：
+Adapter 消费 Workflow/Coordination 已确认的迁移标识与转移动作。进入本节后，来源主任务不再实施或派发写入：
 
-1. 唯一目标直接复用；不唯一或 Spec/Entry Condition/Owner 不可证明时暂停。
-2. 无匹配且 Human 已明确选择迁移时调用恰好一次 `create_thread`；创建失败且尚未产生目标 Owner 时可回当前任务，并保留原始错误。
-3. 创建成功后只交付最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）。Source 展示目标 reference 后结束，不调用任一协作界面的 `wait_agent`、`wait_threads` 或其他终态等待；后续 Execute、委派 Agent、Review、返修和收尾由目标任务负责。
+1. 唯一现有目标只有在按原生标识调用一次 `send_message_to_thread`，成功交付最小 Handoff 与 Owner 转移说明后才复用；不唯一或 Spec/Entry Condition/Owner 不可证明时暂停。
+2. 无匹配且已有明确迁移批准时，把最小 Handoff 放入初始 `prompt` 并调用恰好一次 `create_thread`；查询、消息交付或创建失败且未完成 Owner 转移时，来源主任务保持唯一 Owner 并报告恢复条件，不进入 Executor。
+3. 唯一目标取得最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）后才完成 Owner 转移。Source 展示目标 reference 后结束，不调用任一协作界面的 `wait_agent`、`wait_threads` 或其他终态等待；后续 Execute、委派 Agent、Review、返修和收尾由目标任务负责。
 4. 重复批准、重试或恢复只复用同一目标 reference；成功创建后 Source 不恢复写入者。`spawn_agent`、完整历史分叉和委派 Agent 都不取得迁移标识。
 
 ### 2.6 依赖等待

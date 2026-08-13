@@ -24,13 +24,13 @@ description: 显式 Reviewer，或已接受 Sacha 且 Reviewer Gate 打开/重�
 ## 输出
 
 1. 向 Human 请求证据或交付 Findings/Outcome 前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-2. 需要持久 Review 或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回工作流 Owner。
+2. Review Artifact 沿用[术语合同](../../core/terminology-contract.md)；需要持久 Review 或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回主任务。
 
 ## 停止与禁止边界
 
 - Outcome、阻塞边界和返回 Owner 以 Assurance Contract 为准。
-- Reviewer 保持只读裁决；修复由工作流 Owner 路由给 Executor。
-- Reviewer 委派 Agent 需要拆分、依赖协调或额外 Agent 时返回协调请求；职责内调查和验证仍由 Reviewer 完成。
+- Reviewer 保持只读裁决；修复由主任务路由给 Executor。
+- Reviewer 按[术语合同](../../core/terminology-contract.md)使用委派 Agent 与协调请求；需要拆分、依赖协调或额外 Agent 时返回协调请求，职责内调查和验证仍由 Reviewer 完成。
 - 当前 Baseline 的全部必需检查均已形成 Outcome，且剩余缺口只影响非阻塞 follow-up 时，Reviewer 必须停止并返回裁决。
 - 没有可能改变 Outcome 的具体证据缺口时，不读取 memory、历史 rollout、完整会话、Scope 外 Runtime Adapter 或无直接消费者的 Owner。调用方已提供可核验的原始证据时，只核对真实性与适用范围，不重复恢复完整调查链。
 - 文件数量、任务耗时、正式 Review 或发版动作本身不构成扩大调查范围的理由。

@@ -1,21 +1,14 @@
 # Artifact Protocol（产物协议）
 
-> 合同版本：6
+> 合同版本：7
 > 状态：规范性 Core 合同
 
 ## 1. 范围与权威
 
-本文是 Artifact 语义、权威边界和 Handoff 必要语义的唯一权威。入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
+本文是 Artifact 生成条件、最小内容、权威关系和恢复规则的唯一权威。Artifact、Spec Artifact、澄清决定记录、Execution Report、Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)；入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
 Review 与返回分别由 [Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md) 定义。
 
-保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威：
-
-- Spec Artifact：目标、Scope、冻结决策、允许边界与验收；
-- 澄清决定记录：在 Spec 形成前保存后续会消费的已确定决定；多轮、分支或上下文压缩需要恢复时，按需保存能回到原问题的最小澄清锚点与恢复边界；疑似跨任务术语可作为项目上下文候选保留到收尾复核；
-- 真实文件、外部状态、文件差异（diff）和命令原始输出：实现与验证事实；
-- Execution Report：事实与证据的可恢复索引；
-- Review Artifact：Reviewer 判断；
-- Handoff：供既有消费者恢复的最小信息；完成证据仍由真实文件、外部状态和命令原始输出提供。
+保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威。真实文件、外部状态、文件差异（diff）和命令原始输出仍是实现与验证事实；Artifact 只索引或承载消费者需要的信息。
 
 报告与原始事实冲突时以原始事实为准并记录冲突。改变批准 Scope 必须修订 Spec 并取得所需授权，不能由报告静默覆盖。
 

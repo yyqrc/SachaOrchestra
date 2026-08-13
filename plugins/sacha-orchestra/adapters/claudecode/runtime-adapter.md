@@ -1,6 +1,6 @@
 # Claude Code Runtime Adapter（运行时适配器）
 
-> 实现：Intake Contract 8；Workflow Contract 21；Human Interaction Contract 2；Assurance Contract 2；Coordination Contract 12；Artifact Protocol 6
+> 实现：Intake Contract 9；术语合同 4；Workflow Contract 26；Human Interaction Contract 2；Assurance Contract 3；Coordination Contract 14；Artifact Protocol 7
 > 状态：规范性 Claude Code 传输映射
 
 ## 1. 边界
@@ -8,6 +8,7 @@
 本文映射 Claude Code 原生能力。Owner 依据：
 
 - [Intake Contract](../../core/intake-contract.md)
+- [术语合同](../../core/terminology-contract.md)
 - [Workflow Contract](../../core/workflow-contract.md)
 - [Human Interaction Contract](../../core/human-interaction-contract.md)
 - [Assurance Contract](../../core/assurance-contract.md)
@@ -51,7 +52,7 @@ Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机�
 
 ### 3.2 Human 决定与任务迁移
 
-Adapter 消费 Workflow/Coordination 已确认的当前任务执行或用户任务迁移决定。当前任务执行由主对话继续；迁移需要 Human 已明确选择、可验证的等价用户会话传输、唯一 Owner 与单向 Handoff，创建或复用目标后由 Source 交付 reference 并结束。条件不足时保持当前 Owner 和原始缺口；用户任务迁移标识只属于目标任务。
+Adapter 消费 Workflow/Coordination 已确认的普通批准或明确迁移批准。普通批准由主对话继续；明确迁移批准后来源主任务停止实施和写入派发，使用可验证的等价用户会话传输查询、复用或创建唯一目标。唯一目标取得最小 Handoff 后才转移 Owner，Source 交付 reference 并结束。条件不足时来源主任务保持唯一 Owner、报告原始缺口且不进入 Executor；用户任务迁移标识只属于目标任务。
 
 ### 3.3 Feedback Owner 转移
 
