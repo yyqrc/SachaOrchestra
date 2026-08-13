@@ -92,25 +92,28 @@ Adapter 读取 Coordination Contract 产生的路由要求，归纳四项 Runtim
 | 输入 | 判断 |
 | --- | --- |
 | Human 或批准 Scope 的精确路由（若有） | 最高优先级；验证后原样使用，不自动改写 |
-| 任务形态 | `broad`：需要跨 Owner 综合、正式决策/复核、复杂集成或边界仍需推理；`bounded`：目标、输入、边界和直接验证均自包含 |
+| Role | Workflow 与 Reviewer Skill 已确定的正式独立 Reviewer 使用 Sol；其他 Role 不单独决定模型 |
+| 任务形态 | `broad`：需要跨 Owner 综合、复杂集成或边界仍需推理；`bounded`：目标、输入、边界和直接验证均自包含 |
 | 负荷 | `broad` 只分 `critical / standard`；`bounded` 只分 `nontrivial / light` |
 | 安全状态 | Scope/revision、上下文需求、写入者状态和 Reviewer 独立性决定能否派发/回退 |
 
 安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容风险至少按 `broad` 处理；其中困难回退、跨系统耦合或关键冲突为 `critical`。
 
+按 Workflow 与 Reviewer Skill 已确定的正式独立 Reviewer 使用 Sol，不因 Scope 自包含而改用 Luna：Scope、Baseline、裁决问题、原始证据和停止条件明确，且没有上述 `critical` 事实时选择 `sol_medium`；存在 `critical` 事实时选择 `sol_xhigh`。文件数量、发版动作或正式 Review 名称本身不得触发 `sol_xhigh`。
+
 上述字段只供本 Adapter 选择 Runtime 路由；就绪状态、依赖满足和 Manager 派发由 Core/Skill 负责。
 
 ### B. 有序路由决定（首次命中即停止）
 
-除精确路由外只判断“形态 × 负荷”，首个命中即停止：
+除精确路由外先判断正式独立 Reviewer，再对其他工作单元判断“形态 × 负荷”，首个命中即停止：
 
 1. `human_exact`：存在 Human/Scope 精确路由；无法解析或 Runtime 不支持时暂停，不自动换档。
-2. `sol_xhigh`：`broad + critical`。
-3. `sol_medium`：`broad + standard`。
+2. `sol_xhigh`：正式独立 Reviewer 存在 `critical` 事实，或其他工作单元为 `broad + critical`。
+3. `sol_medium`：正式独立 Reviewer 不存在 `critical` 事实，或其他工作单元为 `broad + standard`。
 4. `luna_max`：`bounded + nontrivial`。
 5. `luna_xhigh`：`bounded + light`。
 
-无法可靠判定 `broad/bounded`、`bounded` 输入不自包含、Scope 不明确或 Reviewer 独立性不足时暂停。Planner、Reviewer、Executor、Clarify 研究和普通委派 Agent 共用这四档自动选择。
+正式独立 Reviewer 的 Baseline、裁决问题、原始证据、停止条件、独立性或 `critical/standard` 无法可靠判定时暂停；其他工作单元无法可靠判定 `broad/bounded`、`bounded` 输入不自包含或 Scope 不明确时暂停。Planner、Reviewer、Executor、Clarify 研究和普通委派 Agent 共用这四档自动选择。
 
 Clarify 的单个研究委派 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用节点。
 
