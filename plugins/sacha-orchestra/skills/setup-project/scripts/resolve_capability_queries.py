@@ -193,7 +193,7 @@ def _candidates(catalog: dict[str, Any]) -> tuple[dict[str, Any], ...]:
                 raise CatalogError(f"{key}[{index}].description must be a string")
             if "catalog" in item:
                 if kind != "provider":
-                    raise CatalogError("provider catalog is only valid on provider candidates")
+                    raise CatalogError("只有 Provider 备选项可以声明 provider catalog")
                 if "capabilities" in item:
                     raise CatalogError(
                         f"{key}[{index}] must not combine catalog and capabilities"

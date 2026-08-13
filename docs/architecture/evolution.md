@@ -1,9 +1,9 @@
 # Sacha Orchestra 演进路线图
 
-> 当前 release：`0.11.5` 修复 Windows 安装 CLI 入口解析
+> 当前 release：`0.11.6` 统一候选类术语并保留机器接口
 > 当前待发布源码版本：未开始
 > 当前主线：主任务独占 Manager 并执行单层派发；Human 审阅 Spec 时明确区分普通批准、明确迁移批准与要求调整，Feedback 保持独立 Owner 转移
-> 发布边界：`0.11.5` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；只修复 Windows 安装 CLI 入口解析，术语同步、选项推荐与任务迁移的真实 Runtime 行为仍由全新主任务场景单独验证
+> 发布边界：`0.11.6` 不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；只统一 Human 可读候选类术语、合同版本映射和脚本诊断，机器接口与 Runtime 路由不变
 > 本文只定义当前方向、版本和 breaking boundary，不授权实施、安装或发布
 
 ## 1. 权威边界
@@ -27,7 +27,7 @@
 
 | 版本线 | 当前事实 | 证据边界 |
 | --- | --- | --- |
-| `0.11.5` release | 在 Windows 上解析可执行的 `codex.cmd` 或 `codex.exe` 后执行安装，避免把无扩展 npm 包装文件直接交给 Python 子进程 | 附注 tag 表示已发布源码；项目测试、Plugin validator 与 metadata coherence 只证明 source/static，安装结果以 CLI 返回、插件列表和源码/cache 一致性为准 |
+| `0.11.6` release | 统一入口、发布和知识沉淀中的候选类术语，保留 `candidate` 机器接口与冻结历史 | 附注 tag 表示已发布源码；独立 Review、项目测试、Skill/Plugin validator、Pi 脚本与 metadata coherence 只证明 source/static 和脚本行为，未执行安装与 Runtime 验收 |
 
 三个 deployment manifest 表示当前源码版本，Git annotated tag 表示已发布版本，Core/Adapter 的 Contract Version 只表示 schema。README 只链接当前入口，不复制版本状态。
 
@@ -46,23 +46,23 @@
 
 改变生产 Role、Gate、Handoff 必要语义、单层派发、权威边界、外部授权或跨 Runtime contract 属于 Core breaking change，必须以批准 Spec 冻结决定并保留独立 Review。版本号、文案或内部 schema 单独变化不自动构成 breaking。
 
-## 4. 当前 release：`0.11.5`
+## 4. 当前 release：`0.11.6`
 
-实现 Scope：沿用 `0.11.4` 的术语与迁移路由；修复机械发布脚本在 Windows 上选择 Codex CLI 可执行入口的方式，并增加对应回归测试。
+实现 Scope：统一 Human 可读流程中的入口候选、当前待发布源码版本和领域/参考知识候选；同步术语与 Intake 合同版本映射并汉化相关脚本诊断。`--candidate-path`、`--phase candidate`、JSON 字段/状态、代码标识、Runtime 模型路由和 Manager 规则保持不变。
 
-### 4.1 Windows CLI 入口
+### 4.1 术语与机器接口
 
-- 安装脚本在 Windows 上只选择 PATH 中可执行的 `codex.cmd` 或 `codex.exe`；不直接启动无扩展 npm 包装文件。
-- CLI 无法解析或启动时，脚本报告明确失败并停止，不读取、删除或改写插件 cache。
+- 入口判断统一使用“入口候选”；发布流程使用“当前待发布源码版本”和“精确暂存发布内容”；知识沉淀使用“领域/参考知识候选”或“备选项”。
+- `--candidate-path`、`--phase candidate`、JSON 字段/状态、代码标识与冻结历史保持不变；Runtime 模型路由和 Manager 规则不变。
 
 ### 4.2 发布证据边界
 
-- 三个 deployment manifest、项目测试、Plugin validator 与 candidate/release coherence 构成 source/static 证据；附注 tag 与远端指向构成 Git 发布身份。
+- 三个 deployment manifest、项目测试、Plugin validator 与待发布/发布阶段一致性检查构成 source/static 证据；附注 tag 与远端指向构成 Git 发布身份。
 - Codex 安装、列表和源码/cache 一致性只证明本机安装版本；选项展示、Skill 触发、迁移、Owner 转移和恢复仍沿用 `0.11.4` 的独立 Runtime 证据边界。
 
 ## 5. `1.0.0` 与后续方向
 
-`0.x` 保持为 `1.0.0` 前的 candidate line。Core、Adapter、Skill 职责和 breaking boundary 稳定且没有已知 release-blocking 缺陷时，Human 可决定进入 `1.0.0` 发布收尾；真实并行、自举升级、第二 Runtime、安装后案例或额外历史 Review 不是人为举证门槛。
+`0.x` 保持为 `1.0.0` 前的预发布版本线。Core、Adapter、Skill 职责和 breaking boundary 稳定且没有已知 release-blocking 缺陷时，Human 可决定进入 `1.0.0` 发布收尾；真实并行、自举升级、第二 Runtime、安装后案例或额外历史 Review 不是人为举证门槛。
 
 Self-hosting 是可选使用方式，不是成熟度等级。`1.0.0` 后只有真实需求出现才评估跨仓库协调、更复杂取消/恢复、动态并行度或第二 Runtime；不得为证明通用性预建产品面。
 
@@ -71,6 +71,6 @@ Self-hosting 是可选使用方式，不是成熟度等级。`1.0.0` 后只有�
 - 长期架构、`1.0.0`、生产 Role/Gate、Manager/并行或 Core breaking 的具体改动需要 Human 明确确认；需要冻结实质方案、Scope 或迁移时使用 Planner Spec。
 - 普通 plugin change/fix/iterate 保持 Direct；同目标漏改与验证失败在原 Scope 修复。
 - 顶层流程或 Role/Skill 职责变化先更新根目录 `PLUGIN_DESIGN.md`，再改 Core、Skill/Adapter 消费者和本文 breaking boundary；局部细节不改变顶层设计时不改该文件。
-- Evolution 只更新当前 release/candidate、当前 breaking boundary 与仍有效的长期决策；结束过程不回填为版本章节或累计验证表。
+- Evolution 只更新当前 release、当前待发布源码版本、当前 breaking boundary 与仍有效的长期决策；结束过程不回填为版本章节或累计验证表。
 - 安装、外部项目写入、commit、push、tag 与发布需要 Human 对具名动作明确授权。
 - 路线图只在当前主线完成、Runtime 能力实质变化、开始 `1.0.0`、启动第二 Runtime/项目或提出 Core breaking change 时复审。

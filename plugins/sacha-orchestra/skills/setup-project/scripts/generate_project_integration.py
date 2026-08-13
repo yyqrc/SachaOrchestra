@@ -1095,7 +1095,7 @@ def _parse_workflow_state(data: bytes) -> tuple[str, ...]:
         raise SetupError("workflow state schema version is unsupported")
     ignored = value.get("ignoredRuleCandidates")
     if not isinstance(ignored, list) or not all(isinstance(item, str) for item in ignored):
-        raise SetupError("workflow state ignoredRuleCandidates must be a string list")
+        raise SetupError("workflow state 的 `ignoredRuleCandidates` 必须是字符串列表")
     return tuple(ignored)
 
 
@@ -1162,11 +1162,11 @@ def _parse_existing_project_values(
         try:
             parsed_ignored_rules = json.loads(ignored_rule_metadata.group(1))
         except json.JSONDecodeError as exc:
-            raise SetupError("managed ignored rule candidate metadata is malformed") from exc
+            raise SetupError("受管的旧版忽略规则 metadata 格式错误") from exc
         if not isinstance(parsed_ignored_rules, list) or not all(
             isinstance(item, str) for item in parsed_ignored_rules
         ):
-            raise SetupError("managed ignored rule candidate metadata must be a string list")
+            raise SetupError("受管的旧版忽略规则 metadata 必须是字符串列表")
         ignored_rule_candidates = parsed_ignored_rules
     else:
         ignored_rule_section = re.search(r"(?ms)^### Ignored rule candidates\s*\n(.*?)(?=^### )", text)
@@ -2577,7 +2577,7 @@ def run_setup(
             )
         if assessment["policy_decisions_required"]:
             decision_conflicts.append(
-                "project capability candidates require explicit load-policy decisions"
+                "项目能力备选项需要明确的 load-policy 决定"
             )
         result.update(status="refused", transaction="no_write", conflicts=decision_conflicts)
         return result

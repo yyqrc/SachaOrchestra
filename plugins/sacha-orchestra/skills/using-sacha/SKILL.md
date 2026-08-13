@@ -12,14 +12,14 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 ## 输入与首查
 
 1. 读取 Intake Contract，核对目标、Scope、授权、验收和项目规则。
-2. 初次判断及 Direct 执行期间检查语义转折。目标、Scope、验收、风险、授权或交付模型的实质变化形成新候选事实；reference、日志和进度变化沿用原判断。
+2. 初次判断及 Direct 执行期间检查语义转折。目标、Scope、验收、风险、授权或交付模型的实质变化形成新入口候选；reference、日志和进度变化沿用原判断。
 
 ## 动作与输出
 
 1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
-2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一候选事实只询问一次。
+2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
 3. 显式 using-sacha、明确使用 Sacha 或直接调用规范 Role（canonical Role）视为接受。接受后读取 Workflow Contract 与目标 Role；传输、恢复或外部状态需要映射时读取目标 Adapter。
-4. 拒绝后保持 Direct；新候选事实重新执行入口判断。
+4. 拒绝后保持 Direct；新入口候选重新执行入口判断。
 
 ## 停止与禁止边界
 

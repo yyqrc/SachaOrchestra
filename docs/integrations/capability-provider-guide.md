@@ -87,7 +87,7 @@ Provider 不拥有 Planner/Clarify 生命周期，不批准或冻结 Spec、不�
 
 ## 经验候选与项目存档
 
-Provider 可声明 `experience.extract` 一类 `read_only` capability，把真实任务证据分类为项目事实和高价值 domain/reference candidate。候选应来自现有按需 Reference 未覆盖、需要额外多文件、源码、产物或 Runtime 调查才能复核的具体机制；一次窄搜索即可取得的路径、owner、API 声明、通用规则、未实施方案或未复核文档不进入候选。该能力：
+Provider 可声明 `experience.extract` 一类 `read_only` capability，把真实任务证据分类为项目事实和高价值领域/参考知识候选。候选应来自现有按需 Reference 未覆盖、需要额外多文件、源码、产物或 Runtime 调查才能复核的具体机制；一次窄搜索即可取得的路径、owner、API 声明、通用规则、未实施方案或未复核文档不进入候选。该能力：
 
 - 不直接修改项目文档、provider 源码或 catalog；
 - 不决定文档 policy、root、授权、类型或最终正文；

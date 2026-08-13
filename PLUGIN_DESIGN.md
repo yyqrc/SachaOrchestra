@@ -35,12 +35,12 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 flowchart TD
     USER["用户目标"] --> ENTRY{"入口"}
     ENTRY -->|"默认评估或显式 using-sacha"| INTAKE{"using-sacha Intake"}
-    INTAKE -->|"无候选事实，或 Human 拒绝同一候选"| DIRECT["当前任务直接完成"]
+    INTAKE -->|"无入口候选，或 Human 拒绝同一入口候选"| DIRECT["当前任务直接完成"]
     DIRECT -->|"出现改变执行方式的新事实"| INTAKE
     DIRECT --> CLOSE["结束 / 合法根终态"]
 
     INTAKE -->|"显式 using-sacha / 明确 Sacha 请求：已接受"| PLANNER_GATE{"Planner Gate？"}
-    INTAKE -->|"D0 / Planner 候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
+    INTAKE -->|"D0 / Planner 入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
     INTAKE_HUMAN -->|"接受"| PLANNER_GATE
     INTAKE_HUMAN -->|"拒绝"| DIRECT
     PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]
@@ -161,7 +161,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
-| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct 或一次候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
+| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct 或一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
 | 支持节点 | clarify | 补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用或活跃 Planner 调用；只读，不冻结 Scope |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |

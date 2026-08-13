@@ -241,7 +241,7 @@ if ($env:SACHA_FAKE_PI_MODE -ne 'no-result') {
             content = @(@{ type = 'text'; text = 'fake result' })
             details = @{
                 outcome = $outcome
-                summary = 'fake candidate'
+                summary = 'fake result'
                 blockers = $blockers
             }
         }
@@ -285,8 +285,8 @@ exit 0
 
     $successRoot = New-LinkedWorktree -Name 'worktree-success'
     $success = Invoke-Helper -Worktree $successRoot
-    Assert-True ($success.code -eq 0) "成功候选应返回 0：$($success.text)"
-    Assert-True ($success.data.status -eq 'candidate') '成功结果必须标记 candidate'
+    Assert-True ($success.code -eq 0) "成功的待合入结果应返回 0：$($success.text)"
+    Assert-True ($success.data.status -eq 'candidate') '成功结果必须使用机器状态 `candidate`'
     Assert-True ($success.data.changed_files.Count -eq 1) '成功结果应只有一个变更文件'
     Assert-True ($success.data.changed_files[0] -eq 'src/out.txt') '成功结果文件错误'
     Assert-True ($success.data.scope_violations.Count -eq 0) '成功结果不应越界'

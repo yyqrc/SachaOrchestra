@@ -8,6 +8,7 @@
 
 | 术语 | 插件内定义 | 定义与边界 | 直接消费者 |
 | --- | --- | --- | --- |
+| 入口候选 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 初次判断或语义转折中，已有事实表明进入 Sacha 可能改变执行方式，但 Human 尚未决定是否接受的入口分类；只用于一次性提议与重复抑制，不表示已接受 Sacha、打开 Gate 或取得授权。 | `PLUGIN_DESIGN.md`、Intake Contract、using-sacha Skill、插件 README |
 | 主任务 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 当前持有工作流 Owner 并负责推进根终态的用户任务；迁移成功后指新 Owner 所在的目标任务。 | `PLUGIN_DESIGN.md`、Intake Contract、Workflow Contract、Coordination Contract、Role Skill、Runtime Adapter |
 | 单层派发 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 主任务创建全部委派 Agent；每个委派 Agent 都是主任务的直接子级，不调用 Manager 或创建下级 Agent；迁移成功后改由新主任务执行。 | `PLUGIN_DESIGN.md`、Workflow Contract、Coordination Contract、Manager Skill、Runtime Adapter |
 | 委派 Agent | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 主任务为一个工作单元创建的 Agent；只完成该单元并返回，不取得工作流 Owner 或派发权。 | `PLUGIN_DESIGN.md`、Intake Contract、Workflow Contract、Coordination Contract、Role Skill、Runtime Adapter |

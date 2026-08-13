@@ -6,7 +6,7 @@
 
 ## 默认入口
 
-Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或 `/using-sacha` 调用。也可在任务初次接收及语义转折点重评估。目标、Scope、授权与验收清晰时保持当前 task Direct；只有执行方式会因澄清、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一 candidate 只询问一次。
+Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或 `/using-sacha` 调用。也可在任务初次接收及语义转折点重评估。目标、Scope、授权与验收清晰时保持当前 task Direct；只有执行方式会因澄清、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一入口候选只询问一次。
 
 ## 显式入口
 

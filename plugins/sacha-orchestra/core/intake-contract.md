@@ -1,11 +1,11 @@
 # Intake Contract（入口合同）
 
-> 合同版本：9
+> 合同版本：10
 > 状态：规范性 Core 合同
 
 ## 1. 范围
 
-本文是 `using-sacha / 显式生产 Role / 显式 Clarify` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
+本文是 `using-sacha / 显式生产 Role / 显式 Clarify` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
 
 Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `using-sacha`；项目知识仍归 Project Integration 或 Domain Skill。
 
@@ -17,9 +17,9 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 
 ## 3. 入口判断
 
-- `L0 Local Direct`：目标、Scope、授权与验收足够明确，当前上下文可安全完成，且没有会改变执行方式的候选事实；无论复杂度、文件数和耗时，默认直接执行。
-- `D0 candidate`：没有 Planner Gate 事实，但持久 Owner、跨上下文恢复或正式编排会实质改变执行方式，且 Human 尚未选择是否进入 Sacha。
-- `Planner candidate`：目标、Scope、Acceptance、Owner 或路径存在实质不确定性；已有事实预计实施前需要关键 Human 澄清、先冻结/持久化可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。
+- `L0 Local Direct`：目标、Scope、授权与验收足够明确，当前上下文可安全完成，且没有入口候选；无论复杂度、文件数和耗时，默认直接执行。
+- `D0 入口候选`：没有 Planner Gate 事实，但持久 Owner、跨上下文恢复或正式编排会实质改变执行方式，且 Human 尚未选择是否进入 Sacha。
+- `Planner 入口候选`：目标、Scope、Acceptance、Owner 或路径存在实质不确定性；已有事实预计实施前需要关键 Human 澄清、先冻结/持久化可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。
 
 - Planner、Executor、Reviewer 接受 Human 直接调用。
 - Clarify 接受 Human 显式窄授权，或由活跃 Planner 路由。
@@ -31,10 +31,10 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 ## 4. 入口决定
 
 - 初次判断及 Direct 执行期间，主任务必须在继续形成实质方案、实施或持久化前检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求，且这些事实会改变执行方式时，必须停止当前 Direct 推进并重新执行入口判断；完成入口决定前不得继续形成单一路线的实施方案。
-- 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节候选事实时保持 L0。
-- 自动感知到候选事实时，只询问一次是否进入 Sacha，并按 Human Interaction Contract 说明新增能力、成本、执行影响与推荐。
+- 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节入口候选时保持 L0。
+- 自动识别到入口候选时，只询问一次是否进入 Sacha，并按 Human Interaction Contract 说明新增能力、成本、执行影响与推荐。
 - Human 接受后，当前根 Owner 按需加载 Workflow Contract、当前 Adapter、已确认的 Project Integration 与目标 Role。
-- Human 拒绝后按当时事实保持 L0；同一候选事实不得重复推销或创建 Sacha Artifact。实质变化形成新候选事实时可再推荐一次。
+- Human 拒绝后按当时事实保持 L0；同一入口候选不得重复推销或创建 Sacha Artifact。实质变化形成新入口候选时可再推荐一次。
 - reference、日志、进度、非语义文案或仅估算变化不触发重问。
 - 重复抑制只依赖当前上下文或正式恢复证据；不得新增跨会话注册表（Registry）。
 

@@ -82,23 +82,23 @@ def normalize_candidate_paths(expected: list[str]) -> list[str]:
     for raw_path in expected:
         path = Path(raw_path)
         if path.is_absolute() or ".." in path.parts or raw_path in ("", "."):
-            raise ReleaseError(f"candidate path 必须是仓库内精确相对 path：{raw_path}")
+            raise ReleaseError(f"`--candidate-path` 必须是仓库内精确相对 path：{raw_path}")
         normalized.append(path.as_posix())
     if len(normalized) != len(set(normalized)):
-        raise ReleaseError("candidate path 不能重复")
+        raise ReleaseError("`--candidate-path` 不能重复")
     return sorted(normalized)
 
 
 def require_staged_candidate(expected: list[str]) -> list[str]:
     staged = [line for line in git("diff", "--cached", "--name-only").stdout.splitlines() if line]
     if not staged:
-        raise ReleaseError("没有已暂存的 candidate 文件")
+        raise ReleaseError("没有已暂存的发布文件")
     expected_paths = normalize_candidate_paths(expected)
     missing = sorted(set(expected_paths) - set(staged))
     unexpected = sorted(set(staged) - set(expected_paths))
     if missing or unexpected:
         raise ReleaseError(
-            "暂存区与精确 candidate path 不一致："
+            "暂存区与 `--candidate-path` 指定文件不一致："
             f"missing={missing}, unexpected={unexpected}"
         )
     conflicts = git("diff", "--name-only", "--diff-filter=U").stdout.splitlines()
@@ -110,7 +110,7 @@ def require_staged_candidate(expected: list[str]) -> list[str]:
     overlap = sorted(set(staged) & unstaged)
     if overlap:
         raise ReleaseError(
-            "以下 candidate 文件暂存后又有未暂存修改：" + ", ".join(overlap)
+            "以下发布文件暂存后又有未暂存修改：" + ", ".join(overlap)
         )
     return staged
 
