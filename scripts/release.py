@@ -24,6 +24,16 @@ from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "sacha-orchestra"
+DEPLOYMENT_MANIFESTS = {
+    "plugin.json",
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".cursor-plugin/marketplace.json",
+    "plugins/sacha-orchestra/plugin.json",
+    "plugins/sacha-orchestra/.claude-plugin/plugin.json",
+    "plugins/sacha-orchestra/.codex-plugin/plugin.json",
+    "plugins/sacha-orchestra/.cursor-plugin/plugin.json",
+}
 
 
 class ReleaseError(RuntimeError):
@@ -115,25 +125,98 @@ def require_staged_candidate(expected: list[str]) -> list[str]:
     return staged
 
 
-def changed_skill_roots(staged: list[str], plugin: Path = PLUGIN) -> list[Path]:
-    prefix = "plugins/sacha-orchestra/skills/"
-    names = {
-        path[len(prefix) :].split("/", 1)[0]
+def frontmatter(text: str | None) -> str | None:
+    if text is None or not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 4)
+    return None if end < 0 else text[: end + 5]
+
+
+def staged_text(path: str, revision: str) -> str | None:
+    result = git("show", f"{revision}:{path}", check=False)
+    return result.stdout if result.returncode == 0 else None
+
+
+def staged_deltas(staged: list[str]) -> dict[str, tuple[str | None, str | None]]:
+    return {
+        path: (staged_text(path, "HEAD"), staged_text(path, ""))
         for path in staged
-        if path.startswith(prefix) and "/" in path[len(prefix) :]
     }
+
+
+def changed_skill_metadata_roots(
+    staged: list[str],
+    deltas: dict[str, tuple[str | None, str | None]],
+    plugin: Path = PLUGIN,
+) -> list[Path]:
+    prefix = "plugins/sacha-orchestra/skills/"
+    names: set[str] = set()
+    for path in staged:
+        if not path.startswith(prefix) or "/" not in path[len(prefix) :]:
+            continue
+        relative = path[len(prefix) :]
+        name, child = relative.split("/", 1)
+        before, after = deltas[path]
+        if child == "SKILL.md" and frontmatter(before) != frontmatter(after):
+            names.add(name)
+        elif child == "agents/openai.yaml":
+            names.add(name)
     return [plugin / "skills" / name for name in sorted(names)]
+
+
+def requires_plugin_validation(
+    staged: list[str],
+    deltas: dict[str, tuple[str | None, str | None]],
+) -> bool:
+    for path in staged:
+        before, after = deltas[path]
+        if path in DEPLOYMENT_MANIFESTS or path.endswith("/agents/openai.yaml"):
+            return True
+        if path.startswith("plugins/sacha-orchestra/") and (before is None or after is None):
+            return True
+    return False
+
+
+def narrow_test_modules(staged: list[str]) -> list[str]:
+    mappings = (
+        (("scripts/release.py", "tests/test_release.py", "tests/validate_release_coherence.py"), "tests.test_release"),
+        (("plugins/sacha-orchestra/skills/setup-project/scripts/", "tests/test_setup_project.py"), "tests.test_setup_project"),
+        (("plugins/sacha-orchestra/skills/document-project/scripts/", "tests/test_document_project.py"), "tests.test_document_project"),
+        (("plugins/sacha-orchestra/skills/document-project/assets/project-context.json",), "tests.test_document_project"),
+        (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
+        (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
+        (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
+    )
+    modules: set[str] = set()
+    machine_paths = [
+        path
+        for path in staged
+        if Path(path).suffix.lower() in {".py", ".ps1", ".mjs", ".json", ".toml", ".yaml", ".yml"}
+        and path not in DEPLOYMENT_MANIFESTS
+        and not path.endswith("/agents/openai.yaml")
+    ]
+    for path in machine_paths:
+        matched = False
+        for prefixes, module in mappings:
+            if any(path == prefix or path.startswith(prefix) for prefix in prefixes):
+                modules.add(module)
+                matched = True
+        if not matched:
+            raise ReleaseError(f"生产脚本缺少最窄测试映射：{path}")
+    return sorted(modules)
 
 
 def validation_commands(
     version: str,
     staged: list[str],
     root: Path = ROOT,
+    deltas: dict[str, tuple[str | None, str | None]] | None = None,
 ) -> list[tuple[str, ...]]:
+    if deltas is None:
+        deltas = staged_deltas(staged)
     python = current_python()
     plugin = root / "plugins" / "sacha-orchestra"
     commands: list[tuple[str, ...]] = [
-        (python, "-B", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"),
         (
             python,
             "-B",
@@ -143,12 +226,20 @@ def validation_commands(
             "--phase",
             "candidate",
         ),
-        (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin)),
     ]
-    skill_validator = creator_script("skill-creator", "quick_validate.py")
+    commands.extend(
+        (python, "-B", "-m", "unittest", module)
+        for module in narrow_test_modules(staged)
+    )
+    if requires_plugin_validation(staged, deltas):
+        commands.append(
+            (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))
+        )
+    skill_roots = changed_skill_metadata_roots(staged, deltas, plugin)
+    skill_validator = creator_script("skill-creator", "quick_validate.py") if skill_roots else None
     commands.extend(
         (python, "-B", str(skill_validator), str(skill_root))
-        for skill_root in changed_skill_roots(staged, plugin)
+        for skill_root in skill_roots
     )
     return commands
 
@@ -194,8 +285,9 @@ def run_validation(
 def prepare(version: str, expected: list[str]) -> None:
     started = time.perf_counter()
     staged = require_staged_candidate(expected)
+    deltas = staged_deltas(staged)
     with staged_snapshot() as (snapshot, tree):
-        commands = validation_commands(version, staged, snapshot)
+        commands = validation_commands(version, staged, snapshot, deltas)
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(commands)) as pool:
             futures = [pool.submit(run_validation, command, snapshot) for command in commands]
             results = [future.result() for future in futures]

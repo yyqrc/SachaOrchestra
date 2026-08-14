@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.8`。
+- 当前 release：`0.11.9`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：`document-project` 接受 Human 显式文档请求或 Workflow 收尾候选路由；显式调用直接处理当前文档目标，不接受 Sacha、不补走 Planner、Executor 或 Reviewer。
+- 当前 release Scope：发布脚本按 staged delta 选择直接消费者验证；正文、metadata、plugin 结构和生产入口不再互相代证，未知生产入口缺少最窄测试映射时停止。
 - 当前 breaking boundary：不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和写入授权。
-- 当前成熟度：生产入口测试、Skill/Plugin validator 与源码/静态一致性验证已通过；显式触发、正常收尾触发及不补走生产 Role 的真实 Runtime 行为未验证。
+- 当前成熟度：发布脚本 21 项定向测试、待发布阶段一致性和 Plugin 结构验证已通过；安装、fresh discovery 与 Runtime 行为未验证。
 
 ## `1.0.0` 与后续方向
 

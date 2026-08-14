@@ -125,6 +125,67 @@ class ReleaseScriptTests(unittest.TestCase):
             self.assertEqual(payload["validation"][0]["stdout"], "validated")
             self.assertGreaterEqual(payload["validation"][0]["duration_seconds"], 0)
 
+    def test_skill_body_only_skips_structure_validators(self) -> None:
+        path = "plugins/sacha-orchestra/skills/executor/SKILL.md"
+        before = "---\nname: executor\ndescription: use\n---\nold body\n"
+        after = "---\nname: executor\ndescription: use\n---\nnew body\n"
+        with mock.patch.object(release, "creator_script") as creator:
+            commands = release.validation_commands("0.1.0", [path], deltas={path: (before, after)})
+        creator.assert_not_called()
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertNotIn("validate_plugin.py", rendered)
+        self.assertNotIn("quick_validate.py", rendered)
+        self.assertNotIn("unittest discover", rendered)
+        self.assertNotIn("install", rendered)
+        self.assertNotIn("refresh", rendered.lower())
+
+    def test_skill_frontmatter_change_runs_only_quick_validator(self) -> None:
+        path = "plugins/sacha-orchestra/skills/executor/SKILL.md"
+        before = "---\nname: executor\ndescription: old\n---\nbody\n"
+        after = "---\nname: executor\ndescription: new\n---\nbody\n"
+        with mock.patch.object(
+            release, "creator_script", return_value=Path("quick_validate.py")
+        ):
+            commands = release.validation_commands("0.1.0", [path], deltas={path: (before, after)})
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("quick_validate.py", rendered)
+        self.assertNotIn("validate_plugin.py", rendered)
+
+    def test_manifest_change_runs_plugin_validator(self) -> None:
+        path = "plugin.json"
+        with mock.patch.object(
+            release, "creator_script", return_value=Path("validate_plugin.py")
+        ):
+            commands = release.validation_commands(
+                "0.1.0", [path], deltas={path: ("{}\n", '{"version":"0.1.0"}\n')}
+            )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("validate_plugin.py", rendered)
+
+    def test_added_packaged_resource_runs_plugin_validator(self) -> None:
+        path = "plugins/sacha-orchestra/assets/new.md"
+        with mock.patch.object(
+            release, "creator_script", return_value=Path("validate_plugin.py")
+        ):
+            commands = release.validation_commands(
+                "0.1.0", [path], deltas={path: (None, "resource\n")}
+            )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("validate_plugin.py", rendered)
+
+    def test_unmapped_production_script_is_rejected(self) -> None:
+        path = "scripts/new_producer.py"
+        with self.assertRaisesRegex(release.ReleaseError, "缺少最窄测试映射"):
+            release.validation_commands("0.1.0", [path], deltas={path: (None, "print('x')\n")})
+
+    def test_production_schema_selects_its_direct_test(self) -> None:
+        path = "plugins/sacha-orchestra/skills/document-project/assets/project-context.json"
+        commands = release.validation_commands(
+            "0.1.0", [path], deltas={path: ("{}\n", '{"schema":1}\n')}
+        )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("tests.test_document_project", rendered)
+
     def test_unrelated_tracked_working_change_does_not_block_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as root_dir:
             root = Path(root_dir)
