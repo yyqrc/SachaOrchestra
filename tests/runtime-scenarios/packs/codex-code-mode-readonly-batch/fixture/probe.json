@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "output_limit": 12000,
+  "goal_unit_id": "goal_snapshot",
+  "cwd_unit_id": "cwd_snapshot",
+  "goal_tool": "get_goal",
+  "shell_tool": "exec_command",
+  "cwd_command": "Get-Location"
+}

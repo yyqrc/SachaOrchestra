@@ -82,6 +82,24 @@ Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 - 超时返回存活状态快照；相同进度沿用现有快照，目标标识保持不变。
 - Owner 转移在交付目标 reference 后结束。
 
+### 2.7 Code Mode 只读批量传输
+
+主任务只在当前会话实际暴露可执行 Code Mode、[canonical Runtime asset](code-mode-batch.js) 可达、`ALL_TOOLS` 能唯一访问全部目标工具且参数结构可核对时选择该传输；产品说明、磁盘配置、模型能力或其他会话先例不能替代当前工具面证据。任一前置不足时在嵌套调用前说明未选择 Code Mode 的具体原因并使用直接读取，不把 Code Mode 设为正确性前提或失败恢复。
+
+当前宿主映射为 `functions.exec(<JavaScript>)`。调用方先设置 `globalThis.CODE_MODE_CALLS` 与 `globalThis.CODE_MODE_OUTPUT_LIMIT`，再原样附加 asset 内容；不得修改 asset 控制流或把其副本写入 Adapter、Skill 或测试。asset 从 `ALL_TOOLS` 核对嵌套工具，通过 `tools.<normalized_name>(args)` 调用，并用 `text(...)` 返回 `schema_version: 1` 的有界结构化结果。
+
+Code Mode 只接收调用节点已确认的非 Agent 只读调用：至少两个调用已就绪、输入自足且相互独立；调用之间不需要模型解释、授权、风险或 Scope 判断；结果消费者和失败处理已明确。Agent 创建/消息/等待/取消/恢复/关闭、文件或配置写入、消息发送和外部资源动作必须直接调用，不得进入 `CODE_MODE_CALLS`。asset 不生成工作单元、不判断副作用，也不选择 Role、模型、路由、依赖、授权或重试。
+
+当前工具已能以一次调用接收整个目标集合时直接使用原生批量入口；调用少于两个、非只读、结果无需代码缩减或需要中途语义判断时直接调用。分页、排序、过滤、去重、计数和固定字段分支只有在上限与停止条件已给定时才可留在 asset；字段缺失、冲突或需要语义解释时立即返回模型。
+
+输入校验、输出上限预检或工具解析在 Promise 创建前失败时没有嵌套调用，主任务可重新评估直接读取。任一嵌套调用已开始、返回不完整或状态未知时保留原始 call/reference 并暂停受影响批次，不直接重放；`Promise.allSettled` 中单项拒绝只形成对应逐项结果，不掩盖或重放其他调用。
+
+#### 2.7.1 Runtime asset 输入与结果
+
+`CODE_MODE_CALLS` 每项只携带稳定 `unit_id`、当前 `ALL_TOOLS` 中的 `normalized_name`、完整 `args`，以及消费者决定的 `result_fields`/`reference_fields`；两个投影字段都必须显式传入字符串数组，`[]` 表示不返回该类字段。`CODE_MODE_OUTPUT_LIMIT` 必须是正整数。
+
+asset 在创建 Promise 前校验调用数、单元标识、投影、输出上限和工具唯一可调用性，并预检最小 `outcome_unknown` 包络；随后每项只调用一次并按输入顺序返回 `settled`、`output_limit_exceeded` 或 `outcome_unknown`。Runtime 场景必须保留 asset path/hash、实际外层程序、嵌套 caller 关系、逐项原始结果和最终输出；源码字符串、fixture 或执行者自报不能替代真实行为证据。
+
 ## 3. 子代理路由合同
 
 主任务每次首次创建前必须按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装完整原生参数；路由与协作界面是两个独立判断。A、B 或 C 任一步未完成时不得调用 `spawn_agent`。
@@ -168,4 +186,4 @@ C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用�
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、`accepted/started/terminal/cancelled`、工具错误和结果 reference。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；单层派发须由首次等待前的实时 Agent 树证明。委派 Agent 自报只证明其输出，不能替代实际模型/提供方遥测。静态源码/测试的证据范围为本文结构与分支约束；协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、`accepted/started/terminal/cancelled`、工具错误和结果 reference。Code Mode 另回传 asset path/hash、外层调用 reference、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`；只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口，不把 Human UI 观察或委派 Agent 自报升级为机器证据。委派 Agent 自报也不能替代实际模型/提供方遥测。静态源码/测试的证据范围为本文结构与分支约束；Code Mode 能力、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

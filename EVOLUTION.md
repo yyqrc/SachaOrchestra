@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.9`。
+- 当前 release：`0.11.10`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：发布脚本按 staged delta 选择直接消费者验证；正文、metadata、plugin 结构和生产入口不再互相代证，未知生产入口缺少最窄测试映射时停止。
+- 当前 release Scope：Codex Code Mode 收敛为非 Agent 只读批量传输，canonical JavaScript 归发布插件内 Runtime asset；原生 v1/v2 Agent 生命周期保持不变，既有 v1 Agent Code Mode 场景原样保留为已取代证据；发布脚本为两套场景 verifier 选择真实正反例测试。
 - 当前 breaking boundary：不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和写入授权。
-- 当前成熟度：发布脚本 21 项定向测试、待发布阶段一致性和 Plugin 结构验证已通过；安装、fresh discovery 与 Runtime 行为未验证。
+- 当前成熟度：待发布阶段一致性、asset 9 项测试、release 22 项测试、场景 verifier 2 项测试、Plugin 结构验证和 source/current Runtime 场景已通过；安装后 fresh Runtime 未验证。
 
 ## `1.0.0` 与后续方向
 

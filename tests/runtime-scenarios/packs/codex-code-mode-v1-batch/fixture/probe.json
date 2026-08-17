@@ -1,0 +1,7 @@
+{
+  "template_version": "codex-code-mode-batch-v1",
+  "projection_preflight_unit_id": "projection-preflight",
+  "small_output_limit": 1,
+  "controlled_rejection_unit_id": "controlled-rejection",
+  "controlled_rejection_agent_type": "__codex_code_mode_probe_invalid__"
+}

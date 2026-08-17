@@ -45,6 +45,7 @@
 - 插件开发或评审者 → 涉及已提炼术语与规则 → 必须先读 `docs/CONTEXT.md`，再核对表中插件内定义 → 发布插件不得引用该文件。
 - 插件开发或评审者 → 讨论或修改入口、高层流程、Role/Skill 职责 → 必须在完成适用的术语读取后读取根目录 `PLUGIN_DESIGN.md`，再按受影响节点读取 Intake、Workflow、Human Interaction、Assurance、Coordination、Artifact 或目标 Skill → 只查询触发条件或局部流程且不涉及已提炼术语时，只读目标 `SKILL.md` 和元数据。
 - Runtime 局部任务只读目标 Adapter；Core 或跨运行环境审查按 Scope 比较。
+- 当前执行者 → 在新 task 或新协作界面继续同一 Runtime 局部迭代 → 先读目标 Adapter、批准 Spec、专用 Runtime 场景和有界 delta；只有这些现行来源不足以恢复状态时才查询 MEMORY/rollout，完整旧对话、完整 MEMORY 和冻结历史计划不得作为默认输入。
 - release、`1.0.0`、尚未实施的长期方向或 Core breaking boundary：读取 Evolution；现行架构、Manager/并行与产品流程先读 `PLUGIN_DESIGN.md`，只有改变上述 Evolution 独占内容时才修改 Evolution。
 - Evolution 只读取当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向；历史事实按具名版本、Spec/Report/Review 或 Git 查询，不从 Evolution 恢复旧机制。
 - 普通实施不遍历历史计划目录寻找“更多规则”。现行内容与当前 Owner 冲突时删除副本或改成 Owner 引用；冻结历史文档仅在仍可能误导当前操作时添加最短的“已取代”入口。
@@ -130,7 +131,7 @@ cprobe summary <affected-path-or-directory> --json
 - `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
 - 源码校验器只核对 JSON/TOML/YAML 等机器可解析部署身份、实际文件结构、可执行入口和 Git 发布身份；Markdown 链接与语义由 Owner 和直接消费者复核，不写正则、固定标记、句子存在性、段落顺序或字数 Gate。
 - 生产脚本用隔离临时目录的正反例、幂等、失败恢复和真实副作用测试；Skill 触发、Role 路由与 Runtime 调用用真实场景冒烟验证。前一层不得替代后一层。
-- Role/流程场景使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行者只看中性任务、隔离工作区规则与正式入口 Skill/Core，不读取插件 README 或场景裁决标准；独立评估者才用顶层图核对偏移。不要求 Manager 派发的场景使用不携带父对话历史的委派 Agent；要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行，并遵守单层派发。运行者保存首次等待前的实时 Agent 树、首次创建参数和委派 Agent 的直接启动/终态记录，再核对验证器、原生派发/返回与工作区 `delta`；不得用执行者事后自报替代。未安装或不是全新任务时只能记为 `source-scenario`，不得宣称全新发现或 Runtime 已验证。
+- Role/流程场景使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行者只看中性任务、隔离工作区规则与正式入口 Skill/Core，不读取插件 README 或场景裁决标准；独立评估者才用顶层图核对偏移。不要求 Manager 派发的场景使用不携带父对话历史的委派 Agent；要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行，并遵守单层派发。运行者保存首次创建参数、返回标识、委派 Agent 的直接启动/终态记录，以及首次等待前可用的原生父任务/session/depth 和子任务工具轨迹；机器调用图能证明直接父子关系与无后代时不得再要求 Human 手工查看 UI，当前 Runtime 不提供必要机器记录时才保存实时 Agent 树，二者均不可达则标记 `blocked`。随后核对验证器、原生派发/返回与工作区 `delta`；不得用执行者事后自报替代。未安装或不是全新任务时只能记为 `source-scenario`，不得宣称安装后全新发现。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。
 
 `plugin-eval` 可用于结构、描述和令牌预算诊断，但不是必跑 Gate，也不能替代官方校验器、真实 schema、代码测试或 Runtime 冒烟验证。不得仅为提高评分添加无权威依据的 manifest 字段、英文触发词、reference 或其他产品内容；评估器输入兼容问题使用当前任务内的等价镜像并报告限制，不修改安装缓存或正式源码迁就工具。

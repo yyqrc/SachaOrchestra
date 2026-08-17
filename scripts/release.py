@@ -186,6 +186,15 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
+        (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
+        (
+            (
+                "tests/test_runtime_scenario_verifiers.py",
+                "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
+                "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
+            ),
+            "tests.test_runtime_scenario_verifiers",
+        ),
     )
     modules: set[str] = set()
     machine_paths = [
