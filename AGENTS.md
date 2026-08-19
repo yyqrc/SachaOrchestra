@@ -158,7 +158,7 @@ python -B scripts/release.py prepare --version <version> --candidate-path <path>
 python -B scripts/release.py publish --version <version> --review reused|accepted --message <commit-message> --candidate-path <path> [--candidate-path <path> ...]
 ```
 
-关闭本次发布创建且已终态的辅助 Agent 后，按安装授权运行：
+只有 Human 明确要求安装、重装或 cache parity 验收时，关闭本次发布创建且已终态的辅助 Agent 后运行：
 
 ```powershell
 python -B scripts/release.py install --version <version>
@@ -176,6 +176,7 @@ python -B tests/validate_release_coherence.py --version <version> --phase releas
 ## 安装授权 Gate
 
 - Marketplace 注册、安装、refresh、removal/reinstall 需要 Human 明确授权；实施批准不隐含外部状态授权。
+- 发布执行者 → `codex plugin list` 显示已启用插件的 `PATH` 直接指向当前 repo-local plugin `root` → 视为源码直连加载；版本变化本身不触发安装或 refresh。需要安装/cache 证据时先核对当前 `PATH`、生效版本和 source/cache parity，只有明确安装授权才调用安装 CLI。
 - 使用 `read_marketplace_name.py` 从 `.agents/plugins/marketplace.json` 读取 marketplace 名称；不得根据目录名猜测。
 - 授权后按目标 Adapter 执行并验证 marketplace/plugin list；Scope、版本、目标、branch/remote 未变化时不重复询问。
 - 安装执行者在调用安装 CLI 前关闭本次发布创建且已终态的辅助 Agent；安装返回拒绝访问或 cache 已创建但登记未完成时停止并报告，不删除、覆盖或手改 cache，待占用解除后再用同一 CLI 恢复并核对。
