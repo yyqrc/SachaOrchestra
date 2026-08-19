@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.10`。
+- 当前 release：`0.11.11`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：Codex Code Mode 收敛为非 Agent 只读批量传输，canonical JavaScript 归发布插件内 Runtime asset；原生 v1/v2 Agent 生命周期保持不变，既有 v1 Agent Code Mode 场景原样保留为已取代证据；发布脚本为两套场景 verifier 选择真实正反例测试。
+- 当前 release Scope：Clarify 在 Human 背景不足时先调查解释并允许反问/纠正，只有共享事实与影响后才请求真实取舍；setup-agents 在同一事务中管理 Luna、DeepSeek Flash/Pro 与 K3 五个官方 Agent 定义，并补齐场景 verifier 和发布验证路由。
 - 当前 breaking boundary：不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和写入授权。
-- 当前成熟度：待发布阶段一致性、asset 9 项测试、release 22 项测试、场景 verifier 2 项测试、Plugin 结构验证和 source/current Runtime 场景已通过；安装后 fresh Runtime 未验证。
+- 当前成熟度：Clarify source-scenario 与独立评估已通过；setup-agents 13 项、场景 verifier 2 项、发布脚本 22 项、Skill/Plugin 结构和待发布阶段一致性已通过，独立 Review 为 `Accepted with follow-up`；安装后 fresh Runtime 未验证。
 
 ## `1.0.0` 与后续方向
 

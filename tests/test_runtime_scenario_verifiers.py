@@ -119,6 +119,26 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_clarify_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
+        pack = PACKS / "clarify-shared-context-loop"
+        fixture = pack / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            for source in fixture.iterdir():
+                shutil.copy2(source, target / source.name)
+            shutil.copy2(pack / "task.md", target / "instructions.md")
+            shutil.copy2(ROOT / "tests" / "runtime-scenarios" / "assets" / "workspace-AGENTS.md", target / "AGENTS.md")
+            if with_unexpected_file:
+                (target / "unexpected.md").write_text("unexpected\n", encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def test_bundled_verifiers_accept_valid_results(self) -> None:
         readonly = self.run_verifier("codex-code-mode-readonly-batch", readonly_result())
         self.assertEqual(readonly.returncode, 0, readonly.stdout + readonly.stderr)
@@ -127,6 +147,10 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         v1 = self.run_verifier("codex-code-mode-v1-batch", v1_result())
         self.assertEqual(v1.returncode, 0, v1.stdout + v1.stderr)
         self.assertIn("OK: canonical Code Mode batch result verified", v1.stdout)
+
+        clarify = self.run_clarify_verifier()
+        self.assertEqual(clarify.returncode, 0, clarify.stdout + clarify.stderr)
+        self.assertIn("OK: Clarify scenario root remained read-only", clarify.stdout)
 
     def test_bundled_verifiers_reject_corrupted_results(self) -> None:
         invalid_readonly = readonly_result()
@@ -140,6 +164,10 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         v1 = self.run_verifier("codex-code-mode-v1-batch", invalid_v1)
         self.assertEqual(v1.returncode, 1)
         self.assertIn("beta summary mismatch", v1.stdout)
+
+        clarify = self.run_clarify_verifier(with_unexpected_file=True)
+        self.assertEqual(clarify.returncode, 1)
+        self.assertIn("unexpected files", clarify.stdout)
 
 
 if __name__ == "__main__":

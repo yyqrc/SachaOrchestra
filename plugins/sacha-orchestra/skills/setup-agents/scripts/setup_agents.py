@@ -18,6 +18,12 @@ TARGET_RELATIVE = Path("agents") / "sacha-luna-worker.toml"
 DEFAULT_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker.toml"
 XHIGH_TARGET_RELATIVE = Path("agents") / "sacha-luna-worker-xhigh.toml"
 XHIGH_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker-xhigh.toml"
+DEEPSEEK_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-worker.toml"
+DEEPSEEK_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-worker.toml"
+DEEPSEEK_PRO_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-pro-worker.toml"
+DEEPSEEK_PRO_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-pro-worker.toml"
+K3_TARGET_RELATIVE = Path("agents") / "sacha-k3-worker.toml"
+K3_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-k3-worker.toml"
 IDENTITY_FIELDS = ("name", "model", "model_reasoning_effort")
 REQUIRED_FIELDS = (*IDENTITY_FIELDS, "description", "developer_instructions")
 
@@ -37,6 +43,9 @@ class AgentDefinition:
 AGENT_DEFINITIONS = (
     AgentDefinition("sacha_luna_worker", TARGET_RELATIVE, DEFAULT_TEMPLATE, "max"),
     AgentDefinition("sacha_luna_worker_xhigh", XHIGH_TARGET_RELATIVE, XHIGH_TEMPLATE, "xhigh"),
+    AgentDefinition("sacha_deepseek_worker", DEEPSEEK_TARGET_RELATIVE, DEEPSEEK_TEMPLATE, "max"),
+    AgentDefinition("sacha_deepseek_pro_worker", DEEPSEEK_PRO_TARGET_RELATIVE, DEEPSEEK_PRO_TEMPLATE, "max"),
+    AgentDefinition("sacha_k3_worker", K3_TARGET_RELATIVE, K3_TEMPLATE, "max"),
 )
 
 

@@ -190,6 +190,7 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (
             (
                 "tests/test_runtime_scenario_verifiers.py",
+                "tests/runtime-scenarios/packs/clarify-shared-context-loop/",
                 "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
                 "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
             ),

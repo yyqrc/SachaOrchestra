@@ -186,10 +186,11 @@ class ReleaseScriptTests(unittest.TestCase):
         rendered = "\n".join(" ".join(command) for command in commands)
         self.assertIn("tests.test_document_project", rendered)
 
-    def test_code_mode_paths_select_direct_tests(self) -> None:
+    def test_runtime_scenario_paths_select_direct_tests(self) -> None:
         paths = [
             "tests/test_code_mode_batch_asset.py",
             "tests/test_runtime_scenario_verifiers.py",
+            "tests/runtime-scenarios/packs/clarify-shared-context-loop/fixture/verify.py",
             "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/fixture/probe.json",
             "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/fixture/verify.py",
         ]
