@@ -18,13 +18,13 @@ description: Human 用“收口”原位完成当前唯一 Spec、用“存档�
 
 ## 动作顺序
 
-1. “收口”本身是本次 Spec 状态原位写入授权；不授权移动、改名、生成项目文档或其他写入。运行 `python -B <closeout.py path> --spec-path <spec.md> --goal-status goal_complete --required-checks-satisfied --context-writable` 取得精确状态行编辑计划；[`closeout.py`](scripts/closeout.py) 的 path 相对本文解析，不相对项目 cwd。随后使用 Runtime 具有并发修改检查的局部编辑能力只替换该状态行并回读。脚本自身不写文件；状态行变化时停止，其他并发正文不得被整文件替换覆盖。
+1. “收口”本身是本次 Spec 状态原位写入授权；不授权移动、改名、生成项目文档或其他写入。读取并记录唯一状态行的当前完整文本；已是“已完成”时返回 `no_op`，否则使用 Runtime 具有并发修改检查的局部编辑能力把该行原位改为“已完成”并回读。局部编辑前状态行变化或不能精确匹配一次时停止；不得用整文件替换覆盖其他并发正文。
 2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 仍须对项目文档单独确认；未满足前两个动作都不写。
 3. 预检通过后先原位完成 Spec，再把“存档”以 `human-request` 路由给 `$sacha-orchestra:document-project`。文档写入失败不回滚已合法完成的 Spec；报告部分完成、失败证据和文档恢复入口。
 
 ## 输出
 
-- 报告命令映射、Spec 原 path、`transaction`、原状态/新状态、文档动作结果、失败或未验证边界。
+- 报告命令映射、Spec 原 path、原状态/新状态、Spec 编辑结果、文档动作结果、失败或未验证边界。
 - 组合动作分别报告 Spec 写入授权与项目文档写入授权；不得用一个动作的授权替代另一个。
 
 ## 停止与禁止边界

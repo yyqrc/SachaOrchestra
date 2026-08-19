@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.13`。
+- 当前 release：`0.11.14`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：把 Spec Artifact 收敛为面向目标项目的实施与评审基线，由 Artifact Protocol 唯一拥有内容格式和来源边界；Planner 在 Human 批准前完成来源选择与三遍回读，Executor/Assurance 保留无 Spec 路线，Reviewer 按直接消费者检查产品文本；新增纯项目 Spec 与 Handoff/产品文本边界场景。
-- 当前 breaking boundary：保留 `closeout` 支持入口和 Spec 原位完成语义；本版本只调整现有 Spec Artifact 内容合同和 Role 内消费方式，不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权，保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和独立写入授权。
-- 当前成熟度：`0.11.13` 的纯项目 Spec 与 Handoff/产品文本边界 source-scenario、精确变更检查和独立 Review 已通过；安装后 fresh Runtime 尚未验证。
+- 当前 release Scope：删除 `closeout` 的重复 Python 编辑计划入口及其专用单元测试；`closeout` 直接按 Artifact Protocol 使用 Runtime 的并发检查局部编辑完成唯一 Spec 状态行，并同步源码场景裁决标准。
+- 当前 breaking boundary：保留 `closeout` 支持入口、Human 写入授权、Spec 原位完成条件、`no_op`、失败关闭和 `document-project` 独立 Owner；不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权。
+- 当前成熟度：`0.11.14` 的 90 项单元测试、插件结构校验与精确变更检查已通过；删除脚本后的自然语言 source-scenario、安装后 fresh Runtime 尚未重新验证。
 
 ## `1.0.0` 与后续方向
 
