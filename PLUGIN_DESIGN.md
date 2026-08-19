@@ -16,7 +16,7 @@
 | [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) | Human 可见提问、进度、结果顺序与必须披露的信息 | 流程路由、授权结果、Role procedure、Runtime 工具参数 |
 | [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |
 | [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
-| [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
+| [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复与证据映射 | Gate、就绪判定、Role 和通用流程 |
 
 Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
@@ -26,6 +26,7 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 - `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Clarify 接受显式窄授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式调用只授权当前文档目标，不接受 Sacha、不补走生产 Role，也不替代正常流程的候选检查。
+- `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求；只拥有预检与动作顺序，Spec 完成和项目文档分别沿用 Artifact Protocol 与 `document-project`。
 - Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
 - Feedback 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。调用本身授权来源任务有界只读调查并转移 owner；来源任务交付唯一目标任务 reference 后结束，目标任务作为普通任务重新进入通用流程。
 - setup-project、setup-agents 是主流程外的显式配置能力，不进入主工作流。
@@ -75,6 +76,16 @@ flowchart TD
     ENTRY -->|"显式 Reviewer"| REVIEWER
     ENTRY -->|"显式 Clarify：仅窄授权"| CLARIFY
     ENTRY -->|"显式 document-project：当前文档目标"| DOCUMENT
+    ENTRY -->|"收口 / 存档 / 收口并存档"| CLOSEOUT{"closeout：预检动作"}
+
+    CLOSEOUT -->|"存档：human-request"| DOCUMENT
+    CLOSEOUT -->|"收口：条件不足"| CLOSEOUT_BLOCKED["失败关闭；Spec 不变"]
+    CLOSEOUT -->|"收口：goal_complete + 必需证据满足"| SPEC_COMPLETE["Artifact Protocol：原位完成当前唯一 Spec"]
+    CLOSEOUT -->|"收口并存档：任一动作未完成预检"| CLOSEOUT_BLOCKED
+    CLOSEOUT -->|"收口并存档：两个动作预检通过"| SPEC_COMPLETE
+    CLOSEOUT_BLOCKED --> CLOSE
+    SPEC_COMPLETE -->|"仅收口"| CLOSE
+    SPEC_COMPLETE -->|"组合动作：继续 human-request"| DOCUMENT
 
     EXECUTOR -->|"Planner Gate 新开：Scope、方案或验收实质变化"| PLANNER
     EXECUTOR -->|"只缺新增高影响授权"| EXEC_AUTH["Human 决定新增高影响授权"]
@@ -160,7 +171,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 
 ## 5. 支持、控制与工具 Skill 能力设计
 
-当前 `skills/*` 共 10 个 Skill：三个生产 Role 已在第 4 节穷尽，其他七个 Skill 在下表穷尽。新增 Skill 必须先在对应表中声明类型、能力和边界，不能先落目录再反推顶层设计。
+当前 `skills/*` 共 11 个 Skill：三个生产 Role 已在第 4 节穷尽，其他八个 Skill 在下表穷尽。新增 Skill 必须先在对应表中声明类型、能力和边界，不能先落目录再反推顶层设计。
 
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
@@ -168,6 +179,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 支持节点 | clarify | 补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用或活跃 Planner 调用；只读，不冻结 Scope |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
+| 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
 | 显式支持/内部收尾 | document-project | 按项目策略生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，并可维护 Context | 显式请求或收尾候选 → 策略/授权 → 选模板/生成 → 验证/报告 | 显式调用只覆盖当前文档目标；不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
 | 工具/配置 | setup-project | 生成或刷新 Project Integration、Capability Binding、存储/文档策略与可选兼容配置 | 显式 project root/policy → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不执行项目任务或配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |

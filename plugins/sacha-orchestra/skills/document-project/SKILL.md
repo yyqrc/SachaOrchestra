@@ -13,6 +13,7 @@ description: Human 显式请求项目文档，或 Workflow 收尾候选成立时
 
 1. 先识别入口，再读取已确认的 Project Integration：
    - Human 显式调用时，当前文档请求直接形成输入；只处理该文档目标，不接受 Sacha、不补走生产 Role，也不要求先存在收尾候选；
+   - `closeout` 把“存档”或组合动作的文档分支映射为 `human-request` 时，按同一显式请求处理；不读取、完成或替代 Spec；
    - Workflow 路由时，入口必须是收尾候选成立后的主任务；候选检查只使用当前任务最终事实；`disabled` 或无配置时静默跳过。
 2. Artifact 与 Execution Report 沿用[术语合同](../../core/terminology-contract.md)，再从当前任务最终事实选择生命周期和目标：
    - Execution Report 作为任务 Artifact/证据索引，留在 Spec/任务约定位置；
@@ -42,6 +43,7 @@ description: Human 显式请求项目文档，或 Workflow 收尾候选成立时
 ## 停止与禁止边界
 
 - 本 Skill 只写 Project Documentation root 或 Project Context 受管区；任务 Artifact/Handoff 由 [Artifact Protocol](../../core/artifact-protocol.md) 管理。
+- “存档”只是本 Skill 的 `human-request` 语义别名；Spec 完成与组合顺序由 `closeout` 和 Artifact Protocol 管理。
 - 正文只使用可发布事实，不包含内部任务/线程 ID、缓存 path 或不可发布证据 reference。
 - 模板目录是唯一文风来源；文风只读取所选 Profile。
 - 生成器的证据范围为输入、授权、path 与静态结构；Runtime 触发、内容语义和外部副作用分别验证。

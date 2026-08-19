@@ -4,7 +4,7 @@
 
 ## 1. 范围与权威
 
-本文是 Artifact 生成条件、最小内容、权威关系和恢复规则的唯一权威。Artifact、Spec Artifact、澄清决定记录、Execution Report、Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)；入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
+本文是 Artifact 生成条件、最小内容、权威关系、Spec 完成和恢复规则的唯一权威。Artifact、Spec Artifact、Spec 完成、澄清决定记录、Execution Report、Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)；入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
 Review 与返回分别由 [Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md) 定义。
 
 保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威。真实文件、外部状态、文件差异（diff）和命令原始输出仍是实现与验证事实；Artifact 只索引或承载消费者需要的信息。
@@ -30,7 +30,16 @@ Planner 读取决定记录形成 Spec 并沿用已确认术语；批准后的 Sp
 
 Execution Report 在恢复、证据索引或正式 Review 存在消费者时随任务形成，并保存到 Spec/任务约定的 Artifact 位置。Project Documentation 的候选与授权由 Workflow 收尾和 `document-project` 决定，目标位置由 Project Integration 决定；Execution Report 继续留在任务 Artifact 位置。
 
-## 3. Handoff
+## 3. Spec 完成
+
+- 主任务 → 收到 Workflow Contract 路由的 Spec 完成动作 → 从当前任务、批准 Spec reference 或 Human 明确 path 取得当前 Spec → 不得扫描 Spec storage root 按时间或名称猜测当前任务。
+- 当前 Spec 缺失、存在多个候选、不是可达的单一 `spec.md`、未批准或头部状态行不唯一 → 失败关闭且不写入。
+- 当前任务尚未进入 `goal_complete`，或必需验证与适用 Review 尚未满足 → 保持 Spec 原状态并报告未满足条件 → `goal_partial`、`goal_cancelled`、`goal_superseded` 和其他非完成终态不得标记为已完成。
+- 当前上下文可写且本次 Spec 状态写入已有明确 Human 授权 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
+- Spec 已是“已完成” → 返回 `no_op`；状态行变化、只读上下文或局部编辑失败 → 不盲目重试、不移动文件、不创建替代 Artifact，报告原始缺口与恢复条件。
+- Spec 完成只消费任务终态，不生成项目文档；项目文档继续由 `document-project` 按独立策略和授权处理。
+
+## 4. Handoff
 
 只有正式跨 Role 或恢复消费者无法从现有 Scope、Artifact 和原生传输安全继续时才写 Handoff。它按需提供：
 
@@ -42,7 +51,7 @@ Execution Report 在恢复、证据索引或正式 Review 存在消费者时随�
 
 名称、顺序和载体由消费者决定；空内容省略。Human 可见内容遵循 Human Interaction Contract。确有领域或 Runtime 消费方时可增加带命名空间的扩展；扩展沿用本协议的权威与授权边界。
 
-## 4. 恢复规则
+## 5. 恢复规则
 
 - Handoff 嵌入承载 Artifact/消息，不单建 Handoff 文件。
 - reference 必须稳定、可达，可移植 Artifact 优先相对位置或环境中立标识。

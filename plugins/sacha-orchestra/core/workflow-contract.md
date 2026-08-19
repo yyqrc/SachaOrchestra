@@ -51,7 +51,7 @@ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. 生命周期与 Human 路由
 
-通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Clarify，不得冻结或持久化 Spec，全部收口后才可形成 Spec。Human 显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
+通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Clarify，不得冻结或持久化 Spec，全部收口后才可形成 Spec。进入 closeout 后按本合同第 5 节流转；显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
 
 本节沿用术语合同定义的普通批准、明确迁移批准、可靠迁移信号和执行任务迁移前提；本合同只规定这些判断产生的流程路由。
 
@@ -76,7 +76,15 @@ Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽�
 
 主任务直接推进 Role 完成结果、已批准方案向 Executor 的转换、同 Scope 返修/补证据/复验、唯一 Owner 路由和已授权收尾。Direct Scope 由用户目标与明确约束界定；只有 Human 或 Spec 明确指定时，预计文件列表才成为硬性允许列表。
 
-## 5. 项目文档
+## 5. closeout 流转
+
+closeout 当前动作为项目文档请求时，主任务将其作为 `human-request` 交给 `document-project`；不检查或修改 Spec，也不替代本合同第 6 节的正常文档候选。
+
+closeout 当前动作为 Spec 完成时，主任务只在当前任务已是 `goal_complete`、必需验证与适用 Review 已满足后，按 Artifact Protocol 原位完成当前唯一已批准 Spec；任何条件不足都失败关闭，且不把 Human 请求当作完成证据。
+
+closeout 当前动作为组合动作时，主任务先核对两个动作的目标与授权。Spec 状态写入需要明确 Human 授权；项目文档仍服从 Project Integration，`per-write-confirmation` 不被组合请求替代。两个动作预检完成前不写；通过后先完成 Spec，再以 `human-request` 进入 `document-project`。文档动作后续失败时保留合法的 Spec 完成结果，并报告部分完成与文档恢复入口。
+
+## 6. 项目文档
 
 Human 显式调用 document-project 时，当前文档请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选；该调用只处理当前文档目标，写入继续服从已确认的 Project Integration 与 Human 授权。
 

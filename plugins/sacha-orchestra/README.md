@@ -12,6 +12,7 @@ Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或
 
 - 高级入口：`planner`、`executor`、`reviewer`；显式 `clarify` 只有只读窄授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式调用只覆盖当前文档目标，不接受 Sacha、不补走生产 Role。
+- `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求：收口只原位完成当前唯一 Spec，存档只映射 `document-project`，组合动作先收口再存档；只讨论或引用这些词语不执行动作。
 - `feedback` 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。来源任务交付唯一目标任务 reference 后结束，目标任务按普通任务重新判断。
 - Manager 只接受内部 Gate 路由，不是用户入口。
 - `setup-project`、`setup-agents` 是主流程外显式配置能力，不属于 workflow 入口。

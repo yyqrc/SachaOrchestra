@@ -24,6 +24,7 @@
 | 能力加载策略 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | Project Integration 的已确认 Capability Binding 对规范 Skill 的加载条件；只决定何时读取并采用 Skill，不表示授权、前置满足或动作已执行。 | Workflow Contract、setup-project Skill、Planner/Clarify/Executor/Reviewer Skill、Capability Provider 接入指南 | 若策略直接授予动作、绕过 Skill 前置，或 Runtime 消费者无法取得四种策略的加载条件，定义被违反。 |
 | Artifact | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 供执行、恢复、复核或返回消费者使用的工作流记录；不替代原始事实、Human 授权或流程状态。 | `PLUGIN_DESIGN.md`、Intake Contract、Workflow Contract、Assurance Contract、Coordination Contract、Artifact Protocol、Role/支持 Skill、Runtime Adapter | 若 Artifact 替代原始事实、Human 授权或流程状态，定义被违反。 |
 | Spec Artifact | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 持久保存目标、Scope、冻结决定、允许边界与验收的 Artifact。 | Workflow Contract、Coordination Contract、Artifact Protocol、Planner/Executor Skill、Runtime Adapter | 若其不保存执行基线，或被其他 Artifact 代替，定义被违反。 |
+| Spec 完成 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 当前任务已进入 `goal_complete`，必需验证与适用 Review 已满足后，把当前唯一已批准 Spec Artifact 的既有状态行原位标记为“已完成”；不移动、改名或生成新 Artifact。 | `PLUGIN_DESIGN.md`、Workflow Contract、Artifact Protocol、closeout Skill | 若未到合法完成终态即写入，或移动 Spec、创建平行完成 Artifact，定义被违反。 |
 | 澄清决定记录 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | Spec 形成前保存后续规划或恢复会消费的已确认决定、未决项和最小恢复边界的 Artifact。 | Artifact Protocol、Clarify/Planner Skill | 若它被当作获批 Spec 或执行授权，定义被违反。 |
 | Execution Report | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 保存实际变更、验证、偏差、风险和证据 reference 的可恢复索引。 | Workflow Contract、Artifact Protocol、Executor/Reviewer/document-project Skill | 若它替代原始证据或 Reviewer 判断，定义被违反。 |
 | Review Artifact | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 保存 Reviewer 判断、证据缺口与下一路由的 Artifact。 | Assurance Contract、Artifact Protocol、Reviewer Skill | 若它不含 Reviewer 判断与下一路由，或被实施报告替代，定义被违反。 |
@@ -52,7 +53,7 @@
 - 明确迁移批准只证明 Human 选择了迁移分支，不证明执行任务迁移前提已经满足。
 - 执行任务迁移前提只用于批准 Spec 后迁到新任务执行；Feedback Owner 转移不使用该前提。
 - Artifact 只索引或承载消费者需要的信息；真实文件、外部状态、文件差异和命令原始输出仍决定实现与验证事实。
-- Spec Artifact、澄清决定记录、Execution Report 与 Review Artifact 是不同消费者使用的 Artifact，不得互相替代。
+- Spec 完成只改变当前唯一 Spec Artifact 的状态，不改变其 path 或内容身份；Spec Artifact、澄清决定记录、Execution Report、Review Artifact 与项目文档不得互相替代。
 
 ## Owner 与同步边界
 

@@ -26,7 +26,7 @@
 | `plugins/sacha-orchestra/core/human-interaction-contract.md` | Human 可见提问、进度、结果顺序与必须披露信息的规范性 contract |
 | `plugins/sacha-orchestra/core/assurance-contract.md` | Review、Baseline、Outcome 与 evidence 语义 |
 | `plugins/sacha-orchestra/core/coordination-contract.md` | Manager 的 assessment、拆分、依赖、readiness、route requirement、dispatch/return、identity/dedup 与 deviation 的唯一 Core owner |
-| `plugins/sacha-orchestra/core/artifact-protocol.md` | Artifact 生成条件、最小内容、权威关系与恢复规则的规范性 contract；术语定义归插件内术语合同 |
+| `plugins/sacha-orchestra/core/artifact-protocol.md` | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则的规范性 contract；术语定义归插件内术语合同 |
 | `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单一 Runtime 的传输、自动模型/强度选择、精确调用参数、回退、恢复与验证映射；不得反向定义 Gate/就绪条件 |
 | `plugins/sacha-orchestra/skills/*` | 不绑定具体 Runtime 的节点职责、局部工作流与边界；不增加流程节点，不复制 Core 判断或 Adapter 参数 |
 
@@ -91,7 +91,7 @@
 
 ## 产品边界
 
-- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 接受显式窄授权；document-project 接受 Human 显式文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
+- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 接受显式窄授权；closeout 接受“收口”“存档”“收口并存档”并只协调 Spec 完成与项目文档 Owner；document-project 接受 Human 显式文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
 - 任何新增 Role、Skill 功能、节点、连线、Outcome 去向或跨节点 Owner 转移，都必须先向 Human 提交产品面变化并取得明确确认，再修改 `PLUGIN_DESIGN.md`，最后修改 Core 与直接消费者。现有职责内流程、提示词或证据细节不得自动升级为顶层设计变化。
 - Core 只容纳流程节点间被多个消费者共享且不属于单一 Runtime 的稳定判断；单 Skill 的触发条件、内部流程、局部状态或格式留在 Skill，单一 Runtime 的传输、模型与恢复留在 Adapter，项目特例留在 Project Integration/Domain Skill。不能指出第二个真实消费者时，不新增 Core 分类或必填字段。
 - Hook 不得接受/替代 Sacha、扩大授权或参与恢复。新增 hook/MCP/app/外部服务/权限字段需明确批准；目标必需的 repo-local asset/script/manifest 元数据按 Scope 修改验证。

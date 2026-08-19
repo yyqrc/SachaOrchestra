@@ -4,13 +4,13 @@
 
 ## 1. 范围
 
-本文是 `using-sacha / 显式生产 Role / 显式 Clarify / 显式 document-project` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
+本文是 `using-sacha / 显式生产 Role / 显式 Clarify / 显式 closeout / 显式 document-project` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
 
 Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `using-sacha`；项目知识仍归 Project Integration 或 Domain Skill。
 
 ## 2. 最小加载
 
-Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读取本文；Human 接受前不得仅为 Sacha 路由加载 Workflow Contract、Artifact Protocol、Project Integration 或生产 Role。
+Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口由各自元数据发现。Skill 触发后可读取本文；Human 接受前不得仅为 Sacha 路由加载 Workflow Contract、Artifact Protocol、Project Integration 或生产 Role。
 
 `L0 Local Direct` 允许元数据、入口 Skill 与本文，但不进入生产 Sacha 生命周期，不生成 Goal、Artifact 或 Handoff。
 
@@ -44,6 +44,7 @@ Runtime 常驻发现面只需要 `using-sacha` 元数据。Skill 触发后可读
 | 显式 Clarify | 授权主任务在窄 Scope 内澄清并管理一个有界只读研究委派 Agent；Clarify 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
 | 活跃 Planner 路由 Clarify | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
 | 显式 document-project | 直接路由当前文档目标到 document-project；不接受 Sacha、不补走生产 Role，也不替代正常 Workflow 的收尾候选检查；实际写入继续服从项目策略和写入授权 |
+| `closeout` 请求 | 只授权当前 closeout 目标，不接受 Sacha；具体动作、顺序与失败路由由 Workflow Contract 决定，Spec 与项目文档写入继续服从各自 Owner |
 | 显式 Setup Project | 只授权本次项目配置 Scope；后续开发目标重新判断入口 |
 | 在另一个真实任务显式调用 Feedback | 授权来源任务围绕具体反馈目标有界只读调查，并查询、复用或创建唯一反馈目标任务；Human 可提供原任务、项目或证据 reference；目标任务另行核对写入与外部动作授权 |
 | 直接调用 Manager | 返回当前目标给 `using-sacha` 或主任务，由 Manager Gate 路由 |

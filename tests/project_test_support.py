@@ -32,6 +32,15 @@ DOCUMENT_SCRIPT = (
     / "scripts"
     / "generate_project_document.py"
 )
+CLOSEOUT_SCRIPT = (
+    ROOT
+    / "plugins"
+    / "sacha-orchestra"
+    / "skills"
+    / "closeout"
+    / "scripts"
+    / "closeout.py"
+)
 TEMP_ROOT = ROOT / ".temp"
 
 
@@ -69,6 +78,7 @@ def load_module(name: str, path: Path):
 generator = load_module("sacha_project_setup", SETUP_SCRIPT)
 resolver = load_module("sacha_capability_resolver", RESOLVER_SCRIPT)
 document_generator = load_module("sacha_project_documentation", DOCUMENT_SCRIPT)
+closeout = load_module("sacha_closeout", CLOSEOUT_SCRIPT)
 
 
 def digest(path: Path) -> str:

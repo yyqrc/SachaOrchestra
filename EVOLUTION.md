@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.11`。
+- 当前 release：`0.11.12`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：Clarify 在 Human 背景不足时先调查解释并允许反问/纠正，只有共享事实与影响后才请求真实取舍；setup-agents 在同一事务中管理 Luna、DeepSeek Flash/Pro 与 K3 五个官方 Agent 定义，并补齐场景 verifier 和发布验证路由。
-- 当前 breaking boundary：不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和写入授权。
-- 当前成熟度：Clarify source-scenario 与独立评估已通过；setup-agents 13 项、场景 verifier 2 项、发布脚本 22 项、Skill/Plugin 结构和待发布阶段一致性已通过，独立 Review 为 `Accepted with follow-up`；安装后 fresh Runtime 未验证。
+- 当前 release Scope：新增 `closeout` 支持 Skill；由 Skill description 选择“收口”“存档”“收口并存档”请求，Workflow 只处理进入后的 Spec 完成、项目文档与组合流转，Artifact Protocol 原位完成当前唯一 Spec，不移动或创建 `docs/done`。
+- 当前 breaking boundary：新增 `closeout` 支持入口，但不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和独立写入授权。
+- 当前成熟度：closeout 行为测试、source-scenario 与独立评估在实施 worktree 通过；本次快速发版按模式跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime。
 
 ## `1.0.0` 与后续方向
 
