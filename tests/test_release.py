@@ -291,6 +291,10 @@ class ReleaseScriptTests(unittest.TestCase):
             self.assertRegex(payload["tree"], r"^[0-9a-f]{40}$")
             self.assertGreaterEqual(payload["duration_seconds"], 0)
             self.assertIn("push", payload["timings"])
+            self.assertEqual(payload["branch"], "main")
+            self.assertEqual(payload["tag"], "v0.1.0")
+            self.assertEqual(payload["remote"], "origin")
+            self.assertIs(payload["remote_verified"], True)
             head = self.git(root, "rev-parse", "HEAD").stdout.strip()
             tag = self.git(root, "rev-parse", "v0.1.0^{}").stdout.strip()
             remote_head = self.git(root, "ls-remote", "origin", "refs/heads/main").stdout.split()[0]
