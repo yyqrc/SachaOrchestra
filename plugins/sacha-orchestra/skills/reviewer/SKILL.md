@@ -18,12 +18,13 @@ description: 显式 Reviewer，或已接受 Sacha 且 Reviewer Gate 打开/重�
 ## 动作顺序
 
 1. 建立当前 Baseline，只重跑可能改变裁决的验证。
-2. 当前证据无法解释真实行为、Owner 定义冲突、直接消费者可能失配，或发布阻塞检查缺少必要证据时，才扩大到最窄的相关 path/reference；扩大前说明具体缺口及其可能改变的 Outcome。按 Assurance Contract 区分 A/B/C 路线，自动化无法证明的检查形成具体准备、操作、预期结果和回传证据。
-3. 按 Assurance Contract 的验收矩阵、Outcome、重新 Review 和 Owner 路由裁决；重新 Review 只检查 Finding 修复 delta、直接影响和因修改失效的证据，复用未变化的 Baseline、原始故障和有效验证。
+2. 必查本次差异新增或修改的日志、异常、界面、弹窗、说明和代码注释：先按直接消费者区分面向 Human 的文本、代码标识/字段名和机器合同，再判断内容是否只表达目标项目语义。语言或单词本身不构成问题；含义不清时核对项目源码、规则、配置、正式文档和直接消费者，不得用关键词扫描代替语义判断。
+3. 当前证据无法解释真实行为、Owner 定义冲突、直接消费者可能失配，或发布阻塞检查缺少必要证据时，才扩大到最窄的相关 path/reference；扩大前说明具体缺口及其可能改变的 Outcome。按 Assurance Contract 区分 A/B/C 路线，自动化无法证明的检查形成具体准备、操作、预期结果和回传证据。
+4. 按 Assurance Contract 的验收矩阵、Outcome、重新 Review 和 Owner 路由裁决；重新 Review 只检查问题修复涉及的文件与行为、直接影响和因修复失效的证据，复用未变化的 Baseline、原始故障和有效验证。
 
 ## 输出
 
-1. 向 Human 请求证据或交付 Findings/Outcome 前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
+1. 向 Human 请求证据或交付问题与裁决结果（Outcome）前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
 2. Review Artifact 沿用[术语合同](../../core/terminology-contract.md)；需要持久 Review 或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回主任务。
 
 ## 停止与禁止边界

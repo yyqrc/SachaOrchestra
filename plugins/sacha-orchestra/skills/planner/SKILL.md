@@ -21,8 +21,13 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 1. Spec Artifact 沿用[术语合同](../../core/terminology-contract.md)；当前上下文可恢复时使用内联 Plan，方案需 Human 批准、属于破坏性变更或需要跨上下文恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
 2. 仅在冻结条件满足且命中持久化条件后，才把完整方案写入 `spec.md` 并回读，再向 Human 交付。
    持久化优先使用已确认的 Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需将 `decisions.md` 写入同一目录。
-3. Spec 细化到 Executor 可直接实施；每步说明目标 path、预期改动、约束与不变量、依赖与顺序、检查与证据，以及返回 Planner 的条件。
-4. 给 Executor 明确 Scope、Non-goals、依赖、冻结决定、停止/回退条件和 A/B/C 验收路线。主任务出现多个候选单元、依赖或恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager 并消费其分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
+3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告、工作流输出、运行时传输及 Sacha 规则只用于各自消费者，不进入起草来源。
+4. 只使用上一步确认的项目来源，按 Artifact Protocol 的唯一内容格式生成面向目标项目的实施规格；项目已有格式只有在完整承载该格式语义时才沿用。
+5. 第一遍回读枚举 Spec 中所有保留英文的标识，逐个与已确认项目来源精确匹配；项目来源未定义简称或别名时，必须改回完整项目名称。
+6. 第二遍回读逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。
+7. 第三遍回读只提供项目规则、项目事实和 Spec，核对不了解 Sacha 的 Executor 与 Reviewer 能否直接实施与评审。
+8. 向 Human 交付前必须完成格式、来源和项目语境核对；任一项不满足时由当前 Planner 原位修订并重新执行三遍回读。全部满足前不得交付 Spec、请求批准、进入 Executor 或依赖 Reviewer 发现问题。
+9. 工作流返回、协调和验证责任由主任务分别按 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 与 [Assurance Contract](../../core/assurance-contract.md) 处理，不写回 Spec。主任务出现多个候选单元、依赖或恢复协调时，调用 Manager 并消费 Coordination Contract 的分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
 
 ## 输出
 

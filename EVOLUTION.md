@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.12`。
+- 当前 release：`0.11.13`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：新增 `closeout` 支持 Skill；由 Skill description 选择“收口”“存档”“收口并存档”请求，Workflow 只处理进入后的 Spec 完成、项目文档与组合流转，Artifact Protocol 原位完成当前唯一 Spec，不移动或创建 `docs/done`。
-- 当前 breaking boundary：新增 `closeout` 支持入口，但不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权；保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和独立写入授权。
-- 当前成熟度：closeout 行为测试、source-scenario 与独立评估在实施 worktree 通过；本次快速发版按模式跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime。
+- 当前 release Scope：把 Spec Artifact 收敛为面向目标项目的实施与评审基线，由 Artifact Protocol 唯一拥有内容格式和来源边界；Planner 在 Human 批准前完成来源选择与三遍回读，Executor/Assurance 保留无 Spec 路线，Reviewer 按直接消费者检查产品文本；新增纯项目 Spec 与 Handoff/产品文本边界场景。
+- 当前 breaking boundary：保留 `closeout` 支持入口和 Spec 原位完成语义；本版本只调整现有 Spec Artifact 内容合同和 Role 内消费方式，不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权，保留正常收尾候选、生成器 `human-request | goal-closeout` schema、Project Integration 策略和独立写入授权。
+- 当前成熟度：`0.11.13` 的纯项目 Spec 与 Handoff/产品文本边界 source-scenario、精确变更检查和独立 Review 已通过；安装后 fresh Runtime 尚未验证。
 
 ## `1.0.0` 与后续方向
 

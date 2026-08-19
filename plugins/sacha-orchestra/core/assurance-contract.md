@@ -17,7 +17,7 @@ Baseline/`acceptance_revision` 变化使旧裁决失效；仅证据变更只复�
 
 Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。自动化无法证明的检查给出具体 Human/外部路线，并按证据状态选择 Outcome。
 
-验收按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。B 类等待期间保持同一工作流的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。发布阻塞的 B/C 类检查未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
+存在批准 Spec 时，本文从其中的项目验收标准建立验收矩阵；没有 Spec 时，使用明确目标、Scope、Human 决定和项目验收输入。验收再按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。A/B/C 是验收执行分类，不写回面向项目的 Spec。B 类等待期间保持同一工作流的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。发布阻塞的 B/C 类检查未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
 
 ## 3. Outcome 与路由
 
