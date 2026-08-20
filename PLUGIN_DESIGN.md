@@ -24,7 +24,8 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 ## 2. 产品入口
 
 - `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct。
-- Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Clarify 接受显式窄授权。
+- Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
+- `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式调用只授权当前文档目标，不接受 Sacha、不补走生产 Role，也不替代正常流程的候选检查。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求；只拥有预检与动作顺序，Spec 完成和项目文档分别沿用 Artifact Protocol 与 `document-project`。
 - Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
@@ -48,13 +49,14 @@ flowchart TD
     PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]
     PLANNER_GATE -->|"是"| PLANNER["Planner：调查并冻结 Scope / 验收"]
     PLANNER --> PLAN_READY{"关键事实与决定足以冻结？"}
-    PLAN_READY -->|"否"| CLARIFY["Clarify：只读调查 + 必要 Human 决策"]
-    CLARIFY -->|"仅询问不可自行推出的关键决定"| CLARIFY_HUMAN["Human 澄清决定"]
-    CLARIFY_HUMAN --> CLARIFY
-    CLARIFY --> CLARIFY_RETURN{"Clarify 调用来源"}
-    CLARIFY_RETURN -->|"活跃 Planner"| PLANNER
-    CLARIFY_RETURN -->|"显式窄 Scope 已完成"| CLOSE
-    CLARIFY_RETURN -->|"出现新的开发目标或写入需求"| INTAKE
+    PLAN_READY -->|"否"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
+    EXPLORE -->|"仅询问不可自行推出的关键决定"| EXPLORE_HUMAN["Human 澄清决定"]
+    EXPLORE_HUMAN --> EXPLORE
+    EXPLORE --> EXPLORE_RETURN{"Explore 调用来源"}
+    EXPLORE_RETURN -->|"活跃 Planner"| PLANNER
+    EXPLORE_RETURN -->|"活跃 Roadmap"| ROADMAP
+    EXPLORE_RETURN -->|"显式窄 Scope 已完成"| CLOSE
+    EXPLORE_RETURN -->|"出现新的开发目标或写入需求"| INTAKE
     PLAN_READY -->|"是"| NEED_APPROVAL{"存在未确认的实质方案？"}
     NEED_APPROVAL -->|"否"| EXECUTOR
     NEED_APPROVAL -->|"是"| MIGRATION_SIGNAL{"可靠迁移信号？"}
@@ -74,7 +76,10 @@ flowchart TD
     ENTRY -->|"显式 Planner"| PLANNER
     ENTRY -->|"显式 Executor"| EXECUTOR
     ENTRY -->|"显式 Reviewer"| REVIEWER
-    ENTRY -->|"显式 Clarify：仅窄授权"| CLARIFY
+    ENTRY -->|"显式 Explore：仅窄授权"| EXPLORE
+    ENTRY -->|"显式 Roadmap：独立规划"| ROADMAP["Roadmap：组织长期阶段 / 依赖 / Spec 映射"]
+    ROADMAP -->|"事实或决定不足：只读探索"| EXPLORE
+    ROADMAP -->|"自包含 Roadmap 就绪"| DOCUMENT
     ENTRY -->|"显式 document-project：当前文档目标"| DOCUMENT
     ENTRY -->|"收口 / 存档 / 收口并存档"| CLOSEOUT{"closeout：预检动作"}
 
@@ -113,7 +118,7 @@ flowchart TD
     DOC_WRITE --> CLOSE
 
     subgraph COORDINATION["Manager 是主任务内的协调闭环，不是第四个生产 Role"]
-        INVOKER["主任务中的 Planner / Clarify / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
+        INVOKER["主任务中的 Planner / Explore / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
         MANAGER_GATE -->|"否"| RETURN["返回调用节点，并恢复其原流向"]
         MANAGER_GATE -->|"是"| MANAGER["Manager：评估、拆分、依赖、就绪判定"]
         MANAGER --> WAVE{"当前依赖波次"}
@@ -129,7 +134,7 @@ flowchart TD
     end
 
     PLANNER -->|"多个候选、依赖或恢复协调"| INVOKER
-    CLARIFY -->|"多个候选研究单元、依赖或恢复协调"| INVOKER
+    EXPLORE -->|"多个候选研究单元、依赖或恢复协调"| INVOKER
     EXECUTOR -->|"多个候选、依赖、并发安全或恢复协调"| INVOKER
 
     subgraph FEEDBACK_FLOW["Feedback：独立 Human 手动入口"]
@@ -139,9 +144,9 @@ flowchart TD
         FEEDBACK_RESOLVE -->|"没有可复用目标；本次调用已授权"| FEEDBACK_CREATE["Adapter 创建唯一目标任务"]
         FEEDBACK_CREATE --> FEEDBACK_TARGET
         FEEDBACK_RESOLVE -->|"同一反馈目标的已结束精确重复"| FEEDBACK_NOOP["no_op：返回既有 reference；来源任务结束"]
-        FEEDBACK_RESOLVE -->|"无法消歧或没有安全转移路径"| FEEDBACK_CLARIFY["Human 消歧 / 恢复条件"]
-        FEEDBACK_CLARIFY -->|"条件恢复"| FEEDBACK
-        FEEDBACK_CLARIFY -->|"取消或无法继续"| FEEDBACK_END["Feedback 来源任务结束"]
+        FEEDBACK_RESOLVE -->|"无法消歧或没有安全转移路径"| FEEDBACK_RECOVERY["Human 消歧 / 恢复条件"]
+        FEEDBACK_RECOVERY -->|"条件恢复"| FEEDBACK
+        FEEDBACK_RECOVERY -->|"取消或无法继续"| FEEDBACK_END["Feedback 来源任务结束"]
     end
 
     FEEDBACK_TARGET -->|"按普通任务重新判断"| ENTRY
@@ -160,7 +165,7 @@ flowchart TD
 
 | Role | 稳定职责 | 局部流程 | 明确不拥有 |
 | --- | --- | --- | --- |
-| Planner | 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收 | 核对入口/Gate → 调查或 Clarify → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
+| Planner | 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收 | 核对入口/Gate → 调查或 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
 | Executor | 在明确目标或批准 Scope 内实施、验证并交付真实变更/证据 | 核对 Scope/授权 → 主任务做必要 Manager 协调，或委派 Agent 返回协调请求 → 实施/集成 → 风险对应验证 → Review/收尾 | 冻结新方案、跨单元协调、独立 Review、项目文档 owner |
 | Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 核对 Gate/来源独立性 → 建立 Baseline → 重跑关键验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
 
@@ -171,17 +176,18 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 
 ## 5. 支持、控制与工具 Skill 能力设计
 
-当前 `skills/*` 共 11 个 Skill：三个生产 Role 已在第 4 节穷尽，其他八个 Skill 在下表穷尽。新增 Skill 必须先在对应表中声明类型、能力和边界，不能先落目录再反推顶层设计。
+当前 `skills/*` 共 12 个 Skill：三个生产 Role 已在第 4 节穷尽，其他九个 Skill 在下表穷尽。新增 Skill 必须先在对应表中声明类型、能力和边界，不能先落目录再反推顶层设计。
 
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
 | 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct 或一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
-| 支持节点 | clarify | 补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用或活跃 Planner 调用；只读，不冻结 Scope |
+| 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；只读，不冻结 Scope |
+| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
 | 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
-| 显式支持/内部收尾 | document-project | 按项目策略生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，并可维护 Context | 显式请求或收尾候选 → 策略/授权 → 选模板/生成 → 验证/报告 | 显式调用只覆盖当前文档目标；不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
-| 工具/配置 | setup-project | 生成或刷新 Project Integration、Capability Binding、存储/文档策略与可选兼容配置 | 显式 project root/policy → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不执行项目任务或配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
+| 显式支持/内部收尾 | document-project | 按项目策略生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，安全创建/更新 Roadmap，并可维护 Context | 显式请求、Roadmap 请求或收尾候选 → root/策略/授权 → 按文档类型生成或验证正文 → 原子写入 → 验证/报告 | 不生成 Roadmap 路线语义；显式调用只覆盖当前文档目标，不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
+| 工具/配置 | setup-project | 生成或刷新 Project Integration、Capability Binding、Spec/Roadmap/项目文档存储与可选兼容配置 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
 
 支持/控制 Skill 的迭代可修改已声明功能内的局部做法。新增功能、入口、外部副作用或跨节点接管，先改本文；不能以“只是补一步”绕过顶层设计。

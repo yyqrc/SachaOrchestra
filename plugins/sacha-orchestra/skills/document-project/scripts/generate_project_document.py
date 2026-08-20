@@ -17,7 +17,7 @@ from typing import Any
 INTEGRATION_GENERATOR = "<!-- Generator: sacha-orchestra:setup-project -->"
 INTEGRATION_SCHEMA = "<!-- Schema Version: 3 -->"
 INPUT_SCHEMA_VERSION = "1"
-DOCUMENT_TYPES = {"change-archive", "system-guide", "project-context"}
+DOCUMENT_TYPES = {"change-archive", "system-guide", "project-context", "roadmap"}
 TRIGGERS = {"human-request", "goal-closeout"}
 POLICIES = {"disabled", "on-request", "required-at-closeout"}
 ROOT_KINDS = {"project-relative", "external-absolute"}
@@ -31,6 +31,10 @@ CANONICAL_SYSTEM_GUIDE_PROFILE = "canonical-system-guide-v1"
 CANONICAL_SYSTEM_GUIDE_TEMPLATE = (
     Path(__file__).resolve().parents[1] / "assets" / "system-guide.md"
 )
+CANONICAL_ROADMAP_PROFILE = "canonical-roadmap-v1"
+CANONICAL_ROADMAP_TEMPLATE = (
+    Path(__file__).resolve().parents[1] / "assets" / "roadmap.md"
+)
 BUNDLED_GENERATION_POLICY = {
     "minimum_section_count": 0,
     "minimum_word_count": 0,
@@ -40,9 +44,25 @@ BUNDLED_GENERATION_POLICY = {
         "不得存在无实质正文的标题",
     ),
 }
+ROADMAP_FILE_NAME = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]{0,63}-roadmap\.md$"
+)
+ROADMAP_FILE_PATTERN = "<YYYY-MM-DD>-<short-slug>-roadmap.md"
+ROADMAP_REQUIRED_HEADINGS = (
+    "目标与完成形态",
+    "当前状态",
+    "路线原则",
+    "阶段路线",
+    "Spec 映射",
+    "决策前沿",
+    "Unknown",
+    "排除范围",
+    "主要项目位置与依据",
+)
 BUNDLED_REQUIRED_TOPICS = {
     "change-archive": ("背景或触发原因", "目标", "实际结果与范围", "关键约束或根因", "验证结论与未验证边界"),
     "system-guide": ("系统用途与边界", "主数据流或执行流", "权威基准", "当前限制或验证边界"),
+    "roadmap": ROADMAP_REQUIRED_HEADINGS,
 }
 TEMPLATE_PROFILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 TEMPLATE_VERSION = re.compile(r"^[1-9][0-9]*$")
@@ -92,6 +112,11 @@ INTERNAL_REFERENCES = (
         re.IGNORECASE,
     ),
     re.compile(r"(?:^|[\s`'\"(\[{=:;,])(?:[A-Za-z]:[\\/]|\\\\)", re.IGNORECASE),
+)
+ROADMAP_FORBIDDEN_REFERENCES = tuple(
+    pattern
+    for index, pattern in enumerate(INTERNAL_REFERENCES)
+    if index not in {1, len(INTERNAL_REFERENCES) - 1}
 )
 
 
@@ -171,6 +196,27 @@ def _template_catalog_binding(text: str) -> dict[str, Any] | None:
     }
 
 
+def _roadmap_storage_binding(text: str) -> dict[str, str] | None:
+    root_matches = re.findall(r"(?m)^- Roadmap：`([^`]+)`\r?$", text)
+    file_matches = re.findall(r"(?m)^- Roadmap 文件：`([^`]+)`\r?$", text)
+    if not root_matches and not file_matches:
+        return None
+    if len(root_matches) != 1:
+        raise DocumentError("Project Integration Roadmap root is duplicated")
+    if len(file_matches) != 1:
+        raise DocumentError("Project Integration Roadmap file pattern is missing or duplicated")
+    if file_matches[0] != ROADMAP_FILE_PATTERN:
+        raise DocumentError("Project Integration Roadmap file pattern is unsupported")
+    root = root_matches[0]
+    root_kind, portability = _compact_root(root)
+    return {
+        "root_kind": root_kind,
+        "root": root,
+        "portability": portability,
+        "file_pattern": file_matches[0],
+    }
+
+
 def _attach_context_path(
     text: str,
     documentation: dict[str, Any],
@@ -179,7 +225,11 @@ def _attach_context_path(
     match = re.search(r"(?m)^- 项目 Context：`([^`]+)`(?:（[^\r\n]*）)?\r?$", text)
     if match is not None and match.group(1) != expected:
         raise DocumentError("Project Context path is inconsistent with Spec base")
-    return {**documentation, "context_path": expected}
+    return {
+        **documentation,
+        "context_path": expected,
+        "roadmap_storage": _roadmap_storage_binding(text),
+    }
 
 
 def parse_project_integration(data: bytes) -> dict[str, Any]:
@@ -339,6 +389,46 @@ def _resolve_document_root(
     return root
 
 
+def _resolve_roadmap_root(
+    project_root: Path,
+    documentation: dict[str, Any],
+) -> Path:
+    storage = documentation.get("roadmap_storage")
+    if not isinstance(storage, dict):
+        raise DocumentError("Project Integration Roadmap root is missing")
+    raw = str(storage.get("root"))
+    kind = storage.get("root_kind")
+    if kind == "project-relative":
+        pure = _normalized_relative_path(raw, "Roadmap root")
+        root = (project_root / Path(*pure.parts)).resolve(strict=False)
+        try:
+            root.relative_to(project_root)
+        except ValueError as exc:
+            raise DocumentError("Roadmap root escapes project root") from exc
+    elif kind == "external-absolute":
+        candidate = Path(raw)
+        if not candidate.is_absolute():
+            raise DocumentError("external Roadmap root is not absolute")
+        lexical = Path(os.path.abspath(raw))
+        root = candidate.resolve(strict=False)
+        if lexical == Path(lexical.anchor) or root == Path(root.anchor):
+            raise DocumentError("external Roadmap root must not be a drive or share root")
+        try:
+            root.relative_to(project_root)
+        except ValueError:
+            pass
+        else:
+            raise DocumentError("Roadmap root inside project must be project-relative")
+    else:
+        raise DocumentError("Roadmap root kind is invalid")
+    try:
+        if not root.is_dir():
+            raise DocumentError("Roadmap root is absent or unreachable")
+    except OSError as exc:
+        raise DocumentError("Roadmap root is unreachable") from exc
+    return root
+
+
 def _legacy_structured_template(document_type: str) -> dict[str, Any]:
     body = "# {{title}}\n\n" + "\n\n".join(
         f"## {heading}\n\n{{{{{key}}}}}" for key, heading in SECTIONS
@@ -369,11 +459,23 @@ def _resolve_canonical_system_guide_template() -> dict[str, Any]:
 
 
 def _resolve_bundled_profile_template(document_type: str, profile: str) -> dict[str, Any]:
-    expected_profile, target = (
-        (CANONICAL_CHANGE_ARCHIVE_PROFILE, CANONICAL_CHANGE_ARCHIVE_TEMPLATE)
-        if document_type == "change-archive"
-        else (CANONICAL_SYSTEM_GUIDE_PROFILE, CANONICAL_SYSTEM_GUIDE_TEMPLATE)
-    )
+    if document_type == "change-archive":
+        expected_profile, target = (
+            CANONICAL_CHANGE_ARCHIVE_PROFILE,
+            CANONICAL_CHANGE_ARCHIVE_TEMPLATE,
+        )
+    elif document_type == "system-guide":
+        expected_profile, target = (
+            CANONICAL_SYSTEM_GUIDE_PROFILE,
+            CANONICAL_SYSTEM_GUIDE_TEMPLATE,
+        )
+    elif document_type == "roadmap":
+        expected_profile, target = (
+            CANONICAL_ROADMAP_PROFILE,
+            CANONICAL_ROADMAP_TEMPLATE,
+        )
+    else:
+        raise DocumentError("selected template profile has an unsupported document type")
     if profile != expected_profile:
         raise DocumentError("selected template profile requires a bound project catalog")
     try:
@@ -470,7 +572,7 @@ def _resolve_catalog_root(
         file_name = item.get("template")
         if (
             not all(isinstance(value, str) for value in (profile, document_type, file_name))
-            or document_type not in {"change-archive", "system-guide"}
+            or document_type not in {"change-archive", "system-guide", "roadmap"}
             or TEMPLATE_PROFILE.fullmatch(profile) is None
             or profile in seen_profiles
         ):
@@ -656,9 +758,82 @@ def _parse_context_input(value: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _parse_roadmap_input(value: dict[str, Any]) -> dict[str, Any]:
+    expected = {
+        "schema_version",
+        "document_type",
+        "title",
+        "trigger",
+        "output_path",
+        "mode",
+        "expected_target_sha256",
+        "template_profile",
+        "rendered_markdown",
+    }
+    if set(value) != expected:
+        raise DocumentError(f"roadmap input fields must be exactly {sorted(expected)}")
+    if value["schema_version"] != INPUT_SCHEMA_VERSION:
+        raise DocumentError(f"roadmap input schema_version must be {INPUT_SCHEMA_VERSION}")
+    if value["document_type"] != "roadmap":
+        raise DocumentError("roadmap input document_type must be roadmap")
+    if value["trigger"] != "human-request":
+        raise DocumentError("roadmap requires a Human request")
+    title = value["title"]
+    if (
+        not isinstance(title, str)
+        or not title.strip()
+        or len(title.strip()) > MAX_TITLE_CHARS
+        or any(token in title for token in ("\n", "\r", "#", "`"))
+    ):
+        raise DocumentError("roadmap title is empty, unsafe or too long")
+    output = _normalized_relative_path(value["output_path"], "roadmap output_path")
+    if len(output.parts) != 1 or ROADMAP_FILE_NAME.fullmatch(output.name) is None:
+        raise DocumentError(
+            "roadmap output_path must be <YYYY-MM-DD>-<short-slug>-roadmap.md"
+        )
+    mode = value["mode"]
+    if mode not in {"create", "update"}:
+        raise DocumentError("roadmap mode must be create or update")
+    expected_hash = value["expected_target_sha256"]
+    if expected_hash is not None and (
+        not isinstance(expected_hash, str)
+        or re.fullmatch(r"[0-9A-Fa-f]{64}", expected_hash) is None
+    ):
+        raise DocumentError(
+            "roadmap expected_target_sha256 must be null or a 64-character SHA-256"
+        )
+    if mode == "create" and expected_hash is not None:
+        raise DocumentError("roadmap create must not provide expected_target_sha256")
+    if mode == "update" and expected_hash is None:
+        raise DocumentError("roadmap update requires expected_target_sha256")
+    profile = value["template_profile"]
+    if not isinstance(profile, str) or TEMPLATE_PROFILE.fullmatch(profile) is None:
+        raise DocumentError("roadmap template_profile is invalid")
+    rendered = value["rendered_markdown"]
+    if not isinstance(rendered, str) or not rendered.strip():
+        raise DocumentError("roadmap rendered_markdown must not be empty")
+    if len(rendered) > MAX_DOCUMENT_CHARS:
+        raise DocumentError(f"roadmap content exceeds {MAX_DOCUMENT_CHARS} characters")
+    return {
+        "schema_version": INPUT_SCHEMA_VERSION,
+        "document_type": "roadmap",
+        "title": title.strip(),
+        "trigger": "human-request",
+        "output_path": output.as_posix(),
+        "mode": mode,
+        "expected_target_sha256": (
+            None if expected_hash is None else expected_hash.upper()
+        ),
+        "template_profile": profile,
+        "rendered_markdown": rendered.strip() + "\n",
+    }
+
+
 def parse_document_input(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise DocumentError("document input root must be an object")
+    if value.get("document_type") == "roadmap":
+        return _parse_roadmap_input(value)
     if value.get("document_type") == "project-context":
         return _parse_context_input(value)
     if "template_profile" in value or "rendered_markdown" in value:
@@ -808,7 +983,12 @@ def render_profile_document(
     template: dict[str, Any],
 ) -> bytes:
     text = str(document["rendered_markdown"])
-    for pattern in INTERNAL_REFERENCES:
+    forbidden_references = (
+        ROADMAP_FORBIDDEN_REFERENCES
+        if document["document_type"] == "roadmap"
+        else INTERNAL_REFERENCES
+    )
+    for pattern in forbidden_references:
         if pattern.search(text):
             raise DocumentError("rendered_markdown contains an internal or machine-local reference")
     generated_headings = tuple(re.findall(r"(?m)^(#{1,6}) ([^\r\n]+)\r?$", text))
@@ -841,6 +1021,66 @@ def render_profile_document(
     if len(data) > MAX_DOCUMENT_BYTES:
         raise DocumentError(f"generated document exceeds {MAX_DOCUMENT_BYTES} bytes")
     return data
+
+
+def render_roadmap_document(document: dict[str, Any]) -> bytes:
+    text = str(document["rendered_markdown"])
+    for pattern in ROADMAP_FORBIDDEN_REFERENCES:
+        if pattern.search(text):
+            raise DocumentError("roadmap contains a Sacha-internal reference")
+    title_match = re.match(r"\A# ([^\r\n]+)\r?\n", text)
+    if (
+        title_match is None
+        or title_match.group(1) != document["title"]
+        or len(re.findall(r"(?m)^# ", text)) != 1
+    ):
+        raise DocumentError("roadmap must have exactly one title matching title")
+    if "<!--" in text or "-->" in text or "{{" in text or "}}" in text:
+        raise DocumentError("roadmap contains comments or unresolved placeholders")
+    headings = re.findall(r"(?m)^## ([^\r\n]+)\r?$", text)
+    positions: list[int] = []
+    for heading in ROADMAP_REQUIRED_HEADINGS:
+        if headings.count(heading) != 1:
+            raise DocumentError(f"roadmap required heading is missing or duplicated: {heading}")
+        positions.append(headings.index(heading))
+    if positions != sorted(positions):
+        raise DocumentError("roadmap required headings are out of order")
+    heading_matches = list(re.finditer(r"(?m)^## ([^\r\n]+)\r?$", text))
+    for index, match in enumerate(heading_matches):
+        section_end = (
+            heading_matches[index + 1].start()
+            if index + 1 < len(heading_matches)
+            else len(text)
+        )
+        if not text[match.end() : section_end].strip():
+            raise DocumentError(
+                f"roadmap heading has no substantive content: {match.group(1)}"
+            )
+    data = text.encode("utf-8")
+    if len(data) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"roadmap exceeds {MAX_DOCUMENT_BYTES} bytes")
+    return data
+
+
+def parse_roadmap_document(data: bytes) -> dict[str, Any]:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise DocumentError("roadmap must be UTF-8") from exc
+    title_match = re.match(r"\A# ([^\r\n]+)\r?\n", text)
+    if title_match is None:
+        raise DocumentError("roadmap title is missing")
+    document = {
+        "title": title_match.group(1),
+        "rendered_markdown": text,
+    }
+    generated = render_roadmap_document(document)
+    if generated != data:
+        raise DocumentError("roadmap normalization changed generated bytes")
+    return {
+        "title": title_match.group(1),
+        "sections": re.findall(r"(?m)^## ([^\r\n]+)\r?$", text),
+    }
 
 
 def parse_generated_document(
@@ -992,6 +1232,71 @@ def _target_path(root: Path, output_path: str) -> Path:
     return target
 
 
+def _roadmap_target_path(root: Path, output_path: str) -> Path:
+    pure = _normalized_relative_path(output_path, "roadmap output_path")
+    if len(pure.parts) != 1 or ROADMAP_FILE_NAME.fullmatch(pure.name) is None:
+        raise DocumentError(
+            "roadmap output_path must be <YYYY-MM-DD>-<short-slug>-roadmap.md"
+        )
+    return root / pure.name
+
+
+def _roadmap_preimage(
+    target: Path,
+    *,
+    mode: str,
+    expected_sha256: str | None,
+) -> bytes | None:
+    if mode == "create":
+        if target.exists():
+            raise DocumentError("roadmap create target already exists")
+        return None
+    if not target.is_file():
+        raise DocumentError("roadmap update target is absent or not a file")
+    original = target.read_bytes()
+    actual = sha256_bytes(original)
+    if expected_sha256 != actual:
+        raise DocumentError("roadmap preimage SHA-256 changed")
+    return original
+
+
+def _commit_roadmap_update(
+    target: Path,
+    generated: bytes,
+    original: bytes | None,
+) -> None:
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=".sacha-roadmap-",
+            suffix=".tmp",
+            dir=target.parent,
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(generated)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if original is None:
+            os.link(temp_path, target)
+        else:
+            if not target.is_file() or target.read_bytes() != original:
+                raise DocumentError("roadmap changed before atomic replace")
+            os.replace(temp_path, target)
+            temp_path = None
+    except FileExistsError as exc:
+        raise DocumentError("roadmap appeared during atomic create") from exc
+    except OSError as exc:
+        raise DocumentError(f"atomic roadmap write failed: {type(exc).__name__}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def _context_preimage(target: Path, expected_sha256: str | None) -> bytes | None:
     if target.exists():
         if not target.is_file():
@@ -1060,6 +1365,11 @@ def _restore_context(target: Path, original: bytes | None, generated_hash: str) 
                 handle.write(original)
                 handle.flush()
                 os.fsync(handle.fileno())
+            if (
+                not target.is_file()
+                or sha256_bytes(target.read_bytes()) != generated_hash
+            ):
+                return False
             os.replace(restore_path, target)
             restore_path = None
         finally:
@@ -1101,6 +1411,95 @@ def generate_project_document(
         workflow_hash = sha256_bytes(workflow_data)
         documentation = parse_project_integration(workflow_data)
         document = parse_document_input(document_input)
+        if document["document_type"] == "roadmap":
+            if write and not per_write_confirmed:
+                raise DocumentError("roadmap write requires explicit per-write confirmation")
+            root = _resolve_roadmap_root(project, documentation)
+            target = _roadmap_target_path(root, document["output_path"])
+            original = _roadmap_preimage(
+                target,
+                mode=document["mode"],
+                expected_sha256=document["expected_target_sha256"],
+            )
+            document_template = _resolve_profile_template(
+                project,
+                documentation,
+                document_type="roadmap",
+                profile=document["template_profile"],
+            )
+            generated = render_profile_document(document, document_template)
+            if generated != render_roadmap_document(document):
+                raise DocumentError("roadmap profile rendering changed Roadmap semantics")
+            parsed = parse_roadmap_document(generated)
+            generated_hash = sha256_bytes(generated)
+            original_hash = None if original is None else sha256_bytes(original)
+            result.update(
+                status="ready",
+                transaction="dry_run",
+                document_type="roadmap",
+                target=str(target),
+                sha256=generated_hash,
+                preimage_sha256=original_hash,
+                mode=document["mode"],
+                parsed=parsed,
+                template={
+                    key: document_template[key]
+                    for key in (
+                        "source",
+                        "profile",
+                        "version",
+                        "path_kind",
+                        "path",
+                    )
+                },
+            )
+            result["template"]["required_topics"] = list(
+                document_template["required_topics"]
+            )
+            if not write:
+                return result
+            write_started = True
+            if sha256_bytes(workflow.read_bytes()) != workflow_hash:
+                raise DocumentError("Project Integration changed after validation")
+            current_root = _resolve_roadmap_root(project, documentation)
+            current_target = _roadmap_target_path(
+                current_root,
+                document["output_path"],
+            )
+            current = _roadmap_preimage(
+                current_target,
+                mode=document["mode"],
+                expected_sha256=document["expected_target_sha256"],
+            )
+            if current != original:
+                raise DocumentError("roadmap changed after validation")
+            current_template = _resolve_profile_template(
+                project,
+                documentation,
+                document_type="roadmap",
+                profile=document["template_profile"],
+            )
+            if current_template["sha256"] != document_template["sha256"]:
+                raise DocumentError("roadmap template changed after validation")
+            if current == generated:
+                result.update(status="ok", transaction="no_changes")
+                return result
+            _commit_roadmap_update(current_target, generated, current)
+            try:
+                written = current_target.read_bytes()
+                if sha256_bytes(written) != generated_hash:
+                    raise DocumentError("post-write roadmap SHA-256 validation failed")
+                parse_roadmap_document(written)
+            except (OSError, DocumentError) as exc:
+                restored = _restore_context(current_target, current, generated_hash)
+                result.update(
+                    status="failed",
+                    transaction="rolled_back" if restored else "partial_write",
+                )
+                result["conflicts"].append(str(exc))
+                return result
+            result.update(status="ok", transaction="committed")
+            return result
         _authorize(
             documentation,
             document,

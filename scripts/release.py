@@ -34,6 +34,9 @@ DEPLOYMENT_MANIFESTS = {
     "plugins/sacha-orchestra/.codex-plugin/plugin.json",
     "plugins/sacha-orchestra/.cursor-plugin/plugin.json",
 }
+PRODUCTION_TESTED_MARKDOWN = {
+    "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
+}
 
 
 class ReleaseError(RuntimeError):
@@ -157,9 +160,13 @@ def changed_skill_metadata_roots(
         relative = path[len(prefix) :]
         name, child = relative.split("/", 1)
         before, after = deltas[path]
-        if child == "SKILL.md" and frontmatter(before) != frontmatter(after):
+        if (
+            child == "SKILL.md"
+            and after is not None
+            and frontmatter(before) != frontmatter(after)
+        ):
             names.add(name)
-        elif child == "agents/openai.yaml":
+        elif child == "agents/openai.yaml" and after is not None:
             names.add(name)
     return [plugin / "skills" / name for name in sorted(names)]
 
@@ -180,9 +187,21 @@ def requires_plugin_validation(
 def narrow_test_modules(staged: list[str]) -> list[str]:
     mappings = (
         (("scripts/release.py", "tests/test_release.py", "tests/validate_release_coherence.py"), "tests.test_release"),
-        (("plugins/sacha-orchestra/skills/setup-project/scripts/", "tests/test_setup_project.py"), "tests.test_setup_project"),
-        (("plugins/sacha-orchestra/skills/document-project/scripts/", "tests/test_document_project.py"), "tests.test_document_project"),
-        (("plugins/sacha-orchestra/skills/document-project/assets/project-context.json",), "tests.test_document_project"),
+        ((
+            "plugins/sacha-orchestra/skills/setup-project/scripts/",
+            "tests/test_setup_project.py",
+            "tests/project_test_support.py",
+        ), "tests.test_setup_project"),
+        ((
+            "plugins/sacha-orchestra/skills/document-project/scripts/",
+            "tests/test_document_project.py",
+            "tests/project_test_support.py",
+        ), "tests.test_document_project"),
+        ((
+            "plugins/sacha-orchestra/skills/document-project/assets/project-context.json",
+            "plugins/sacha-orchestra/skills/document-project/assets/roadmap.json",
+            "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
+        ), "tests.test_document_project"),
         (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
@@ -190,7 +209,9 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (
             (
                 "tests/test_runtime_scenario_verifiers.py",
-                "tests/runtime-scenarios/packs/clarify-shared-context-loop/",
+                "tests/runtime-scenarios/packs/explore-shared-context-loop/",
+                "tests/runtime-scenarios/packs/planner-explore-manager-reviewer/",
+                "tests/runtime-scenarios/packs/roadmap-self-contained-document/",
                 "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
                 "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
             ),
@@ -201,7 +222,11 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
     machine_paths = [
         path
         for path in staged
-        if Path(path).suffix.lower() in {".py", ".ps1", ".mjs", ".json", ".toml", ".yaml", ".yml"}
+        if (
+            Path(path).suffix.lower()
+            in {".py", ".ps1", ".mjs", ".json", ".toml", ".yaml", ".yml"}
+            or path in PRODUCTION_TESTED_MARKDOWN
+        )
         and path not in DEPLOYMENT_MANIFESTS
         and not path.endswith("/agents/openai.yaml")
     ]

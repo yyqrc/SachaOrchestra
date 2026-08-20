@@ -151,6 +151,23 @@ class ReleaseScriptTests(unittest.TestCase):
         self.assertIn("quick_validate.py", rendered)
         self.assertNotIn("validate_plugin.py", rendered)
 
+    def test_deleted_skill_metadata_does_not_validate_absent_root(self) -> None:
+        path = "plugins/sacha-orchestra/skills/clarify/SKILL.md"
+        before = "---\nname: clarify\ndescription: old\n---\nbody\n"
+        with mock.patch.object(
+            release,
+            "creator_script",
+            side_effect=lambda _creator, script: Path(script),
+        ):
+            commands = release.validation_commands(
+                "0.1.0",
+                [path],
+                deltas={path: (before, None)},
+            )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertNotIn("quick_validate.py", rendered)
+        self.assertIn("validate_plugin.py", rendered)
+
     def test_manifest_change_runs_plugin_validator(self) -> None:
         path = "plugin.json"
         with mock.patch.object(
@@ -179,18 +196,39 @@ class ReleaseScriptTests(unittest.TestCase):
             release.validation_commands("0.1.0", [path], deltas={path: (None, "print('x')\n")})
 
     def test_production_schema_selects_its_direct_test(self) -> None:
-        path = "plugins/sacha-orchestra/skills/document-project/assets/project-context.json"
+        paths = [
+            "plugins/sacha-orchestra/skills/document-project/assets/project-context.json",
+            "plugins/sacha-orchestra/skills/document-project/assets/roadmap.json",
+            "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                commands = release.validation_commands(
+                    "0.1.0",
+                    [path],
+                    deltas={path: ("before\n", "after\n")},
+                )
+                rendered = "\n".join(" ".join(command) for command in commands)
+                self.assertIn("tests.test_document_project", rendered)
+
+    def test_shared_project_test_support_selects_both_consumers(self) -> None:
+        path = "tests/project_test_support.py"
         commands = release.validation_commands(
-            "0.1.0", [path], deltas={path: ("{}\n", '{"schema":1}\n')}
+            "0.1.0",
+            [path],
+            deltas={path: ("before\n", "after\n")},
         )
         rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("tests.test_setup_project", rendered)
         self.assertIn("tests.test_document_project", rendered)
 
     def test_runtime_scenario_paths_select_direct_tests(self) -> None:
         paths = [
             "tests/test_code_mode_batch_asset.py",
             "tests/test_runtime_scenario_verifiers.py",
-            "tests/runtime-scenarios/packs/clarify-shared-context-loop/fixture/verify.py",
+            "tests/runtime-scenarios/packs/explore-shared-context-loop/fixture/verify.py",
+            "tests/runtime-scenarios/packs/planner-explore-manager-reviewer/fixture/verify.py",
+            "tests/runtime-scenarios/packs/roadmap-self-contained-document/fixture/verify.py",
             "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/fixture/probe.json",
             "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/fixture/verify.py",
         ]

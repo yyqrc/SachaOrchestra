@@ -6,14 +6,24 @@ import sys
 from pathlib import Path
 from unittest import mock
 
-from project_test_support import (
-    DOCUMENT_SCRIPT,
-    ProjectTestCase,
-    digest,
-    document_generator,
-    fill_bundled_template,
-    generator,
-)
+if __package__:
+    from .project_test_support import (
+        DOCUMENT_SCRIPT,
+        ProjectTestCase,
+        digest,
+        document_generator,
+        fill_bundled_template,
+        generator,
+    )
+else:
+    from project_test_support import (
+        DOCUMENT_SCRIPT,
+        ProjectTestCase,
+        digest,
+        document_generator,
+        fill_bundled_template,
+        generator,
+    )
 
 
 class DocumentProjectTests(ProjectTestCase):
@@ -114,6 +124,15 @@ class DocumentProjectTests(ProjectTestCase):
             "## 输入到运行时\n\n{管线}\n\n## 验证与维护\n\n{验证}\n",
             encoding="utf-8",
         )
+        roadmap_template = catalog / "roadmap-project-roadmap-v1.md"
+        roadmap_template.write_text(
+            "# {项目或目标} Roadmap\n\n## 目标与完成形态\n\n{目标}\n\n"
+            "## 当前状态\n\n{状态}\n\n## 路线原则\n\n{原则}\n\n"
+            "## 阶段路线\n\n{阶段}\n\n## Spec 映射\n\n{映射}\n\n"
+            "## 决策前沿\n\n{决定}\n\n## Unknown\n\n{未知}\n\n"
+            "## 排除范围\n\n{排除}\n\n## 主要项目位置与依据\n\n{依据}\n",
+            encoding="utf-8",
+        )
         profiles = [
             {
                 "id": "rendering-implementation-record-v1",
@@ -137,6 +156,18 @@ class DocumentProjectTests(ProjectTestCase):
                 "required_topics": ["用途与边界", "数据流", "验证边界"],
                 "optional_sections": ["导航", "历史"],
                 "template": pipeline.name,
+                "reference_samples": [],
+            },
+            {
+                "id": "project-roadmap-v1",
+                "document_type": "roadmap",
+                "primary_purpose": "plan",
+                "primary_question": "长期目标如何分阶段并映射到 Spec",
+                "choose_when": ["需要跨阶段路线"],
+                "avoid_when": ["只需要单个 Spec"],
+                "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+                "optional_sections": ["阅读导航", "修订记录"],
+                "template": roadmap_template.name,
                 "reference_samples": [],
             },
         ]
@@ -169,7 +200,10 @@ class DocumentProjectTests(ProjectTestCase):
             documentation_write_authorization="per-write-confirmation",
             documentation_template_catalog_path_kind="project-relative",
             documentation_template_catalog_path="docs/templates",
+            roadmap_root_kind="project-relative",
+            roadmap_root="docs/roadmap",
         )
+        (project / "docs" / "roadmap").mkdir()
         dry_run = generator.run_setup(config)
         approved_delta = dry_run["write_confirmation"]["planned_delta_sha256"]
         original_pipeline_before_setup = pipeline.read_text(encoding="utf-8")
@@ -251,6 +285,20 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual(
             ["用途与边界", "数据流", "验证边界"],
             system_ready["template"]["required_topics"],
+        )
+
+        roadmap_ready = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(template_profile="project-roadmap-v1"),
+            per_write_confirmed=True,
+        )
+        self.assertEqual("ready", roadmap_ready["status"])
+        self.assertEqual("project-catalog", roadmap_ready["template"]["source"])
+        self.assertEqual("project-roadmap-v1", roadmap_ready["template"]["profile"])
+        self.assertEqual(
+            list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+            roadmap_ready["template"]["required_topics"],
         )
 
         template_instruction = document_generator.generate_project_document(
@@ -594,6 +642,198 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual(2, repeated.returncode)
         self.assertEqual("refused", json.loads(repeated.stdout)["status"])
         self.assertEqual(original, target.read_bytes())
+
+    def test_roadmap_create_update_and_preimage_are_independent_of_documentation_root(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("roadmap-document")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+
+        dry_run = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=document,
+        )
+        self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
+        self.assertEqual(str(target), dry_run["target"])
+        self.assertFalse(target.exists())
+
+        unconfirmed = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=document,
+            write=True,
+        )
+        self.assertEqual("refused", unconfirmed["status"])
+        self.assertIn("per-write confirmation", unconfirmed["conflicts"][0])
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=document,
+            write=True,
+            per_write_confirmed=True,
+        )
+        self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
+        parsed = document_generator.parse_roadmap_document(target.read_bytes())
+        self.assertEqual("Depth Fetch 项目路线图", parsed["title"])
+        original_hash = digest(target)
+
+        updated_markdown = document["rendered_markdown"].replace(
+            "尚未形成实施 Spec",
+            "已经形成首个候选 Spec",
+        )
+        update = self.roadmap_input(
+            mode="update",
+            expected_target_sha256=original_hash,
+            rendered_markdown=updated_markdown,
+        )
+        updated = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=update,
+            write=True,
+            per_write_confirmed=True,
+        )
+        self.assertEqual(("ok", "committed"), (updated["status"], updated["transaction"]))
+        self.assertIn("已经形成首个候选 Spec", target.read_text(encoding="utf-8"))
+
+        stale = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=update,
+            write=True,
+            per_write_confirmed=True,
+        )
+        self.assertEqual("refused", stale["status"])
+        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
+
+    def test_roadmap_rejects_missing_root_invalid_path_and_internal_reference(self) -> None:
+        project = self.root / "roadmap-missing-root"
+        project.mkdir()
+        self.confirmed_setup(self.config(project, manage_agents=False))
+        missing = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(),
+        )
+        self.assertEqual("refused", missing["status"])
+        self.assertIn("Roadmap root is missing", missing["conflicts"][0])
+
+        configured, _ = self.configured_roadmap_project("roadmap-invalid")
+        nested = document_generator.generate_project_document(
+            project_root=configured,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(output_path="nested/depth-fetch-roadmap.md"),
+        )
+        self.assertEqual("refused", nested["status"])
+        self.assertIn("<YYYY-MM-DD>-<short-slug>-roadmap.md", nested["conflicts"][0])
+
+        internal_input = self.roadmap_input()
+        internal_input["rendered_markdown"] = internal_input["rendered_markdown"].replace(
+            "当前仅完成项目事实调查",
+            "内部任务 SO-ROADMAP-2026-08-19 已完成项目事实调查",
+        )
+        internal = document_generator.generate_project_document(
+            project_root=configured,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=internal_input,
+        )
+        self.assertEqual("refused", internal["status"])
+        self.assertIn("internal or machine-local reference", internal["conflicts"][0])
+
+        workflow = configured / "docs" / "workflow-rule.md"
+        content = workflow.read_text(encoding="utf-8")
+        workflow.write_text(
+            content.replace(
+                "- Roadmap 文件：`<YYYY-MM-DD>-<short-slug>-roadmap.md`\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+        missing_pattern = document_generator.generate_project_document(
+            project_root=configured,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(),
+        )
+        self.assertEqual("refused", missing_pattern["status"])
+        self.assertIn("file pattern is missing", missing_pattern["conflicts"][0])
+
+    def test_roadmap_atomic_create_and_update_failures_preserve_preimage(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("roadmap-atomic")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        with mock.patch.object(
+            document_generator.os,
+            "link",
+            side_effect=PermissionError("fault injection"),
+        ):
+            failed_create = document_generator.generate_project_document(
+                project_root=project,
+                workflow_rule_path="docs/workflow-rule.md",
+                document_input=document,
+                write=True,
+                per_write_confirmed=True,
+            )
+        self.assertEqual(("failed", "no_write"), (failed_create["status"], failed_create["transaction"]))
+        self.assertFalse(target.exists())
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=document,
+            write=True,
+            per_write_confirmed=True,
+        )
+        self.assertEqual("committed", created["transaction"])
+        original = target.read_bytes()
+        updated_markdown = document["rendered_markdown"].replace(
+            "尚未形成实施 Spec",
+            "已经形成首个候选 Spec",
+        )
+        update = self.roadmap_input(
+            mode="update",
+            expected_target_sha256=digest(target),
+            rendered_markdown=updated_markdown,
+        )
+        with mock.patch.object(
+            document_generator.os,
+            "replace",
+            side_effect=PermissionError("fault injection"),
+        ):
+            failed_update = document_generator.generate_project_document(
+                project_root=project,
+                workflow_rule_path="docs/workflow-rule.md",
+                document_input=update,
+                write=True,
+                per_write_confirmed=True,
+            )
+        self.assertEqual(("failed", "no_write"), (failed_update["status"], failed_update["transaction"]))
+        self.assertEqual(original, target.read_bytes())
+
+        concurrent = b"# concurrent writer\n"
+        real_commit = document_generator._commit_roadmap_update
+
+        def commit_then_concurrent_write(target_path, generated, preimage):
+            real_commit(target_path, generated, preimage)
+            target_path.write_bytes(concurrent)
+
+        with mock.patch.object(
+            document_generator,
+            "_commit_roadmap_update",
+            side_effect=commit_then_concurrent_write,
+        ):
+            concurrent_update = document_generator.generate_project_document(
+                project_root=project,
+                workflow_rule_path="docs/workflow-rule.md",
+                document_input=update,
+                write=True,
+                per_write_confirmed=True,
+            )
+        self.assertEqual(
+            ("failed", "partial_write"),
+            (concurrent_update["status"], concurrent_update["transaction"]),
+        )
+        self.assertEqual(concurrent, target.read_bytes())
 
     def test_project_documentation_atomic_failure_is_not_reported_as_ready(self) -> None:
         project, document_root = self.configured_document_project(

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sacha Orchestra Roadmap（项目路线图）"
+  short_description: "生成或更新可独立理解的长期项目路线图与 Spec 映射"
+  default_prompt: "使用 $sacha-orchestra:roadmap 生成或更新这个目标的项目路线图。"
+
+policy:
+  allow_implicit_invocation: false

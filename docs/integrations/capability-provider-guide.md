@@ -57,18 +57,19 @@ Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确�
 
 ## Project Integration 同层配置
 
-Setup 分别确认四类项目值，不得互相推导：
+Setup 分别确认五类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
 | Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
-| Spec storage root | Setup/Human、Planner/Clarify 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
+| Spec storage root | Setup/Human、Planner/Explore 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
+| Roadmap storage root | Setup/Human、Roadmap/document-project 消费 | 明确提供并原样保存的 Roadmap root、portability、`<YYYY-MM-DD>-<short-slug>-roadmap.md` 文件模式 | Spec 分组决定、Roadmap 正文或实施授权 |
 | Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization；可选 template catalog path kind/path | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path，也不冻结 catalog manifest 或模板 hash |
 | Pi one-shot 兼容路由 | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | 当前 Adapter 执行、plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Spec base、Project Documentation policy、Project Documentation root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider 能力消费链。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开 capability 候选；不得选择 Spec base、Roadmap root、Project Documentation policy/root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider 能力消费链。五类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
-首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Project Documentation 另收独立 Project Documentation root 并原样保存，不追加目录；两项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
+首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Roadmap 另收独立 Roadmap root 并原样保存，例如 `G:\COD\iwiki\docs\roadmap`；Project Documentation 同样另收独立 root。三项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`，Roadmap path 为 Roadmap root 下的 `<YYYY-MM-DD>-<short-slug>-roadmap.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
 
 ## Role 消费
 
@@ -79,9 +80,9 @@ Human 接受 Sacha 且任务需要项目能力时，Role：
 3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据。
 4. Provider 返回领域结果与 evidence reference；最终路由和 verdict 仍由 Sacha 合同决定。
 
-Planner/Clarify 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 reference、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/path、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
+Planner/Explore 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 reference、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/path、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
 
-Provider 不拥有 Planner/Clarify 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 使用 Project Context path，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
+Provider 不拥有 Planner/Explore 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 使用 Project Context path，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
 
 无 Binding、无 mapping、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
 

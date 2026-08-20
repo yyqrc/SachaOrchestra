@@ -21,7 +21,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 2. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)执行 `--list-models`，按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选；使用 `--pi-model-binding <route>::<provider/model>` 保存 Human 选择，使用 `--clear-pi-model-bindings` 清空。
 3. 配置文档位置：
    - 首次 Spec storage root 默认 `docs/plan`。
-   - Human 分别提供 Spec base 与 Project Documentation root；Setup 派生 `<spec-base>/plan` 和 `<spec-base>/CONTEXT.md`，原样保存 Project Documentation root。
+   - Human 分别提供 Spec base、可选 Roadmap root 与 Project Documentation root；Setup 派生 `<spec-base>/plan` 和 `<spec-base>/CONTEXT.md`，原样保存 Roadmap root，并生成 `<YYYY-MM-DD>-<short-slug>-roadmap.md` 文件模式。
    - 外部 path 标记 `non-portable`；文件系统根无效。
 4. 项目可选绑定一个模板目录 root（template catalog root）。Setup 校验固定名 `profiles.json`、`manifest-ranked`/`tie-ask-Human`/`no-merge`/`no-ad-hoc` 选择合同、`generation_policy`，以及各 Profile 的 `required_topics`、`optional_sections`、类型、意图、template 的相对 path 和版本；Integration 只保存目录的 path kind/path。
 5. 读取受管块，按规范 Skill 标记的归属规则：保留适用项、刷新同源 asset 完整内容、合并新源。无来源旧段需要 Human 显式指定并核对 asset；旧 `SOURCE SHA-256` 行在本次确认刷新时删除。
@@ -38,6 +38,6 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 - 普通任务不调用；写入只来自本轮显式配置/刷新授权。标记外的 AGENTS 保持不变，写入原子且可恢复。
 - Provider 可选；无 Provider 时仍评估 Runtime 可见的项目 Skill，无映射时由 Role 使用项目规则和原生路线。
 - `workflow-rule.md` 只保存 Runtime 项目差异；状态文件只供 Setup 恢复。
-- Spec base、Project Documentation root 和 template catalog root 各自独立；Project Context path 由 Spec base 派生。
+- Spec base、Roadmap root、Project Documentation root 和 template catalog root 各自独立；Project Context path 由 Spec base 派生。
 - 模板目录的 Profile 选择和正文生成由 `document-project` 处理。
 - `project-rules` 按规范 Skill Owner 和 asset 完整内容合并；AGENTS 仅一个受管块，删除需要 Human 显式决定。

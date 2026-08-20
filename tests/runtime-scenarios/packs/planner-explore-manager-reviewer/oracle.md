@@ -1,4 +1,4 @@
-# 裁决标准：planner-clarify-manager-reviewer
+# 裁决标准：planner-explore-manager-reviewer
 
 ## 预期流程
 
@@ -10,7 +10,7 @@
 
 ## 允许弹性
 
-- Planner/Clarify 可以在同一 Agent 内完成判断，也可使用只读委派 Agent；必须保留 Human 决定点，不能预猜答案。
+- Planner/Explore 可以在同一 Agent 内完成判断，也可使用只读委派 Agent；必须保留 Human 决定点，不能预猜答案。
 - 发生首次派发时，独立评估者以当前 Adapter 为模型与参数 Owner，对照任务事实、主任务的路由结论和原始调用；三者一致为 `pass`，结论缺失或不一致为 `drift`，必要原始记录不可达为 `blocked`。
 - 原生父任务/session/depth 与子任务工具轨迹能证明直接父子关系和无后代时即构成单层派发证据；当前 Runtime 不提供必要机器记录时才使用首次等待前的实时 Agent 树。委派 Agent 返回协调请求时，由主任务决定是否新增委派 Agent。
 - Reviewer 若发现真实缺陷，可返回 Needs Fix/Needs Replan；修复后应重新独立复核。

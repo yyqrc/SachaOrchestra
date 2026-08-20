@@ -56,7 +56,7 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 
 ### 2.3 Codex Role 调用面
 
-主任务按第 3 节为 Planner、Reviewer、Executor、Clarify 研究和普通工作单元组装首次创建参数；Role 作为评估输入，协作界面只决定传输编码。Manager 在主任务内运行，不是委派 Agent。委派 Agent 满足条件时返回协调请求，不调用子代理传输。
+主任务按第 3 节为 Planner、Reviewer、Executor、Explore 研究和普通工作单元组装首次创建参数；Role 作为评估输入，协作界面只决定传输编码。Manager 在主任务内运行，不是委派 Agent。委派 Agent 满足条件时返回协调请求，不调用子代理传输。
 
 ### 2.4 Human 手动调用的 Feedback 转移
 
@@ -132,9 +132,9 @@ Adapter 读取 Coordination Contract 产生的路由要求，归纳四项 Runtim
 4. `luna_max`：`bounded + nontrivial`。
 5. `luna_xhigh`：`bounded + light`。
 
-正式独立 Reviewer 的 Baseline、裁决问题、原始证据、停止条件、独立性或 `critical/standard` 无法可靠判定时暂停；其他工作单元无法可靠判定 `broad/bounded`、`bounded` 输入不自包含或 Scope 不明确时暂停。Planner、Reviewer、Executor、Clarify 研究和普通委派 Agent 共用这四档自动选择。
+正式独立 Reviewer 的 Baseline、裁决问题、原始证据、停止条件、独立性或 `critical/standard` 无法可靠判定时暂停；其他工作单元无法可靠判定 `broad/bounded`、`bounded` 输入不自包含或 Scope 不明确时暂停。Planner、Reviewer、Executor、Explore 研究和普通委派 Agent 共用这四档自动选择。
 
-Clarify 的单个研究委派 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用节点。
+Explore 的单个研究委派 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用节点。
 
 ### C. 按协作界面映射 `spawn_agent`
 

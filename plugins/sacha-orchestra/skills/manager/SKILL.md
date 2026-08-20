@@ -1,6 +1,6 @@
 ---
 name: manager
-description: 主任务已接受 Sacha 或显式 Clarify 且 Manager Gate 打开时使用；其他上下文、直接调用或 Gate 关闭时不接管。
+description: 主任务已接受 Sacha 或显式 Explore 且 Manager Gate 打开时使用；其他上下文、直接调用或 Gate 关闭时不接管。
 ---
 
 # Manager（协调）
@@ -11,18 +11,18 @@ description: 主任务已接受 Sacha 或显式 Clarify 且 Manager Gate 打开�
 
 ## 输入与首查
 
-1. 按[术语合同](../../core/terminology-contract.md)核对当前上下文是主任务，并已有 [Intake Contract](../../core/intake-contract.md) 的 Sacha 接受状态或显式 Clarify 窄授权，再按 [Workflow Contract](../../core/workflow-contract.md) 核对 Manager Gate。
+1. 按[术语合同](../../core/terminology-contract.md)核对当前上下文是主任务，并已有 [Intake Contract](../../core/intake-contract.md) 的 Sacha 接受状态或显式 Explore 窄授权，再按 [Workflow Contract](../../core/workflow-contract.md) 核对 Manager Gate。
 2. 用户直接调用 Manager 时，把当前目标返回 `using-sacha` 或当前流程节点判断。委派 Agent 调用时返回协调请求；其他非主任务上下文停止并返回入口缺口。Manager Gate 关闭时返回调用节点。
 
 ## 动作顺序
 
 1. 调用 Coordination Contract 的评估、拆分、依赖、就绪判定、路由要求、单层派发、等待、取消、归并、去重和返回算法。
-2. 同一普通任务、迁移目标任务与 Clarify 共用同一算法；当前波次存在需要派发的已就绪单元时，Manager 必须按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得逐单元完整首次创建参数并原样派发；未取得时按 Coordination Contract 返回偏差。
+2. 同一普通任务、迁移目标任务与 Explore 共用同一算法；当前波次存在需要派发的已就绪单元时，Manager 必须按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得逐单元完整首次创建参数并原样派发；未取得时按 Coordination Contract 返回偏差。
 
 ## 输出
 
 - 向调用节点返回串行结论、派发状态、聚合事实、`delta`、阻塞/风险和 reference。
-- 实现返修返回原 Executor，研究结果返回原 Clarify；活跃 Planner 继续核对 Spec 就绪条件。
+- 实现返修返回原 Executor，研究结果返回原 Explore；活跃 Planner 继续核对 Spec 就绪条件。
 
 ## 停止与禁止边界
 

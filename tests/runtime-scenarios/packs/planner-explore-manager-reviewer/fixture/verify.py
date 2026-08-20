@@ -21,4 +21,4 @@ for filename, timeout in expected.items():
 if errors:
     raise SystemExit("\n".join(errors))
 
-print("planner_clarify_manager_reviewer_status=pass")
+print("planner_explore_manager_reviewer_status=pass")

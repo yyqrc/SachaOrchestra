@@ -24,7 +24,7 @@ def main() -> int:
         print(f"ERROR: missing scenario files: {missing}")
     if unexpected or missing:
         return 1
-    print("OK: Clarify scenario root remained read-only")
+    print("OK: Explore scenario root remained read-only")
     return 0
 
 

@@ -215,6 +215,55 @@ class ProjectTestCase(unittest.TestCase):
         value.update(overrides)
         return value
 
+    @staticmethod
+    def roadmap_input(**overrides):
+        title = "Depth Fetch 项目路线图"
+        bodies = {
+            "目标与完成形态": "建立具备能力检测、回退和运行验证路径的 Depth Fetch 支持。",
+            "当前状态": "当前仅完成项目事实调查，尚未形成实施 Spec。",
+            "路线原则": "先确认平台能力和参考实现，再冻结当前工程方案。",
+            "阶段路线": "### 阶段 1：能力边界\n\n明确 API、硬件与驱动限制。",
+            "Spec 映射": "阶段 1 与阶段 2 可在边界稳定后归入同一候选 Spec。",
+            "决策前沿": "确认不支持设备的回退产品边界。",
+            "Unknown": "部分目标 GPU 的驱动行为仍待实测。",
+            "排除范围": "本 Roadmap 不执行引擎实现或设备发布。",
+            "主要项目位置与依据": "参考 `docs/plan/depth-fetch/spec.md` 与当前渲染源码。",
+        }
+        rendered = f"# {title}\n\n" + "\n\n".join(
+            f"## {heading}\n\n{body}" for heading, body in bodies.items()
+        ) + "\n"
+        value = {
+            "schema_version": "1",
+            "document_type": "roadmap",
+            "title": title,
+            "trigger": "human-request",
+            "output_path": "2026-08-19-depth-fetch-roadmap.md",
+            "mode": "create",
+            "expected_target_sha256": None,
+            "template_profile": "canonical-roadmap-v1",
+            "rendered_markdown": rendered,
+        }
+        value.update(overrides)
+        return value
+
+    def configured_roadmap_project(
+        self,
+        name: str,
+    ) -> tuple[Path, Path]:
+        project = self.root / name
+        project.mkdir()
+        roadmap_root = project / "docs" / "roadmap"
+        roadmap_root.mkdir(parents=True)
+        self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                roadmap_root_kind="project-relative",
+                roadmap_root="docs/roadmap",
+            )
+        )
+        return project, roadmap_root
+
     def configured_document_project(
         self,
         name: str,

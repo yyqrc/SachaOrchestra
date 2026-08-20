@@ -4,7 +4,7 @@
 
 ## 1. 范围
 
-本文是 Role、Gate、节点进入/退出条件和 Human 路由的唯一 Runtime Owner；显式 Clarify 保持窄授权。提炼术语见[术语合同](terminology-contract.md)，入口见 [Intake Contract](intake-contract.md)，Human 可见交互见 [Human Interaction Contract](human-interaction-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
+本文是 Role、Gate、节点进入/退出条件、主流程外 Roadmap 跨 Skill 路由和 Human 路由的唯一 Runtime Owner；显式 Explore 保持窄授权。提炼术语见[术语合同](terminology-contract.md)，入口见 [Intake Contract](intake-contract.md)，Human 可见交互见 [Human Interaction Contract](human-interaction-contract.md)，Review 见 [Assurance Contract](assurance-contract.md)。
 分解、就绪判定、调度、取消、归并、返回与迁移 Owner 转移见 [Coordination Contract](coordination-contract.md)，持久记录见 [Artifact Protocol](artifact-protocol.md)。
 
 Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Project Integration/Domain Skill，Role 流程归 Skill。只在当前消费者出现时加载对应合同，不预加载可能出现的下游面。
@@ -19,7 +19,8 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
 - 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
 - 主任务发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；可在候选尚未完整拆分时调用。委派 Agent 发现相同事实时向主任务返回协调请求。单一职责内工作仍可由主任务完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
-- 显式 Clarify 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Clarify 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
+- 显式 Explore 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Explore 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
+- 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。
 - 三个 Gate 全关且无需恢复时，Executor 在当前上下文完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 
 ### 2.1 能力加载
@@ -51,7 +52,7 @@ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. 生命周期与 Human 路由
 
-通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Clarify、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Clarify，不得冻结或持久化 Spec，全部收口后才可形成 Spec。进入 closeout 后按本合同第 5 节流转；显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
+通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Explore、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Explore，不得冻结或持久化 Spec，全部收口后才可形成 Spec。显式 Roadmap 使用第 2 节的独立路线，不进入该生产生命周期。进入 closeout 后按本合同第 5 节流转；显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
 
 本节沿用术语合同定义的普通批准、明确迁移批准、可靠迁移信号和执行任务迁移前提；本合同只规定这些判断产生的流程路由。
 
@@ -69,9 +70,9 @@ Human → 取消或不再继续 → 主任务结束。
 
 目标任务唯一确定并取得最小 Handoff 后，任务迁移才把工作流 Owner、剩余生命周期与派发权交给目标任务；来源主任务交付目标任务 reference 后结束，不等待返回。目标任务成为主任务并继续同一生命周期与独立 Review，迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
 
-Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Clarify、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
+Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Explore、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
 
-动态路由：出现 Planner Gate 新事实 → Planner；Planner 冻结条件不足 → Clarify；Clarify 返回后仍不足 → 继续 Clarify，足够后才冻结 Spec；新增高影响授权 → Human；Reviewer 路由按 Assurance；委派/返回失败按 Coordination。
+动态路由：出现 Planner Gate 新事实 → Planner；Planner 冻结条件不足 → Explore；Explore 返回后仍不足 → 继续 Explore，足够后才冻结 Spec；Roadmap 事实不足 → Explore → Roadmap，正文就绪 → document-project → Roadmap 结束；新增高影响授权 → Human；Reviewer 路由按 Assurance；委派/返回失败按 Coordination。
 Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
 
 主任务直接推进 Role 完成结果、已批准方案向 Executor 的转换、同 Scope 返修/补证据/复验、唯一 Owner 路由和已授权收尾。Direct Scope 由用户目标与明确约束界定；只有 Human 或 Spec 明确指定时，预计文件列表才成为硬性允许列表。
@@ -86,7 +87,7 @@ closeout 当前动作为组合动作时，主任务先核对两个动作的目�
 
 ## 6. 项目文档
 
-Human 显式调用 document-project 时，当前文档请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选；该调用只处理当前文档目标，写入继续服从已确认的 Project Integration 与 Human 授权。
+Human 显式调用 document-project 时，当前文档请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选；Roadmap 路由 document-project 时，当前显式 Roadmap 请求和已形成正文构成该文档输入。两类调用都只处理当前文档目标，写入继续服从已确认的 Project Integration 与 Human 授权。
 
 完成实现及所需验证/Review 后，主任务只用当前任务最终事实检查一次项目文档候选。候选必须有持久产品变更（delta），并至少满足一项：已批准 Spec 的实质方案已经落地；形成对后续消费者有用的新/改能力、架构、数据、运维或恢复知识；存在经最终实现和证据证实、且有跨任务消费者的项目上下文（Project Context）候选。
 

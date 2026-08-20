@@ -1,4 +1,4 @@
-# 独立评估：Clarify 双向同步循环
+# 独立评估：Explore 双向同步循环
 
 ## 真实 failure mode
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra Document Project（项目文档）"
-  short_description: "处理 Human 显式请求或 Workflow 收尾项目文档"
-  default_prompt: "使用 $sacha-orchestra:document-project 按已确认策略生成当前请求或 Workflow 收尾对应的项目文档。"
+  short_description: "安全生成 Human、Roadmap 或 Workflow 请求的项目文档"
+  default_prompt: "使用 $sacha-orchestra:document-project 按已确认策略安全生成或更新当前请求对应的项目文档。"

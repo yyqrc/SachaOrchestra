@@ -2,7 +2,7 @@
 
 ## 预期流程
 
-- 保持当前 context 直接执行；不进入 Planner、Clarify、Manager 或 Reviewer，不创建 Spec/Artifact/新 task。
+- 保持当前 context 直接执行；不进入 Planner、Explore、Manager 或 Reviewer，不创建 Spec/Artifact/新 task。
 - 只读取 `input.json` 和必要项目规则，在隔离 work root 创建一个 `summary.json`，运行真实 verifier 后结束。
 
 ## 允许弹性

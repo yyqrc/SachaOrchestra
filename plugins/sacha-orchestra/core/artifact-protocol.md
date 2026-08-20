@@ -4,7 +4,7 @@
 
 ## 1. 范围与权威
 
-本文是 Artifact 生成条件、最小内容、权威关系、Spec 完成和恢复规则的唯一权威。Artifact、Spec Artifact、Spec 完成、澄清决定记录、Execution Report、Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)；入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
+本文是 Artifact 生成条件、最小内容、权威关系、Spec 完成和恢复规则的唯一权威。Artifact、Spec Artifact、Spec 完成、探索决定记录、Execution Report、Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)；入口/Role/Gate 由 [Intake Contract](intake-contract.md) 与 [Workflow Contract](workflow-contract.md) 定义，Human 可见交互由 [Human Interaction Contract](human-interaction-contract.md) 定义。
 Review 与返回分别由 [Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md) 定义。
 
 保存路径由 Project Integration/Adapter 决定，不改变语义、字段或权威。真实文件、外部状态、文件差异（diff）和命令原始输出仍是实现与验证事实；Artifact 只索引或承载消费者需要的信息。
@@ -16,7 +16,7 @@ Review 与返回分别由 [Assurance Contract](assurance-contract.md)、[Coordin
 | Artifact | 生成条件 | 最小内容 |
 | --- | --- | --- |
 | 最终任务记录 | 同一上下文简单完成 | 修改、验证、失败/未验证与剩余风险 |
-| 澄清决定记录 | Spec 形成前已有确定决定供规划消费，或多轮/分支/压缩恢复需要保留澄清锚点 | 已确认决定、依据/约束、未决项与 reference；恢复确需时增加原始问题、当前关注点、暂存思路，以及尚未探索/解决的实质分支、依赖与关键排除依据；疑似跨任务术语按需记录定义、排除含义、证据、边界、任务外消费者和 `Unknown` |
+| 探索决定记录 | Spec 形成前已有确定决定供规划消费，或多轮/分支/压缩恢复需要保留探索锚点 | 已确认决定、依据/约束、未决项与 reference；恢复确需时增加原始问题、当前关注点、暂存思路，以及尚未探索/解决的实质分支、依赖与关键排除依据；疑似跨任务术语按需记录定义、排除含义、证据、边界、任务外消费者和 `Unknown` |
 | Spec Artifact | 持久 Scope、批准方案或跨上下文恢复 | 目标项目实施规格；内容格式见第 2.1 节 |
 | Execution Report | 续跑、证据索引或正式 Review | 实际变更（`delta`）、验证、偏差、风险、reference、恢复入口 |
 | Review Artifact | 正式 Review | 问题、裁决结果（Outcome）、证据缺口、下一路由 |
@@ -59,7 +59,7 @@ Planner → 遇到工作流角色、路由、协调、验证责任分类、迁�
 
 ### 2.2 生成与消费
 
-Artifact 只在存在消费者时创建。澄清决定记录优先使用项目既有载体；无约定且存在规划或恢复消费者时使用任务目录中的 `decisions.md`。它只保存已确认决定、未决项、必要 reference 和压缩后必须重建的最小恢复边界，旧项确认或失效后原位压缩。
+Artifact 只在存在消费者时创建。探索决定记录优先使用项目既有载体；无约定且存在规划或恢复消费者时使用任务目录中的 `decisions.md`。它只保存已确认决定、未决项、必要 reference 和压缩后必须重建的最小恢复边界，旧项确认或失效后原位压缩。
 
 Planner 读取决定记录形成 Spec 并沿用已确认术语。项目上下文候选在收尾时基于最终实现/Review 证据复核，并在文档授权覆盖后进入项目 `CONTEXT.md`。
 

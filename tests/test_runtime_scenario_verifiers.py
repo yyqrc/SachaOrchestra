@@ -119,8 +119,8 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
-    def run_clarify_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
-        pack = PACKS / "clarify-shared-context-loop"
+    def run_explore_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
+        pack = PACKS / "explore-shared-context-loop"
         fixture = pack / "fixture"
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
@@ -139,6 +139,60 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_roadmap_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
+        pack = PACKS / "roadmap-self-contained-document"
+        fixture = pack / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            shutil.copytree(fixture, target, dirs_exist_ok=True)
+            shutil.copy2(pack / "task.md", target / "instructions.md")
+            shutil.copy2(ROOT / "tests" / "runtime-scenarios" / "assets" / "workspace-AGENTS.md", target / "AGENTS.md")
+            roadmap = target / "docs" / "roadmap" / "2026-08-19-depth-fetch-roadmap.md"
+            roadmap.write_text("# Roadmap fixture\n", encoding="utf-8")
+            if with_unexpected_file:
+                (target / "unexpected.md").write_text("unexpected\n", encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
+    def run_planner_verifier(self, *, corrupted: bool = False) -> subprocess.CompletedProcess[str]:
+        fixture = PACKS / "planner-explore-manager-reviewer" / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            for source in fixture.iterdir():
+                shutil.copy2(source, target / source.name)
+            for name in ("service-alpha.json", "service-beta.json"):
+                path = target / name
+                data = json.loads(path.read_text(encoding="utf-8"))
+                timeout = data.pop("timeout_ms", data.get("request_timeout_ms"))
+                data["schema_version"] = 2
+                data["request_timeout_ms"] = timeout
+                path.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            if corrupted:
+                path = target / "service-alpha.json"
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["request_timeout_ms"] = 1
+                path.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def test_bundled_verifiers_accept_valid_results(self) -> None:
         readonly = self.run_verifier("codex-code-mode-readonly-batch", readonly_result())
         self.assertEqual(readonly.returncode, 0, readonly.stdout + readonly.stderr)
@@ -148,9 +202,17 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         self.assertEqual(v1.returncode, 0, v1.stdout + v1.stderr)
         self.assertIn("OK: canonical Code Mode batch result verified", v1.stdout)
 
-        clarify = self.run_clarify_verifier()
-        self.assertEqual(clarify.returncode, 0, clarify.stdout + clarify.stderr)
-        self.assertIn("OK: Clarify scenario root remained read-only", clarify.stdout)
+        explore = self.run_explore_verifier()
+        self.assertEqual(explore.returncode, 0, explore.stdout + explore.stderr)
+        self.assertIn("OK: Explore scenario root remained read-only", explore.stdout)
+
+        roadmap = self.run_roadmap_verifier()
+        self.assertEqual(roadmap.returncode, 0, roadmap.stdout + roadmap.stderr)
+        self.assertIn("OK: Roadmap created at", roadmap.stdout)
+
+        planner = self.run_planner_verifier()
+        self.assertEqual(planner.returncode, 0, planner.stdout + planner.stderr)
+        self.assertIn("planner_explore_manager_reviewer_status=pass", planner.stdout)
 
     def test_bundled_verifiers_reject_corrupted_results(self) -> None:
         invalid_readonly = readonly_result()
@@ -165,9 +227,17 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         self.assertEqual(v1.returncode, 1)
         self.assertIn("beta summary mismatch", v1.stdout)
 
-        clarify = self.run_clarify_verifier(with_unexpected_file=True)
-        self.assertEqual(clarify.returncode, 1)
-        self.assertIn("unexpected files", clarify.stdout)
+        explore = self.run_explore_verifier(with_unexpected_file=True)
+        self.assertEqual(explore.returncode, 1)
+        self.assertIn("unexpected files", explore.stdout)
+
+        roadmap = self.run_roadmap_verifier(with_unexpected_file=True)
+        self.assertEqual(roadmap.returncode, 1)
+        self.assertIn("unexpected files", roadmap.stdout)
+
+        planner = self.run_planner_verifier(corrupted=True)
+        self.assertEqual(planner.returncode, 1)
+        self.assertIn("request_timeout_ms must remain 30000", planner.stderr)
 
 
 if __name__ == "__main__":

@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.11.14`。
+- 当前 release：`0.12.0`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：删除 `closeout` 的重复 Python 编辑计划入口及其专用单元测试；`closeout` 直接按 Artifact Protocol 使用 Runtime 的并发检查局部编辑完成唯一 Spec 状态行，并同步源码场景裁决标准。
-- 当前 breaking boundary：保留 `closeout` 支持入口、Human 写入授权、Spec 原位完成条件、`no_op`、失败关闭和 `document-project` 独立 Owner；不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权。
-- 当前成熟度：`0.11.14` 的 90 项单元测试、插件结构校验与精确变更检查已通过；删除脚本后的自然语言 source-scenario、安装后 fresh Runtime 尚未重新验证。
+- 当前 release Scope：把显式 `clarify` 支持入口无兼容改名为 `explore` 并补强陌生领域证据链；新增主流程外显式 `roadmap`，按需复用 Explore，把自包含长期阶段、依赖和 Spec 映射交给 document-project 写入 Project Integration 明确配置的 Roadmap root；setup-project、专用 Roadmap Profile/template、文档生成器和 Runtime 场景同步文件模式、项目文风与安全写入路径。
+- 当前 breaking boundary：删除 `$sacha-orchestra:clarify` 及其目录/场景身份，不提供别名或兼容包装；新增 Roadmap Skill、共享术语和独立存储配置，但不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权，不让 Roadmap 接受 Sacha、替代 Spec 或执行阶段。
+- 当前成熟度：`0.12.0` 已通过同一 staged tree 的 candidate coherence、目标 Skill 与完整 plugin 结构校验、最窄测试，以及独立 Review `Accepted with follow-up`；Explore 与 Roadmap source-scenario 均通过独立评估，Roadmap 场景实际选择 `document_type=roadmap` 的项目 Profile，覆盖配置 root/文件模式、按需 Explore、脱离 Sacha 的自包含阶段/Spec 映射和 document-project 原子创建。安装后 fresh discovery/Runtime 未验证。
 
 ## `1.0.0` 与后续方向
 

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "selection": {
+    "strategy": "manifest-ranked",
+    "read_templates_before_selection": false,
+    "tie_policy": "ask-human",
+    "allow_profile_merge": false,
+    "allow_ad_hoc_profile": false
+  },
+  "generation_policy": {
+    "minimum_section_count": 0,
+    "minimum_word_count": 0,
+    "output_gate": [
+      "不得残留占位符、模板说明或空章节",
+      "最终 Roadmap 必须脱离 Sacha 与原对话独立成立"
+    ]
+  },
+  "profiles": [
+    {
+      "id": "project-roadmap-v1",
+      "document_type": "roadmap",
+      "primary_purpose": "plan",
+      "primary_question": "长期目标如何分阶段并映射到 Spec",
+      "choose_when": ["需要跨阶段项目路线"],
+      "avoid_when": ["只需要单个可执行 Spec"],
+      "required_topics": ["目标与完成形态", "当前状态", "路线原则", "阶段路线", "Spec 映射", "决策前沿", "Unknown", "排除范围", "主要项目位置与依据"],
+      "optional_sections": ["阅读导航", "修订记录"],
+      "template": "roadmap-project-roadmap-v1.md"
+    }
+  ]
+}

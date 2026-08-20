@@ -47,12 +47,14 @@ CHANGE_ARCHIVE_TEMPLATE_PATH_KINDS = {"project-relative", "external-absolute"}
 CHANGE_ARCHIVE_TEMPLATE_PROFILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 CHANGE_ARCHIVE_TEMPLATE_VERSION = re.compile(r"^[1-9][0-9]*$")
 MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES = 64 * 1024
-DOCUMENT_TEMPLATE_TYPES = {"change-archive", "system-guide"}
+DOCUMENT_TEMPLATE_TYPES = {"change-archive", "system-guide", "roadmap"}
 SPEC_BASE_KINDS = {"project-relative", "external-absolute"}
+ROADMAP_ROOT_KINDS = {"project-relative", "external-absolute"}
 DEFAULT_SPEC_BASE_KIND = "project-relative"
 DEFAULT_SPEC_BASE = "docs"
 SPEC_DIRECTORY_PATTERN = "<YYYY-MM-DD>-<short-slug>/"
 SPEC_FILE_NAME = "spec.md"
+ROADMAP_FILE_PATTERN = "<YYYY-MM-DD>-<short-slug>-roadmap.md"
 DECISIONS_FILE_NAME = "decisions.md"
 PROJECT_CONTEXT_FILE_NAME = "CONTEXT.md"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
@@ -78,6 +80,8 @@ class SetupConfig:
     workflow_rule_path: str = "docs/workflow-rule.md"
     spec_base_kind: str | None = None
     spec_base: str | None = None
+    roadmap_root_kind: str | None = None
+    roadmap_root: str | None = None
     human_guide: str | None = None
     documentation_policy: str | None = None
     documentation_root_kind: str | None = None
@@ -562,6 +566,32 @@ def _normalize_spec_storage(
         **location,
         "directory_pattern": SPEC_DIRECTORY_PATTERN,
         "file_name": SPEC_FILE_NAME,
+    }, warnings
+
+
+def _normalize_roadmap_storage(
+    root: Path,
+    *,
+    root_kind: str | None,
+    roadmap_root: str | None,
+) -> tuple[dict[str, str], list[dict[str, str]]]:
+    if root_kind is None and roadmap_root is None:
+        return {}, []
+    if root_kind not in ROADMAP_ROOT_KINDS:
+        raise SetupError(
+            "roadmap_root_kind must be project-relative or external-absolute"
+        )
+    if roadmap_root is None:
+        raise SetupError("roadmap_root is required")
+    location, warnings = _normalize_storage_root(
+        root,
+        root_kind=root_kind,
+        configured_root=roadmap_root,
+        label="roadmap_root",
+    )
+    return {
+        **location,
+        "file_pattern": ROADMAP_FILE_PATTERN,
     }, warnings
 
 
@@ -1296,6 +1326,22 @@ def _parse_existing_project_values(
             "directory_pattern": SPEC_DIRECTORY_PATTERN,
             "file_name": SPEC_FILE_NAME,
         }
+    roadmap_storage: dict[str, str | None] = {}
+    compact_roadmap = re.search(r"(?m)^- Roadmap：`([^`]+)`\r?$", text)
+    compact_roadmap_file = re.search(r"(?m)^- Roadmap 文件：`([^`]+)`\r?$", text)
+    if compact_roadmap:
+        if compact_roadmap_file and compact_roadmap_file.group(1) != ROADMAP_FILE_PATTERN:
+            raise SetupError("managed Roadmap file pattern is unsupported")
+        root = compact_roadmap.group(1)
+        external = _contains_machine_absolute_path(root)
+        roadmap_storage = {
+            "root_kind": "external-absolute" if external else "project-relative",
+            "root": root,
+            "portability": "non-portable" if external else "portable",
+            "file_pattern": ROADMAP_FILE_PATTERN,
+        }
+    elif compact_roadmap_file:
+        raise SetupError("managed Roadmap file pattern exists without a Roadmap root")
     return {
         "schema_version": schema_version,
         "agents_path": backtick_value("Project AGENTS"),
@@ -1309,6 +1355,7 @@ def _parse_existing_project_values(
         "pi_model_bindings": tuple(pi_model_bindings),
         "documentation": documentation,
         "spec_storage": spec_storage,
+        "roadmap_storage": roadmap_storage,
     }
 
 
@@ -1687,6 +1734,7 @@ def render_workflow_rule(
     agents_path: str,
     workflow_rule_path: str,
     spec_storage: Mapping[str, str],
+    roadmap_storage: Mapping[str, str],
     human_guide: str | None,
     discovery: Mapping[str, object],
     capability_bindings: tuple[dict[str, str], ...],
@@ -1764,8 +1812,13 @@ def render_workflow_rule(
     storage_lines = [
         f"- Spec：`{spec_storage['root']}`",
         f"- 任务目录：`{spec_storage['directory_pattern']}`",
-        f"- 文件：`{spec_storage['file_name']}`；澄清决定：`{DECISIONS_FILE_NAME}`（按需，与 Spec 同目录）",
+        f"- 文件：`{spec_storage['file_name']}`；探索决定：`{DECISIONS_FILE_NAME}`（按需，与 Spec 同目录）",
     ]
+    if roadmap_storage:
+        storage_lines.append(f"- Roadmap：`{roadmap_storage['root']}`")
+        storage_lines.append(
+            f"- Roadmap 文件：`{roadmap_storage['file_pattern']}`"
+        )
     if documentation["policy"] == "disabled":
         storage_lines.append("- 项目文档：`disabled`")
     else:
@@ -2220,6 +2273,24 @@ def run_setup(
             root_kind=spec_base_kind,
             spec_base=spec_base,
         )
+        existing_roadmap_storage = existing_values.get("roadmap_storage", {})
+        if not isinstance(existing_roadmap_storage, dict):
+            existing_roadmap_storage = {}
+        if config.roadmap_root_kind is None and config.roadmap_root is None:
+            roadmap_root_kind = existing_roadmap_storage.get("root_kind")
+            roadmap_root = existing_roadmap_storage.get("root")
+            roadmap_storage_source = (
+                "existing-binding" if existing_roadmap_storage else "unconfigured"
+            )
+        else:
+            roadmap_root_kind = config.roadmap_root_kind
+            roadmap_root = config.roadmap_root
+            roadmap_storage_source = "explicit-input"
+        roadmap_storage, roadmap_warnings = _normalize_roadmap_storage(
+            root,
+            root_kind=roadmap_root_kind,
+            roadmap_root=roadmap_root,
+        )
         expected_agents = _normalize_hash(config.expected_agents_sha256, "expected_agents_sha256")
         expected_workflow = _normalize_hash(config.expected_workflow_sha256, "expected_workflow_sha256")
         confirmed_planned_delta = _normalize_hash(
@@ -2293,8 +2364,10 @@ def run_setup(
     result["documentation"] = documentation
     result["warnings"].extend(documentation_warnings)
     result["spec_storage"] = spec_storage
+    result["roadmap_storage"] = roadmap_storage
     result["pi_model_bindings"] = list(pi_model_bindings)
     result["warnings"].extend(spec_warnings)
+    result["warnings"].extend(roadmap_warnings)
     selected_project_roots = {
         str(item["path"])
         for item in discovery["skill_root_bindings"]
@@ -2373,6 +2446,7 @@ def run_setup(
             agents_rel,
             workflow_rel,
             spec_storage,
+            roadmap_storage,
             human_guide,
             discovery,
             effective_capabilities,
@@ -2514,14 +2588,17 @@ def run_setup(
     result["changed_files"] = [target["relative"] for target in targets]
     current_configuration = {
         "spec_storage": existing_values.get("spec_storage") or None,
+        "roadmap_storage": existing_values.get("roadmap_storage") or None,
         "documentation": existing_values.get("documentation") or None,
     }
     planned_configuration = {
         "spec_storage": spec_storage,
+        "roadmap_storage": roadmap_storage or None,
         "documentation": documentation,
     }
     configuration_sources = {
         "spec_storage": spec_storage_source,
+        "roadmap_storage": roadmap_storage_source,
         "documentation": (
             "existing-binding"
             if config.documentation_policy is None
@@ -2729,6 +2806,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--spec-base",
         help="Spec base input; setup derives the Spec storage root in its plan child directory",
     )
+    parser.add_argument("--roadmap-root-kind", choices=tuple(sorted(ROADMAP_ROOT_KINDS)))
+    parser.add_argument(
+        "--roadmap-root",
+        help="Exact Roadmap storage root; setup preserves it without appending directories",
+    )
     parser.add_argument("--human-guide")
     parser.add_argument("--documentation-policy", choices=tuple(sorted(DOCUMENTATION_POLICIES)))
     parser.add_argument("--documentation-root-kind", choices=tuple(sorted(DOCUMENTATION_ROOT_KINDS)))
@@ -2799,6 +2881,8 @@ def main() -> int:
         workflow_rule_path=args.workflow_rule_path,
         spec_base_kind=args.spec_base_kind,
         spec_base=args.spec_base,
+        roadmap_root_kind=args.roadmap_root_kind,
+        roadmap_root=args.roadmap_root,
         human_guide=args.human_guide,
         documentation_policy=args.documentation_policy,
         documentation_root_kind=args.documentation_root_kind,

@@ -4,7 +4,10 @@ import json
 import subprocess
 import sys
 
-from project_test_support import ProjectTestCase, SETUP_SCRIPT, digest, generator
+if __package__:
+    from .project_test_support import ProjectTestCase, SETUP_SCRIPT, digest, generator
+else:
+    from project_test_support import ProjectTestCase, SETUP_SCRIPT, digest, generator
 
 
 class SetupProjectTests(ProjectTestCase):
@@ -254,6 +257,7 @@ class SetupProjectTests(ProjectTestCase):
         self.assertEqual(
             {
                 "spec_storage": None,
+                "roadmap_storage": None,
                 "documentation": None,
             },
             dry_run["write_confirmation"]["current"],
@@ -464,8 +468,10 @@ Inspect project state and return a bounded report.
         generated = missing["workflow_rule"]["planned_content"]
         self.assertIn("- Spec：`docs/plan`", generated)
         self.assertIn("- 任务目录：`<YYYY-MM-DD>-<short-slug>/`", generated)
-        self.assertIn("澄清决定：`decisions.md`（按需，与 Spec 同目录）", generated)
+        self.assertIn("探索决定：`decisions.md`（按需，与 Spec 同目录）", generated)
         self.assertIn("- 项目 Context：`docs/CONTEXT.md`", generated)
+        self.assertIsNone(missing["write_confirmation"]["planned"]["roadmap_storage"])
+        self.assertNotIn("- Roadmap：", generated)
 
         project = self.root / "spec-storage"
         project.mkdir()
@@ -581,6 +587,64 @@ Inspect project state and return a bounded report.
         )
         self.assertEqual("refused", ignored_legacy_storage["status"])
         self.assertIn("spec_base_kind", ignored_legacy_storage["conflicts"][0])
+
+    def test_roadmap_root_is_explicit_preserved_and_independent(self) -> None:
+        project = self.root / "roadmap-storage"
+        project.mkdir()
+        external_roadmap = self.root / "iwiki" / "docs" / "roadmap"
+        external_roadmap.mkdir(parents=True)
+
+        configured = self.confirmed_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                roadmap_root_kind="external-absolute",
+                roadmap_root=str(external_roadmap),
+            )
+        )
+        self.assertEqual(str(external_roadmap), configured["roadmap_storage"]["root"])
+        self.assertEqual("non-portable", configured["roadmap_storage"]["portability"])
+        self.assertEqual(
+            "<YYYY-MM-DD>-<short-slug>-roadmap.md",
+            configured["roadmap_storage"]["file_pattern"],
+        )
+        self.assertNotEqual(
+            configured["spec_storage"]["root"],
+            configured["roadmap_storage"]["root"],
+        )
+        workflow = project / "docs" / "workflow-rule.md"
+        self.assertIn(
+            f"- Roadmap：`{external_roadmap}`",
+            workflow.read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "- Roadmap 文件：`<YYYY-MM-DD>-<short-slug>-roadmap.md`",
+            workflow.read_text(encoding="utf-8"),
+        )
+
+        preserved = generator.run_setup(
+            generator.SetupConfig(
+                project_root=project,
+                manage_agents=False,
+                scm_provider="none",
+                expected_workflow_sha256=digest(workflow),
+            ),
+            write=True,
+        )
+        self.assertEqual("no_changes", preserved["transaction"])
+        self.assertEqual(str(external_roadmap), preserved["roadmap_storage"]["root"])
+
+        incomplete_project = self.root / "roadmap-incomplete"
+        incomplete_project.mkdir()
+        incomplete = generator.run_setup(
+            self.config(
+                incomplete_project,
+                manage_agents=False,
+                roadmap_root_kind="project-relative",
+            )
+        )
+        self.assertEqual("refused", incomplete["status"])
+        self.assertIn("roadmap_root is required", incomplete["conflicts"][0])
 
     def test_pi_model_routing_is_setup_confirmed_and_preserved(self) -> None:
         project = self.root / "pi-model-routing"

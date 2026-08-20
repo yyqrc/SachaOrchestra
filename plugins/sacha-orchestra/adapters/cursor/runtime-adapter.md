@@ -40,7 +40,7 @@ Cursor Subagent 使用独立上下文，只由主任务通过当前可用的 Tas
 
 | 动作 | Cursor 映射 | 约束 |
 | --- | --- | --- |
-| Planner/Clarify 研究 | 新委派 Agent，输入对应 Skill、目标、Scope、事实 reference 与返回检查 | Cursor Subagent 从干净上下文开始；满足条件时返回协调请求 |
+| Planner/Explore 研究 | 新委派 Agent，输入对应 Skill、目标、Scope、事实 reference 与返回检查 | Cursor Subagent 从干净上下文开始；满足条件时返回协调请求 |
 | Executor | 当前主对话，或 Scope/写入边界明确的新委派 Agent | 委派 Agent 只完成当前单元并返回；同一文件或共享输出保持单一活跃写入者 |
 | Reviewer | 未参与方案和实现的新 Subagent | 名称不同不构成来源独立；核对实际参与历史与输入来源 |
 | Manager 就绪单元 | 主任务为每个隔离单元创建一个委派 Agent | 至少两个单元同时就绪且输出隔离时才并行派发；遵守单层派发 |
@@ -63,7 +63,7 @@ Cursor Subagent 使用独立上下文，只由主任务通过当前可用的 Tas
 | `premium_review_frontier` | Reviewer 处理 release、安全、权限、持久数据、不可逆外部动作或广泛兼容风险 | `claude-opus-5[effort=high]` | 使用 Third-party API 池换取正式独立复核；同一波次至多一个活跃 frontier Reviewer |
 | `premium_grok_high` | Planner/Executor 属于上述高风险，或跨 Owner 关键集成失败会造成困难回退 | 当前 Runtime 发现的 Cursor Grok 4.5 high non-fast 精确 ID | 在 First-party models 池内处理关键长程推理/集成；同一波次至多一个 high 工作单元 |
 | `premium_grok_standard` | 其他 Planner、Executor、Reviewer，且不是两个以上同类并行委派 Agent | 当前 Runtime 发现的 Cursor Grok 4.5 medium non-fast 精确 ID | 生产 Role 默认；用较高单次成本换取长程执行、调查与验证质量 |
-| `premium_composer_standard` | Manager 协调的有界研究单元、Clarify 研究、只读探索、可自包含轻任务，或两个以上隔离委派 Agent | `composer-2.5[fast=false]` | First-party models 池的吞吐档；避免 Grok 成本随并行数量线性放大 |
+| `premium_composer_standard` | Manager 协调的有界研究单元、Explore 研究、只读探索、可自包含轻任务，或两个以上隔离委派 Agent | `composer-2.5[fast=false]` | First-party models 池的吞吐档；避免 Grok 成本随并行数量线性放大 |
 | `premium_composer_fast` | Human 明确要求低延迟，或当前依赖屏障的短任务以延迟而非 token 成本为主要约束 | `composer-2.5[fast=true]` | First-party models 池的显式加速档；不得因“Premium 额度多”默认启用 |
 
 `premium_grok_standard` 是生产 Role 自动路径默认值，`premium_composer_standard` 是辅助/并行默认值。Grok 4.5 与 Composer 2.5 都消耗 First-party models 池；Grok standard 单 token 成本更高，但官方长程 Agent/代码基准整体更强，而 Grok standard 仍低于 Composer fast 的当前 token 单价。Adapter 不硬编码近期变更过的 Grok slug，只使用当前 Runtime 模型列表返回的 medium/high non-fast 精确 ID。

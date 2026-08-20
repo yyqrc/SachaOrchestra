@@ -1,6 +1,9 @@
 """Behavior tests for setup-project capability resolution."""
 
-from project_test_support import ProjectTestCase, digest, generator, resolver
+if __package__:
+    from .project_test_support import ProjectTestCase, digest, generator, resolver
+else:
+    from project_test_support import ProjectTestCase, digest, generator, resolver
 
 
 class CapabilityResolutionTests(ProjectTestCase):
@@ -257,6 +260,7 @@ class CapabilityResolutionTests(ProjectTestCase):
         self.assertEqual(
             {
                 "spec_storage": "existing-binding",
+                "roadmap_storage": "unconfigured",
                 "documentation": "existing-binding",
             },
             update_preview["write_confirmation"]["sources"],

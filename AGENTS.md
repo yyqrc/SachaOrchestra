@@ -62,7 +62,7 @@
 
 ## 术语提炼与同步
 
-- 当前执行者 → 遇到同词多义、同义多名、概念误合并或代码、合同、文档定义冲突 → 必须先只读核对现行 Owner、直接消费者、真实行为与冲突 → 事实足以消歧时在当前授权和 Scope 内统一；不同解释会改变产品面、Scope、验收、授权或破坏性边界时才交 Human 决定。该调查保持 Direct，不打开 Clarify、Planner Gate 或 Manager Gate。
+- 当前执行者 → 遇到同词多义、同义多名、概念误合并或代码、合同、文档定义冲突 → 必须先只读核对现行 Owner、直接消费者、真实行为与冲突 → 事实足以消歧时在当前授权和 Scope 内统一；不同解释会改变产品面、Scope、验收、授权或破坏性边界时才交 Human 决定。该调查保持 Direct，不打开 Explore、Planner Gate 或 Manager Gate。
 - 当前执行者 → 同一术语或流程判断被多个发布插件直接消费者重复、出现歧义或已造成真实失败 → 必须在插件内术语合同提炼术语，并在 `docs/CONTEXT.md` 保存开发侧同步视图、直接消费者和可证伪方式 → 术语合同只定义含义与边界，具体进入条件与动作仍归相应 Core，其他发布插件下游只保留映射。只有多个开发控制面直接消费者共同使用的术语归 `docs/CONTEXT.md`，不得为保持集合相等写入术语合同。没有第二个现行消费者时，当前任务语义必须留在 Spec 或决定记录，存在跨任务项目消费者时才能列为 `project-context` 候选。术语提炼必须只命名既有判断；改变判断时必须按新增或扩展规则处理。没有机器消费者和实际判断需要时，不得升级为字段、状态、枚举、Artifact、必填格式或产品面。
 - 修改者 → 新增、改名、改变语义/边界或删除插件内共享术语与规则 → 必须同次更新 `docs/CONTEXT.md`、插件内术语合同、相应 Core 和受影响映射 → 两边不一致时以插件内术语合同恢复 Runtime 词义，以相应 Core 恢复流程。修改仅供开发控制面消费的术语时，只更新 `docs/CONTEXT.md` 与开发侧直接消费者；该术语新增多个发布插件直接消费者时，必须先提升到术语合同并完成共享同步。同步完成前不得使用受影响术语或声明完成。
 
@@ -82,7 +82,7 @@
 - Skill 正文必须默认按“职责/功能 → 输入与首查 → 动作顺序 → 输出 → 停止与禁止边界”组织；Adapter 必须默认按“实现的 Core 合同 → Runtime 能力映射 → 调用参数 → 回退/恢复 → Runtime 证据边界”组织。章节名称必须服从实际语义，不得为套用结构重复内容。
 - Adapter 必须只服务单一 Runtime；Skill 必须不绑定具体 Runtime；显式 setup 必须只管对应配置；根目录 `README.md` 必须只保留仓库导航，`plugins/sacha-orchestra/README.md` 必须只保留入口、最小用法和 Runtime Owner 导航；完整顶层流程骨架与 Role/Skill 职责必须只在根目录 `PLUGIN_DESIGN.md`，Runtime 路由必须由 Workflow Contract 唯一定义并沿用插件内术语合同；历史记录或版本迁移说明必须归具名文档。
 - Planner、Executor、Reviewer 三个 Role Skill 必须分别写清职责、工作流和边界。修改前必须判断变化是否仍在该 Role 已声明的输入、输出和禁止边界内；新增职责、输出类型、调用 Owner 或跨节点路线时，必须先按高层流程变更处理，不得直接给 Skill 补一步。
-- Manager、Clarify、Feedback、using-sacha、document-project 等控制/支持 Skill 必须只实现 `PLUGIN_DESIGN.md` 中的对应节点或闭环；setup-project、setup-agents 等主流程外 Skill 必须写清功能、概略工作流和副作用边界。迭代必须只修改已声明功能内的做法；新增功能、触发方式、外部副作用或跨节点接管必须按顶层设计变化处理，不得以局部修复混入。
+- Manager、Explore、Feedback、using-sacha、document-project 等控制/支持 Skill 必须只实现 `PLUGIN_DESIGN.md` 中的对应节点或闭环；roadmap、setup-project、setup-agents 等主流程外 Skill 必须写清功能、概略工作流和副作用边界。迭代必须只修改已声明功能内的做法；新增功能、触发方式、外部副作用或跨节点接管必须按顶层设计变化处理，不得以局部修复混入。
 - 新增或扩展规则、Role、Gate、Artifact、状态、字段、模板或校验器必须对应真实失败或重复低效，并明确唯一 Owner、直接消费者、改变的判断与可证伪方式；必须优先补强现有 Owner，缺一项就不得增加。“更完整/更规范”不得作为扩产品面的理由，示例、标签和局部做法不得自动升级为 Core 合同或必填格式。
 - 精简或压缩必须只提高表达密度，不得以语义模糊换字数；可以删除铺垫、常识、历史、同义重复和无消费者说明，但必须保留明确的主体、触发条件/进入条件、动作及先后依赖、退出/停止/恢复条件、例外、Owner/Human 决策点、授权、安全、失败/未验证、Evidence、验收、Entry Condition 和 schema。压缩后需要依赖上下文猜测、存在多种合理解释或无法证明语义等价时，必须保留原文；会改变流程判断时，必须停止该部分并把语义变化交给 Human 二次确认。
 - 多种做法成立时必须写判断原则；稳定参数必须写配置；脆弱且重复的机械顺序必须写 script 并实跑。
@@ -91,7 +91,7 @@
 
 ## 产品边界
 
-- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Clarify 接受显式窄授权；closeout 接受“收口”“存档”“收口并存档”并只协调 Spec 完成与项目文档 Owner；document-project 接受 Human 显式文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
+- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Explore 接受显式窄授权；roadmap 是主流程外显式规划入口，按需复用 Explore 并把自包含 Roadmap 交给 document-project 写入配置 root，不接受 Sacha、不创建或执行 Spec；closeout 接受“收口”“存档”“收口并存档”并只协调 Spec 完成与项目文档 Owner；document-project 接受 Human 显式文档请求、Roadmap 文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
 - 任何新增 Role、Skill 功能、节点、连线、Outcome 去向或跨节点 Owner 转移，都必须先向 Human 提交产品面变化并取得明确确认，再修改 `PLUGIN_DESIGN.md`，最后修改 Core 与直接消费者。现有职责内流程、提示词或证据细节不得自动升级为顶层设计变化。
 - Core 只容纳流程节点间被多个消费者共享且不属于单一 Runtime 的稳定判断；单 Skill 的触发条件、内部流程、局部状态或格式留在 Skill，单一 Runtime 的传输、模型与恢复留在 Adapter，项目特例留在 Project Integration/Domain Skill。不能指出第二个真实消费者时，不新增 Core 分类或必填字段。
 - Hook 不得接受/替代 Sacha、扩大授权或参与恢复。新增 hook/MCP/app/外部服务/权限字段需明确批准；目标必需的 repo-local asset/script/manifest 元数据按 Scope 修改验证。

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1",
+  "document_type": "roadmap",
+  "title": "<项目或目标> Roadmap",
+  "trigger": "human-request",
+  "output_path": "<YYYY-MM-DD>-<short-slug>-roadmap.md",
+  "mode": "create",
+  "expected_target_sha256": null,
+  "template_profile": "canonical-roadmap-v1",
+  "rendered_markdown": "# <项目或目标> Roadmap\n\n## 目标与完成形态\n\n<项目目标、完成结果与适用边界>\n\n## 当前状态\n\n<已核实的项目现状>\n\n## 路线原则\n\n<影响阶段划分与顺序的稳定约束>\n\n## 阶段路线\n\n### 阶段 1：<名称>\n\n<目标结果、范围、进入条件、依赖、完成信号与风险>\n\n## Spec 映射\n\n<已有 Spec path 或候选分组及依据>\n\n## 决策前沿\n\n<已能精确陈述但尚未解决的决定>\n\n## Unknown\n\n<尚不能准确表述、不得伪造阶段的问题>\n\n## 排除范围\n\n<不属于当前 Roadmap 的内容及原因>\n\n## 主要项目位置与依据\n\n<项目源码、配置、正式文档、Spec 与证据 reference>\n"
+}

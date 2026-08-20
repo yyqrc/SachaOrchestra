@@ -4,7 +4,7 @@
 
 ## 1. 范围
 
-本文是 `using-sacha / 显式生产 Role / 显式 Clarify / 显式 closeout / 显式 document-project` 主工作流入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和入口授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
+本文是 `using-sacha / 显式生产 Role / 显式 Explore / 显式 Roadmap / 显式 closeout / 显式 document-project` 入口、独立显式 Feedback 任务、接受/拒绝、重复抑制和授权边界的唯一 Runtime 权威。入口候选、主任务、委派 Agent 与协调请求的定义见[术语合同](terminology-contract.md)；接受后的生产路由及主流程外 Roadmap 跨 Skill 路由由 [Workflow Contract](workflow-contract.md) 定义，协调动作由 [Coordination Contract](coordination-contract.md) 定义；Human 可见提问与结果遵循 [Human Interaction Contract](human-interaction-contract.md)。
 
 Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `using-sacha`；项目知识仍归 Project Integration 或 Domain Skill。
 
@@ -21,7 +21,8 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口
 - `Planner 入口候选`：目标、Scope、Acceptance、Owner 或路径存在实质不确定性；已有事实预计实施前需要关键 Human 澄清、先冻结/持久化可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。
 
 - Planner、Executor、Reviewer 接受 Human 直接调用。
-- Clarify 接受 Human 显式窄授权，或由活跃 Planner 路由。
+- Explore 接受 Human 显式窄授权，或由活跃 Planner 路由。
+- Roadmap 只接受 Human 显式调用；该调用不接受 Sacha 或进入生产 Role。
 - document-project 接受 Human 显式文档请求，或由 Workflow 收尾候选路由。
 - Feedback 接受 Human 在另一个真实任务手动提交的流程问题、使用反馈、插件开发建议或能力想法。
 - Manager 只接受内部 Owner 路由；Reviewer Gate 与 Manager Gate 由 Workflow 在接受后判断。
@@ -41,8 +42,9 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口
 | Human 输入 | 授权范围与下一路由 |
 | --- | --- |
 | 显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；主任务按 Workflow Contract 推进 |
-| 显式 Clarify | 授权主任务在窄 Scope 内澄清并管理一个有界只读研究委派 Agent；Clarify 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
-| 活跃 Planner 路由 Clarify | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
+| 显式 Explore | 授权主任务在窄 Scope 内探索并管理一个有界只读研究委派 Agent；Explore 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
+| 活跃 Planner 路由 Explore | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
+| 显式 Roadmap | 只授权当前 Roadmap 目标内读取项目事实、按需调用 Explore 做有界只读探索，并把自包含正文交给 document-project 按 Project Integration 写入；不接受 Sacha、不进入生产 Role、不创建或执行 Spec |
 | 显式 document-project | 直接路由当前文档目标到 document-project；不接受 Sacha、不补走生产 Role，也不替代正常 Workflow 的收尾候选检查；实际写入继续服从项目策略和写入授权 |
 | `closeout` 请求 | 只授权当前 closeout 目标，不接受 Sacha；具体动作、顺序与失败路由由 Workflow Contract 决定，Spec 与项目文档写入继续服从各自 Owner |
 | 显式 Setup Project | 只授权本次项目配置 Scope；后续开发目标重新判断入口 |
