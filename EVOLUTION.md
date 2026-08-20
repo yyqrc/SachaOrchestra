@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.2`。
+- 当前 release：`0.12.3`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：using-sacha、Planner 或 Roadmap 进入 Explore 时完整加载节点 Skill；Explore 从 Handoff、探索决定记录或旧 task 恢复有界挑战图，并在研究单元返回后归并结果、重算依赖和继续就绪分支；新增接续 Explore 的 Runtime 场景包。
-- 当前 breaking boundary：不新增或删除入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；Runtime Skill 只收敛读取与 Owner 消费，不改变既有 Human 触发词和结果语义。
-- 当前成熟度：`0.12.2` 采用快速发版证据边界；本次 Core、Skill 与 Runtime 场景包已完成有界 diff、Python 语法和 whitespace 复核，跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime 验收。
+- 当前 release Scope：Spec 与探索决定记录中的新增实现标识和项目概念按目标项目来源、目标位置、相邻 Owner、直接消费者与命名习惯核对；Planner/Explore 消费 Artifact Protocol，`project-facing-spec` 场景区分项目正式同名标识与 Handoff 临时命名；插件开发新增或扩展规则在交付前执行固定合规复核。
+- 当前 breaking boundary：不新增或删除入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；Runtime Core/Skill 只补强项目命名来源、决定记录写入和批准前回读，不改变既有 Human 触发词和结果语义。
+- 当前成熟度：`0.12.3` 采用快速发版证据边界；本次 Core、Skill、开发规则与 Runtime 场景包已完成有界 diff、Owner/直接消费者合规复核、版本身份和 whitespace 复核，跳过普通回归、Skill/Plugin validator、安装/cache parity、fresh discovery 和 Runtime 场景验收。
 
 ## `1.0.0` 与后续方向
 
