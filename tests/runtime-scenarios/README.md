@@ -23,6 +23,7 @@
 - `executor-only`：由不携带父对话历史的委派 Agent 执行；清晰、低风险、单 Owner 的本地写入应在该上下文直接完成。
 - `planner-explore-manager-reviewer`：由 Human 明确发起或授权创建的全新主任务执行；破坏性配置迁移先暴露真实 Human 决定，再由 Manager 派发两个可隔离单元，最后独立复核。
 - `explore-shared-context-loop`：由不携带父对话历史的执行上下文运行；验证 Human 明确不了解背景时，Explore 先探索证据、解释并接受反问/纠正，不把技术分析直接包装成选择题。
+- `explore-handoff-continuation`：由 Human 明确发起或授权创建的全新主任务执行；验证 using-sacha 接续既有 Explore 时加载 Explore Skill、恢复挑战图，并在研究结果归并后按退出扫描返回调用节点。
 - `roadmap-self-contained-document`：由不携带父对话历史的执行上下文运行；验证主流程外 Roadmap 按需复用 Explore，并通过 document-project 在配置 root 生成脱离 Sacha 仍可理解的项目路线图与 Spec 映射。
 - `closeout-command`：由不携带父对话历史的执行上下文运行；验证 Human 明确请求“收口”时只原位完成当前唯一 Spec，不生成项目文档或 `docs/done`。
 - `project-facing-spec`：由不携带父对话历史的显式 Planner 运行；从已确认项目事实与混合交付记录生成纯项目实施规格，验证 Spec 格式、项目语境和工作流信息外置。

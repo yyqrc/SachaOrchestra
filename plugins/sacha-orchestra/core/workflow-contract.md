@@ -20,6 +20,7 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
 - 主任务发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；可在候选尚未完整拆分时调用。委派 Agent 发现相同事实时向主任务返回协调请求。单一职责内工作仍可由主任务完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
 - 显式 Explore 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Explore 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
+- 主任务 → 通过显式入口、Planner 或 Roadmap 进入 Explore → 必须完整读取 Explore Skill，并按其输入、动作、输出与停止边界推进 → Explore 结果返回调用节点。
 - 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。
 - 三个 Gate 全关且无需恢复时，Executor 在当前上下文完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
 
