@@ -12,15 +12,14 @@ description: 当 Human 在另一个真实任务中显式提交流程问题、使
 ## 输入与首查
 
 1. 输入为 Human 在另一个真实任务中显式提交的流程问题、使用反馈、插件开发建议或能力想法。该调用授权来源任务执行有界只读调查和一次 Owner 转移。
-2. 读取 [Workflow Contract](../../core/workflow-contract.md)、Coordination Contract 和当前 Adapter 的调查/Owner 转移映射。
+2. 读取 [Intake Contract](../../core/intake-contract.md) 的显式 Feedback 授权、[Coordination Contract](../../core/coordination-contract.md) 的反馈标识、去重与 Owner 转移规则，以及当前 Adapter 的调查/转移映射；当前入口已经确定，不加载 Workflow Contract。
 3. 围绕具体反馈目标核对插件现状，以及 Human 已提供的任务、项目或原始证据。
 
 ## 动作顺序
 
-1. 按 Coordination Contract 的反馈身份、可恢复状态与去重规则筛选目标任务，不核对执行任务迁移前提。无法消歧时读取 [Human Interaction Contract](../../core/human-interaction-contract.md) 并询问唯一关键差异。
-2. 通过 Adapter 复用合法目标任务；无可复用目标时，在本次调用授权内创建唯一目标任务。
-3. 来源任务向目标任务交付反馈目标、必要规则/证据 reference 和原生目标任务 reference，然后结束。
-4. 精确重复返回既有目标任务 reference；目标任务按 [Intake Contract](../../core/intake-contract.md) 执行普通任务流程。
+1. 把具体反馈目标、Human 已提供的来源 reference 和有界调查结果交给 Coordination Contract，消费其目标筛选、去重、创建或消歧结论；只有无法消歧时读取 [Human Interaction Contract](../../core/human-interaction-contract.md) 并询问唯一关键差异。
+2. 通过当前 Adapter 执行 Coordination Contract 已确定的目标复用或创建，并按其要求交付原生目标任务 reference。
+3. 来源任务的 Owner 转移、结束、重复输入与失败恢复均以 Coordination Contract 为准；本 Skill 不另定义第二套判断。
 
 ## 输出
 

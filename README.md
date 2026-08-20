@@ -26,10 +26,11 @@ SachaOrchestra/
 ├── .claude-plugin/marketplace.json
 ├── .cursor-plugin/marketplace.json
 ├── docs/
-│   ├── architecture/
+│   ├── AGENTS.md
+│   ├── CONTEXT.md
 │   ├── integrations/
-│   ├── migrations/
-│   └── plan/
+│   ├── plan/
+│   └── release.md
 ├── tests/
 │   └── runtime-scenarios/
 └── plugins/sacha-orchestra/

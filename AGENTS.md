@@ -14,7 +14,9 @@
 
 | 路径 | Owner 与用途 |
 | --- | --- |
+| `docs/AGENTS.md` | 插件开发文档子树的身份、放置、读取和历史 Artifact 处理规则；不定义 Runtime 流程 |
 | `docs/CONTEXT.md` | 开发控制面提炼术语与规则的统一入口及开发专用术语 Owner；完整包含插件内共享术语的同步视图，并可额外拥有仅供插件开发、维护和评审消费的术语；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
+| `docs/release.md` | Human 显式快速发版、普通发版或安装时读取的开发期操作指南；`scripts/release.py` 仍拥有机械执行 |
 | `EVOLUTION.md` | 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向；不复制现行架构/流程或保存版本流水账 |
 | 三个 deployment manifest | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准供 Cursor 等兼容 Runtime 加载 |
 | `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | 各 Runtime 的 repo-local marketplace 入口；只保存部署路由，不拥有流程语义 |
@@ -42,11 +44,13 @@
 
 ## 读取路由
 
+- 开发者或 Reviewer → 讨论、调查或修改文档 → 先按目标 path、文档身份与直接消费者判定主工作面：根 `AGENTS.md`、根 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md`、`docs/**` 与 `tests/**` 属于插件开发控制面，优先审查插件开发行为、维护归属、读取路线和开发证据；`plugins/sacha-orchestra/README.md`、`core/**`、`adapters/**` 与 `skills/**` 属于发布插件 Runtime，优先审查安装后流程、Runtime Owner、直接消费和行为证据。任务同时涉及两面时先分别声明开发决定与 Runtime 消费同步点，只为直接消费者、发布可达或真实行为验证跨界；不得用开发文档的自描述要求评判 Runtime 文档，也不得用 Runtime 局部流程扩大插件开发文档 Scope。
+- 开发者或 Reviewer → 新增、移动、审查或维护 `docs/**` → 先读 `docs/AGENTS.md`，再按其身份路由只读目标当前 Owner 或精确历史 Artifact → 不遍历无消费者的文档树。
 - 插件开发或评审者 → 涉及已提炼术语与规则 → 必须先读 `docs/CONTEXT.md`，再核对表中插件内定义 → 发布插件不得引用该文件。
 - 插件开发或评审者 → 讨论或修改入口、高层流程、Role/Skill 职责 → 必须在完成适用的术语读取后读取根目录 `PLUGIN_DESIGN.md`，再按受影响节点读取 Intake、Workflow、Human Interaction、Assurance、Coordination、Artifact 或目标 Skill → 只查询触发条件或局部流程且不涉及已提炼术语时，只读目标 `SKILL.md` 和元数据。
 - Runtime 局部任务只读目标 Adapter；Core 或跨运行环境审查按 Scope 比较。
 - 当前执行者 → 在新 task 或新协作界面继续同一 Runtime 局部迭代 → 先读目标 Adapter、批准 Spec、专用 Runtime 场景和有界 delta；只有这些现行来源不足以恢复状态时才查询 MEMORY/rollout，完整旧对话、完整 MEMORY 和冻结历史计划不得作为默认输入。
-- release、`1.0.0`、尚未实施的长期方向或 Core breaking boundary：读取 Evolution；现行架构、Manager/并行与产品流程先读 `PLUGIN_DESIGN.md`，只有改变上述 Evolution 独占内容时才修改 Evolution。
+- release、`1.0.0`、尚未实施的长期方向或 Core breaking boundary：读取 Evolution；显式快速发版、普通发版或安装另读 `docs/release.md`；现行架构、Manager/并行与产品流程先读 `PLUGIN_DESIGN.md`，只有改变上述 Evolution 独占内容时才修改 Evolution。
 - Evolution 只读取当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向；历史事实按具名版本、Spec/Report/Review 或 Git 查询，不从 Evolution 恢复旧机制。
 - 普通实施不遍历历史计划目录寻找“更多规则”。现行内容与当前 Owner 冲突时删除副本或改成 Owner 引用；冻结历史文档仅在仍可能误导当前操作时添加最短的“已取代”入口。
 - Project Integration 和 Domain Skill 归各自项目所有。不得将项目特定命令或证据规则导入此 Core。
@@ -91,7 +95,7 @@
 
 ## 产品边界
 
-- 产品面以 `PLUGIN_DESIGN.md` 为准：`using-sacha` 是唯一默认入口；生产 Role 只有 Planner、Executor、Reviewer，三者可作为高级直接入口；Explore 接受显式窄授权；roadmap 是主流程外显式规划入口，按需复用 Explore 并把自包含 Roadmap 交给 document-project 写入配置 root，不接受 Sacha、不创建或执行 Spec；closeout 接受“收口”“存档”“收口并存档”并只协调 Spec 完成与项目文档 Owner；document-project 接受 Human 显式文档请求、Roadmap 文档请求或 Workflow 收尾候选路由，显式调用不接受 Sacha、不补走生产 Role。Manager 只能由主任务在 Gate 打开后调用，不是用户入口。Feedback 是独立显式支持入口：Human 只在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法；调用本身授权来源任务调查并转移 owner，但不授权目标任务写入或外部动作。setup-project、setup-agents 是主流程外显式配置能力，不进入主工作流。
+- 产品入口、生产 Role、支持/控制 Skill、主流程外能力及其完整职责清单只由 `PLUGIN_DESIGN.md` 第 2、4、5 节拥有；当前改动不触及入口、节点、连线、职责或 Owner 转移时不复制或重读该清单。
 - 任何新增 Role、Skill 功能、节点、连线、Outcome 去向或跨节点 Owner 转移，都必须先向 Human 提交产品面变化并取得明确确认，再修改 `PLUGIN_DESIGN.md`，最后修改 Core 与直接消费者。现有职责内流程、提示词或证据细节不得自动升级为顶层设计变化。
 - Core 只容纳流程节点间被多个消费者共享且不属于单一 Runtime 的稳定判断；单 Skill 的触发条件、内部流程、局部状态或格式留在 Skill，单一 Runtime 的传输、模型与恢复留在 Adapter，项目特例留在 Project Integration/Domain Skill。不能指出第二个真实消费者时，不新增 Core 分类或必填字段。
 - Hook 不得接受/替代 Sacha、扩大授权或参与恢复。新增 hook/MCP/app/外部服务/权限字段需明确批准；目标必需的 repo-local asset/script/manifest 元数据按 Scope 修改验证。
@@ -131,53 +135,13 @@ cprobe summary <affected-path-or-directory> --json
 - `cprobe` 返回 `budget.complete=true` 且 `whitespace.errors=0` 已构成该 Scope 的 whitespace 证据，不再重复执行 `git diff --check`。仅当 `cprobe` 缺失、结果不完整或不支持目标时，对同一 Scope 执行一次原生 Git fallback；暂存后内容未变化不重复取证。
 - 源码校验器只核对 JSON/TOML/YAML 等机器可解析部署身份、实际文件结构、可执行入口和 Git 发布身份；Markdown 链接与语义由 Owner 和直接消费者复核，不写正则、固定标记、句子存在性、段落顺序或字数 Gate。
 - 生产脚本用隔离临时目录的正反例、幂等、失败恢复和真实副作用测试；Skill 触发、Role 路由与 Runtime 调用用真实场景冒烟验证。前一层不得替代后一层。
-- Role/流程场景使用 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包流程：执行者只看中性任务、隔离工作区规则与正式入口 Skill/Core，不读取插件 README 或场景裁决标准；独立评估者才用顶层图核对偏移。不要求 Manager 派发的场景使用不携带父对话历史的委派 Agent；要求 Manager 派发的场景从 Human 明确发起或授权创建的全新主任务运行，并遵守单层派发。运行者保存首次创建参数、返回标识、委派 Agent 的直接启动/终态记录，以及首次等待前可用的原生父任务/session/depth 和子任务工具轨迹；机器调用图能证明直接父子关系与无后代时不得再要求 Human 手工查看 UI，当前 Runtime 不提供必要机器记录时才保存实时 Agent 树，二者均不可达则标记 `blocked`。随后核对验证器、原生派发/返回与工作区 `delta`；不得用执行者事后自报替代。未安装或不是全新任务时只能记为 `source-scenario`，不得宣称安装后全新发现。
+- Role/流程场景只按 [`tests/runtime-scenarios/README.md`](tests/runtime-scenarios/README.md) 的任务包、执行者/评估者隔离和原生证据流程运行；静态源码、validator、fixture、执行者自报及未安装的 `source-scenario` 不得替代对应 Runtime 证据。
 - 能力完成声明须定位生产入口；模板、fixture、字符串或自报只证明其自身，未运行的行为仍标记未验证。
 
 `plugin-eval` 可用于结构、描述和令牌预算诊断，但不是必跑 Gate，也不能替代官方校验器、真实 schema、代码测试或 Runtime 冒烟验证。不得仅为提高评分添加无权威依据的 manifest 字段、英文触发词、reference 或其他产品内容；评估器输入兼容问题使用当前任务内的等价镜像并报告限制，不修改安装缓存或正式源码迁就工具。
 
-发布分两种模式：
+## 发布与安装入口
 
-- Human 说“快速发版”时，默认递增 patch 版本；只人工核对 Evolution 的当前 release 与当前待发布源码版本状态，并机器核对三个 deployment manifest、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 runtime。
-- Human 说“发版”时，运行风险对应的普通验证与完整 metadata coherence；安装和 runtime 仍按明确授权与发布目标决定。
-- 普通发版执行者发现同一 Scope 已有仍有效的独立 Review，且精确暂存发布内容、验收输入和证据边界未超出该 Review 时复用原结论；发版本身不触发重审。任一项变化时只审原结论后的精确暂存变化及其影响，按风险选择最低充分模型与推理强度，不因发布动作默认提高强度。实施收尾本应完成但缺失的 Review 只补未审 staged delta，不得借发版重启完整调查。
-- 普通发版执行者先精确暂存当前待发布源码版本对应的发布内容并取得唯一 staged tree；需要增量 Review 时立即以该 tree、精确 diff、受影响 Owner/消费者和已有证据派发独立 Reviewer，同时在主任务运行 `release.py prepare`，不得等待一方结束后才启动另一方。`prepare` 返回的同一 tree JSON 是 Reviewer 可复用的验证回执：Reviewer 仍在运行时由主任务立即补发；Reviewer 已终态时由主任务核对回执 tree 与 Review tree 一致且无失败，不新开 Review。除非 tree 不同、输出缺少退出状态/结果摘要/失败计数，或存在会改变 Outcome 的具体冲突，Reviewer 不得重跑其中命令，也不得为恢复背景重新读取完整 AGENTS、`PLUGIN_DESIGN.md`、历史或无直接消费者 Owner。两者通过后才把 Evolution 从待发布状态切换为当前 release，并依次执行 commit、annotated tag、发布阶段一致性检查、原子 push 和远端核对。tag 建立前不得向 Human 宣称当前待发布源码版本已成为 release，发布授权不得写入原实施 Scope。
-- 普通发版执行者在 Scope、版本和 Review 结论稳定时优先使用 `scripts/release.py prepare|publish|install`；脚本只执行现有 Owner 已决定的机械步骤，失败后停止，不替代版本决定、Review、授权或 Runtime 验收。
-- 普通发版实施收尾时若 Reviewer Gate 已有事实依据，当前 Owner 应完成必要 Review；发布阶段只核对精确暂存发布内容是否仍在该 Review 的 Scope、验收输入和证据边界内。发布脚本允许精确暂存发布范围外存在无关工作区改动，但 `--candidate-path` 指定文件暂存后又变化、存在冲突或 index 验证失败时必须停止。
-- `release.py publish` 返回 `status=pass` 且携带 commit、tree、branch、tag、remote 与 `remote_verified=true` 后，执行者直接消费这些机器结果，只再运行一次 `cprobe summary` 确认任务外工作区边界并交付；不得例行重复查询 manifest、Evolution、HEAD/tag、远端 branch/tag、cache parity 或完整 plugin list。只有脚本缺少上述字段、结果冲突/失败、Human 明确要求安装或当前 Scope 包含 fresh Runtime 验收时才定向补查。
-
-普通发版先对当前待发布源码版本的精确暂存内容运行；`prepare` 从 Git index 导出隔离快照，验证不读取精确暂存发布范围外的 working/untracked 内容：
-
-```powershell
-python -B scripts/release.py prepare --version <version> --candidate-path <path> [--candidate-path <path> ...]
-```
-
-复用仍有效的 Review 或完成必要的增量 Review 后，维护者把 Evolution 从待发布状态切换为当前 release 并精确暂存；再运行：
-
-```powershell
-python -B scripts/release.py publish --version <version> --review reused|accepted --message <commit-message> --candidate-path <path> [--candidate-path <path> ...]
-```
-
-只有 Human 明确要求安装、重装或 cache parity 验收时，关闭本次发布创建且已终态的辅助 Agent 后运行：
-
-```powershell
-python -B scripts/release.py install --version <version>
-```
-
-脚本不可用时，待发布与发布两个机器阶段分别运行 metadata coherence：
-
-```powershell
-python -B tests/validate_release_coherence.py --version <version> --phase candidate
-python -B tests/validate_release_coherence.py --version <version> --phase release
-```
-
-`candidate`（待发布阶段）只核对当前待发布源码版本的机器可解析部署身份和生产入口；`release`（发布阶段）在 commit、annotated tag 已建立且 Evolution 已人工切换为当前 release 后运行，并额外核对 annotated tag 精确指向 `HEAD`。该脚本不读取 README/Core/Adapter/Skill/Evolution 的说明文字。
-
-## 安装授权 Gate
-
-- Marketplace 注册、安装、refresh、removal/reinstall 需要 Human 明确授权；实施批准不隐含外部状态授权。
-- 发布执行者 → `codex plugin list` 显示已启用插件的 `PATH` 直接指向当前 repo-local plugin `root` → 视为源码直连加载；版本变化本身不触发安装或 refresh。需要安装/cache 证据时先核对当前 `PATH`、生效版本和 source/cache parity，只有明确安装授权才调用安装 CLI。
-- 使用 `read_marketplace_name.py` 从 `.agents/plugins/marketplace.json` 读取 marketplace 名称；不得根据目录名猜测。
-- 授权后按目标 Adapter 执行并验证 marketplace/plugin list；Scope、版本、目标、branch/remote 未变化时不重复询问。
-- 安装执行者在调用安装 CLI 前关闭本次发布创建且已终态的辅助 Agent；安装返回拒绝访问或 cache 已创建但登记未完成时停止并报告，不删除、覆盖或手改 cache，待占用解除后再用同一 CLI 恢复并核对。
-- manifest 使用批准的精确 semantic version，不加 cachebuster；不得编辑 cache、应用权限或系统 PATH。
+- Human 明确要求“快速发版”“发版”、安装、重装或 cache parity 验收时，执行者先读 [`docs/release.md`](docs/release.md)，再按其中当前模式、授权和证据边界操作；普通实施批准不授权 commit、tag、push、Marketplace 或用户安装状态变更。
+- 发布和安装继续遵守 Global AGENTS 的 Git、外部副作用、用户改动保护与完成证据规则；操作指南和 `scripts/release.py` 不替代 Human 版本决定、Review、安装授权或 Runtime 验收。
+- 未进入显式发布/安装任务时不加载发版操作指南，也不因源码版本、repo-local 直连或插件已启用而执行安装、refresh 或 cache 修改。

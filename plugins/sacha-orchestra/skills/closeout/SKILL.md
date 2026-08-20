@@ -13,12 +13,12 @@ description: Human 用“收口”原位完成当前唯一 Spec、用“存档�
 
 1. 当前请求明确要求“收口”“存档”或“收口并存档”时继续；只讨论或引用这些词语时不执行动作。
 2. 仅有“存档”时直接调用 `$sacha-orchestra:document-project`，映射为 `human-request`；不读取或修改 Spec，也不改变 [Workflow Contract](../../core/workflow-contract.md) 的正常 `goal-closeout` 候选。
-3. 包含“收口”时，从当前任务、批准 Spec reference 或明确 Human 输入取得 Spec `path`；不得扫描 Spec storage root 猜测“最新”任务。缺少 path、存在多个当前 Spec、文件名不是 `spec.md` 或 reference 不可达时失败关闭。
-4. 按 Workflow Contract 核对根终态为 `goal_complete`，全部必需验证与适用 Review 已由当前 Owner 消费；按 Artifact Protocol 核对 Spec 已批准、状态行唯一且当前上下文可写。
+3. 包含“收口”时，读取 [Artifact Protocol](../../core/artifact-protocol.md) 的 Spec 完成规则，并把当前任务、批准 Spec reference 或 Human 明确提供的 `path` 交给该 Owner；本 Skill 不扫描或自行判定替代 Spec。
+4. 将当前根终态、验证与 Review 消费状态、写入授权和可写上下文交给 Artifact Protocol 预检；只消费其结果，不在本 Skill 重建 Spec 完成条件。
 
 ## 动作顺序
 
-1. “收口”本身是本次 Spec 状态原位写入授权；不授权移动、改名、生成项目文档或其他写入。读取并记录唯一状态行的当前完整文本；已是“已完成”时返回 `no_op`，否则使用 Runtime 具有并发修改检查的局部编辑能力把该行原位改为“已完成”并回读。局部编辑前状态行变化或不能精确匹配一次时停止；不得用整文件替换覆盖其他并发正文。
+1. “收口”本身只构成本次 Spec 状态写入授权；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
 2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 仍须对项目文档单独确认；未满足前两个动作都不写。
 3. 预检通过后先原位完成 Spec，再把“存档”以 `human-request` 路由给 `$sacha-orchestra:document-project`。文档写入失败不回滚已合法完成的 Spec；报告部分完成、失败证据和文档恢复入口。
 
@@ -29,6 +29,5 @@ description: Human 用“收口”原位完成当前唯一 Spec、用“存档�
 
 ## 停止与禁止边界
 
-- 缺少或存在多个当前 Spec、任务未到 `goal_complete`、必需检查未满足、Spec 未批准、状态行缺失/重复、状态行变化或只读上下文时不写入。
-- 只原位修改唯一 `spec.md` 的现有状态行；不得移动目录、创建 `docs/done`、生成平行完成 Artifact，或修改 Spec 的 Scope、决定和验收正文。
+- Artifact Protocol 拒绝 Spec 完成时失败关闭；本 Skill 不自行选择替代 Spec、绕过完成条件、直接编辑状态行或创建补偿 Artifact。
 - 项目文档由 `document-project` 独占；Spec 完成不自动生成项目文档，项目文档也不能替代 Spec 完成。

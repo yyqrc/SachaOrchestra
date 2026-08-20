@@ -1,7 +1,16 @@
 # Capability Provider 接入指南
 
-> Audience: capability provider 维护者
-> Status: 开发期指南；非 Runtime 加载依赖
+> 适用读者：Capability Provider、`setup-project`、Project Integration 与 Documentation 集成维护者
+> 状态：开发期指南；非 Runtime 加载依赖
+
+## 读取路线
+
+| 变化 | 最小读取范围 |
+| --- | --- |
+| Provider catalog、canonical Skill 或 schema | “责任边界”→“Schema v2”→“Provider 迭代” |
+| Setup、Binding 或项目规则注入 | “责任边界”→“Setup 消费”→“Project Integration 同层配置” |
+| Role 如何消费 capability | “责任边界”→“Role 消费” |
+| 经验候选或项目文档集成 | “责任边界”→“经验候选与项目存档”→“Provider 迭代” |
 
 ## 责任边界
 

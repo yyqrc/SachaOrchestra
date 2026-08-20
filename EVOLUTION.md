@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.0`。
+- 当前 release：`0.12.1`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：把显式 `clarify` 支持入口无兼容改名为 `explore` 并补强陌生领域证据链；新增主流程外显式 `roadmap`，按需复用 Explore，把自包含长期阶段、依赖和 Spec 映射交给 document-project 写入 Project Integration 明确配置的 Roadmap root；setup-project、专用 Roadmap Profile/template、文档生成器和 Runtime 场景同步文件模式、项目文风与安全写入路径。
-- 当前 breaking boundary：删除 `$sacha-orchestra:clarify` 及其目录/场景身份，不提供别名或兼容包装；新增 Roadmap Skill、共享术语和独立存储配置，但不新增 Role、Gate、Artifact、Registry、Hook、MCP 或外部授权，不让 Roadmap 接受 Sacha、替代 Spec 或执行阶段。
-- 当前成熟度：`0.12.0` 已通过同一 staged tree 的 candidate coherence、目标 Skill 与完整 plugin 结构校验、最窄测试，以及独立 Review `Accepted with follow-up`；Explore 与 Roadmap source-scenario 均通过独立评估，Roadmap 场景实际选择 `document_type=roadmap` 的项目 Profile，覆盖配置 root/文件模式、按需 Explore、脱离 Sacha 的自包含阶段/Spec 映射和 document-project 原子创建。安装后 fresh discovery/Runtime 未验证。
+- 当前 release Scope：区分插件开发控制面与发布插件 Runtime，新增 `docs/AGENTS.md` 和按需加载的发版/安装指南，压缩根规则中的产品入口、场景与发版副本，修正仓库导航、开发术语视图和 Capability Provider 维护路线；Feedback 与 Closeout Skill 分别把入口/Owner 转移和 Spec 完成判断交还现有 Core Owner。
+- 当前 breaking boundary：不新增或删除入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；Runtime Skill 只收敛读取与 Owner 消费，不改变既有 Human 触发词和结果语义。
+- 当前成熟度：`0.12.1` 采用快速发版证据边界；本次开发控制面与 Skill 正文已完成有界 diff、链接和 whitespace 复核，跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime 验收。
 
 ## `1.0.0` 与后续方向
 
