@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sacha 简化审计"
+  short_description: "调查 Sacha 中重复、无消费者或被取代的产品与维护机制"
+  default_prompt: "使用 $sacha-simplification-audit 调查指定范围内可证实的 Sacha 简化候选。"

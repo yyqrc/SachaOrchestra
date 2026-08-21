@@ -193,6 +193,20 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_reviewer_semantic_probe(self) -> subprocess.CompletedProcess[str]:
+        fixture = PACKS / "reviewer-semantic-chain" / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            shutil.copytree(fixture, target, dirs_exist_ok=True)
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def test_bundled_verifiers_accept_valid_results(self) -> None:
         readonly = self.run_verifier("codex-code-mode-readonly-batch", readonly_result())
         self.assertEqual(readonly.returncode, 0, readonly.stdout + readonly.stderr)
@@ -238,6 +252,17 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         planner = self.run_planner_verifier(corrupted=True)
         self.assertEqual(planner.returncode, 1)
         self.assertIn("request_timeout_ms must remain 30000", planner.stderr)
+
+    def test_reviewer_semantic_fixture_exposes_claimed_failures(self) -> None:
+        result = self.run_reviewer_semantic_probe()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["focused_test"]["exit_code"], 0)
+        self.assertEqual(payload["cli_oversize"], {"exit_code": 0, "stdout": "123456789\n"})
+        self.assertEqual(
+            payload["checked_multibyte"],
+            {"exit_code": 0, "stdout": "界界界\n", "utf8_bytes": 9},
+        )
 
 
 if __name__ == "__main__":

@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.3`。
+- 当前 release：`0.12.4`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：Spec 与探索决定记录中的新增实现标识和项目概念按目标项目来源、目标位置、相邻 Owner、直接消费者与命名习惯核对；Planner/Explore 消费 Artifact Protocol，`project-facing-spec` 场景区分项目正式同名标识与 Handoff 临时命名；插件开发新增或扩展规则在交付前执行固定合规复核。
-- 当前 breaking boundary：不新增或删除入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；Runtime Core/Skill 只补强项目命名来源、决定记录写入和批准前回读，不改变既有 Human 触发词和结果语义。
-- 当前成熟度：`0.12.3` 采用快速发版证据边界；本次 Core、Skill、开发规则与 Runtime 场景包已完成有界 diff、Owner/直接消费者合规复核、版本身份和 whitespace 复核，跳过普通回归、Skill/Plugin validator、安装/cache parity、fresh discovery 和 Runtime 场景验收。
+- 当前 release Scope：新增四个仅供插件开发的仓库 Skill，分别负责文档治理、插件评审、Runtime 场景与简化审计；Runtime Reviewer 补强接口、消费者、真实入口和负例审查，Executor 补强按交付层选择证据，document-project 补强项目文档语义复核；新增 `reviewer-semantic-chain` 场景及 release 对开发 Skill 和场景脚本的最窄验证映射。
+- 当前 breaking boundary：不新增或删除发布插件入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；`.agents/skills/**` 只服务插件开发，Runtime Skill 只补强现有职责内流程，不改变既有 Human 触发词、Outcome、路由或发布 root。
+- 当前成熟度：`0.12.4` 采用普通发版证据边界；candidate coherence、25 个 release 测试、3 个场景校验测试、完整 Plugin validator 和四个开发 Skill validator 均通过，独立 Review 为 `Accepted`，`reviewer-semantic-chain` source-scenario 通过独立评估；安装/cache parity 与 fresh discovery 未验证。
 
 ## `1.0.0` 与后续方向
 

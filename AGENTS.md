@@ -5,7 +5,7 @@
 ## Workspace 事实
 
 - 本文件是 Project `AGENTS.md`；Global AGENTS 的安全/授权/证据/Git/用户改动保护仍生效。
-- 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md` 与 `docs/**` 供插件开发使用，不进入发布插件。
+- 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md`、`.agents/skills/**` 与 `docs/**` 供插件开发使用，不进入发布插件。
 - 本 workspace 是 repo-local marketplace，唯一 plugin 源码位于 `plugins/sacha-orchestra`。
 - 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向以 [`EVOLUTION.md`](EVOLUTION.md) 为权威；现行架构与流程仍归 `PLUGIN_DESIGN.md` 和对应 Runtime Owner，manifest=当前源码版本，tag=已发布版本。
 - Evolution 只给版本、当前 breaking boundary、成熟度和尚未实施的方向，不授权实施。
@@ -14,6 +14,7 @@
 
 | 路径 | Owner 与用途 |
 | --- | --- |
+| `.agents/skills/*` | Sacha 插件自身开发、维护、评审和 Runtime 场景执行的仓库本地工作流；不进入发布插件，不拥有产品流程或 Runtime 合同 |
 | `docs/AGENTS.md` | 插件开发文档子树的身份、放置、读取和历史 Artifact 处理规则；不定义 Runtime 流程 |
 | `docs/CONTEXT.md` | 开发控制面提炼术语与规则的统一入口及开发专用术语 Owner；完整包含插件内共享术语的同步视图，并可额外拥有仅供插件开发、维护和评审消费的术语；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
 | `docs/release.md` | Human 显式快速发版、普通发版或安装时读取的开发期操作指南；`scripts/release.py` 仍拥有机械执行 |
@@ -35,7 +36,7 @@
 ## 文档身份与发布可达边界
 
 - 文档作者 → 新增或修改 Human 可读文档 → 必须先按 path 确定“插件开发使用”或“插件发布使用” → 一份文档只能属于一种身份。
-- 仓库根 `AGENTS.md`、`README.md`、`PLUGIN_DESIGN.md`、`docs/**` 与 `tests/**` 内说明 → 供插件开发、维护或场景评估使用 → 不进入发布插件，不得成为安装后 Runtime 的依赖。
+- 仓库根 `AGENTS.md`、`README.md`、`PLUGIN_DESIGN.md`、`.agents/skills/**`、`docs/**` 与 `tests/**` 内说明 → 供插件开发、维护或场景评估使用 → 不进入发布插件，不得成为安装后 Runtime 的依赖。
 - `plugins/sacha-orchestra/**` 内 Human 可读文档 → 供发布插件使用 → 必须在发布 `root` 内自包含 Runtime 所需的规则、入口和恢复语义。
 - 三个部署清单 → 解析 `plugins/sacha-orchestra` 为发布 `root` → 只发布该 `root` 内文件；仓库中可读、链接可打开或相对 path 在源码树成立，均不证明发布 `root` 外文件安装后可达。
 - 插件发布文档 → 引用本地 path → 解析后的目标必须留在发布 `root` 内 → 不得引用根 `AGENTS.md`、根 `README.md`、`PLUGIN_DESIGN.md`、`docs/**`、`tests/**` 或其他发布 `root` 外文件承载运行语义。
@@ -48,6 +49,7 @@
 - 开发者或 Reviewer → 新增、移动、审查或维护 `docs/**` → 先读 `docs/AGENTS.md`，再按其身份路由只读目标当前 Owner 或精确历史 Artifact → 不遍历无消费者的文档树。
 - 插件开发或评审者 → 涉及已提炼术语与规则 → 必须先读 `docs/CONTEXT.md`，再核对表中插件内定义 → 发布插件不得引用该文件。
 - 插件开发或评审者 → 讨论或修改入口、高层流程、Role/Skill 职责 → 必须在完成适用的术语读取后读取根目录 `PLUGIN_DESIGN.md`，再按受影响节点读取 Intake、Workflow、Human Interaction、Assurance、Coordination、Artifact 或目标 Skill → 只查询触发条件或局部流程且不涉及已提炼术语时，只读目标 `SKILL.md` 和元数据。
+- 插件开发者或 Reviewer → 调用 `.agents/skills/*` → 先按该 Skill 的 Scope 读取本文件与现行 Owner，只把它作为开发工作流 → 不得用开发 Skill 承载安装后 Runtime 语义或扩大产品 Skill 职责。
 - Runtime 局部任务只读目标 Adapter；Core 或跨运行环境审查按 Scope 比较。
 - 当前执行者 → 在新 task 或新协作界面继续同一 Runtime 局部迭代 → 先读目标 Adapter、批准 Spec、专用 Runtime 场景和有界 delta；只有这些现行来源不足以恢复状态时才查询 MEMORY/rollout，完整旧对话、完整 MEMORY 和冻结历史计划不得作为默认输入。
 - release、`1.0.0`、尚未实施的长期方向或 Core breaking boundary：读取 Evolution；显式快速发版、普通发版或安装另读 `docs/release.md`；现行架构、Manager/并行与产品流程先读 `PLUGIN_DESIGN.md`，只有改变上述 Evolution 独占内容时才修改 Evolution。

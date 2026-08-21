@@ -151,6 +151,26 @@ class ReleaseScriptTests(unittest.TestCase):
         self.assertIn("quick_validate.py", rendered)
         self.assertNotIn("validate_plugin.py", rendered)
 
+    def test_project_skill_metadata_runs_only_quick_validator(self) -> None:
+        paths = (
+            ".agents/skills/sacha-doc-governance/SKILL.md",
+            ".agents/skills/sacha-doc-governance/agents/openai.yaml",
+        )
+        deltas = {
+            paths[0]: (None, "---\nname: sacha-doc-governance\ndescription: use\n---\nbody\n"),
+            paths[1]: (None, "interface: {}\n"),
+        }
+        with mock.patch.object(
+            release,
+            "creator_script",
+            side_effect=lambda _creator, script: Path(script),
+        ):
+            commands = release.validation_commands("0.1.0", list(paths), deltas=deltas)
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("quick_validate.py", rendered)
+        self.assertIn(".agents", rendered)
+        self.assertNotIn("validate_plugin.py", rendered)
+
     def test_deleted_skill_metadata_does_not_validate_absent_root(self) -> None:
         path = "plugins/sacha-orchestra/skills/clarify/SKILL.md"
         before = "---\nname: clarify\ndescription: old\n---\nbody\n"
@@ -231,6 +251,7 @@ class ReleaseScriptTests(unittest.TestCase):
             "tests/runtime-scenarios/packs/roadmap-self-contained-document/fixture/verify.py",
             "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/fixture/probe.json",
             "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/fixture/verify.py",
+            "tests/runtime-scenarios/packs/reviewer-semantic-chain/fixture/baseline/cli.py",
         ]
         commands = release.validation_commands(
             "0.11.10",

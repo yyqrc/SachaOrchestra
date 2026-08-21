@@ -28,6 +28,7 @@
 - `closeout-command`：由不携带父对话历史的执行上下文运行；验证 Human 明确请求“收口”时只原位完成当前唯一 Spec，不生成项目文档或 `docs/done`。
 - `project-facing-spec`：由不携带父对话历史的显式 Planner 运行；从已确认项目事实与混合交付记录生成纯项目实施规格，验证 Spec 格式、项目语境和工作流信息外置。
 - `workflow-language-boundary`：由不携带父对话历史的独立 Reviewer 运行；对真实候选差异区分产品文本、英文运行日志、项目正式代码标识和 Handoff，不使用粗暴关键词禁用。
+- `reviewer-semantic-chain`：由不携带父对话历史的独立 Reviewer 运行；验证其追踪正式入口、限制绕过、UTF-8 字节边界和绿色聚焦测试的证据范围，并对真实缺陷返回 `Needs Fix`。
 - `codex-code-mode-readonly-batch`：由不携带父对话历史的执行上下文运行；对两个无共同原生批量入口的真实只读工具比较逐次基线与一个外层 Code Mode 调用，并验证 Runtime asset、嵌套 caller、输出边界和零重放。
 
 新增包必须来自真实 failure mode 或待验证的流程变化；先写不带答案的 `task.md`，再把期望与允许弹性写入独立 `oracle.md`。不得为覆盖节点数量拼接不自然任务。

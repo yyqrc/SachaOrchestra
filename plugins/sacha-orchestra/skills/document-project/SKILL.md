@@ -32,10 +32,11 @@ description: Human 显式请求项目文档、Roadmap 提交自包含路线文�
    - 未绑定模板目录时按文档类型使用插件内 `canonical-change-archive-v1`、`canonical-system-guide-v1` 或 `canonical-roadmap-v1` 内置模板。
 2. `project-context` 使用最终 Spec、真实证据、Review 和现有 `CONTEXT.md` 复核当前任务候选，不使用模板目录。
 3. `roadmap` 读取并消费 [Roadmap 文档输入](assets/roadmap.json)，校验所选 Roadmap Profile/template、标题、九个必需语义章节、唯一文件名、Roadmap root 包含关系、`create | update` 与 `expected_target_sha256`；Profile 只提供文风和章节组织，正文语义仍由 Roadmap Skill 拥有。
-4. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。
-5. `required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 变化时重新确认。
-6. 校验 Integration、授权、root 包含关系、结构、写入前内容（preimage）与 path。模板目录模式校验当前 manifest、所选 Profile 的类型/版本/template path、选中模板的 SHA-256 与 `generation_policy`。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
-7. 发布文档原子新建；Roadmap 按明确 mode 原子新建或以 preimage 原位更新；Context 只写受管区。修改既有内容需要逐次写入确认，并发变化时停止写入。
+4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner，正文描述当前项目状态而不叙述任务过程、Review 编舞或 Sacha 路由；每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
+5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。
+6. `required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 变化时重新确认。
+7. 校验 Integration、授权、root 包含关系、结构、写入前内容（preimage）与 path。模板目录模式校验当前 manifest、所选 Profile 的类型/版本/template path、选中模板的 SHA-256 与 `generation_policy`。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
+8. 发布文档原子新建；Roadmap 按明确 mode 原子新建或以 preimage 原位更新；Context 只写受管区。修改既有内容需要逐次写入确认，并发变化时停止写入。
 
 ## 输出
 

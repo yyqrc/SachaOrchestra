@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sacha Runtime 场景"
+  short_description: "运行和评估 Sacha Runtime 场景任务包及原生证据链"
+  default_prompt: "使用 $sacha-runtime-scenario 运行并评估指定的 Sacha Runtime 场景任务包。"

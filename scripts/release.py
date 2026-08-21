@@ -150,25 +150,29 @@ def staged_deltas(staged: list[str]) -> dict[str, tuple[str | None, str | None]]
 def changed_skill_metadata_roots(
     staged: list[str],
     deltas: dict[str, tuple[str | None, str | None]],
-    plugin: Path = PLUGIN,
+    root: Path = ROOT,
 ) -> list[Path]:
-    prefix = "plugins/sacha-orchestra/skills/"
-    names: set[str] = set()
+    sources = (
+        ("plugins/sacha-orchestra/skills/", root / "plugins" / "sacha-orchestra" / "skills"),
+        (".agents/skills/", root / ".agents" / "skills"),
+    )
+    roots: set[Path] = set()
     for path in staged:
-        if not path.startswith(prefix) or "/" not in path[len(prefix) :]:
-            continue
-        relative = path[len(prefix) :]
-        name, child = relative.split("/", 1)
-        before, after = deltas[path]
-        if (
-            child == "SKILL.md"
-            and after is not None
-            and frontmatter(before) != frontmatter(after)
-        ):
-            names.add(name)
-        elif child == "agents/openai.yaml" and after is not None:
-            names.add(name)
-    return [plugin / "skills" / name for name in sorted(names)]
+        for prefix, skill_root in sources:
+            if not path.startswith(prefix) or "/" not in path[len(prefix) :]:
+                continue
+            relative = path[len(prefix) :]
+            name, child = relative.split("/", 1)
+            before, after = deltas[path]
+            if (
+                child == "SKILL.md"
+                and after is not None
+                and frontmatter(before) != frontmatter(after)
+            ):
+                roots.add(skill_root / name)
+            elif child == "agents/openai.yaml" and after is not None:
+                roots.add(skill_root / name)
+    return sorted(roots)
 
 
 def requires_plugin_validation(
@@ -177,7 +181,10 @@ def requires_plugin_validation(
 ) -> bool:
     for path in staged:
         before, after = deltas[path]
-        if path in DEPLOYMENT_MANIFESTS or path.endswith("/agents/openai.yaml"):
+        if path in DEPLOYMENT_MANIFESTS or (
+            path.startswith("plugins/sacha-orchestra/skills/")
+            and path.endswith("/agents/openai.yaml")
+        ):
             return True
         if path.startswith("plugins/sacha-orchestra/") and (before is None or after is None):
             return True
@@ -214,6 +221,7 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
                 "tests/runtime-scenarios/packs/roadmap-self-contained-document/",
                 "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
                 "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
+                "tests/runtime-scenarios/packs/reviewer-semantic-chain/",
             ),
             "tests.test_runtime_scenario_verifiers",
         ),
@@ -270,7 +278,7 @@ def validation_commands(
         commands.append(
             (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))
         )
-    skill_roots = changed_skill_metadata_roots(staged, deltas, plugin)
+    skill_roots = changed_skill_metadata_roots(staged, deltas, root)
     skill_validator = creator_script("skill-creator", "quick_validate.py") if skill_roots else None
     commands.extend(
         (python, "-B", str(skill_validator), str(skill_root))
