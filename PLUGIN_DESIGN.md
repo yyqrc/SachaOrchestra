@@ -181,7 +181,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
 | 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct 或一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
-| 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 记录必要锚点 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；只读，不冻结 Scope |
+| 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 按 Artifact Protocol 写入必要的探索决定记录 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；目标项目源码、配置、资源与外部状态保持只读，可写探索决定记录，不冻结 Scope |
 | 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |

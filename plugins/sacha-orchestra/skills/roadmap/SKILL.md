@@ -14,7 +14,7 @@ description: Human 显式要求生成、整理或更新跨阶段项目 Roadmap �
 1. 只接受 Human 显式 Roadmap 请求；调用不接受 Sacha，不进入 Planner、Executor、Reviewer 或正常收尾候选。向 Human 提问、确认写入或报告结果前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
 2. 先读项目规则、当前 Project Integration、项目事实、现有正式文档和相关 Spec。Project Integration 必须提供唯一 Roadmap root 与 Roadmap 文件模式；缺失时报告需要由 `setup-project` 配置的明确输入并停止，不自行调用 Setup，也不回退工作区默认目录。Project Integration 绑定 template catalog 时，按 `document_type=roadmap` 选择唯一最高相关 Profile；没有绑定时使用插件内 `canonical-roadmap-v1`。
 3. 更新既有 Roadmap 时从 Human 输入或当前任务可达 reference 取得唯一文件 `path`，核对它位于 Roadmap root；不得扫描 root 按日期或名称猜测最新文件。新建时根据 Human 目标确定简短稳定 slug，按 Project Integration 的 Roadmap 文件模式生成文件名；日期使用首次创建日，后续更新保持 path 不变。
-4. 事实、目标边界或实质决定不足时调用 `$sacha-orchestra:explore`；Roadmap 的显式请求只授权同一目标内的只读 Explore，结果返回 Roadmap。Explore 需要新写入、实施、Scope 或高影响授权时停止受影响部分并交 Human 决定。
+4. 事实、目标边界或实质决定不足时调用 `$sacha-orchestra:explore`；Roadmap 的显式请求只授权同一目标内的 Explore 读取目标项目源码、配置、资源与外部状态，并按 [Artifact Protocol](../../core/artifact-protocol.md) 创建或更新探索决定记录，结果返回 Roadmap。Explore 需要除此以外的新写入、实施、Scope 或高影响授权时停止受影响部分并交 Human 决定。
 
 ## 动作顺序
 

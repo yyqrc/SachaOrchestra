@@ -51,6 +51,8 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口
 | 在另一个真实任务显式调用 Feedback | 授权来源任务围绕具体反馈目标有界只读调查，并查询、复用或创建唯一反馈目标任务；Human 可提供原任务、项目或证据 reference；目标任务另行核对写入与外部动作授权 |
 | 直接调用 Manager | 返回当前目标给 `using-sacha` 或主任务，由 Manager Gate 路由 |
 
-入口授权只作用于当前目标/Scope。工作区写入、安装、Git、发布、远程资源、权限、高影响动作和 Planner 后续形成的实质方案分别取得对应授权；安全与工程规则持续生效。
+通过显式 Explore、活跃 Planner 或活跃 Roadmap 进入 Explore 时，主任务可按 [Artifact Protocol](artifact-protocol.md) 创建或更新探索决定记录；该工作流 Artifact 写入不授权修改目标项目源码、配置、资源或外部状态。
+
+入口授权只作用于当前目标/Scope。探索决定记录写入只采用上一条边界；其他工作区写入、安装、Git、发布、远程资源、权限、高影响动作和 Planner 后续形成的实质方案分别取得对应授权；安全与工程规则持续生效。
 
 Hook 可以由 Runtime 在另行授权后预加载环境信息，但不得接受 Sacha、替代 `using-sacha`、扩大授权或成为正确性与恢复前提。

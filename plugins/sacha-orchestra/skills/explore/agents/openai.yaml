@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Explore（需求探索）"
-  short_description: "探索模糊目标、未知事实、关键边界与验收"
-  default_prompt: "使用 $sacha-orchestra:explore 探索这个目标、未知事实、关键边界与验收点。"
+  short_description: "探索模糊目标、未知事实与关键边界，并在 Human 不理解时辅助解释"
+  default_prompt: "使用 $sacha-orchestra:explore 探索或解释这个目标，核对未知事实、关键边界、验收点与待确认决定。"
 
 policy:
   allow_implicit_invocation: false
