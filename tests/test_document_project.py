@@ -27,6 +27,179 @@ else:
 
 
 class DocumentProjectTests(ProjectTestCase):
+    def test_explicit_target_create_and_update_bypass_project_integration(self) -> None:
+        project = self.root / "explicit-target"
+        target_parent = project / "Rendering"
+        catalog = project / "templates"
+        target_parent.mkdir(parents=True)
+        catalog.mkdir()
+        template = catalog / "system-guide-v1.md"
+        template.write_text(
+            "# {系统名称}\n\n## 当前机制\n\n{机制}\n",
+            encoding="utf-8",
+        )
+        (catalog / "profiles.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "selection": {
+                        "strategy": "manifest-ranked",
+                        "read_templates_before_selection": False,
+                        "tie_policy": "ask-human",
+                        "allow_profile_merge": False,
+                        "allow_ad_hoc_profile": False,
+                    },
+                    "generation_policy": self.documentation_generation_policy(),
+                    "profiles": [
+                        {
+                            "id": "system-guide-v1",
+                            "document_type": "system-guide",
+                            "primary_purpose": "explain",
+                            "primary_question": "系统如何工作",
+                            "choose_when": ["需要更新长期系统说明"],
+                            "avoid_when": ["只记录一次变更"],
+                            "required_topics": ["当前机制", "验证边界"],
+                            "optional_sections": ["历史"],
+                            "template": template.name,
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        target = target_parent / "pipeline.md"
+
+        def explicit_input(*, mode: str, expected: str | None, body: str) -> dict[str, object]:
+            return {
+                "schema_version": "1",
+                "document_type": "system-guide",
+                "title": "渲染管线",
+                "trigger": "human-request",
+                "persistent_product_delta": False,
+                "target_path": "Rendering/pipeline.md",
+                "mode": mode,
+                "expected_target_sha256": expected,
+                "template_catalog_path": "templates",
+                "template_profile": "system-guide-v1",
+                "rendered_markdown": body,
+            }
+
+        first_body = "# 渲染管线\n\n## 当前机制\n\n第一版机制。\n"
+        create_input = explicit_input(mode="create", expected=None, body=first_body)
+        ready = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=create_input,
+        )
+        self.assertEqual(("ready", "dry_run"), (ready["status"], ready["transaction"]))
+        self.assertEqual("create", ready["mode"])
+        self.assertFalse((project / "docs" / "workflow-rule.md").exists())
+
+        created = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=create_input,
+            write=True,
+        )
+        self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
+        self.assertEqual(first_body.encode("utf-8"), target.read_bytes())
+
+        crlf_original = b"\xef\xbb\xbf" + first_body.replace("\n", "\r\n").encode("utf-8")
+        target.write_bytes(crlf_original)
+        preimage = digest(target)
+        second_body = "# 渲染管线\n\n## 当前机制\n\n第二版机制。\n"
+        update_input = explicit_input(mode="update", expected=preimage, body=second_body)
+        updated = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=update_input,
+            write=True,
+        )
+        self.assertEqual(("ok", "committed"), (updated["status"], updated["transaction"]))
+        written = target.read_bytes()
+        self.assertTrue(written.startswith(b"\xef\xbb\xbf"))
+        self.assertIn(b"\r\n", written)
+        self.assertNotIn(b"\n", written[3:].replace(b"\r\n", b""))
+        self.assertIn("第二版机制", written.decode("utf-8-sig"))
+
+        unchanged = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=explicit_input(
+                mode="update",
+                expected=digest(target),
+                body=second_body,
+            ),
+            write=True,
+        )
+        self.assertEqual(("ok", "no_changes"), (unchanged["status"], unchanged["transaction"]))
+
+        stale = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=explicit_input(
+                mode="update",
+                expected="0" * 64,
+                body=first_body,
+            ),
+        )
+        self.assertEqual("refused", stale["status"])
+        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
+
+        missing_preimage = explicit_input(mode="update", expected=None, body=first_body)
+        refused = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=missing_preimage,
+        )
+        self.assertEqual("refused", refused["status"])
+        self.assertIn("requires expected_target_sha256", refused["conflicts"][0])
+
+        wrong_trigger = explicit_input(mode="create", expected=None, body=first_body)
+        wrong_trigger["trigger"] = "goal-closeout"
+        refused = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=wrong_trigger,
+        )
+        self.assertEqual("refused", refused["status"])
+        self.assertIn("requires a Human request", refused["conflicts"][0])
+
+        escaped = explicit_input(mode="create", expected=None, body=first_body)
+        escaped["target_path"] = "../outside.md"
+        refused = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=escaped,
+        )
+        self.assertEqual("refused", refused["status"])
+        self.assertIn("normalized relative path", refused["conflicts"][0])
+
+        cli_input = explicit_input(mode="create", expected=None, body=first_body)
+        cli_input["target_path"] = "Rendering/cli.md"
+        input_path = project / "explicit-input.json"
+        input_path.write_text(json.dumps(cli_input, ensure_ascii=False), encoding="utf-8")
+        process = subprocess.run(
+            (
+                sys.executable,
+                "-B",
+                str(DOCUMENT_SCRIPT),
+                "--project-root",
+                str(project),
+                "--input-json",
+                str(input_path),
+                "--write",
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        self.assertEqual("committed", json.loads(process.stdout)["transaction"])
+        self.assertTrue((target_parent / "cli.md").is_file())
+
     def test_project_documentation_policy_trigger_and_authorization(self) -> None:
         disabled = self.root / "documents-disabled"
         disabled.mkdir()

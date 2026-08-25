@@ -21,6 +21,7 @@
 | `root` | 从 `base`、配置或发现结果解析、派生并实际生效的目录；不得代指任意输入目录。 |
 | `path` | 文件或目录在文件系统中的位置；用于可直接读取、写入或解析的文件系统目标。 |
 | `reference` | 非文件的证据、Owner、Runtime 标识或间接指向；不得代替本应明确的文件 `path`，也不得另建 `locator` 作为同义术语。 |
+| 显式发布文档目标 | Human 在显式 `document-project` 请求中直接提供的 project root 内 Markdown path，且文档类型为 `change-archive` 或 `system-guide`；不包括 Roadmap、Project Context、目录/root 或由 Project Integration 派生的目标。该术语只标识输入分类，授权、路由和写入动作仍归对应 Owner。 |
 | 能力加载策略 | Project Integration 的已确认 Capability Binding 对规范 Skill 的加载条件；只决定何时读取并采用 Skill，不表示授权、前置满足或动作已执行。 |
 | Artifact | 供执行、恢复、复核或返回消费者使用的工作流记录；不替代原始事实、Human 授权或流程状态。 |
 | Spec Artifact | Planner 基于已核实项目事实和 Human 决定形成、经 Human 批准后作为实施与评审基线的目标项目实施规格；内容格式与权威关系由 Artifact Protocol 定义。 |

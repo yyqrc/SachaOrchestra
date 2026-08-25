@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and atomically create a publication or update project CONTEXT."""
+"""Validate and atomically create or update project documentation."""
 
 from __future__ import annotations
 
@@ -837,16 +837,26 @@ def parse_document_input(value: Any) -> dict[str, Any]:
     if value.get("document_type") == "project-context":
         return _parse_context_input(value)
     if "template_profile" in value or "rendered_markdown" in value:
-        expected_profile_input = {
+        profile_input = {
             "schema_version",
             "document_type",
             "title",
             "trigger",
             "persistent_product_delta",
-            "output_path",
             "template_profile",
             "rendered_markdown",
         }
+        explicit_target = "target_path" in value
+        expected_profile_input = profile_input | (
+            {
+                "target_path",
+                "mode",
+                "expected_target_sha256",
+                "template_catalog_path",
+            }
+            if explicit_target
+            else {"output_path"}
+        )
         if set(value) != expected_profile_input:
             raise DocumentError(
                 f"profile document input fields must be exactly {sorted(expected_profile_input)}"
@@ -864,9 +874,54 @@ def parse_document_input(value: Any) -> dict[str, Any]:
         common = dict(value)
         common.pop("template_profile")
         common.pop("rendered_markdown")
+        if explicit_target:
+            if value.get("trigger") != "human-request":
+                raise DocumentError("explicit target requires a Human request")
+            target = _normalized_relative_path(value["target_path"], "target_path")
+            if target.suffix.casefold() != ".md":
+                raise DocumentError("target_path must end in .md")
+            mode = value.get("mode")
+            if mode not in {"create", "update"}:
+                raise DocumentError("explicit target mode must be create or update")
+            expected_hash = value.get("expected_target_sha256")
+            if expected_hash is not None and (
+                not isinstance(expected_hash, str)
+                or re.fullmatch(r"[0-9A-Fa-f]{64}", expected_hash) is None
+            ):
+                raise DocumentError(
+                    "explicit target expected_target_sha256 must be null or a 64-character SHA-256"
+                )
+            if mode == "create" and expected_hash is not None:
+                raise DocumentError("explicit target create must not provide expected_target_sha256")
+            if mode == "update" and expected_hash is None:
+                raise DocumentError("explicit target update requires expected_target_sha256")
+            catalog = value.get("template_catalog_path")
+            if catalog is not None:
+                catalog = _normalized_relative_path(
+                    catalog,
+                    "template_catalog_path",
+                ).as_posix()
+            for key in (
+                "target_path",
+                "mode",
+                "expected_target_sha256",
+                "template_catalog_path",
+            ):
+                common.pop(key)
+            common["output_path"] = target.as_posix()
         common["sections"] = {key: value for key, value in SECTIONS}
         parsed = parse_document_input(common)
         parsed.pop("sections")
+        if explicit_target:
+            parsed.pop("output_path")
+            parsed.update(
+                target_path=target.as_posix(),
+                mode=mode,
+                expected_target_sha256=(
+                    None if expected_hash is None else expected_hash.upper()
+                ),
+                template_catalog_path=catalog,
+            )
         parsed["template_profile"] = profile
         parsed["rendered_markdown"] = rendered.strip() + "\n"
         return parsed
@@ -1232,6 +1287,73 @@ def _target_path(root: Path, output_path: str) -> Path:
     return target
 
 
+def _explicit_target_path(project_root: Path, target_path: str) -> Path:
+    pure = _normalized_relative_path(target_path, "target_path")
+    if pure.suffix.casefold() != ".md":
+        raise DocumentError("target_path must end in .md")
+    target = project_root.joinpath(*pure.parts)
+    parent = target.parent.resolve(strict=False)
+    try:
+        parent.relative_to(project_root)
+    except ValueError as exc:
+        raise DocumentError("explicit target parent escapes project root") from exc
+    if not parent.is_dir():
+        raise DocumentError("explicit target parent directory does not exist")
+    if target.is_symlink():
+        raise DocumentError("explicit target must not be a symbolic link")
+    if target.exists():
+        resolved = target.resolve(strict=False)
+        try:
+            resolved.relative_to(project_root)
+        except ValueError as exc:
+            raise DocumentError("explicit target escapes project root") from exc
+    return target
+
+
+def _publication_preimage(
+    target: Path,
+    *,
+    mode: str,
+    expected_sha256: str | None,
+) -> bytes | None:
+    if mode == "create":
+        if target.exists():
+            raise DocumentError("explicit target create target already exists")
+        return None
+    if not target.is_file():
+        raise DocumentError("explicit target update target is absent or not a file")
+    original = target.read_bytes()
+    if sha256_bytes(original) != expected_sha256:
+        raise DocumentError("explicit target preimage SHA-256 changed")
+    return original
+
+
+def _match_publication_format(generated: bytes, original: bytes | None) -> bytes:
+    if original is None:
+        return generated
+    formatted = generated
+    body = original[3:] if original.startswith(b"\xef\xbb\xbf") else original
+    if b"\r\n" in body and b"\n" not in body.replace(b"\r\n", b""):
+        formatted = formatted.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    if original.startswith(b"\xef\xbb\xbf"):
+        formatted = b"\xef\xbb\xbf" + formatted
+    if len(formatted) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"generated document exceeds {MAX_DOCUMENT_BYTES} bytes")
+    return formatted
+
+
+def _explicit_template_documentation(document: dict[str, Any]) -> dict[str, Any]:
+    catalog = document.get("template_catalog_path")
+    if catalog is None:
+        return {}
+    return {
+        "template_catalog": {
+            "path_kind": "project-relative",
+            "path": catalog,
+        }
+    }
+
+
 def _roadmap_target_path(root: Path, output_path: str) -> Path:
     pure = _normalized_relative_path(output_path, "roadmap output_path")
     if len(pure.parts) != 1 or ROADMAP_FILE_NAME.fullmatch(pure.name) is None:
@@ -1289,6 +1411,43 @@ def _commit_roadmap_update(
         raise DocumentError("roadmap appeared during atomic create") from exc
     except OSError as exc:
         raise DocumentError(f"atomic roadmap write failed: {type(exc).__name__}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _commit_publication_update(
+    target: Path,
+    generated: bytes,
+    original: bytes | None,
+) -> None:
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=".sacha-document-",
+            suffix=".tmp",
+            dir=target.parent,
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(generated)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if original is None:
+            os.link(temp_path, target)
+        else:
+            if not target.is_file() or target.read_bytes() != original:
+                raise DocumentError("explicit target changed before atomic replace")
+            os.replace(temp_path, target)
+            temp_path = None
+    except FileExistsError as exc:
+        raise DocumentError("explicit target appeared during atomic create") from exc
+    except OSError as exc:
+        raise DocumentError(f"atomic explicit target write failed: {type(exc).__name__}") from exc
     finally:
         if temp_path is not None:
             try:
@@ -1401,16 +1560,22 @@ def generate_project_document(
         project = project_root.resolve(strict=False)
         if not project.is_dir():
             raise DocumentError("project root must exist and be a directory")
-        pure_rule = _normalized_relative_path(workflow_rule_path, "workflow_rule_path")
-        workflow = project.joinpath(*pure_rule.parts).resolve(strict=False)
-        try:
-            workflow.relative_to(project)
-        except ValueError as exc:
-            raise DocumentError("workflow rule escapes project root") from exc
-        workflow_data = workflow.read_bytes()
-        workflow_hash = sha256_bytes(workflow_data)
-        documentation = parse_project_integration(workflow_data)
         document = parse_document_input(document_input)
+        explicit_target = "target_path" in document
+        workflow: Path | None = None
+        workflow_hash: str | None = None
+        if explicit_target:
+            documentation = _explicit_template_documentation(document)
+        else:
+            pure_rule = _normalized_relative_path(workflow_rule_path, "workflow_rule_path")
+            workflow = project.joinpath(*pure_rule.parts).resolve(strict=False)
+            try:
+                workflow.relative_to(project)
+            except ValueError as exc:
+                raise DocumentError("workflow rule escapes project root") from exc
+            workflow_data = workflow.read_bytes()
+            workflow_hash = sha256_bytes(workflow_data)
+            documentation = parse_project_integration(workflow_data)
         if document["document_type"] == "roadmap":
             if write and not per_write_confirmed:
                 raise DocumentError("roadmap write requires explicit per-write confirmation")
@@ -1500,11 +1665,12 @@ def generate_project_document(
                 return result
             result.update(status="ok", transaction="committed")
             return result
-        _authorize(
-            documentation,
-            document,
-            per_write_confirmed=per_write_confirmed,
-        )
+        if not explicit_target:
+            _authorize(
+                documentation,
+                document,
+                per_write_confirmed=per_write_confirmed,
+            )
         if document["document_type"] == "project-context":
             target = _resolve_context_target(project, documentation)
             original = _context_preimage(target, document["expected_target_sha256"])
@@ -1566,8 +1732,17 @@ def generate_project_document(
                 return result
             result.update(status="ok", transaction="committed")
             return result
-        root = _resolve_document_root(project, documentation)
-        target = _target_path(root, document["output_path"])
+        if explicit_target:
+            target = _explicit_target_path(project, document["target_path"])
+            original = _publication_preimage(
+                target,
+                mode=document["mode"],
+                expected_sha256=document["expected_target_sha256"],
+            )
+        else:
+            root = _resolve_document_root(project, documentation)
+            target = _target_path(root, document["output_path"])
+            original = None
         if "template_profile" in document:
             document_template = _resolve_profile_template(
                 project,
@@ -1594,6 +1769,8 @@ def generate_project_document(
             )
             parsed_title = parsed["title"]
             parsed_sections = list(parsed["sections"])
+        if explicit_target:
+            generated = _match_publication_format(generated, original)
         generated_hash = sha256_bytes(generated)
         result.update(
             status="ready",
@@ -1613,13 +1790,22 @@ def generate_project_document(
                 )
             },
         )
+        if explicit_target:
+            result.update(
+                mode=document["mode"],
+                preimage_sha256=(
+                    None if original is None else sha256_bytes(original)
+                ),
+            )
         if "required_topics" in document_template:
             result["template"]["required_topics"] = list(document_template["required_topics"])
         if not write:
             return result
         write_started = True
-        if sha256_bytes(workflow.read_bytes()) != workflow_hash:
-            raise DocumentError("Project Integration changed after validation")
+        if not explicit_target:
+            assert workflow is not None and workflow_hash is not None
+            if sha256_bytes(workflow.read_bytes()) != workflow_hash:
+                raise DocumentError("Project Integration changed after validation")
         current_template = (
             _resolve_profile_template(
                 project,
@@ -1636,6 +1822,34 @@ def generate_project_document(
         )
         if current_template["sha256"] != document_template["sha256"]:
             raise DocumentError(f"{document['document_type']} template changed after validation")
+        if explicit_target:
+            target = _explicit_target_path(project, document["target_path"])
+            current = _publication_preimage(
+                target,
+                mode=document["mode"],
+                expected_sha256=document["expected_target_sha256"],
+            )
+            if current != original:
+                raise DocumentError("explicit target changed after validation")
+            if current == generated:
+                result.update(status="ok", transaction="no_changes")
+                return result
+            _commit_publication_update(target, generated, current)
+            try:
+                written = target.read_bytes()
+                if written != generated:
+                    raise DocumentError("post-write explicit target validation failed")
+            except (OSError, DocumentError) as exc:
+                restored = _restore_context(target, current, generated_hash)
+                result.update(
+                    status="failed",
+                    transaction="rolled_back" if restored else "partial_write",
+                )
+                result["conflicts"].append(str(exc))
+                return result
+            result.update(status="ok", transaction="committed")
+            return result
+
         root = _resolve_document_root(project, documentation)
         target = _target_path(root, document["output_path"])
 
@@ -1702,7 +1916,7 @@ def generate_project_document(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate and create a project publication or safely update project CONTEXT."
+        description="Validate and safely create or update project documentation."
     )
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--workflow-rule-path", default="docs/workflow-rule.md")

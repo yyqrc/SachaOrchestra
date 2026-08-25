@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.5`。
+- 当前 release：`0.12.6`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：Explore 补齐 Human 不理解或请求辅助理解时的解释流程，修正触发、调用身份、挑战图更新和 Human 决定记录的重复或冲突；顶层设计、Intake、Roadmap 与发布 README 明确 Explore 可按 Artifact Protocol 写探索决定记录，同时保持目标项目源码、配置、资源和外部状态只读；Codex 显式调用策略保持不变。
-- 当前 breaking boundary：`0.12.5` 不新增或删除发布插件入口、Role、Gate、Artifact、Registry、Hook、MCP、配置 schema、部署接口或外部授权；只澄清 Explore 既有职责、Human 交互映射与探索决定记录授权，不授予目标项目实施或外部状态写入。
-- 当前成熟度：`0.12.5` 采用普通发版证据边界；candidate coherence 0 failures、完整 Plugin validator、Explore Skill validator 与精确 staged tree whitespace 复核通过，独立 Review 为 `Accepted with follow-up`；真实 task-package Runtime 场景、安装/cache parity 与 fresh discovery 未验证。
+- 当前 release Scope：`document-project` 为显式发布文档目标增加不依赖 Project Integration 的模板化 `create | update`，以目标 path 作为本次写入授权，并用 update preimage、项目 root 边界、模板校验、原子替换和失败恢复保护既有 Markdown；术语合同统一该输入分类，Intake、Workflow、Skill、README 和 metadata 只保留各自映射。
+- 当前 breaking boundary：`0.12.6` 不删除既有入口、Role、Gate、Artifact、Hook、MCP 或策略驱动文档路线；Roadmap、Project Context 和未显式指定目标的请求继续使用 Project Integration。显式发布文档目标新增 `target_path`、`mode`、`expected_target_sha256`、`template_catalog_path` 输入，不改变既有输入合同。
+- 当前成熟度：`0.12.6` 采用普通发版证据边界；candidate coherence 0 failures、`document-project` 18 项生产入口行为测试、Skill validator、Plugin validator 与精确 staged tree whitespace 复核通过，独立 Review 为 `Accepted with follow-up`；安装/cache parity、fresh discovery 与真实 Runtime 场景未验证。
 
 ## `1.0.0` 与后续方向
 

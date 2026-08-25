@@ -45,7 +45,7 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口
 | 显式 Explore | 授权主任务在窄 Scope 内探索并管理一个有界只读研究委派 Agent；Explore 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
 | 活跃 Planner 路由 Explore | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
 | 显式 Roadmap | 只授权当前 Roadmap 目标内读取项目事实、按需调用 Explore 做有界只读探索，并把自包含正文交给 document-project 按 Project Integration 写入；不接受 Sacha、不进入生产 Role、不创建或执行 Spec |
-| 显式 document-project | 直接路由当前文档目标到 document-project；不接受 Sacha、不补走生产 Role，也不替代正常 Workflow 的收尾候选检查；实际写入继续服从项目策略和写入授权 |
+| 显式 document-project | 直接路由当前文档目标到 document-project；显式发布文档目标的 path 构成本次写入授权，不要求 Project Integration；其他请求继续服从项目策略和写入授权；不接受 Sacha、不补走生产 Role，也不替代正常 Workflow 的收尾候选检查 |
 | `closeout` 请求 | 只授权当前 closeout 目标，不接受 Sacha；具体动作、顺序与失败路由由 Workflow Contract 决定，Spec 与项目文档写入继续服从各自 Owner |
 | 显式 Setup Project | 只授权本次项目配置 Scope；后续开发目标重新判断入口 |
 | 在另一个真实任务显式调用 Feedback | 授权来源任务围绕具体反馈目标有界只读调查，并查询、复用或创建唯一反馈目标任务；Human 可提供原任务、项目或证据 reference；目标任务另行核对写入与外部动作授权 |

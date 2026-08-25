@@ -12,7 +12,7 @@ Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或
 
 - 高级入口：`planner`、`executor`、`reviewer`；显式 `explore` 保持窄授权，目标项目源码、配置、资源与外部状态只读，可按 Artifact Protocol 写探索决定记录。
 - `roadmap` 是主流程外显式规划入口：按需复用 Explore，生成可脱离 Sacha 独立理解的长期项目路线图，并通过 `document-project` 写入 Project Integration 配置的 Roadmap root；不创建或执行 Spec。
-- `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式调用只覆盖当前文档目标，不接受 Sacha、不补走生产 Role。
+- `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 即本次写入授权，可按模板新建或原位更新且不要求 Project Integration；其他请求继续服从项目策略。不接受 Sacha、不补走生产 Role。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求：收口只原位完成当前唯一 Spec，存档只映射 `document-project`，组合动作先收口再存档；只讨论或引用这些词语不执行动作。
 - `feedback` 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。来源任务交付唯一目标任务 reference 后结束，目标任务按普通任务重新判断。
 - Manager 只接受内部 Gate 路由，不是用户入口。

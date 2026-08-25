@@ -88,7 +88,7 @@ closeout 当前动作为组合动作时，主任务先核对两个动作的目�
 
 ## 6. 项目文档
 
-Human 显式调用 document-project 时，当前文档请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选；Roadmap 路由 document-project 时，当前显式 Roadmap 请求和已形成正文构成该文档输入。两类调用都只处理当前文档目标，写入继续服从已确认的 Project Integration 与 Human 授权。
+Human 显式调用 document-project 时，当前请求直接形成该 Skill 的输入，不要求先存在 Workflow 收尾候选。显式发布文档目标绕过 Project Integration，使用明确的 `create | update`、update preimage 和模板来源完成原子写入；其他请求继续服从已确认的 Project Integration。Roadmap 路由时，当前显式 Roadmap 请求和已形成正文构成文档输入。
 
 完成实现及所需验证/Review 后，主任务只用当前任务最终事实检查一次项目文档候选。候选必须有持久产品变更（delta），并至少满足一项：已批准 Spec 的实质方案已经落地；形成对后续消费者有用的新/改能力、架构、数据、运维或恢复知识；存在经最终实现和证据证实、且有跨任务消费者的项目上下文（Project Context）候选。
 
