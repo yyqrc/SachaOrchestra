@@ -6,7 +6,7 @@
 
 - 本文件是 Project `AGENTS.md`；Global AGENTS 的安全/授权/证据/Git/用户改动保护仍生效。
 - 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md`、`.agents/skills/**` 与 `docs/**` 供插件开发使用，不进入发布插件。
-- 本 workspace 是 repo-local marketplace，唯一 plugin 源码位于 `plugins/sacha-orchestra`。
+- 本 workspace 的 repo-local Agent Plugin marketplace 只有 `plugins/sacha-orchestra`；独立构建和安装的 DSH companion plugin 位于 `integrations/dsh/sacha-visualizer`，不进入三个 marketplace 或 Agent Plugin 发布 `root`。
 - 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度和尚未实施的长期方向以 [`EVOLUTION.md`](EVOLUTION.md) 为权威；现行架构和流程仍由 `PLUGIN_DESIGN.md` 及对应 Runtime Owner 定义。manifest 记录当前源码版本，tag 标记已经发布的版本。
 - Evolution 只给版本、当前 breaking boundary、成熟度和尚未实施的方向，不授权实施。
 
@@ -31,6 +31,7 @@
 | `plugins/sacha-orchestra/core/coordination-contract.md` | Manager 的 assessment、拆分、依赖、readiness、route requirement、dispatch/return、identity/dedup 与 deviation 的唯一 Core owner |
 | `plugins/sacha-orchestra/core/artifact-protocol.md` | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则的规范性 contract；术语定义归插件内术语合同 |
 | `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单一 Runtime 的传输、自动模型/强度选择、精确调用参数、回退、恢复与验证映射；不得反向定义 Gate/就绪条件 |
+| `integrations/dsh/sacha-visualizer` | DSH companion plugin 的 Host/Client 源码、构建、状态投影与界面 Owner；只观察 DSH Session、官方 Agent Teams 与 Adapter 已记录的 Sacha 转换，不拥有 Sacha 流程或发布插件 Runtime 语义 |
 | `plugins/sacha-orchestra/skills/*` | 不绑定具体 Runtime 的节点职责、局部工作流与边界；不增加流程节点，不复制 Core 判断或 Adapter 参数 |
 
 ## 文档身份与发布可达边界

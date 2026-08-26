@@ -125,6 +125,15 @@ class ReleaseScriptTests(unittest.TestCase):
             self.assertEqual(payload["validation"][0]["stdout"], "validated")
             self.assertGreaterEqual(payload["validation"][0]["duration_seconds"], 0)
 
+    def test_staged_text_returns_none_for_binary_blob(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            root = Path(root_dir)
+            self.git(root, "init", "-b", "main")
+            (root / "asset.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff")
+            self.git(root, "add", "asset.png")
+            with mock.patch.object(release, "ROOT", root):
+                self.assertIsNone(release.staged_text("asset.png", ""))
+
     def test_skill_body_only_skips_structure_validators(self) -> None:
         path = "plugins/sacha-orchestra/skills/executor/SKILL.md"
         before = "---\nname: executor\ndescription: use\n---\nold body\n"
@@ -214,6 +223,32 @@ class ReleaseScriptTests(unittest.TestCase):
         path = "scripts/new_producer.py"
         with self.assertRaisesRegex(release.ReleaseError, "缺少最窄测试映射"):
             release.validation_commands("0.1.0", [path], deltas={path: (None, "print('x')\n")})
+
+    def test_dsh_visualizer_machine_files_select_package_validator(self) -> None:
+        paths = [
+            "integrations/dsh/sacha-visualizer/package.json",
+            "integrations/dsh/sacha-visualizer/cordis.patch.yml",
+            "integrations/dsh/sacha-visualizer/src/index.ts",
+        ]
+        commands = release.validation_commands(
+            "0.1.0",
+            paths,
+            deltas={path: (None, "candidate\n") for path in paths},
+        )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn(release.DSH_VISUALIZER_VALIDATOR, rendered)
+        self.assertEqual(rendered.count(release.DSH_VISUALIZER_VALIDATOR), 1)
+
+    def test_dsh_visualizer_validator_change_runs_release_tests(self) -> None:
+        path = release.DSH_VISUALIZER_VALIDATOR
+        commands = release.validation_commands(
+            "0.1.0",
+            [path],
+            deltas={path: (None, "candidate\n")},
+        )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("tests.test_release", rendered)
+        self.assertNotIn(path, rendered)
 
     def test_production_schema_selects_its_direct_test(self) -> None:
         paths = [

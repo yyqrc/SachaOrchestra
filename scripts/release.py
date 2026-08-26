@@ -37,6 +37,8 @@ DEPLOYMENT_MANIFESTS = {
 PRODUCTION_TESTED_MARKDOWN = {
     "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
 }
+DSH_VISUALIZER_ROOT = "integrations/dsh/sacha-visualizer/"
+DSH_VISUALIZER_VALIDATOR = "tests/validate_dsh_visualizer.py"
 
 
 class ReleaseError(RuntimeError):
@@ -136,8 +138,21 @@ def frontmatter(text: str | None) -> str | None:
 
 
 def staged_text(path: str, revision: str) -> str | None:
-    result = git("show", f"{revision}:{path}", check=False)
-    return result.stdout if result.returncode == 0 else None
+    try:
+        result = subprocess.run(
+            ("git", "show", f"{revision}:{path}"),
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+        )
+    except OSError as exc:
+        raise ReleaseError(f"无法读取 staged blob：{path}\n{exc}") from exc
+    if result.returncode:
+        return None
+    try:
+        return result.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def staged_deltas(staged: list[str]) -> dict[str, tuple[str | None, str | None]]:
@@ -213,6 +228,7 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
         (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
+        ((DSH_VISUALIZER_VALIDATOR,), "tests.test_release"),
         (
             (
                 "tests/test_runtime_scenario_verifiers.py",
@@ -239,6 +255,8 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         and not path.endswith("/agents/openai.yaml")
     ]
     for path in machine_paths:
+        if path.startswith(DSH_VISUALIZER_ROOT):
+            continue
         matched = False
         for prefixes, module in mappings:
             if any(path == prefix or path.startswith(prefix) for prefix in prefixes):
@@ -274,6 +292,8 @@ def validation_commands(
         (python, "-B", "-m", "unittest", module)
         for module in narrow_test_modules(staged)
     )
+    if any(path.startswith(DSH_VISUALIZER_ROOT) for path in staged):
+        commands.append((python, "-B", DSH_VISUALIZER_VALIDATOR))
     if requires_plugin_validation(staged, deltas):
         commands.append(
             (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))

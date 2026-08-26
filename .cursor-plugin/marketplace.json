@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Sacha Orchestra Agent Plugin marketplace",
-    "version": "0.12.6"
+    "version": "0.12.7"
   },
   "plugins": [
     {
       "name": "sacha-orchestra",
       "source": "plugins/sacha-orchestra",
       "description": "跨运行环境的多智能体工作流编排框架",
-      "version": "0.12.6",
+      "version": "0.12.7",
       "category": "Productivity"
     }
   ]
