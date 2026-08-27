@@ -33,7 +33,7 @@ DSH 官方 `dsh-tool-subagent` 已经支持同一组合挂多个实例，每个�
 
 - `backgroundMode: continuable`
 - `maxDepth: 1`
-- 去掉 `write`、`edit`、当前平台 shell、workflow 和所有 delegation surface
+- 去掉 `write`、`edit`、当前平台 shell，以及 standard preset 的 `workflow/subagent/subagent_fork`
 - 保留读取、搜索、Web、`skill` 等当前 standard preset 中未被 deny 的能力
 
 因此它适合 Sacha 的 `research-ready` / Explore 型 work unit。由于 shell 被移除，它不能通过 shell 绕过 `write/edit` 做项目变更。
@@ -43,18 +43,26 @@ DSH 官方 `dsh-tool-subagent` 已经支持同一组合挂多个实例，每个�
 - `backgroundMode: continuable`
 - `maxDepth: 1`
 - 保留正常实施/验证工具
-- 去掉 workflow 与所有 delegation surface
+- 去掉 standard `workflow/subagent/subagent_fork`
 
-它能实施当前 work unit，但不能把 Sacha 的 Manager 权继续向下传。
+它能实施当前 work unit，但不能取得 Sacha 的 Manager 权。
 
 ### `sacha_review`
 
 - `backgroundMode: continuable`
 - `maxDepth: 1`
-- 去掉 `write/edit`、workflow 和所有 delegation surface
+- 去掉 `write/edit` 与 standard `workflow/subagent/subagent_fork`
 - 保留平台 shell，便于运行测试、diff、静态检查等验证
 
 因此 **它不是硬 read-only sandbox**：shell 仍可能产生文件副作用。Sacha Adapter/Assurance 只能把它记录为“直接写工具已移除”；若任务要求文件级只读 enforcement，仍必须使用目标 DSH 的真实 sandbox 能力并记录 `full | partial | unknown`，不能把 persona 当权限边界。
+
+### 为什么 deny-list 不写 sibling `sacha_*`
+
+三个 surface 在同一个 bundle 里注册，而 DSH 会对 `toolFilter` 中的未知名字响亮失败。若 `sacha_research` 在自己的装配阶段引用尚未注册的 `sacha_worker`，会把 bundle 正确性绑到注册顺序。
+
+因此 sibling Sacha tool 不进入 deny-list。**单层派发的真正 Runtime guard 是 `maxDepth: 1`**：child 即使仍能看到某个 sibling Sacha delegation surface，继续启动下一层也必须被 depth policy 拒绝。standard `workflow/subagent/subagent_fork` 仍从 child attention surface 中移除，减少常见错误入口。
+
+这也是 Fresh Runtime 验收必须检查“没有 depth>1 child”的原因；不能只检查 schema 是否隐藏了某个工具名。
 
 ## 模型路由边界
 
@@ -79,6 +87,17 @@ Pop-Location
 
 `dsh plugin` 会依据 package.json 的 `dsh.bundle.patch` 把本包加入该 Profile 的 bundle 层；直接 `pnpm add` 只安装包，不会自动应用 patch。
 
+## 静态验证
+
+仓库提供：
+
+```powershell
+python tests/validate_dsh_subagents.py
+python -m unittest tests.test_dsh_subagents
+```
+
+静态 validator 会检查三个 surface、continuable、`maxDepth=1`、平台 research shell 过滤、Reviewer 的 write/edit 过滤、Agent Teams 不得回流，以及 sibling deny-list 不产生注册顺序耦合。它不能替代真实 DSH Runtime 验证。
+
 ## Fresh Runtime 验收
 
 安装后新建 fresh Root Session，至少验证：
@@ -87,7 +106,7 @@ Pop-Location
 2. 三个工具默认返回 durable continuable child id，而不是前台吞掉结果；
 3. `list_agents(scope="children")` 能看到这些 direct child；
 4. `sacha_research` 无 `write/edit` 和当前平台 shell；
-5. `sacha_worker`/`sacha_review` 无继续 delegation 能力，且 depth 证据没有出现大于 1 的 child；
+5. standard `workflow/subagent/subagent_fork` 不进入 child surface，且无论调用哪个 Sacha delegation surface都不能产生 depth>1 child；
 6. child settlement 能重新驱动 Root 继续处理；
 7. `sacha_review` 的 shell 能运行验证，但若没有 sandbox 证据，不声称文件只读。
 
