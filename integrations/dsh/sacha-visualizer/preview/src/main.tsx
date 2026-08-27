@@ -133,6 +133,6 @@ function App(): JSX.Element {
   )
 }
 
-const root = document.getElementById('root')
-if (root === null) throw new Error('preview root missing')
+const root = document.getElementById('app')
+if (root === null) throw new Error('preview app root missing')
 createRoot(root).render(panelScenario === undefined ? <App /> : <PanelScenarioApp scenario={panelScenario} />)
