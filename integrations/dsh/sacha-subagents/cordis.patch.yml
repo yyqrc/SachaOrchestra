@@ -29,9 +29,6 @@
             - workflow
             - subagent
             - subagent_fork
-            - sacha_research
-            - sacha_worker
-            - sacha_review
 
     - id: sacha-research-windows
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -53,9 +50,6 @@
             - workflow
             - subagent
             - subagent_fork
-            - sacha_research
-            - sacha_worker
-            - sacha_review
 
     - id: sacha-worker
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -73,9 +67,6 @@
             - workflow
             - subagent
             - subagent_fork
-            - sacha_research
-            - sacha_worker
-            - sacha_review
 
     - id: sacha-review
       name: '@deepseek-ai/dsh-tool-subagent'
@@ -96,6 +87,3 @@
             - workflow
             - subagent
             - subagent_fork
-            - sacha_research
-            - sacha_worker
-            - sacha_review
