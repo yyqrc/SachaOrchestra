@@ -1,5 +1,5 @@
 import type {
-  RecordedVisualEvent, SachaActivitySnapshot, SachaVisualEvent, TeamMemberSnapshot, TeamTaskSnapshot, VisualState,
+  ManagerUnitSnapshot, RecordedVisualEvent, SachaActivitySnapshot, SachaVisualEvent, SubagentSnapshot, VisualState,
 } from '../../src/types.ts'
 
 export type PanelScenario = {
@@ -7,7 +7,6 @@ export type PanelScenario = {
   readonly title: string
   readonly description: string
   readonly snapshot: SachaActivitySnapshot
-  readonly collapsed?: boolean
 }
 
 const NOW = 1_787_735_000_000
@@ -16,167 +15,125 @@ function recorded(seq: number, value: SachaVisualEvent): RecordedVisualEvent {
   return { seq, time: NOW + seq * 1000, value }
 }
 
-function task(value: Partial<TeamTaskSnapshot> & Pick<TeamTaskSnapshot, 'id' | 'subject' | 'status'>): TeamTaskSnapshot {
-  return {
-    revision: 1,
-    description: value.subject,
-    blockedBy: [],
-    writeScopes: [],
-    ready: value.status !== 'pending',
-    writeScopeWarnings: [],
-    ...value,
-  }
+function child(label: string, status: SubagentSnapshot['status'], options: Partial<SubagentSnapshot> = {}): SubagentSnapshot {
+  return { id: `child-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, label, status, hasChildren: false, ...options }
 }
 
-function member(value: Partial<TeamMemberSnapshot> & Pick<TeamMemberSnapshot, 'id' | 'name' | 'status'>): TeamMemberSnapshot {
-  return { role: 'teammate', diagnostics: [], ...value }
+function unit(id: string, label: string, state: ManagerUnitSnapshot['state'], blockedBy: readonly string[] = []): ManagerUnitSnapshot {
+  return { id, label, state, blockedBy }
 }
 
-function makeSnapshot(id: string, state: VisualState, events: readonly RecordedVisualEvent[], options: {
-  readonly teamAvailable?: boolean
-  readonly members?: readonly TeamMemberSnapshot[]
-  readonly tasks?: readonly TeamTaskSnapshot[]
-  readonly warnings?: readonly string[]
-} = {}): SachaActivitySnapshot {
+function makeSnapshot(
+  id: string,
+  state: VisualState,
+  events: readonly RecordedVisualEvent[],
+  children: readonly SubagentSnapshot[] = [],
+  warnings: readonly string[] = [],
+): SachaActivitySnapshot {
   return {
     available: true,
     sessionId: `preview-${id}`,
     events,
     state,
-    team: {
-      available: options.teamAvailable ?? true,
-      members: options.members ?? [],
-      tasks: options.tasks ?? [],
-    },
-    warnings: options.warnings ?? [],
+    subagents: { available: true, children },
+    warnings,
   }
 }
 
 const plannerPhase = { eventType: 'phase', phase: 'planner', state: 'entered', summary: '正在澄清目标并冻结可执行范围' } as const
-const executorPhase = { eventType: 'phase', phase: 'executor', state: 'entered', summary: '三项工作并行实施，等待第一批回报' } as const
+const executorPhase = { eventType: 'phase', phase: 'executor', state: 'entered', summary: '两个独立工作单元已派发，主任务继续推进' } as const
 const reviewerPhase = { eventType: 'phase', phase: 'reviewer', state: 'waiting', summary: '实现已返回，等待独立审查结论' } as const
-const blockedPhase = { eventType: 'phase', phase: 'blocked', state: 'blocked', summary: '写入范围冲突，需要 Human 决定' } as const
+const blockedPhase = { eventType: 'phase', phase: 'blocked', state: 'blocked', summary: '依赖尚未满足，需要继续等待恢复条件' } as const
 const completePhase = { eventType: 'phase', phase: 'complete', state: 'completed', summary: '实现、审查和证据均已收齐' } as const
 
-const lead = member({ id: 'lead', name: 'Sacha Lead', role: 'lead', status: 'running', description: '主任务 / 指挥' })
-const workingMembers: readonly TeamMemberSnapshot[] = [
-  lead,
-  member({ id: 'planner', name: 'Planner', status: 'idle', description: 'Planner · research and scope' }),
-  member({ id: 'executor', name: 'Executor', status: 'running', description: 'Executor · implementation' }),
-  member({ id: 'reviewer', name: 'Reviewer', status: 'provisioning', description: 'Reviewer · security audit' }),
-  member({ id: 'docs', name: 'Docs', status: 'inactive', description: 'Docs · release notes' }),
-  member({ id: 'specialist', name: 'Mika', status: 'idle', description: 'Domain specialist' }),
+const researchChild = child('Research auth surface', 'idle')
+const executorChild = child('Executor implementation', 'running')
+const reviewerChild = child('Reviewer security audit', 'ready')
+const activeChildren: readonly SubagentSnapshot[] = [researchChild, executorChild, reviewerChild]
+
+const managerUnits: readonly ManagerUnitSnapshot[] = [
+  unit('auth-read', '调查鉴权边界', 'running'),
+  unit('implementation', '实施最小修改', 'running'),
+  unit('final-review', '独立复核', 'waiting', ['implementation']),
+  unit('closeout', '汇总并收口', 'waiting', ['auth-read', 'final-review']),
 ]
 
-const dependencyTasks: readonly TeamTaskSnapshot[] = [
-  task({ id: 'T1', subject: '冻结交互方案', status: 'completed', ownerName: 'Planner', ready: true, writeScopes: ['preview/**'] }),
-  task({ id: 'T2', subject: '实现角色与状态卡', status: 'in_progress', ownerName: 'Executor', ready: true, blockedBy: ['T1'], writeScopes: ['src/client/**'] }),
-  task({ id: 'T3', subject: '独立审查视觉与边界', status: 'pending', ownerName: 'Reviewer', ready: false, blockedBy: ['T2'], writeScopes: ['src/client/**'] }),
-  task({ id: 'T4', subject: '更新使用说明', status: 'pending', ownerName: 'Docs', ready: false, blockedBy: ['T2'], writeScopes: ['README.md'] }),
+const activeDelegations: VisualState['delegations'] = [
+  { eventType: 'delegation', summary: 'auth-read 已派发', unitId: 'auth-read', childId: researchChild.id, state: 'dispatched', role: 'explore', surface: 'sacha_research', requestedRoute: 'deepseek/v4-flash', effectiveRoute: 'deepseek/v4-flash' },
+  { eventType: 'delegation', summary: 'implementation 已派发', unitId: 'implementation', childId: executorChild.id, state: 'dispatched', role: 'executor', surface: 'sacha_worker' },
+  { eventType: 'delegation', summary: 'final-review 已创建', unitId: 'final-review', childId: reviewerChild.id, state: 'settled', role: 'reviewer', surface: 'sacha_review' },
 ]
-
-const parallelTasks: readonly TeamTaskSnapshot[] = [
-  task({ id: 'P1', subject: '检查猫咪底图', status: 'completed', ownerName: 'Planner', ready: true }),
-  task({ id: 'P2', subject: '调整动画幅度', status: 'in_progress', ownerName: 'Executor', ready: true }),
-  task({ id: 'P3', subject: '复核 Role 道具', status: 'pending', ownerName: 'Reviewer', ready: true }),
-  task({ id: 'P4', subject: '检查中文文案', status: 'in_progress', ownerName: 'Docs', ready: true }),
-]
-
-const completedTasks = dependencyTasks.map((item) => ({ ...item, status: 'completed' as const, ready: true }))
 
 export const PANEL_SCENARIOS: readonly PanelScenario[] = [
   {
     id: 'sacha-only',
     title: '仅 Sacha 流程',
-    description: '没有 Agent Teams 时的入口、Gate 和提示。',
+    description: '没有 direct child 时只显示入口、Gate 和 Sacha 状态。',
     snapshot: makeSnapshot('sacha-only', {
       phase: plannerPhase,
       gates: { planner: { eventType: 'gate', gate: 'planner', decision: 'open', summary: 'Planner Gate 已打开' } },
-      waves: [], evidence: {},
-    }, [recorded(1, plannerPhase)], { teamAvailable: false }),
+      waves: [], delegations: [], evidence: {},
+    }, [recorded(1, plannerPhase)]),
   },
   {
-    id: 'running-dependencies',
-    title: '多人执行与依赖',
-    description: '成员、总进度、依赖 DAG、任务详情和状态角标。',
-    snapshot: makeSnapshot('running-dependencies', {
+    id: 'running-children',
+    title: 'Manager DAG + children',
+    description: '显示 Sacha 依赖图、波次、work unit 与 durable child 的绑定。',
+    snapshot: makeSnapshot('running-children', {
       phase: executorPhase,
-      gates: {
-        planner: { eventType: 'gate', gate: 'planner', decision: 'closed', summary: '范围已冻结' },
-        manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: 'Manager 协调已启用' },
-      },
-      waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'dispatched', unitIds: ['T2', 'T3', 'T4'], summary: '第一波已派发' }],
+      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: 'Manager 协调已启用' } },
+      waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'dispatched', units: managerUnits, summary: '两个 ready unit 已派发；Reviewer 等待 implementation' }],
+      delegations: activeDelegations,
       evidence: {},
-    }, [recorded(1, executorPhase)], { members: workingMembers, tasks: dependencyTasks }),
-  },
-  {
-    id: 'parallel',
-    title: '并行任务',
-    description: '无依赖时的并行布局、就绪和执行中状态。',
-    snapshot: makeSnapshot('parallel', {
-      phase: executorPhase, gates: {}, waves: [], evidence: {},
-    }, [recorded(1, executorPhase)], { members: workingMembers, tasks: parallelTasks }),
+    }, [recorded(1, executorPhase)], activeChildren),
   },
   {
     id: 'review',
-    title: '等待审查',
-    description: 'Reviewer Gate、Review Needs Fix 与等待动画。',
+    title: '等待独立审查',
+    description: 'Reviewer Gate、Review Outcome、依赖与 Reviewer child 映射。',
     snapshot: makeSnapshot('review', {
       phase: reviewerPhase,
       gates: { reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'open', summary: 'Reviewer Gate 已打开' } },
-      waves: [],
-      review: { eventType: 'review', outcome: 'needs_fix', summary: 'Needs Fix：补充资源失败兜底' },
-      evidence: { source: { eventType: 'evidence', layer: 'source', status: 'verified', references: ['src/client'], summary: '源码已核对' } },
-    }, [recorded(1, reviewerPhase)], { members: workingMembers, tasks: dependencyTasks }),
+      waves: [{
+        eventType: 'manager_wave', waveId: 'wave-review', state: 'waiting', summary: '实现已完成，独立复核正在运行',
+        units: [unit('implementation', '实施最小修改', 'completed'), unit('final-review', '独立复核', 'running', ['implementation'])],
+      }],
+      delegations: [activeDelegations[1]!, { ...activeDelegations[2]!, state: 'dispatched' }],
+      review: { eventType: 'review', outcome: 'needs_fix', summary: 'Needs Fix：验证发现行为不符' },
+      evidence: { source: { eventType: 'evidence', layer: 'source', status: 'verified', references: ['src'], summary: '源码已核对' } },
+    }, [recorded(1, reviewerPhase)], [executorChild, { ...reviewerChild, status: 'running' }]),
   },
   {
-    id: 'blocked',
-    title: '阻塞与冲突',
-    description: '阻塞阶段、失败成员、写入冲突和 Runtime 警告。',
-    snapshot: makeSnapshot('blocked', {
+    id: 'nested-warning',
+    title: '单层派发偏差',
+    description: '观察到 direct child 又创建了下级 child，仅显示 Runtime warning。',
+    snapshot: makeSnapshot('nested-warning', {
       phase: blockedPhase,
-      gates: { reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'open', summary: '等待修复后重审' } },
-      waves: [],
-      review: { eventType: 'review', outcome: 'blocked', summary: 'Blocked：需要 Human 选择写入 Owner' },
+      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: '需要复核派发偏差' } },
+      waves: [{ eventType: 'manager_wave', waveId: 'wave-2', state: 'blocked', units: [unit('nested-unit', '检查嵌套派发', 'blocked')], summary: '观察到下级 child' }],
+      delegations: [{ eventType: 'delegation', summary: 'nested-unit 已派发', unitId: 'nested-unit', childId: 'child-executor-nested-attempt', state: 'dispatched', role: 'executor', surface: 'sacha_worker' }],
       evidence: {},
-    }, [recorded(1, blockedPhase)], {
-      members: [lead, member({ id: 'failed-reviewer', name: 'Reviewer', status: 'failed', description: 'Reviewer · audit', diagnostics: ['worker disconnected'] })],
-      tasks: [task({
-        id: 'B1', subject: '解决样式写入冲突', status: 'pending', ownerName: 'Reviewer', ready: false,
-        blockedBy: ['external-decision'], writeScopes: ['src/client/ActivityPanel.module.css'],
-        writeScopeWarnings: ['与 Executor 的写入范围重叠'],
-      })],
-      warnings: ['可视化读取到一次 Runtime 警告：Reviewer 连接已断开'],
-    }),
+    }, [recorded(1, blockedPhase)], [child('Executor nested attempt', 'idle', { hasChildren: true })], ['观察到下级 child；Sacha 单层派发约束需要复核']),
   },
   {
     id: 'complete',
     title: '全部完成',
-    description: '完成动画、全绿进度、Review Accepted 和已交付任务。',
+    description: '完成 phase、完整依赖图、Review Accepted 和 evidence 状态。',
     snapshot: makeSnapshot('complete', {
       phase: completePhase,
       gates: {
         planner: { eventType: 'gate', gate: 'planner', decision: 'closed', summary: '无需规划' },
-        manager: { eventType: 'gate', gate: 'manager', decision: 'closed', summary: '无需协调' },
+        manager: { eventType: 'gate', gate: 'manager', decision: 'closed', summary: '协调已结束' },
         reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'closed', summary: '审查已结束' },
       },
-      waves: [],
+      waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'completed', units: managerUnits.map(value => ({ ...value, state: 'completed' as const })), summary: '本波依赖全部满足并已消费' }],
+      delegations: activeDelegations.map(value => ({ ...value, state: 'settled' as const })),
       review: { eventType: 'review', outcome: 'accepted', summary: 'Accepted' },
       evidence: {
         source: { eventType: 'evidence', layer: 'source', status: 'verified', references: ['source'], summary: '源码通过' },
-        package: { eventType: 'evidence', layer: 'package', status: 'verified', references: ['package'], summary: '打包通过' },
-        runtime: { eventType: 'evidence', layer: 'runtime', status: 'verified', references: ['desktop'], summary: 'Desktop 通过' },
+        runtime: { eventType: 'evidence', layer: 'runtime', status: 'verified', references: ['runtime'], summary: 'Runtime 通过' },
       },
-    }, [recorded(1, completePhase)], { members: workingMembers.map(item => ({ ...item, status: 'idle' as const })), tasks: completedTasks }),
-  },
-  {
-    id: 'collapsed',
-    title: '收起徽标',
-    description: '面板收起后的事件数和忙碌脉冲。',
-    collapsed: true,
-    snapshot: makeSnapshot('collapsed', {
-      phase: executorPhase, gates: {}, waves: [], evidence: {},
-    }, [recorded(1, executorPhase), recorded(2, { eventType: 'gate', gate: 'manager', decision: 'open', summary: 'Manager Gate 已打开' })], { members: workingMembers, tasks: parallelTasks }),
+    }, [recorded(1, completePhase)], activeChildren.map(item => ({ ...item, status: 'ready' as const }))),
   },
 ]
 

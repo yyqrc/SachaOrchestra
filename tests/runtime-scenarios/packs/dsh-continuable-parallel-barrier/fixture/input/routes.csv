@@ -1,0 +1,4 @@
+path,methods
+/api/users,"get,post,get"
+/health,"get"
+/api/admin,"post,delete"

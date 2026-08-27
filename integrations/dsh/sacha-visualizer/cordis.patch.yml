@@ -1,6 +1,5 @@
-# Mount only the Sacha observability companion. The official experimental
-# Agent Teams service/tool rows remain an explicit DSH profile decision.
+# Mount only the Sacha observability companion. Continuable subagent transport
+# and Sacha subagent surfaces remain separate DSH profile compositions.
 - insert:
     - id: sacha-visualizer
       name: '@sacha-orchestra/dsh-visualizer'
-

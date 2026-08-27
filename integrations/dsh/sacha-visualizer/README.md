@@ -1,38 +1,45 @@
 # Sacha Visualizer for DeepSeek Harness
 
 > 文档身份：独立 DSH companion plugin 使用；不进入 `plugins/sacha-orchestra` 的 Agent Plugin 发布 `root`。
+> 当前包版本：`0.2.0`。本版删除旧 Agent Teams snapshot/task 模型；旧 Session 中不符合新 `manager_wave.manager_units` 结构的历史可视化调用会被忽略并报告观测 warning，不保留兼容状态机。
 
-本插件让 DSH Web UI 显示当前 Session 中已经提交的 Sacha 流程转换、Gate、Manager 波次、Review Outcome 和证据层，并在当前 Profile 组合官方 experimental Agent Teams 时同时显示 roster、实时成员状态和共享 task DAG。它不接受 Sacha、不判断流程、不改变授权，也不把界面状态提升为完成或验收证据。
+本插件让 DSH Web UI 显示当前 Root Session 中已经提交的 Sacha 流程、Manager 波次/依赖、work unit 到 durable child 的映射，并同时观察该 Root 的 **continuable direct subagents**。它不接受 Sacha、不判断流程、不改变授权、不调度 child，也不把界面状态提升为完成或验收证据。
 
 ## 数据来源
 
 ```text
 Sacha DSH Adapter
   └─ sacha_visual_event 工具调用/成功结果
-       └─ Root Session 标准 tool/call + tool/result 日志
+       ├─ phase / gate / review / evidence
+       ├─ manager_wave：Sacha Manager DAG 快照
+       └─ delegation：work unit ↔ durable child id
 
-官方 experimental Agent Teams（可选）
-  └─ ctx.agentTeams roster + task views
+DSH continuable subagent service
+  └─ ctx.subagents.listChildren(rootSessionId)
+       └─ durable child id / label / hasChildren
+  └─ ctx.agents
+       └─ running / idle / ready
 
 Host snapshot route
   └─ /plugins/sacha-visualizer/state?sessionId=<root-session>
        └─ Web Client shell.overlay 面板
 ```
 
-`sacha_visual_event` 只校验并返回记录结果；可回放事实来自 DSH 已有的 `tool/call` / `tool/result`，因此本插件不增加下游 Harness 无法识别的自定义 Session event。只有成功工具结果对应的调用进入面板；未返回、失败或参数无效的调用不改变可视状态。
+`sacha_visual_event` 只校验并返回记录结果；可回放事实来自 DSH 已有的 `tool/call` / `tool/result`。只有成功工具结果对应的调用进入 Sacha 面板状态。
 
 ## 能力边界
 
-- Sacha 面：指挥卡显示当前 phase 与运行/等待/阻塞/完成状态动画，Planner/Manager/Reviewer Gate 和 Reviewer Outcome 以徽标显示，收起徽标显示已提交事件计数。
-- 官方 Team 面：通过可选的 `ctx.agentTeams` 读取指挥（lead）/teammate roster、`running/idle/inactive/provisioning/failed` 状态、task revision、owner、blocker、readiness 与 write-scope warning；界面提供分段总进度、动态摘要、指挥→Role/成员派工树和任务标签。
-- 指挥与成员复用随包发布的 256px Sacha/Jojo 猫咪底图，Role 道具和运行状态由小尺寸 SVG 叠加；整张头像随工作、等待和完成状态浮动、思考或呼吸，`prefers-reduced-motion` 时停止动画。
-- 任务 DAG 按依赖深度分列并用 SVG 曲线连边；悬停或键盘聚焦高亮完整上下游，点击固定，`Esc` 取消。详情区显示 owner、revision、未满足前置、下游解锁、写入范围与重叠警告。
-- 面板默认停靠右侧并让宽屏对话区按实际宽度让位；可切换浮动、拖拽、调整左边缘/底边/右下角并持久化布局。窄屏使用无手势的安全 inset overlay，收起后保留活动徽标。
-- 每个会话默认收起；首个已提交事件、teammate 或共享任务到达时自动展开一次，Human 手动收起后该会话不再自动弹出（按会话持久化，刷新后仍生效）。
-- DSH Team `ready` 和 `writeScopeWarnings` 只显示官方 Runtime 事实；Sacha readiness、Scope、授权、单写入者和 Reviewer 独立性仍由 Sacha Core/Skill 判断。
-- companion 不注册自动调度器，不创建 teammate，不修改 task，不发送 mailbox，也不读取第三方 `.agent-teams` 状态目录。
-- 当前 Session 没有活动时每 5 秒探测；发现 Sacha/Team 状态后每 1 秒刷新。切换 Session 后停止旧轮询，只显示当前 Root Session。
-- 当前不提供归档 Team 恢复、对话流 Conversation Node 卡片或宿主 locale 实时切换；这些能力分别需要新的历史数据入口、Conversation Node 和 locale 消费边界，不能由当前面板样式推导。
+- Sacha 面：显示当前 phase、Planner/Manager/Reviewer Gate、Reviewer Outcome 与 Evidence 状态。
+- Manager 面：`manager_wave` 保存当时已经由 Sacha Manager 决定的 work-unit 快照，每个 unit 有 `id`、Human 可读 label、Sacha state 与 `blocked_by`；面板据此画依赖 DAG。
+- Delegation 面：只有 continuable child 真正发布并返回 durable id 后，Adapter 才记录 `delegation`；面板用它把 Manager work unit 与真实 child 对上，并可显示 Role/surface 与已验证 route。
+- Subagent 面：只显示 Root Session 的 continuable **direct child**；包括 durable id、label、`running | idle | ready` 和是否观察到下级 child。
+- 若 child `hasChildren=true`，面板只显示“需要复核 Sacha 单层派发”的 Runtime warning；它不自行判定任务失败。
+- Manager DAG 的权威来源是 Sacha 已提交事件，不是 Runtime task board；Visualizer 不维护第二份调度状态。
+- 不读取或显示 Agent Teams roster、task revision、task owner、`writeScopes`、peer mailbox 或 Team readiness。
+- 不从 child label 推导 Sacha Role、Scope、授权或完成；label 只允许做猫咪道具等纯展示选择。
+- 不注册自动调度器，不创建 subagent，不发送 `send_message`，不 interrupt child，不修改 Sacha Artifact。
+- 当前 Session 没有活动时低频探测；发现 Sacha/subagent 状态后提高刷新频率。切换 Session 后停止旧 Session 的轮询。
+- 每个会话默认收起；首个已提交事件或 direct child 到达时自动展开一次，Human 手动收起后该会话不再自动弹出。
 
 ## 构建与验证
 
@@ -41,84 +48,52 @@ pnpm install
 pnpm verify
 ```
 
-`pnpm verify` 依次执行 Host/Client/预览站 typecheck、回放/输入校验/DAG/面板几何/素材映射测试、Host/Client bundle 构建和预览站生产构建。测试只证明源码与 bundle；真实 DSH 仍需验证 Profile 组合、工具 discovery、Session 回放、可选 Agent Teams 状态、Web client bundle、panel 注入和浏览器交互。
-
-## 猫咪效果台
-
-调整猫咪、Role 道具或动画时，可以启动仓库内的开发预览站：
-
-```powershell
-pnpm preview
-```
-
-浏览器打开命令输出的本地地址。页面会直接消费生产 `CatArt`、`CONDUCTOR_CAT`/`MEMBER_CAT`、`ACTION_CAT` 和面板动画 CSS，一次性展示两只基础猫、全部道具、成员状态角标、运行/等待/完成/阻塞动画以及 20/40/44px 实际尺寸。顶部可以切换背景、预览尺寸、动画速度、暂停和减弱动效；源码保存后页面自动更新。
+`pnpm verify` 执行 Host/Client/预览 typecheck、Vitest、Host/Client bundle 和预览构建。静态通过只证明源码与 bundle；真实 DSH 仍需验证 Session 回放、Manager DAG 事件、delegation 绑定、subagent service、Web client bundle 和浏览器交互。
 
 ## DSH 本地安装
 
-完整使用分为 Agent Plugin、可视化 companion 和官方 Agent Teams 三层。第一层让 DSH 发现 Sacha Skill，第二层提供 `sacha_visual_event` 与 Web 面板，第三层提供 teammate、猫咪 Role 树和 task DAG；缺少后两层时分别只失去可视面或 Team 面。
+完整使用分为四层：
 
-### 1. 准备路径
+1. Sacha Agent Plugin：让 DSH 发现 `using-sacha` 与下游 Skill；
+2. `integrations/dsh/sacha-subagents`：可选 Sacha continuable-subagent bundle；
+3. DSH continuable subagent service/control：实际 child 生命周期、settlement、message 与列表；
+4. 本 visualizer companion：提供 `sacha_visual_event` 与 Web 面板。
 
-以下命令面向 DSH 源码 checkout；使用已安装的 `dsh` CLI 时，把后文的 `pnpm dsh` 换成 `dsh`。先在 PowerShell 设置当前机器的绝对路径：
+### 1. 安装 Sacha Agent Plugin
 
-```powershell
-$sachaRoot = '<SachaOrchestra 仓库绝对路径>'
-$dshRepo = '<deepseek-harness checkout 绝对路径>'
-$agentPluginsRepo = '<dsh-agent-plugins checkout 绝对路径>'
-$dshHome = if ($env:DSH_HOME) {
-    [System.IO.Path]::GetFullPath($env:DSH_HOME)
-} else {
-    Join-Path $HOME '.dsh'
-}
-```
+Sacha 是目录形式 Agent Plugin。使用当前 DSH 对 Agent Plugins 的正式兼容 loader，让 `$DSH_HOME/agent-plugins/sacha-orchestra` 指向仓库的 `plugins/sacha-orchestra`，并在 fresh Session 中确认 Skill catalog 实际发现 `sacha-orchestra-using-sacha`。磁盘目录本身不构成 discovery 证据。
 
-后续命令要求 Node 与 pnpm 满足目标 DSH checkout 的版本约束，并且该 checkout 已完成 `pnpm install` 和必要构建。
+### 2. 安装 Sacha subagent bundle
 
-### 2. 安装 Agent Plugins loader
-
-Sacha 是目录形式的 Agent Plugin，DSH 需要 `@deepseek-ai/dsh-agent-plugins` compatibility loader 才能读取 `plugin.json` 与 `skills/`。独立 loader checkout 推荐运行其安装脚本：
+当前 standard coding preset 可以安装仓库内 companion bundle：
 
 ```powershell
-powershell -File (Join-Path $agentPluginsRepo 'install.ps1') -DshRepo $dshRepo
+$subagents = Join-Path $sachaRoot 'integrations/dsh/sacha-subagents'
+Push-Location $dshRepo
+pnpm dsh plugin --profile web add $subagents
+pnpm dsh --profile web --dump-config
+Pop-Location
 ```
 
-脚本不会修改 Profile。检查 `$dshHome/profiles/web/cordis.patch.yml`；缺少 loader 行时，把下面这个独立 patch 条目加入现有 YAML 列表，不覆盖其他条目：
+它组合官方 `@deepseek-ai/dsh-tool-subagent`，暴露：
 
-```yaml
-- insert:
-    - id: agent-plugins
-      name: '@deepseek-ai/dsh-agent-plugins'
-```
+- `sacha_research`
+- `sacha_worker`
+- `sacha_review`
 
-### 3. 让 loader 发现 Sacha Agent Plugin
+具体能力与限制见 [`../sacha-subagents/README.md`](../sacha-subagents/README.md)。该 bundle 当前面向 standard coding preset；目标 Profile 不满足其显式 toolFilter 前提时应响亮失败，而不是静默削弱约束。
 
-loader 默认扫描 `$DSH_HOME/agent-plugins` 的直接子目录。开发 checkout 推荐建立 junction，使 Sacha 源码更新后无需重复复制；目标已存在时先确认其归属，不覆盖或删除未知目录：
+如果不安装该 bundle，Sacha Adapter 仍可使用当前 Runtime 已核对的等价 continuable surface；Visualizer 不依赖 bundle 本身，只依赖真实 child 和 Adapter 记录。
 
-```powershell
-$pluginInstallRoot = Join-Path $dshHome 'agent-plugins'
-$sachaInstall = Join-Path $pluginInstallRoot 'sacha-orchestra'
-$sachaSource = Join-Path $sachaRoot 'plugins/sacha-orchestra'
+fresh Session 中至少核对：
 
-New-Item -ItemType Directory -Force -Path $pluginInstallRoot | Out-Null
-if (Test-Path -LiteralPath $sachaInstall) {
-    throw "目标已存在，请先确认现有安装：$sachaInstall"
-}
-New-Item -ItemType Junction -Path $sachaInstall -Target $sachaSource
-```
+- 对应 continuable delegation tool；
+- `send_message`、`interrupt_agent`、`list_agents`；
+- child 创建返回 durable id；
+- child settlement 能回到 parent；
+- `list_agents` 能看到 direct continuable child。
 
-启用了 workspace filter 时，在 `$dshHome/agent-plugins.yml` 的现有配置中加入 `sacha-orchestra`；`disable` 恒胜于 `enable`：
-
-```yaml
-enable:
-  - sacha-orchestra
-disable: []
-```
-
-重启后的 fresh Session 必须在 Skill catalog 中发现 `sacha-orchestra-using-sacha`。只看到磁盘目录或 loader 日志不构成 discovery 证据。
-
-### 4. 构建并安装 visualizer companion
-
-先在 companion 目录执行完整本地验证：
+### 3. 构建并安装 visualizer
 
 ```powershell
 $visualizer = Join-Path $sachaRoot 'integrations/dsh/sacha-visualizer'
@@ -126,11 +101,7 @@ Push-Location $visualizer
 pnpm install
 pnpm verify
 Pop-Location
-```
 
-再从 DSH checkout 把本地 bundle 加入 Web Profile：
-
-```powershell
 Push-Location $dshRepo
 pnpm dsh plugin --profile web add $visualizer
 pnpm dsh --profile web --dump-config
@@ -144,44 +115,20 @@ Pop-Location
   name: '@sacha-orchestra/dsh-visualizer'
 ```
 
-### 5. 启用官方 Agent Teams
+新建 fresh Root Session 后分层确认：
 
-需要 roster、成员状态、猫咪 Role 树和 task DAG 时，在 `$dshHome/profiles/web/cordis.patch.yml` 的现有 YAML 列表中再加入：
+- Agent Plugin：`using-sacha` 可被正式发现；
+- subagent：启动一个 continuable child 后，`list_agents` 返回同一 durable child id；
+- visualizer：工具面出现 `sacha_visual_event`，产生 Sacha 活动后右侧面板出现；
+- Manager graph：一次 `manager_wave` 成功记录后，面板显示对应 unit 与 dependency edges；
+- delegation：child id 返回后记录 `delegation`，同一 unit 节点和 child 卡显示一致绑定；
+- child view：该 Root 的 continuable direct child 出现在面板，状态与 live Agent registry 一致；
+- Client：浏览器实际加载 `/plugins/@sacha-orchestra/dsh-visualizer/client.js`。
 
-```yaml
-- insert:
-    - id: agent-team
-      name: '@deepseek-ai/dsh-experimental-agent-team'
-    - id: tool-agent-team
-      name: '@deepseek-ai/dsh-experimental-tool-agent-team'
-```
-
-这两个包当前是 DSH 源码树中的 private experimental package，不随正式 npm 发布族分发；npm 版 DSH 无法解析它们时，不要复制包或伪造依赖，继续使用不含 Team 面的 Sacha phase、Gate、Outcome、证据和时间线。
-
-### 6. 启动与验收
-
-先复核最终组合，再启动 Web Profile：
-
-```powershell
-Push-Location $dshRepo
-pnpm dsh --profile web --dump-config |
-    Select-String 'agent-plugins|sacha-visualizer|agent-team|tool-agent-team'
-pnpm dsh --profile web
-Pop-Location
-```
-
-新建 fresh Session 后按层确认成功信号：
-
-- Agent Plugin：Skill catalog 出现 `sacha-orchestra-using-sacha`。
-- visualizer：工具面出现 `sacha_visual_event`，产生 Sacha 活动后右侧面板或折叠徽标出现。
-- Agent Teams：工具面出现 `spawn_teammate`、`list_agents`、`team_task_create/list/get/update`；创建 teammate 后出现猫咪 Role、成员状态、派工树和 task DAG。
-- Client：浏览器刷新后加载 `/plugins/@sacha-orchestra/dsh-visualizer/client.js`，猫咪资源从 `/plugins/sacha-visualizer/assets/<name>.png` 返回。
-
-分层排障：Skill 缺失先查 loader、安装目录和 `agent-plugins.yml`；面板缺失先查 visualizer bundle、`client.js` 与是否已调用 `sacha_visual_event`；Team 区域缺失先查两个 experimental row 与官方 Team 工具；源码已更新但界面仍旧时重新执行 `pnpm verify`、重启 DSH 并刷新浏览器。
-
-安装、复制/链接 Agent Plugin、重启和 Profile 修改属于外部状态动作，不由普通 Sacha 实施或本仓静态验证自动执行。
+安装、Profile 修改、junction、重启与依赖装配属于外部状态动作，不由普通 Sacha 实施或本仓静态验证自动授权。
 
 ## Sacha Adapter 配合
 
-安装后的 Sacha Agent Plugin 通过 `adapters/dsh/runtime-adapter.md` 拥有事件映射。主任务只能在真实转换提交后调用 `sacha_visual_event`；记录失败不回滚 Sacha 流程，并须在下一次 Human 进度或最终结果中披露“可视化未同步”。面板颜色、工具成功和 Team task 状态均不能替代源码、包、Runtime 或 Human 验收证据。
+`plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md` 是 DSH transport 的唯一规范 Owner。主任务只能在真实转换、Manager DAG 或 child binding 已提交后调用 `sacha_visual_event`；记录失败不回滚 Sacha 流程或 child 生命周期。
 
+Runtime truth 只来自 Manager 已提交事件和 DSH 原生 child/session 事实。面板颜色、DAG 节点、child 状态、请求 route 和 `sacha_visual_event` 成功都不能替代源码、包、Runtime 或 Human 验收证据；只有 Runtime 直接证明的 route 才显示为 effective route。

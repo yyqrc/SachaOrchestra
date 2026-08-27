@@ -39,6 +39,8 @@ PRODUCTION_TESTED_MARKDOWN = {
 }
 DSH_VISUALIZER_ROOT = "integrations/dsh/sacha-visualizer/"
 DSH_VISUALIZER_VALIDATOR = "tests/validate_dsh_visualizer.py"
+DSH_SUBAGENTS_ROOT = "integrations/dsh/sacha-subagents/"
+DSH_SUBAGENTS_VALIDATOR = "tests/validate_dsh_subagents.py"
 
 
 class ReleaseError(RuntimeError):
@@ -229,6 +231,7 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
         (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
         ((DSH_VISUALIZER_VALIDATOR,), "tests.test_release"),
+        ((DSH_SUBAGENTS_ROOT, DSH_SUBAGENTS_VALIDATOR, "tests/test_dsh_subagents.py"), "tests.test_dsh_subagents"),
         (
             (
                 "tests/test_runtime_scenario_verifiers.py",
@@ -294,6 +297,8 @@ def validation_commands(
     )
     if any(path.startswith(DSH_VISUALIZER_ROOT) for path in staged):
         commands.append((python, "-B", DSH_VISUALIZER_VALIDATOR))
+    if any(path.startswith(DSH_SUBAGENTS_ROOT) for path in staged):
+        commands.append((python, "-B", DSH_SUBAGENTS_VALIDATOR))
     if requires_plugin_validation(staged, deltas):
         commands.append(
             (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))
