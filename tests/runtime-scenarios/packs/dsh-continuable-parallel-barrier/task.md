@@ -22,4 +22,4 @@
 - 不修改 `input/`。
 - 不新增依赖，不访问网络。
 - `output/accounts.json` 与 `output/routes.json` 是彼此独立的工作单元；`manifest.json` 只能在两者真实完成并核对后生成。
-- 最终运行 `python verify.py`，以其退出码和输出作为直接验收证据。
+- 最终运行 `python verify.txt`，以其退出码和输出作为直接验收证据。
