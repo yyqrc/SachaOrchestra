@@ -61,7 +61,7 @@ const EVENT_OUTPUT_SCHEMA = {
     eventType: {
       type: 'string',
       required: true,
-      enum: ['phase', 'gate', 'manager_wave', 'review', 'evidence'],
+      enum: ['phase', 'gate', 'manager_wave', 'delegation', 'review', 'evidence'],
     },
   },
 } as const
@@ -78,12 +78,12 @@ function jsonOutput<const S extends ValueSchemaSpec>(schema: S): {
 
 const visualEventTool = defineTool({
   name: 'sacha_visual_event',
-  description: 'Record one already-committed Sacha workflow transition for the optional DSH visualization. This never changes Sacha routing, authorization, review, or completion.',
+  description: 'Record one already-committed Sacha workflow, Manager graph, delegation, review, or evidence fact for the optional DSH visualization. This never changes routing, authorization, scheduling, review, or completion.',
   parameters: {
     event_type: {
       type: 'string', required: true,
-      enum: ['phase', 'gate', 'manager_wave', 'review', 'evidence'],
-      description: 'Committed transition category.',
+      enum: ['phase', 'gate', 'manager_wave', 'delegation', 'review', 'evidence'],
+      description: 'Committed Sacha fact category.',
     },
     summary: { type: 'string', required: true, description: 'Concise Human-facing Chinese summary.' },
     phase: { type: 'string', enum: ['intake', 'direct', 'planner', 'explore', 'executor', 'reviewer', 'roadmap', 'document-project', 'closeout', 'feedback', 'human-decision', 'complete', 'blocked'] },
@@ -93,7 +93,27 @@ const visualEventTool = defineTool({
     gate_decision: { type: 'string', enum: ['open', 'closed'] },
     wave_id: { type: 'string' },
     wave_state: { type: 'string', enum: ['planned', 'dispatched', 'waiting', 'completed', 'blocked'] },
-    unit_ids: { type: 'array', items: { type: 'string' } },
+    manager_units: {
+      type: 'array',
+      description: 'Current Sacha Manager graph snapshot for this wave. blocked_by expresses Sacha dependencies; it is not a DSH task board.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          id: { type: 'string', required: true },
+          label: { type: 'string', required: true },
+          state: { type: 'string', required: true, enum: ['ready', 'running', 'waiting', 'completed', 'blocked'] },
+          blocked_by: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+    unit_id: { type: 'string' },
+    child_id: { type: 'string' },
+    delegation_state: { type: 'string', enum: ['dispatched', 'settled', 'interrupted', 'failed'] },
+    role: { type: 'string', enum: ['planner', 'explore', 'executor', 'reviewer', 'support'] },
+    surface: { type: 'string', description: 'Adapter capability surface such as sacha_research, sacha_worker, or sacha_review.' },
+    requested_route: { type: 'string', description: 'Requested provider/model/reasoning route when material.' },
+    effective_route: { type: 'string', description: 'Runtime-proven effective route only; omit when unverified.' },
     outcome: { type: 'string', enum: ['accepted', 'accepted_with_follow_up', 'needs_fix', 'needs_replan', 'needs_evidence', 'blocked'] },
     evidence_layer: { type: 'string', enum: ['source', 'package', 'runtime', 'human'] },
     evidence_status: { type: 'string', enum: ['verified', 'failed', 'unverified', 'skipped'] },
