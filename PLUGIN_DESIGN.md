@@ -19,7 +19,7 @@
 | [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。`integrations/dsh/sacha-visualizer` 是独立构建和安装的 DeepSeek Harness companion plugin，只投影 DSH Session/Agent Teams 状态与 Adapter 已记录的 Sacha 转换；不进入 Agent Plugin 发布 `root`，也不拥有流程语义、授权、Outcome 或完成判断。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
+Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。`integrations/dsh/sacha-visualizer` 是独立构建和安装的 DeepSeek Harness companion plugin，只投影 DSH Root Session 的 continuable direct-subagent 状态与 Adapter 已记录的 Sacha 转换；不进入 Agent Plugin 发布 `root`，也不拥有流程语义、授权、调度、Outcome 或完成判断。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
 
 ## 2. 产品入口
 
