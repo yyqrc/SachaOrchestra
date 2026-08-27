@@ -1,4 +1,9 @@
-from token_mask import mask_token
+from pathlib import Path
+
+namespace: dict[str, object] = {}
+source = Path("token_mask.txt").read_text(encoding="utf-8")
+exec(compile(source, "token_mask.txt", "exec"), namespace)
+mask_token = namespace["mask_token"]
 
 cases = {
     "": "",
