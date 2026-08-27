@@ -1,7 +1,7 @@
 {
   "name": "@sacha-orchestra/dsh-subagents",
   "version": "0.1.0",
-  "description": "DeepSeek Harness bundle exposing Sacha research, worker, and review continuable subagent surfaces",
+  "description": "DeepSeek Harness profile bundle exposing Sacha research, worker, and review continuable subagent surfaces",
   "type": "module",
   "exports": {
     "./cordis.patch.yml": "./cordis.patch.yml",
