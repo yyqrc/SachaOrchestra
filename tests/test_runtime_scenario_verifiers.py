@@ -139,6 +139,30 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_using_sacha_semantic_turn_verifier(
+        self,
+        *,
+        with_unexpected_file: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        pack = PACKS / "using-sacha-semantic-turn"
+        fixture = pack / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            for source in fixture.iterdir():
+                shutil.copy2(source, target / source.name)
+            shutil.copy2(pack / "task.md", target / "instructions.md")
+            shutil.copy2(ROOT / "tests" / "runtime-scenarios" / "assets" / "workspace-AGENTS.md", target / "AGENTS.md")
+            if with_unexpected_file:
+                (target / "unexpected.md").write_text("unexpected\n", encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def run_roadmap_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
         pack = PACKS / "roadmap-self-contained-document"
         fixture = pack / "fixture"
@@ -220,6 +244,10 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         self.assertEqual(explore.returncode, 0, explore.stdout + explore.stderr)
         self.assertIn("OK: Explore scenario root remained read-only", explore.stdout)
 
+        semantic_turn = self.run_using_sacha_semantic_turn_verifier()
+        self.assertEqual(semantic_turn.returncode, 0, semantic_turn.stdout + semantic_turn.stderr)
+        self.assertIn("OK: using-sacha semantic-turn scenario root remained read-only", semantic_turn.stdout)
+
         roadmap = self.run_roadmap_verifier()
         self.assertEqual(roadmap.returncode, 0, roadmap.stdout + roadmap.stderr)
         self.assertIn("OK: Roadmap created at", roadmap.stdout)
@@ -244,6 +272,10 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         explore = self.run_explore_verifier(with_unexpected_file=True)
         self.assertEqual(explore.returncode, 1)
         self.assertIn("unexpected files", explore.stdout)
+
+        semantic_turn = self.run_using_sacha_semantic_turn_verifier(with_unexpected_file=True)
+        self.assertEqual(semantic_turn.returncode, 1)
+        self.assertIn("unexpected files", semantic_turn.stdout)
 
         roadmap = self.run_roadmap_verifier(with_unexpected_file=True)
         self.assertEqual(roadmap.returncode, 1)

@@ -6,8 +6,21 @@ import type { SachaActivitySnapshot } from '../types.ts'
 const HOT_POLL_MS = 1000
 const COLD_POLL_MS = 5000
 
+/** Orchestration presence: committed Sacha events, dispatched teammates, or
+ *  shared tasks. A lone lead member is ambient Team state, not orchestration,
+ *  so it neither warms the poll cadence nor triggers any activity UI. */
 function active(snapshot: SachaActivitySnapshot): boolean {
-  return snapshot.events.length > 0 || snapshot.team.members.length > 0 || snapshot.team.tasks.length > 0
+  return snapshot.events.length > 0
+    || snapshot.team.members.some(m => m.role === 'teammate')
+    || snapshot.team.tasks.length > 0
+}
+
+/** Keep render state bound to the requested session while effects replace an older snapshot. */
+export function selectSessionSnapshot(
+  snapshot: SachaActivitySnapshot | undefined,
+  sessionId: string | undefined,
+): SachaActivitySnapshot | undefined {
+  return snapshot?.sessionId === sessionId ? snapshot : undefined
 }
 
 /** Poll only while a concrete current session exists. */
@@ -44,6 +57,6 @@ export function useSachaActivity(sessionId: string | undefined): SachaActivitySn
       controller?.abort()
     }
   }, [sessionId])
-  return snapshot
+  return selectSessionSnapshot(snapshot, sessionId)
 }
 

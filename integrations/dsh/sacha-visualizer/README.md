@@ -23,11 +23,12 @@ Host snapshot route
 
 ## 能力边界
 
-- 完整 Sacha 面：显示 phase、Planner/Manager/Reviewer Gate、Manager 波次、Reviewer Outcome、source/package/runtime/human 四层证据和已提交时间线。
-- 官方 Team 面：通过可选的 `ctx.agentTeams` 读取 Lead/teammate roster、`running/idle/inactive/provisioning/failed` 状态、task revision、owner、blocker、readiness 与 write-scope warning；界面提供分段总进度、动态摘要、Lead→Role/成员派工树和任务标签。
-- Lead、Planner/Explore、Executor、Reviewer、QA、设计、文档、数据与 Manager/运维成员使用随包发布的职业鲸鱼插画；右下状态动作图随成员状态切换工作、睡眠或思考动画，`prefers-reduced-motion` 时停止动画。素材来源与 MIT 许可见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+- Sacha 面：指挥卡显示当前 phase 与运行/等待/阻塞/完成状态动画，Planner/Manager/Reviewer Gate 和 Reviewer Outcome 以徽标显示，收起徽标显示已提交事件计数。
+- 官方 Team 面：通过可选的 `ctx.agentTeams` 读取指挥（lead）/teammate roster、`running/idle/inactive/provisioning/failed` 状态、task revision、owner、blocker、readiness 与 write-scope warning；界面提供分段总进度、动态摘要、指挥→Role/成员派工树和任务标签。
+- 指挥与成员复用随包发布的 256px Sacha/Jojo 猫咪底图，Role 道具和运行状态由小尺寸 SVG 叠加；整张头像随工作、等待和完成状态浮动、思考或呼吸，`prefers-reduced-motion` 时停止动画。
 - 任务 DAG 按依赖深度分列并用 SVG 曲线连边；悬停或键盘聚焦高亮完整上下游，点击固定，`Esc` 取消。详情区显示 owner、revision、未满足前置、下游解锁、写入范围与重叠警告。
 - 面板默认停靠右侧并让宽屏对话区按实际宽度让位；可切换浮动、拖拽、调整左边缘/底边/右下角并持久化布局。窄屏使用无手势的安全 inset overlay，收起后保留活动徽标。
+- 每个会话默认收起；首个已提交事件、teammate 或共享任务到达时自动展开一次，Human 手动收起后该会话不再自动弹出（按会话持久化，刷新后仍生效）。
 - DSH Team `ready` 和 `writeScopeWarnings` 只显示官方 Runtime 事实；Sacha readiness、Scope、授权、单写入者和 Reviewer 独立性仍由 Sacha Core/Skill 判断。
 - companion 不注册自动调度器，不创建 teammate，不修改 task，不发送 mailbox，也不读取第三方 `.agent-teams` 状态目录。
 - 当前 Session 没有活动时每 5 秒探测；发现 Sacha/Team 状态后每 1 秒刷新。切换 Session 后停止旧轮询，只显示当前 Root Session。
@@ -40,11 +41,21 @@ pnpm install
 pnpm verify
 ```
 
-`pnpm verify` 依次执行 Host/Client typecheck、回放/输入校验/DAG/面板几何/素材映射测试以及 Host/Client bundle 构建。测试只证明源码与 bundle；真实 DSH 仍需验证 Profile 组合、工具 discovery、Session 回放、可选 Agent Teams 状态、Web client bundle、panel 注入和浏览器交互。
+`pnpm verify` 依次执行 Host/Client/预览站 typecheck、回放/输入校验/DAG/面板几何/素材映射测试、Host/Client bundle 构建和预览站生产构建。测试只证明源码与 bundle；真实 DSH 仍需验证 Profile 组合、工具 discovery、Session 回放、可选 Agent Teams 状态、Web client bundle、panel 注入和浏览器交互。
+
+## 猫咪效果台
+
+调整猫咪、Role 道具或动画时，可以启动仓库内的开发预览站：
+
+```powershell
+pnpm preview
+```
+
+浏览器打开命令输出的本地地址。页面会直接消费生产 `CatArt`、`CONDUCTOR_CAT`/`MEMBER_CAT`、`ACTION_CAT` 和面板动画 CSS，一次性展示两只基础猫、全部道具、成员状态角标、运行/等待/完成/阻塞动画以及 20/40/44px 实际尺寸。顶部可以切换背景、预览尺寸、动画速度、暂停和减弱动效；源码保存后页面自动更新。
 
 ## DSH 本地安装
 
-完整使用分为 Agent Plugin、可视化 companion 和官方 Agent Teams 三层。第一层让 DSH 发现 Sacha Skill，第二层提供 `sacha_visual_event` 与 Web 面板，第三层提供 teammate、鲸鱼 Role 树和 task DAG；缺少后两层时分别只失去可视面或 Team 面。
+完整使用分为 Agent Plugin、可视化 companion 和官方 Agent Teams 三层。第一层让 DSH 发现 Sacha Skill，第二层提供 `sacha_visual_event` 与 Web 面板，第三层提供 teammate、猫咪 Role 树和 task DAG；缺少后两层时分别只失去可视面或 Team 面。
 
 ### 1. 准备路径
 
@@ -135,7 +146,7 @@ Pop-Location
 
 ### 5. 启用官方 Agent Teams
 
-需要 roster、成员状态、鲸鱼 Role 树和 task DAG 时，在 `$dshHome/profiles/web/cordis.patch.yml` 的现有 YAML 列表中再加入：
+需要 roster、成员状态、猫咪 Role 树和 task DAG 时，在 `$dshHome/profiles/web/cordis.patch.yml` 的现有 YAML 列表中再加入：
 
 ```yaml
 - insert:
@@ -163,8 +174,8 @@ Pop-Location
 
 - Agent Plugin：Skill catalog 出现 `sacha-orchestra-using-sacha`。
 - visualizer：工具面出现 `sacha_visual_event`，产生 Sacha 活动后右侧面板或折叠徽标出现。
-- Agent Teams：工具面出现 `spawn_teammate`、`list_agents`、`team_task_create/list/get/update`；创建 teammate 后出现职业鲸鱼、成员状态、派工树和 task DAG。
-- Client：浏览器刷新后加载 `/plugins/@sacha-orchestra/dsh-visualizer/client.js`，鲸鱼资源从 `/plugins/sacha-visualizer/assets/<name>.png` 返回。
+- Agent Teams：工具面出现 `spawn_teammate`、`list_agents`、`team_task_create/list/get/update`；创建 teammate 后出现猫咪 Role、成员状态、派工树和 task DAG。
+- Client：浏览器刷新后加载 `/plugins/@sacha-orchestra/dsh-visualizer/client.js`，猫咪资源从 `/plugins/sacha-visualizer/assets/<name>.png` 返回。
 
 分层排障：Skill 缺失先查 loader、安装目录和 `agent-plugins.yml`；面板缺失先查 visualizer bundle、`client.js` 与是否已调用 `sacha_visual_event`；Team 区域缺失先查两个 experimental row 与官方 Team 工具；源码已更新但界面仍旧时重新执行 `pnpm verify`、重启 DSH 并刷新浏览器。
 

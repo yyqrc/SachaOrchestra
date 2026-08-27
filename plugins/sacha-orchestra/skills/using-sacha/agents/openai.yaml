@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "清晰任务直接执行，任务演变改变执行方式时重新建议 Sacha"
-  default_prompt: "使用 $sacha-orchestra:using-sacha 直接执行清晰任务，并在任务演变会改变执行方式时重新建议 Sacha。"
+  short_description: "收到可执行目标后先判断 Direct 或建议进入 Sacha"
+  default_prompt: "使用 $sacha-orchestra:using-sacha，在处理当前可执行目标前先判断 Direct 或建议进入 Sacha，并在查询或诊断转为方案、修改或持久化时重新判断。"

@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "integrations" / "dsh" / "sacha-visualizer"
 REQUIRED_PACK_FILES = {
     "README.md",
-    "THIRD_PARTY_NOTICES.md",
-    "assets/whales/team-lead-v2.png",
+    "assets/cats/cat-sacha-base.png",
+    "assets/cats/cat-jojo-base.png",
     "lib/client.js",
 }
 

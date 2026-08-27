@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.client.json",
+  "compilerOptions": {
+    "declaration": true,
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node", "vite/client"]
+  },
+  "include": ["preview", "src/client", "src/types.ts", "src/css-modules.d.ts"]
+}

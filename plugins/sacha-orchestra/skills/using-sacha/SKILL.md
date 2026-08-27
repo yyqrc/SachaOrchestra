@@ -1,6 +1,6 @@
 ---
 name: using-sacha
-description: Sacha 默认入口。显式使用，或任务演变会改变执行方式时重评估；仅复杂、耗时或多文件仍保持 Direct。
+description: Sacha 默认入口。主任务收到当前可执行目标后必须先判断 Direct 或建议进入 Sacha；查询或诊断转为方案、修改或持久化时必须重新判断。
 ---
 
 # Using Sacha（智能入口）
@@ -11,16 +11,17 @@ description: Sacha 默认入口。显式使用，或任务演变会改变执行�
 
 ## 输入与首查
 
-1. 读取 Intake Contract，核对目标、Scope、授权、验收和项目规则。
-2. 初次判断及 Direct 执行期间检查语义转折。目标、Scope、验收、风险、授权或交付模型的实质变化形成新入口候选；reference、日志和进度变化沿用原判断。
+1. 主任务收到当前可执行目标后，必须先读取 Intake Contract，核对目标、Scope、授权、验收和项目规则，完成入口判断，再继续调查、形成方案或实施。
+2. 同一目标从查询或诊断转为方案、修改或持久化时，必须在继续前重新判断。目标、Scope、验收、风险、授权或交付模型的实质变化形成新入口候选；reference、日志和进度变化沿用原判断。
 
 ## 动作与输出
 
 1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
 2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
-3. 显式 using-sacha、明确使用 Sacha 或直接调用规范 Role（canonical Role）视为接受。接受后读取 Workflow Contract 与目标 Role；传输、恢复、外部状态或当前 Runtime 已暴露的 Sacha 观测能力需要映射时读取目标 Adapter。观测记录失败不改变入口结果。
-4. 显式 document-project 由 Intake Contract 直接路由到当前文档目标，不视为接受 Sacha，也不得为满足其前置条件补走生产 Role。
-5. 拒绝后保持 Direct；新入口候选重新执行入口判断。
+3. Human 对入口行为的反问、调查或纠正按 Human Interaction Contract 解释并更新当前问题；入口候选仍成立且选择条件具备时再询问。
+4. Human 明确使用 Sacha、选择接受或直接调用规范 Role（canonical Role）时记录接受。接受后读取 Workflow Contract 与目标 Role；传输、恢复、外部状态或当前 Runtime 已暴露的 Sacha 观测能力需要映射时读取目标 Adapter。观测记录失败不改变入口结果。
+5. 显式 document-project 由 Intake Contract 直接路由到当前文档目标，不视为接受 Sacha，也不得为满足其前置条件补走生产 Role。
+6. 拒绝后保持 Direct；新入口候选重新执行入口判断。
 
 ## 停止与禁止边界
 

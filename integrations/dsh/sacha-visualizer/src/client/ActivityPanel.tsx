@@ -1,4 +1,10 @@
-/** Session-scoped Sacha workflow, evidence, roster, and task-DAG panel. */
+/**
+ * Sacha activity panel — Sacha workflow observability companion.
+ * The shell, gestures, layout, and visual hierarchy mirror the DSH AgentTeams
+ * reference plugin (NanmiCoder/dsh-agent-teams). The Sacha face is an animated
+ * phase rail: one glance shows the current workflow node; gates and review
+ * ride the rail as compact markers instead of text cards.
+ */
 
 import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
@@ -7,28 +13,37 @@ import {
 import type { ObservableSnapshot, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { compactDagLayout, NODE_HEIGHT, NODE_WIDTH, relatedTaskIds } from './activity-model.ts'
 import { useSachaActivity } from './activity-monitor.ts'
-import { ACTION_ART, LEAD_ART, memberArtUrl } from './artwork.ts'
+import { CONDUCTOR_CAT, MEMBER_CAT, memberCatProp } from './artwork.ts'
+import { CatArt } from './cats.tsx'
+import { MemberStatusArt } from './status-art.tsx'
 import {
   DEFAULT_PANEL_LAYOUT, PANEL_LAYOUT_STORAGE_KEY, compactPanel, dockPanel, floatPanel, movePanel,
   panelMaximumHeight, panelUsesAutoHeight, parsePanelLayout, resizePanel, resolvePanelLayout,
   type PanelBounds, type PanelLayout, type PanelResizeEdge,
 } from './panel-geometry.ts'
+import { PANEL_DISMISSED_KEY, dismissSession, parseDismissedSessions } from './panel-visibility.ts'
 import type {
-  EvidenceLayer, SachaActivitySnapshot, SachaGate, SachaPhase, TeamMemberSnapshot, TeamTaskSnapshot,
+  SachaActivitySnapshot, SachaGate, SachaPhase,
+  TeamMemberSnapshot, TeamTaskSnapshot, VisualState,
 } from '../types.ts'
 import css from './ActivityPanel.module.css'
 
 const PANEL_OPEN_ATTRIBUTE = 'data-sacha-panel-open'
 const PANEL_SHIFT_PROPERTY = '--sacha-panel-shift'
 const MOVE_THRESHOLD = 4
+
 const PHASE_LABEL: Record<SachaPhase, string> = {
-  intake: '入口判断', direct: '直接执行', planner: '规划', explore: '探索', executor: '实施', reviewer: '独立评审',
-  roadmap: '路线图', 'document-project': '项目文档', closeout: '收口', feedback: '反馈移交',
-  'human-decision': '等待 Human 决定', complete: '完成', blocked: '阻塞',
+  intake: '入口判断', direct: '直接执行', planner: '规划', explore: '探索', executor: '实施',
+  reviewer: '独立评审', roadmap: '路线图', 'document-project': '项目文档', closeout: '收口',
+  feedback: '反馈移交', 'human-decision': '等待决定', complete: '完成', blocked: '阻塞',
 }
-const GATE_LABEL: Record<SachaGate, string> = { planner: 'Planner Gate', manager: 'Manager Gate', reviewer: 'Reviewer Gate' }
-const EVIDENCE_LABEL: Record<EvidenceLayer, string> = {
-  source: '源码/静态', package: '包/安装', runtime: 'Runtime', human: 'Human 验收',
+const GATE_LABEL: Record<SachaGate, string> = {
+  planner: 'Planner Gate', manager: 'Manager Gate', reviewer: 'Reviewer Gate',
+}
+const GATE_DECISION_LABEL: Record<string, string> = { open: '开', closed: '关' }
+
+const MEMBER_STATUS_LABEL: Record<TeamMemberSnapshot['status'], string> = {
+  running: '工作中', idle: '空闲', inactive: '未激活', provisioning: '创建中', failed: '失败',
 }
 
 type PanelGesture = {
@@ -51,6 +66,19 @@ function initialBounds(): PanelBounds {
   return { width: window.innerWidth, height: window.innerHeight, anchorRight: window.innerWidth }
 }
 
+function initialDismissedSessions(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  return new Set(parseDismissedSessions(window.localStorage.getItem(PANEL_DISMISSED_KEY)))
+}
+
+/**
+ * Measure geometry against the shell overlay, mirroring the AgentTeams
+ * reference: the overlay box is the drag/float range, while the conversation's
+ * real right edge is the dock anchor (it already excludes side plugins that
+ * push the app shell). This lets the panel float anywhere over the shell —
+ * including beside a right workbench — while the dock still lands next to the
+ * conversation instead of under the plugin layer.
+ */
 function measureShellBounds(): PanelBounds | undefined {
   if (typeof document === 'undefined') return undefined
   const overlay = document.querySelector<HTMLElement>('[data-shell-overlay]')
@@ -73,93 +101,207 @@ function hasActivity(snapshot: SachaActivitySnapshot | undefined): boolean {
     && (snapshot.events.length > 0 || snapshot.team.members.length > 0 || snapshot.team.tasks.length > 0)
 }
 
-function taskTone(task: TeamTaskSnapshot): string {
-  if (task.status === 'completed') return 'completed'
-  if (task.status === 'in_progress') return 'running'
-  return task.ready ? 'ready' : 'blocked'
+/** Orchestration signals that may auto-open the panel once per session:
+ *  committed Sacha events, dispatched teammates, or shared tasks. A lone
+ *  conductor member (the native `role: 'lead'` entry) is ambient Agent Teams
+ *  state, not orchestration. */
+function hasOrchestration(snapshot: SachaActivitySnapshot): boolean {
+  return snapshot.events.length > 0
+    || snapshot.team.members.some(m => m.role === 'teammate')
+    || snapshot.team.tasks.length > 0
 }
 
-function taskStatusLabel(task: TeamTaskSnapshot): string {
-  if (task.status === 'completed') return '已完成'
-  if (task.status === 'in_progress') return '进行中'
-  if (task.status === 'deleted') return '已删除'
-  return task.ready ? '已就绪' : '等待依赖'
+function memberActivityTone(status: TeamMemberSnapshot['status']): 'working' | 'idle' | 'unknown' {
+  if (status === 'running') return 'working'
+  if (status === 'idle') return 'idle'
+  return 'unknown'
 }
 
-function memberStatusLabel(member: TeamMemberSnapshot): string {
-  switch (member.status) {
-    case 'running': return '工作中'
-    case 'idle': return '空闲'
-    case 'inactive': return '未激活'
-    case 'provisioning': return '创建中'
-    case 'failed': return '失败'
-  }
-}
-
-function stableHash(value: string): number {
+function memberAccent(seed: string): string {
   let hash = 0
-  for (let index = 0; index < value.length; index += 1) hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0
-  return Math.abs(hash)
-}
-
-const MEMBER_ACCENTS = ['#4d6bfe', '#7c5ce7', '#07966b', '#ca6f1e', '#d44747'] as const
-function memberAccent(id: string): string {
-  return MEMBER_ACCENTS[stableHash(id) % MEMBER_ACCENTS.length] ?? MEMBER_ACCENTS[0]
+  for (let index = 0; index < seed.length; index += 1) hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0
+  return Math.abs(hash).toString(16).padStart(6, '0').slice(0, 6)
 }
 
 function memberInitial(name: string): string {
-  return name.trim().slice(0, 1).toUpperCase() || '?'
+  const first = name.trim().charAt(0)
+  return first === '' ? '?' : first.toUpperCase()
 }
 
-function roleLabel(member: TeamMemberSnapshot): string {
-  if (member.role === 'lead') return '主任务 / Lead'
+function memberRoleLabel(member: TeamMemberSnapshot): string {
+  if (member.role === 'lead') return '主任务 / 指挥'
   const description = member.description?.trim()
   if (description === undefined || description === '') return '委派 Agent'
-  const lower = description.toLowerCase()
-  if (lower.includes('planner')) return 'Planner'
-  if (lower.includes('reviewer')) return 'Reviewer'
-  if (lower.includes('executor')) return 'Executor'
-  if (lower.includes('explore') || lower.includes('research')) return 'Explore'
   return description
 }
 
-function taskSummary(tasks: readonly TeamTaskSnapshot[]): { text: string; tone: string } {
-  if (tasks.length === 0) return { text: '等待主任务拆解工作单元', tone: 'idle' }
-  const completed = tasks.filter(task => task.status === 'completed')
-  const running = tasks.filter(task => task.status === 'in_progress')
-  const blocked = tasks.filter(task => task.status === 'pending' && !task.ready)
-  const ready = tasks.filter(task => task.status === 'pending' && task.ready)
-  if (completed.length === tasks.length) return { text: `全部 ${completed.length} 项任务已交付`, tone: 'completed' }
-  if (running.length > 0 && blocked.length > 0) return { text: `${running.length} 项执行中，${blocked.length} 项等待依赖`, tone: 'warning' }
-  if (running.length > 0) return { text: `${running.map(task => task.id).join('、')} 正在执行`, tone: 'running' }
-  if (ready.length > 0) return { text: `${ready.map(task => task.id).join('、')} 已就绪`, tone: 'ready' }
-  return { text: `${blocked.length} 项等待前置任务`, tone: 'warning' }
+function teamDisplayName(snapshot: SachaActivitySnapshot): string {
+  const lead = snapshot.team.members.find(m => m.role === 'lead')
+  if (lead !== undefined) return '乐团'
+  if (snapshot.team.tasks.length > 0) return 'Agent 乐团'
+  return '当前乐团'
 }
 
-function ProgressOverview({ tasks }: { readonly tasks: readonly TeamTaskSnapshot[] }) {
-  const visible = tasks.filter(task => task.status !== 'deleted')
-  const completed = visible.filter(task => task.status === 'completed').length
-  const running = visible.filter(task => task.status === 'in_progress').length
-  const blocked = visible.filter(task => task.status === 'pending' && !task.ready).length
-  const ready = visible.filter(task => task.status === 'pending' && task.ready).length
-  const summary = taskSummary(visible)
+function progressSummary(tasks: readonly TeamTaskSnapshot[]): { text: string; tone: 'running' | 'warning' | 'completed' | 'idle' } {
+  const visible = tasks.filter(t => t.status !== 'deleted')
+  if (visible.length === 0) return { text: '等待主任务拆解工作单元', tone: 'idle' }
+  const completed = visible.filter(t => t.status === 'completed').length
+  const running = visible.filter(t => t.status === 'in_progress').length
+  const blocked = visible.filter(t => t.status === 'pending' && !t.ready).length
+  if (completed === visible.length) return { text: `全部 ${completed} 项任务已交付`, tone: 'completed' }
+  if (running > 0 && blocked > 0) return { text: `${running} 项执行中，${blocked} 项等待依赖`, tone: 'warning' }
+  if (running > 0) return { text: `${running} 项正在执行`, tone: 'running' }
+  if (blocked > 0) return { text: `${blocked} 项等待前置任务`, tone: 'warning' }
+  return { text: `${visible.length} 项任务待领取`, tone: 'idle' }
+}
+
+function Chevron({ open }: { readonly open: boolean }): JSX.Element {
+  return (
+    <svg className={css.chevron} data-open={open} width="9" height="9" viewBox="0 0 10 10" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+      <path d="M3.5 2l3 3-3 3" />
+    </svg>
+  )
+}
+
+function WorkGlyph({ active }: { readonly active: boolean }): JSX.Element {
+  return (
+    <svg className={css.workGlyph} data-active={active} width="11" height="11" viewBox="0 0 11 11"
+      fill="currentColor" aria-hidden>
+      {[[0, 0], [4.2, 0], [8.4, 0], [0, 4.2], [4.2, 4.2], [8.4, 4.2]].map(([x, y], i) => (
+        <rect key={`${x}:${y}`} x={x} y={y} width="2.6" height="2.6" rx=".6" style={{ animationDelay: `${i * 0.15}s` }} />
+      ))}
+    </svg>
+  )
+}
+
+function CollapsedBadge({ count, busy, onClick }: {
+  readonly count: number; readonly busy: boolean; readonly onClick: () => void
+}): JSX.Element {
+  return (
+    <button type="button" className={css.badge} data-busy={busy || undefined} onClick={onClick}
+      aria-label={`打开 Sacha 可视化（${count} 项事件）`}>
+      <span className={css.badgeDot} data-busy={busy || undefined} aria-hidden />
+      <span className={css.badgeCount}>S · {count}</span>
+    </button>
+  )
+}
+
+function IconPanelLeft(): JSX.Element {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+      <line x1="6" y1="3" x2="6" y2="13" />
+    </svg>
+  )
+}
+function IconChevronDown(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6l5 5 5-5" />
+    </svg>
+  )
+}
+
+/** Gate + review badges shared by the conductor card. */
+function StateBadges({ state }: { readonly state: VisualState }): JSX.Element | null {
+  const gates = (Object.entries(state.gates) as [SachaGate, VisualState['gates'][SachaGate]][])
+    .filter((entry): entry is [SachaGate, NonNullable<VisualState['gates'][SachaGate]>] => entry[1] !== undefined)
+  const review = state.review
+  if (gates.length === 0 && review === undefined) return null
+  return (
+    <>
+      {gates.length > 0 ? (
+        <div className={css.sachaGates} role="group" aria-label="Gate 状态">
+          {gates.map(([gate, value]) => (
+            <span key={gate} className={css.sachaGate} data-decision={value.decision} title={value.summary}>
+              <span className={css.sachaGateDot} />
+              {GATE_LABEL[gate]} · {GATE_DECISION_LABEL[value.decision] ?? value.decision}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {review !== undefined && review.eventType === 'review' ? (
+        <span className={css.sachaReview} data-outcome={review.outcome} title={review.summary}>
+          Review · {review.summary}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
+/** The conductor card: the conductor cat always holds the baton; the
+ *  workflow phase still drives the card state and summary line. */
+function ConductorNode({ snapshot, runningCount, taskCount, assignedCount, teammateCount }: {
+  readonly snapshot: SachaActivitySnapshot
+  readonly runningCount: number
+  readonly taskCount: number
+  readonly assignedCount: number
+  readonly teammateCount: number
+}): JSX.Element {
+  const phase = snapshot.state.phase
+  const nodeState = phase === undefined ? 'waiting'
+    : phase.state === 'blocked' ? 'blocked'
+    : phase.state === 'completed' ? 'completed'
+    : phase.state === 'waiting' ? 'waiting' : 'running'
+  return (
+    <div className={css.captainNode} data-state={nodeState}>
+      <span className={css.captainAvatar} data-state={nodeState}>
+        <CatArt kind={CONDUCTOR_CAT.kind} prop={CONDUCTOR_CAT.prop} size={44} />
+      </span>
+      <span className={css.captainInfo}>
+        <span className={css.captainLine}>
+          <strong className={css.captainName}>指挥</strong>
+          <small className={css.captainRole}>拆解 · 派发 · 汇总</small>
+        </span>
+        <span className={css.captainSummary} title={phase?.summary}>
+          {phase !== undefined
+            ? phase.summary
+            : teammateCount > 0 ? `已派发 ${assignedCount} 项任务给 ${teammateCount} 名成员` : '等待主任务派工'}
+        </span>
+      </span>
+      <span className={css.captainState} data-busy={nodeState === 'running' || undefined} data-state={nodeState}>
+        {phase !== undefined
+          ? `${PHASE_LABEL[phase.phase]} · ${nodeState === 'running' ? '进行中' : nodeState === 'waiting' ? '等待中' : nodeState === 'blocked' ? '阻塞' : '已完成'}`
+          : runningCount > 0 ? `${runningCount} 人执行中` : taskCount > 0 ? '已收齐' : '等待回报'}
+      </span>
+    </div>
+  )
+}
+
+function ProgressOverview({ tasks }: { readonly tasks: readonly TeamTaskSnapshot[] }): JSX.Element {
+  const visible = tasks.filter(t => t.status !== 'deleted')
+  const completed = visible.filter(t => t.status === 'completed').length
+  const running = visible.filter(t => t.status === 'in_progress').length
+  const blocked = visible.filter(t => t.status === 'pending' && !t.ready).length
+  const ready = visible.filter(t => t.status === 'pending' && t.ready).length
+  const summary = progressSummary(visible)
   return (
     <section className={css.progressOverview} aria-label="团队总进度">
       <span className={css.progressTitle}>总进度</span>
       <span className={css.progressSegments} aria-hidden>
-        {visible.length === 0 ? <span data-tone="empty" /> : visible.map(task => <span key={task.id} data-tone={taskTone(task)} />)}
+        {visible.length === 0
+          ? <span className={css.progressEmpty} />
+          : visible.map(t => <span key={t.id} data-state={t.status === 'in_progress' ? 'running' : t.status === 'completed' ? 'completed' : t.ready ? 'running' : 'blocked'} />)}
       </span>
       <span className={css.progressLegend}>
-        <span data-tone="running">■ 进行中 {running}</span><span data-tone="ready">■ 就绪 {ready}</span>
-        <span data-tone="blocked">■ 等待 {blocked}</span><span data-tone="completed">■ 完成 {completed}</span>
+        <span data-state="running">■ 进行中 {running}</span>
+        <span data-state="blocked">■ 等待 {blocked}</span>
+        <span data-state="completed">■ 完成 {completed}</span>
+        {ready > 0 ? <span data-state="running">■ 就绪 {ready}</span> : null}
       </span>
-      <span className={css.progressSummary} data-tone={summary.tone}><span className={css.progressDot} />{summary.text}</span>
+      <span className={css.progressSummary} data-state={summary.tone}>
+        <span className={css.progressSummaryDot} />
+        <span>{summary.text}</span>
+      </span>
     </section>
   )
 }
 
-function DependencyMap({ tasks }: { readonly tasks: readonly TeamTaskSnapshot[] }) {
-  const visible = tasks.filter(task => task.status !== 'deleted')
+function DependencyMap({ tasks }: { readonly tasks: readonly TeamTaskSnapshot[] }): JSX.Element {
+  const visible = tasks.filter(t => t.status !== 'deleted')
   const [open, setOpen] = useState(true)
   const [hovered, setHovered] = useState<string>()
   const [keyboard, setKeyboard] = useState<string>()
@@ -168,180 +310,225 @@ function DependencyMap({ tasks }: { readonly tasks: readonly TeamTaskSnapshot[] 
   const focused = pinned ?? keyboard ?? hovered
   const layout = useMemo(() => compactDagLayout(visible), [visible])
   const related = useMemo(() => focused === undefined ? undefined : relatedTaskIds(focused, visible), [focused, visible])
-  const parallel = visible.length > 0 && visible.every(task => task.blockedBy.length === 0)
-  const fallback = visible.find(task => task.status === 'in_progress')
-    ?? visible.find(task => task.status === 'pending' && !task.ready)
+  const parallel = visible.length > 0 && visible.every(t => t.blockedBy.length === 0)
+  const fallback = visible.find(t => t.status === 'in_progress')
+    ?? visible.find(t => t.status === 'pending' && !t.ready)
     ?? visible[0]
-  const detail = visible.find(task => task.id === focused) ?? fallback
-  const waitingOn = detail?.blockedBy.filter(id => visible.find(task => task.id === id)?.status !== 'completed') ?? []
-  const dependents = detail === undefined ? [] : visible.filter(task => task.blockedBy.includes(detail.id))
+  const detail = visible.find(t => t.id === focused) ?? fallback
+  const waitingOn = detail?.blockedBy.filter(id => visible.find(t => t.id === id)?.status !== 'completed') ?? []
+  const dependents = detail === undefined ? [] : visible.filter(t => t.blockedBy.includes(detail.id))
   const scheduleHover = (id: string | undefined): void => {
     if (hoverTimer.current !== undefined) clearTimeout(hoverTimer.current)
     if (id === undefined) { setHovered(undefined); return }
     hoverTimer.current = setTimeout(() => { setHovered(id) }, 160)
   }
   useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') setPinned(undefined) }
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setPinned(undefined) }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
       if (hoverTimer.current !== undefined) clearTimeout(hoverTimer.current)
     }
   }, [])
-  if (visible.length === 0) return <p className={css.empty}>暂无官方 Agent Teams 任务。</p>
-  const renderNode = (task: TeamTaskSnapshot, position?: { x: number; y: number }) => (
+  if (visible.length === 0) return <p className={css.emptyHint}>暂无任务。</p>
+
+  const toneFor = (task: TeamTaskSnapshot): 'running' | 'completed' | 'blocked' | 'failed' | 'pending' => {
+    if (task.status === 'completed') return 'completed'
+    if (task.status === 'in_progress') return 'running'
+    if (task.status === 'pending' && task.ready) return 'running'
+    return 'blocked'
+  }
+
+  const renderNode = (task: TeamTaskSnapshot, position?: { x: number; y: number }): JSX.Element => (
     <button
       type="button" key={task.id} className={css.dagNode}
       style={position === undefined ? { height: NODE_HEIGHT } : { left: position.x, top: position.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
-      data-tone={taskTone(task)} data-focused={related?.has(task.id) || undefined}
-      data-dimmed={related !== undefined && !related.has(task.id) || undefined} aria-pressed={pinned === task.id}
-      title={`${task.id} · ${task.subject}`} onClick={() => { setPinned(current => current === task.id ? undefined : task.id) }}
-      onMouseEnter={() => { scheduleHover(task.id) }} onMouseLeave={() => { scheduleHover(undefined) }}
-      onFocus={() => { setKeyboard(task.id) }} onBlur={() => { setKeyboard(undefined) }}
+      data-state={toneFor(task)}
+      data-focused={related?.has(task.id) || undefined}
+      data-dimmed={related !== undefined && !related.has(task.id) || undefined}
+      aria-pressed={pinned === task.id}
+      title={`${task.id} · ${task.subject}`}
+      onClick={() => { setPinned(current => current === task.id ? undefined : task.id) }}
+      onMouseEnter={() => { scheduleHover(task.id) }}
+      onMouseLeave={() => { scheduleHover(undefined) }}
+      onFocus={() => { setKeyboard(task.id) }}
+      onBlur={() => { setKeyboard(undefined) }}
     >
-      <span className={css.taskHead}><span className={css.taskDot} />{task.id}</span>
-      <span className={css.taskSubject}>{task.subject}</span>
-      <span className={css.taskOwner}>{task.ownerName ?? (task.ready ? '待领取' : '等待依赖')}</span>
+      <span className={css.dagNodeHead}>
+        <span className={css.dagNodeDot} />
+        {task.id}
+        {toneFor(task) === 'running' ? <span className={css.dagRunningState}><WorkGlyph active /></span> : null}
+      </span>
+      <span className={css.dagNodeLabel}>{task.subject}</span>
     </button>
   )
+
   return (
-    <section className={css.dependencySection}>
-      <header className={css.sectionHeader}>
-        <button type="button" onClick={() => { setOpen(current => !current) }} aria-expanded={open}>
-          <span className={css.chevron} data-open={open}>›</span>{parallel ? '并行任务' : '任务依赖'}
+    <section className={css.dependencySection} aria-label="任务依赖">
+      <header className={css.sectionHead}>
+        <button type="button" className={css.sectionToggleTitle} onClick={() => { setOpen(c => !c) }} aria-expanded={open}>
+          <Chevron open={open} />
+          {parallel ? '并行任务' : '任务依赖'}
         </button>
-        <small>{pinned === undefined ? '悬停高亮 · 点击固定' : `${pinned} 已固定 · Esc 取消`}</small>
+        <small className={css.sectionHint}>
+          {pinned === undefined ? '悬停高亮 · 点击固定' : `${pinned} 已固定 · Esc 取消`}
+        </small>
       </header>
-      {open && <>
-        <div className={css.dagViewport}>
-          <div className={css.dagCanvas} data-layout={parallel ? 'parallel' : 'dependency'} style={parallel ? undefined : { width: layout.width, height: layout.height }}>
-            {!parallel && <svg className={css.dagEdges} width={layout.width} height={layout.height} aria-hidden>
-              {layout.edges.map(edge => {
-                const highlighted = related?.has(edge.from) === true && related.has(edge.to)
-                return <path key={`${edge.from}:${edge.to}`} d={edge.path} data-highlighted={highlighted || undefined} data-dimmed={related !== undefined && !highlighted || undefined} />
-              })}
-            </svg>}
-            {parallel ? visible.map(task => renderNode(task)) : layout.nodes.map(node => renderNode(node.task, node))}
+      {open && (
+        <>
+          <div className={css.dagViewport}>
+            <div className={css.dagCanvas} data-layout={parallel ? 'parallel' : 'dependency'}
+              style={parallel ? undefined : { width: layout.width, height: layout.height }}>
+              {!parallel && (
+                <svg className={css.dagEdges} width={layout.width} height={layout.height} aria-hidden>
+                  {layout.edges.map(edge => {
+                    const highlighted = related?.has(edge.from) === true && related.has(edge.to)
+                    return (
+                      <path key={`${edge.from}:${edge.to}`} d={edge.path}
+                        data-active={highlighted || undefined}
+                        data-dimmed={related !== undefined && !highlighted || undefined} />
+                    )
+                  })}
+                </svg>
+              )}
+              {parallel
+                ? visible.map(t => renderNode(t))
+                : layout.nodes.map(n => renderNode(n.task, n))}
+            </div>
           </div>
-        </div>
-        {detail !== undefined && <section className={css.taskDetail} data-tone={taskTone(detail)}>
-          <span className={css.taskDetailHead}><code>{detail.id}</code><strong title={detail.subject}>{detail.subject}</strong><span>{taskStatusLabel(detail)}</span></span>
-          <span>{detail.ownerName ?? '未分配'} · revision {detail.revision}</span>
-          <span>{detail.status === 'completed'
-            ? '任务已经完成并交付'
-            : detail.status === 'in_progress'
-              ? '任务正在执行'
-              : waitingOn.length > 0
-                ? `等待 ${waitingOn.join('、')}`
-                : '前置已满足，可执行'}</span>
-          <span>{dependents.length > 0 ? `完成后解锁 ${dependents.map(task => task.id).join('、')}` : '无下游任务'}</span>
-          {detail.writeScopes.length > 0 && <span>写入范围：{detail.writeScopes.join('、')}</span>}
-          {detail.writeScopeWarnings.length > 0 && <span className={css.taskWarning}>{detail.writeScopeWarnings.join('；')}</span>}
-        </section>}
-      </>}
-    </section>
-  )
-}
-
-function DelegationTree({ snapshot }: { readonly snapshot: SachaActivitySnapshot }) {
-  const [open, setOpen] = useState(true)
-  const tasks = snapshot.team.tasks.filter(task => task.status !== 'deleted')
-  const members = snapshot.team.members
-  const lead = members.find(member => member.role === 'lead')
-  const teammates = members.filter(member => member.role === 'teammate')
-  const running = teammates.filter(member => member.status === 'running').length
-  const assigned = tasks.filter(task => task.ownerName !== undefined).length
-  return (
-    <section className={css.delegationSection}>
-      <div className={css.leadNode}>
-        <span className={css.leadAvatar}><img className={css.leadArt} src={LEAD_ART} alt="" aria-hidden /></span>
-        <span className={css.leadInfo}>
-          <span><strong>{lead?.name ?? '主任务'}</strong><small>Lead · 拆解 · 派发 · 汇总</small></span>
-          <span>已派发 {assigned} 项任务给 {teammates.length} 名成员</span>
-        </span>
-        <span className={css.leadState} data-busy={running > 0}>{running > 0 ? `${running} 人执行中` : tasks.length > 0 && tasks.every(task => task.status === 'completed') ? '已收齐' : '等待回报'}</span>
-      </div>
-      <ProgressOverview tasks={tasks} />
-      <button type="button" className={css.membersToggle} onClick={() => { setOpen(current => !current) }} aria-expanded={open}>
-        <span><span className={css.chevron} data-open={open}>›</span>Role / 成员 {teammates.length}</span><span>{open ? '收起' : '展开'}</span>
-      </button>
-      {open && <div className={css.delegationTree}>
-        {teammates.length === 0 && <p className={css.empty}>暂无 teammate；Sacha 流程仍可只在主任务中运行。</p>}
-        {teammates.map(member => {
-          const owned = tasks.filter(task => task.ownerName === member.name)
-          const completed = owned.filter(task => task.status === 'completed').length
-          const roleArt = memberArtUrl(member)
-          return <div key={member.id} className={css.memberBlock} data-status={member.status}>
-            <span className={css.memberBranch} aria-hidden />
-            <div className={css.memberRow}>
-              <span className={css.memberAvatar}>
-                {roleArt === null
-                  ? <span className={css.memberInitial} style={{ background: memberAccent(member.id) }}>{memberInitial(member.name)}</span>
-                  : <img className={css.memberArt} src={roleArt} alt="" aria-hidden />}
-                <img className={css.memberAction} data-status={member.status} src={ACTION_ART[member.status]} alt="" aria-hidden />
+          {detail !== undefined && (
+            <section className={css.taskDetail} data-state={toneFor(detail)}>
+              <span className={css.taskDetailHead}>
+                <code className={css.taskDetailId}>{detail.id}</code>
+                <strong className={css.taskDetailSubject} title={detail.subject}>{detail.subject}</strong>
+                <span className={css.taskDetailBadge} data-state={toneFor(detail)}>
+                  {detail.status === 'completed' ? '已完成' : detail.status === 'in_progress' ? '进行中' : detail.ready ? '就绪' : '等待依赖'}
+                </span>
               </span>
-              <span className={css.memberInfo}><span><strong>{member.name}</strong><small>{roleLabel(member)}</small></span><span>{member.description ?? '等待主任务派工'}</span></span>
-              <span className={css.memberState} data-status={member.status}>{memberStatusLabel(member)}</span>
-              <span className={css.memberCount}>{completed}/{owned.length}</span>
-            </div>
-            <div className={css.assignmentLine}>
-              <span>Lead 派发</span><span>{owned.length === 0 ? <em>暂无任务</em> : owned.map(task => <span key={task.id} data-tone={taskTone(task)} title={task.subject}>{task.id}</span>)}</span>
-            </div>
-          </div>
-        })}
-      </div>}
+              <span className={css.taskDetailMeta}>
+                {detail.ownerName ?? '未分配'} · revision {detail.revision}
+              </span>
+              <span className={css.taskDetailLine}>
+                {detail.status === 'completed' ? '任务已经完成并交付'
+                  : detail.status === 'in_progress' ? '任务正在执行'
+                  : waitingOn.length > 0 ? `等待 ${waitingOn.join('、')}`
+                  : '前置已满足，可执行'}
+              </span>
+              <span className={css.taskDetailLine}>
+                {dependents.length > 0 ? `完成后解锁 ${dependents.map(t => t.id).join('、')}` : '无下游任务'}
+              </span>
+              {detail.writeScopes.length > 0 ? (
+                <span className={css.taskDetailLine}>写入范围：{detail.writeScopes.join('、')}</span>
+              ) : null}
+              {detail.writeScopeWarnings.length > 0 ? (
+                <span className={css.taskDetailLine} style={{ color: 'var(--dsw-alias-state-warning)' }}>
+                  {detail.writeScopeWarnings.join('；')}
+                </span>
+              ) : null}
+            </section>
+          )}
+        </>
+      )}
     </section>
   )
 }
 
-function WorkflowSection({ snapshot }: { readonly snapshot: SachaActivitySnapshot }) {
-  const phase = snapshot.state.phase
-  return <section className={css.section}>
-    <h3>当前流程</h3>
-    <div className={css.phaseCard} data-state={phase?.state ?? 'unknown'}>
-      <span className={css.phaseName}>{phase === undefined ? '尚未记录' : PHASE_LABEL[phase.phase]}</span>
-      <span className={css.phaseSummary}>{phase?.summary ?? '等待 Sacha DSH Adapter 记录已提交转换。'}</span>
-      {phase?.scopeRevision !== undefined && <code>{phase.scopeRevision}</code>}
-    </div>
-    <div className={css.gates}>{(Object.keys(GATE_LABEL) as SachaGate[]).map(gate => {
-      const value = snapshot.state.gates[gate]
-      return <span key={gate} data-decision={value?.decision ?? 'unknown'} title={value?.summary}>{GATE_LABEL[gate]} · {value?.decision === 'open' ? '开' : value?.decision === 'closed' ? '关' : '未记录'}</span>
-    })}</div>
-    {snapshot.state.review !== undefined && <div className={css.review} data-outcome={snapshot.state.review.outcome}><strong>Review</strong><span>{snapshot.state.review.outcome}</span><small>{snapshot.state.review.summary}</small></div>}
-  </section>
+function TeamSection({ snapshot }: { readonly snapshot: SachaActivitySnapshot }): JSX.Element {
+  const [membersOpen, setMembersOpen] = useState(true)
+  const tasks = snapshot.team.tasks
+  const visibleTasks = tasks.filter(t => t.status !== 'deleted')
+  const members = snapshot.team.members
+  const teammates = members.filter(m => m.role === 'teammate')
+  const lead = members.find(m => m.role === 'lead')
+  const runningCount = teammates.filter(m => m.status === 'running').length
+  const completedCount = visibleTasks.filter(t => t.status === 'completed').length
+  return (
+    <section className={css.team} aria-label="Agent 乐团">
+      <header className={css.teamHead}>
+        <span className={css.teamName}>{teamDisplayName(snapshot)}</span>
+        <span className={css.teamStats}>
+          <span><span className={css.statDot} style={{ background: 'var(--dsw-alias-state-business-primary)' }} />{teammates.length} 成员</span>
+          <span><span className={css.statDot} style={{ background: 'var(--dsw-alias-state-success)' }} />{completedCount}/{visibleTasks.length} 完成</span>
+          {runningCount > 0 ? <span style={{ color: 'var(--dsw-alias-state-business-primary)' }}>{runningCount} 人执行中</span> : null}
+        </span>
+      </header>
+
+      <section className={css.delegationSection} aria-label="指挥与成员">
+        <ConductorNode snapshot={snapshot} runningCount={runningCount} taskCount={visibleTasks.length} assignedCount={visibleTasks.filter(t => t.ownerName !== undefined).length} teammateCount={teammates.length} />
+        <StateBadges state={snapshot.state} />
+        <ProgressOverview tasks={visibleTasks} />
+        {teammates.length > 0 ? (
+          <>
+            <button type="button" className={css.membersToggle} onClick={() => { setMembersOpen(c => !c) }} aria-expanded={membersOpen}>
+              <span><Chevron open={membersOpen} />Role / 成员 {teammates.length}</span>
+              <span>{membersOpen ? '收起' : '展开'}</span>
+            </button>
+            {membersOpen && (
+              <div className={css.delegationTree}>
+                {teammates.map(member => {
+                  const owned = visibleTasks.filter(t => t.ownerName === member.name)
+                  const completed = owned.filter(t => t.status === 'completed').length
+                  const tone = memberActivityTone(member.status)
+                  const prop = memberCatProp(member)
+                  return (
+                    <div key={member.id} className={css.memberBlock} data-status={member.status}>
+                      <span className={css.memberBranch} aria-hidden />
+                      <button type="button" className={css.memberRow} data-activity={tone}>
+                        <span className={css.memberAvatar} data-status={member.status}>
+                          {prop === undefined
+                            ? <span className={css.memberInitial} style={{ background: `#${memberAccent(member.id)}` }}>{memberInitial(member.name)}</span>
+                            : <CatArt kind={MEMBER_CAT.kind} prop={prop} size={40} />}
+                          <span className={css.stateArt} data-status={member.status}>
+                            <MemberStatusArt status={member.status} size={18} />
+                          </span>
+                        </span>
+                        <span className={css.memberInfo}>
+                          <span className={css.memberLine}>
+                            <strong className={css.memberName}>{member.name}</strong>
+                            <small className={css.memberRole}>{memberRoleLabel(member)}</small>
+                          </span>
+                          <span className={css.memberStatusLine}>{member.description ?? '等待主任务派工'}</span>
+                        </span>
+                        <span className={css.memberState} data-activity={tone}>{MEMBER_STATUS_LABEL[member.status]}</span>
+                      </button>
+                      <div className={css.assignmentLine}>
+                        <span className={css.assignmentLabel}>指挥派发</span>
+                        <span className={css.assignmentTasks}>
+                          {owned.length === 0
+                            ? <em className={css.taskEmpty}>暂无任务</em>
+                            : owned.map(t => (
+                              <span key={t.id} className={css.assignmentChip} data-state={t.status === 'completed' ? 'completed' : t.status === 'in_progress' ? 'running' : t.ready ? 'running' : 'blocked'}>
+                                {t.id}
+                              </span>
+                            ))}
+                        </span>
+                      </div>
+                      {owned.length > 0 ? <span className={css.memberCount} style={{ alignSelf: 'flex-end' }}>{completed}/{owned.length}</span> : null}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        ) : null}
+      </section>
+
+      <DependencyMap tasks={visibleTasks} />
+    </section>
+  )
 }
 
-function EvidenceSection({ snapshot }: { readonly snapshot: SachaActivitySnapshot }) {
-  return <section className={css.section}><h3>证据层</h3><div className={css.evidenceGrid}>
-    {(Object.keys(EVIDENCE_LABEL) as EvidenceLayer[]).map(layer => {
-      const value = snapshot.state.evidence[layer]
-      return <div key={layer} data-status={value?.status ?? 'unverified'} title={value?.references.join('\n')}><strong>{EVIDENCE_LABEL[layer]}</strong><span>{value?.status ?? 'unverified'}</span><small>{value?.summary ?? '尚无记录'}</small></div>
-    })}
-  </div></section>
-}
-
-function TeamSection({ snapshot }: { readonly snapshot: SachaActivitySnapshot }) {
-  return <section className={css.section}><h3>DSH Agent Team</h3>
-    {!snapshot.team.available && <p className={css.empty}>当前 Profile 未组合官方 experimental Agent Teams，或当前 Session 不是 Team member。</p>}
-    {snapshot.team.available && <DelegationTree snapshot={snapshot} />}
-    <DependencyMap tasks={snapshot.team.tasks} />
-  </section>
-}
-
-function Timeline({ snapshot }: { readonly snapshot: SachaActivitySnapshot }) {
-  const entries = snapshot.events.slice(-16).reverse()
-  return <section className={css.section}><h3>已提交时间线</h3>{entries.length === 0 ? <p className={css.empty}>暂无 Sacha 转换记录。</p> : <ol className={css.timeline}>{entries.map(event => <li key={event.seq} data-type={event.value.eventType}><time>{new Date(event.time).toLocaleTimeString()}</time><span>{event.value.summary}</span></li>)}</ol>}</section>
-}
-
-export function ActivityPanel({ sessionsList }: { readonly sessionsList: ObservableSnapshot<SessionListState> }) {
+export function ActivityPanel({ sessionsList }: { readonly sessionsList: ObservableSnapshot<SessionListState> }): JSX.Element | null {
   const current = useSyncExternalStore(sessionsList.subscribe, sessionsList.getSnapshot).current
   const snapshot = useSachaActivity(current)
   const active = hasActivity(snapshot)
   const [open, setOpen] = useState(false)
   const [autoOpenedFor, setAutoOpenedFor] = useState<string>()
+  const [dismissedSessions, setDismissedSessions] = useState<Set<string>>(initialDismissedSessions)
   const [layout, setLayout] = useState<PanelLayout>(initialPanelLayout)
   const [bounds, setBounds] = useState<PanelBounds>(initialBounds)
   const [interaction, setInteraction] = useState<'dragging' | 'resizing'>()
+  const hostRef = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
   const geometry = useMemo(() => resolvePanelLayout(layout, bounds), [layout, bounds])
   const layoutRef = useRef(geometry)
@@ -350,6 +537,8 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
   useEffect(() => { layoutRef.current = geometry }, [geometry])
   useEffect(() => { boundsRef.current = bounds }, [bounds])
   useLayoutEffect(() => {
+    // Observe both the overlay and the conversation column so bounds stay
+    // correct while side plugins open/close and the conversation yields.
     const overlay = document.querySelector<HTMLElement>('[data-shell-overlay]')
     const conversation = document.querySelector<HTMLElement>("[data-phase='active']")
     let frame: number | null = null
@@ -376,10 +565,21 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
       window.removeEventListener('resize', schedule)
     }
   }, [current])
+  // Every session starts collapsed; the panel auto-opens once when Sacha
+  // orchestration arrives, unless the Human has dismissed this session
+  // before. Dismissal is persisted per session, so a refresh or a
+  // switch-away-and-back never pops the panel open again.
+  const orchestration = snapshot !== undefined && hasOrchestration(snapshot)
   useEffect(() => {
-    if (!active || current === undefined || autoOpenedFor === current) return
+    if (!orchestration || current === undefined) return
+    if (autoOpenedFor === current || dismissedSessions.has(current)) return
     setOpen(true); setAutoOpenedFor(current)
-  }, [active, autoOpenedFor, current])
+  }, [orchestration, autoOpenedFor, current, dismissedSessions])
+
+  // Switching sessions resets the panel to its per-session default: collapsed.
+  useEffect(() => {
+    setOpen(false)
+  }, [current])
   useLayoutEffect(() => {
     const root = document.documentElement
     const shifted = open && active && !compactPanel(bounds) && geometry.mode === 'docked'
@@ -433,27 +633,111 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
     commitLayout(live.mode === 'docked' ? floatPanel(live, boundsRef.current) : dockPanel(live, boundsRef.current))
   }, [commitLayout, panelGeometryForGesture])
   if (!active || snapshot === undefined) return null
-  const busy = snapshot.team.members.some(member => member.status === 'running')
-  if (!open) return <button type="button" className={css.badge} data-busy={busy || undefined} onClick={() => { setOpen(true) }} aria-label="打开 Sacha 可视化"><span />S · {snapshot.events.length}</button>
+  const busy = snapshot.team.members.some(m => m.status === 'running')
+  if (!open) {
+    return <CollapsedBadge count={snapshot.events.length} busy={busy} onClick={() => { setOpen(true) }} />
+  }
   const compact = compactPanel(bounds)
   const autoHeight = panelUsesAutoHeight(geometry, bounds)
-  const panelStyle: CSSProperties = { width: geometry.width, height: autoHeight ? 'auto' : geometry.height, maxHeight: panelMaximumHeight(geometry, bounds), transform: `translate3d(${geometry.x}px, ${geometry.y}px, 0)` }
-  return <aside ref={panelRef} className={css.panel} style={panelStyle} aria-label="Sacha 工作流可视化" data-sacha-visualizer data-mode={geometry.mode} data-height-mode={autoHeight ? 'auto' : 'manual'} data-compact={compact || undefined} data-interaction={interaction}>
-    <header className={css.header} onPointerDown={beginMove} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={cancelGesture} data-drag-handle={!compact || undefined}>
-      <span><strong>Sacha</strong><small>DSH Runtime</small><i data-busy={busy || undefined} /></span>
-      <span className={css.panelControls}>
-        {!compact && <button type="button" onClick={toggleDock} title={geometry.mode === 'docked' ? '切换为浮动面板' : '停靠到右侧'}>{geometry.mode === 'docked' ? '浮动' : '停靠'}</button>}
-        <button type="button" onClick={() => { setOpen(false) }} aria-label="收起 Sacha 可视化">收起</button>
-      </span>
-    </header>
-    <div className={css.body}>
-      <WorkflowSection snapshot={snapshot} />
-      {snapshot.state.waves.length > 0 && <section className={css.section}><h3>Manager 波次</h3><div className={css.waves}>{snapshot.state.waves.map(wave => <div key={wave.waveId} data-state={wave.state}><strong>{wave.waveId}</strong><span>{wave.state}</span><small>{wave.unitIds.join('、')} · {wave.summary}</small></div>)}</div></section>}
-      <EvidenceSection snapshot={snapshot} /><TeamSection snapshot={snapshot} /><Timeline snapshot={snapshot} />
-      {snapshot.warnings.length > 0 && <p className={css.warning}>{snapshot.warnings.join('；')}</p>}
-    </div>
-    {!compact && <div className={css.resizeHandle} data-edge="left" onPointerDown={event => { beginResize('left', event) }} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={cancelGesture} />}
-    {!compact && geometry.mode === 'floating' && <><div className={css.resizeHandle} data-edge="bottom" onPointerDown={event => { beginResize('bottom', event) }} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={cancelGesture} /><div className={css.resizeHandle} data-edge="corner" onPointerDown={event => { beginResize('corner', event) }} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={cancelGesture} /></>}
-  </aside>
+  const panelStyle: CSSProperties = {
+    width: geometry.width,
+    height: autoHeight ? 'auto' : geometry.height,
+    maxHeight: panelMaximumHeight(geometry, bounds),
+    transform: `translate3d(${geometry.x}px, ${geometry.y}px, 0)`,
+  }
+  return (
+    <aside
+      ref={(node) => { panelRef.current = node; hostRef.current = node?.parentElement ?? null }}
+      className={css.panel}
+      style={panelStyle}
+      aria-label="Sacha 多智能体编排可视化"
+      data-sacha-visualizer
+      data-mode={geometry.mode}
+      data-height-mode={autoHeight ? 'auto' : 'manual'}
+      data-compact={compact || undefined}
+      data-dragging={interaction === 'dragging' || undefined}
+      data-resizing={interaction === 'resizing' || undefined}
+    >
+      <header
+        className={css.panelHead}
+        onPointerDown={beginMove}
+        onPointerMove={updateGesture}
+        onPointerUp={endGesture}
+        onPointerCancel={cancelGesture}
+        data-drag-handle={!compact || undefined}
+      >
+        <span className={css.panelTitle}>
+          Sacha 编排
+          <span className={css.panelDot} data-busy={busy || undefined} aria-hidden />
+        </span>
+        <span className={css.panelControls}>
+          {!compact && (
+            <button type="button" className={css.iconButton} data-control="dock" data-mode={geometry.mode}
+              onClick={toggleDock}
+              aria-label={geometry.mode === 'docked' ? '切换为浮动面板' : '停靠到右侧'}
+              title={geometry.mode === 'docked' ? '切换为浮动面板' : '停靠到右侧'}>
+              <IconPanelLeft />
+            </button>
+          )}
+          <button type="button" className={css.iconButton} data-control="collapse"
+            onClick={() => {
+              setOpen(false)
+              if (current === undefined) return
+              setDismissedSessions(prev => {
+                if (prev.has(current)) return prev
+                const next = new Set(dismissSession([...prev], current))
+                window.localStorage.setItem(PANEL_DISMISSED_KEY, JSON.stringify([...next]))
+                return next
+              })
+            }}
+            aria-label="收起 Sacha 可视化"
+            title="收起 Sacha 可视化">
+            <IconChevronDown />
+          </button>
+        </span>
+      </header>
+      <div className={css.teams}>
+        {snapshot.team.available
+          ? <TeamSection snapshot={snapshot} />
+          : (
+            <section className={css.team} aria-label="Agent 乐团">
+              <section className={css.delegationSection} aria-label="指挥与成员">
+                <ConductorNode snapshot={snapshot} runningCount={0} taskCount={0} assignedCount={0} teammateCount={0} />
+                <StateBadges state={snapshot.state} />
+              </section>
+              <p className={css.emptyHint}>当前 Profile 未组合官方 Agent Teams，或当前 Session 不是 Team member。</p>
+            </section>
+          )}
+        {snapshot.warnings.length > 0 ? (
+          <section className={css.sachaCard}>
+            <span className={css.sachaSummary}>{snapshot.warnings.join('；')}</span>
+          </section>
+        ) : null}
+      </div>
+      {!compact && (
+        <div className={css.resizeHandle} data-resize-edge="left"
+          onPointerDown={(e) => { beginResize('left', e) }}
+          onPointerMove={updateGesture}
+          onPointerUp={endGesture}
+          onPointerCancel={cancelGesture}
+          aria-hidden />
+      )}
+      {!compact && geometry.mode === 'floating' && (
+        <>
+          <div className={css.resizeHandle} data-resize-edge="bottom"
+            onPointerDown={(e) => { beginResize('bottom', e) }}
+            onPointerMove={updateGesture}
+            onPointerUp={endGesture}
+            onPointerCancel={cancelGesture}
+            aria-hidden />
+          <div className={css.resizeHandle} data-resize-edge="corner"
+            onPointerDown={(e) => { beginResize('corner', e) }}
+            onPointerMove={updateGesture}
+            onPointerUp={endGesture}
+            onPointerCancel={cancelGesture}
+            aria-hidden />
+        </>
+      )}
+    </aside>
+  )
 }
-

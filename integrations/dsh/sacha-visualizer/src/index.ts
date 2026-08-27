@@ -33,12 +33,10 @@ interface AgentTeamsObserver {
 }
 
 const WEB_SERVER_KEYS = ['webServer', 'httpServer'] as const
-const ART_DIRECTORY = fileURLToPath(new URL('../assets/whales/', import.meta.url))
+const ART_DIRECTORY = fileURLToPath(new URL('../assets/cats/', import.meta.url))
 const ART_ALLOWLIST = new Set([
-  'team-lead-v2.png',
-  'member-researcher-v2.png', 'member-engineer-v2.png', 'member-qa-v2.png', 'member-designer-v2.png',
-  'member-security-v2.png', 'member-docs-v2.png', 'member-data-v2.png', 'member-operator-v2.png',
-  'action-working-v2.png', 'action-sleeping-v2.png', 'action-thinking-v2.png',
+  'cat-sacha-base.png',
+  'cat-jojo-base.png',
 ])
 export const name = 'sacha-visualizer'
 export const inject = ['agents', 'sessions', 'tools']
@@ -192,7 +190,7 @@ export function apply(ctx: Context): void {
           })
           res.end(content)
         } catch (error: unknown) {
-          ctx.logger.warn(`sacha-visualizer: whale artwork read failed for ${filename}: ${String(error)}`)
+          ctx.logger.warn(`sacha-visualizer: cat artwork read failed for ${filename}: ${String(error)}`)
           res.writeHead(404)
           res.end()
         }
