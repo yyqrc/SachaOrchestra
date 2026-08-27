@@ -3,7 +3,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import type { SubagentListEntry } from '@deepseek-ai/dsh-subagent'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { InferValue, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
@@ -21,6 +20,31 @@ interface WebRouteHost {
     path: string
     handler: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
   }): () => void
+}
+
+type ObservedSubagentEntry =
+  | {
+      readonly kind: 'child'
+      readonly id: ReturnType<typeof SessionId>
+      readonly mode: 'one-shot'
+      readonly label?: string
+      readonly hasChildren: boolean
+    }
+  | {
+      readonly kind: 'child'
+      readonly id: ReturnType<typeof SessionId>
+      readonly mode: 'continuable'
+      readonly label: string
+      readonly hasChildren: boolean
+    }
+  | {
+      readonly kind: 'diagnostic'
+      readonly id: ReturnType<typeof SessionId>
+      readonly reason: 'corrupt' | 'unsupported' | 'unavailable'
+    }
+
+interface SubagentObserver {
+  listChildren(parentSessionId: ReturnType<typeof SessionId>, signal?: AbortSignal): Promise<ObservedSubagentEntry[]>
 }
 
 const WEB_SERVER_KEYS = ['webServer', 'httpServer'] as const
@@ -92,11 +116,13 @@ async function readSubagents(ctx: Context, parentSessionId: ReturnType<typeof Se
   readonly subagents: SachaActivitySnapshot['subagents']
   readonly warnings: readonly string[]
 }> {
+  const service = (ctx as unknown as { subagents?: SubagentObserver }).subagents
+  if (service === undefined) return { subagents: { available: false, children: [] }, warnings: [] }
   try {
-    const entries = await ctx.subagents.listChildren(parentSessionId)
+    const entries = await service.listChildren(parentSessionId)
     const children: SubagentSnapshot[] = []
     const warnings: string[] = []
-    for (const entry of entries as readonly SubagentListEntry[]) {
+    for (const entry of entries) {
       if (entry.kind === 'diagnostic') {
         warnings.push(`subagent ${String(entry.id)} 无法读取：${entry.reason}`)
         continue
