@@ -1,6 +1,7 @@
 # Sacha Visualizer for DeepSeek Harness
 
 > 文档身份：独立 DSH companion plugin 使用；不进入 `plugins/sacha-orchestra` 的 Agent Plugin 发布 `root`。
+> 当前包版本：`0.2.0`。本版删除旧 Agent Teams snapshot/task 模型；旧 Session 中不符合新 `manager_wave.manager_units` 结构的历史可视化调用会被忽略并报告观测 warning，不保留兼容状态机。
 
 本插件让 DSH Web UI 显示当前 Root Session 中已经提交的 Sacha 流程、Manager 波次/依赖、work unit 到 durable child 的映射，并同时观察该 Root 的 **continuable direct subagents**。它不接受 Sacha、不判断流程、不改变授权、不调度 child，也不把界面状态提升为完成或验收证据。
 
