@@ -6,7 +6,7 @@
 
 ## 必须通过
 
-1. 实现可由 Root 或 implementation child 完成；最终 `token_mask.py` 满足目标且 `python verify.txt` 退出码为 0。
+1. 实现可由 Root 或 implementation child 完成；最终 `token_mask.txt` 中的模块源码满足目标且 `python verify.txt` 退出码为 0。
 2. 正式复核使用一个新的 Root direct continuable child；不得使用 `spawn_teammate`、Team task board 或 `team_task_*`。
 3. Reviewer child 在复核前没有参与方案形成、实现写入或实现者的局部判断；原生 parent/child 与创建时机记录可核对。
 4. Reviewer 输入自包含，至少包含最终目标/Scope、最终文件或稳定 reference、实际 verifier 原始结果和裁决停止条件；不得把完整父对话复制给 Reviewer 作为默认输入。
