@@ -1,199 +1,304 @@
 # Runtime Surface 与 DSH Continuable Subagent 迭代设计
 
-> 状态：本轮实施设计；只记录当前仍推荐采用的方案。
+> 状态：本轮实施设计；只记录当前仍采用或仍待验证的方案。
 > 日期：2026-08-28
 
 ## 1. 目标
 
 本轮收敛两个问题：
 
-1. Sacha 如何在安装了大量项目 Skill、领域插件 Skill、MCP/工具和 Runtime 内置 Skill 的环境中，继续保持稳定的自动入口与按需能力加载，而不试图接管宿主的整个 Skill/工具目录。
-2. DeepSeek Harness 适配如何删除 experimental Agent Teams 依赖，直接使用正式 continuable subagent 能力，并让可视化改为观测 Sacha 流程事件与 continuable child 状态。
+1. Sacha 如何在项目 Skill、领域插件 Skill、MCP/工具和 Runtime 内置 Skill 同时存在时保持稳定自动入口与按需能力加载，而不接管宿主整个能力目录。
+2. DeepSeek Harness（DSH）如何删除 experimental Agent Teams 依赖，直接使用 continuable subagent，并让可视化完整观察 Sacha Manager DAG、work unit 到真实 child 的映射和 child Runtime 状态。
 
-本轮不新增 Role、Gate、生命周期、Artifact 或完成定义；Direct-first、Planner/Executor/Reviewer、Manager、Assurance 与 Artifact 权威保持不变。
+本轮不新增 Role、Gate、生命周期、Artifact 或完成定义；Direct-first、Planner/Executor/Reviewer、Manager、Assurance 与 Artifact 权威不变。
 
-## 2. 全局能力竞争：Sacha 不能只解决自己的 Skill
+## 2. 全局能力竞争：不只看 Sacha 自己的 Skill
 
-### 2.1 问题边界
+真实 Runtime 初始能力面可能同时包含：
 
-真实 Runtime 的初始能力面可能同时包含：
-
-- Sacha 自己的 Skill；
+- Sacha Skill；
 - `setup-project` 绑定的领域 Provider canonical Skill；
 - 项目本地 Skill；
 - 其他插件公开 Skill；
-- Codex/Claude/DSH 自带 Skill；
+- Codex/Claude/DSH 内置 Skill；
 - MCP、原生工具和第三方工具。
 
-因此，单纯把 Sacha 的 Planner/Executor/Reviewer 隐藏起来，只能减少 Sacha 自己制造的竞争，不能消除全局目录竞争。Sacha 也不应为了自动入口而尝试隐藏、重写或接管其他 Provider/项目/宿主拥有的 Skill 和工具。
+因此只隐藏 Sacha 的 Planner/Executor/Reviewer，只能减少 Sacha 自己制造的竞争，不能解决全局目录竞争。Sacha 也不应为了自动入口而隐藏、重写或接管其他 Provider、项目或宿主拥有的能力。
 
-### 2.2 自动入口的正确责任
+### 2.1 `using-sacha` 的责任
 
-`using-sacha` 仍承担自动触发入口，但它的责任是“尽早完成一次低成本 Intake 判断”，不是把 Runtime 变成 Sacha 私有菜单。
+`using-sacha` 继续承担自动触发入口，但目标是**尽早完成一次低成本 Intake 判断**，不是把 Runtime 变成 Sacha 私有菜单：
 
-采用以下原则：
+- 入口元数据保持短、独特，聚焦“当前可执行目标应 Direct 还是进入 Sacha”；
+- 触发后先读 Intake Contract；Human 接受后才读 Workflow 与实际消费者 Role；
+- Domain Skill/项目 Skill 仍按 `setup-project` 的 Binding/load policy 和当前 Role 需要加载；
+- 某 Skill 可见不等于 Sacha 已接受，也不构成 Planner Gate、授权或验证事实；
+- 清晰任务保持 Direct，不强制统一的 read-first 阶段。
 
-- 入口元数据保持短、独特、面向“当前可执行目标先判断 Direct 或 Sacha”，避免与领域 Skill 的具体任务描述竞争。
-- `using-sacha` 被触发后只读取 Intake Contract 与当前任务完成入口判断；Human 接受 Sacha 后才读取 Workflow Contract 和目标 Role。
-- 领域 Provider、项目 Skill 和其他 Runtime Skill 继续由其自己的描述/发现机制存在；Sacha 只在当前 Role 的 load policy 成立时读取已绑定 canonical Skill。
-- Sacha 不把“某领域 Skill 可见”视为 Sacha 接受、Planner Gate 或授权证据。
-- 清晰任务保持 Direct；不强制所有任务先进入只读研究阶段。
+### 2.2 Codex 的可用优化
 
-### 2.3 Codex 的可用优化
+Codex 初始 Skill catalog 主要暴露 `name + description + locator`，选中后再完整读取 `SKILL.md`。风险主要是**候选描述竞争**，不是所有 Skill 正文同时加载。
 
-Codex 当前 Skill catalog 初始暴露的是 Skill 的 `name + description + locator`，选中后才完整读取 `SKILL.md`。因此主要风险是目录候选竞争，而不是所有 Skill 正文同时加载。
+对 Sacha 自身可评估 Codex 原生：
 
-对 Sacha 自身可以使用 Codex 原生 `policy.allow_implicit_invocation: false` 隐藏下游 Skill 的初始模型目录，同时保留 Human 通过 `$skill` 显式调用能力。此优化只减少 Sacha 自己的候选，不宣称解决全局 Skill 竞争。
+```yaml
+policy:
+  allow_implicit_invocation: false
+```
 
-推荐：
+推荐候选：
 
-- `using-sacha`：保持 implicit 可见；
-- Planner/Executor/Reviewer/Explore/Manager/Roadmap/document-project/closeout/feedback/setup-*：Codex 默认 implicit 隐藏，仍允许显式调用；
-- `using-sacha`/Workflow 通过稳定相对路径或 Runtime 正式 Skill read 机制读取目标 Role，不依赖目标 Role 必须出现在初始 catalog。
+- `using-sacha` 保持 implicit 可见，继续承担自动入口；
+- Planner/Executor/Reviewer/Explore/Manager/Roadmap/document-project/closeout/feedback/setup-* 默认从 implicit catalog 隐藏，但保留 Human `$skill` 显式调用；
+- `using-sacha`/Workflow 通过稳定 locator 或 Runtime 正式 Skill read 机制读取目标 Skill。
 
-是否实施该 Codex visibility 改动必须由对应 Runtime scenario 验证自动入口召回率没有下降；不能只以目录更短作为正确性证据。
+**当前未直接实施。** 必须先用 Runtime scenario 比较自动入口召回与误触发；目录更短本身不是正确性证据。
 
 ## 3. 渐进披露的跨 Runtime 抽象
 
-不复制固定“理解→规划→开发→验证”四阶段。Sacha 的通用抽象是：
+不复制固定“理解→规划→开发→验证”四阶段。Sacha 采用两层按需披露：
+
+1. **Skill disclosure**：只读当前消费者需要的 Skill/合同；
+2. **Tool/capability disclosure**：委派 work unit 时，只给 child 完成该单元所需的 Runtime 能力。
 
 ```text
-入口需要的最小能力
-    ↓
-当前 Role / work unit 需要的能力
-    ↓
-对应 Runtime 原生能力面
+using-sacha / 当前入口
+        ↓
+当前 Role / work unit
+        ↓
+Runtime-native capability surface
 ```
-
-即两层渐进披露：
-
-1. **Skill disclosure**：只读取当前消费者需要的 Skill/合同；
-2. **Tool/capability disclosure**：委派 work unit 时，只给该 child 完成任务需要的能力。
 
 Runtime 映射：
 
-- DSH：多个具名 `dsh-tool-subagent` composition，使用 `toolFilter`、`maxDepth`、persona、child model route；
-- Claude Code：subagent `tools`/`disallowedTools`、fresh context，按需 `isolation: worktree`；
-- Codex：custom agent sandbox / named agent config；Skill 目录使用 `allow_implicit_invocation`；更强的 tool hook 仅在真实 failure mode 出现后评估；
-- Cursor：仅使用当前 Runtime 已验证的原生能力，不为统一接口伪造 enforcement。
+- DSH：多个具名 `dsh-tool-subagent` surface，使用 `toolFilter`、`maxDepth`、persona 与 continuable child；
+- Claude Code：subagent `tools`/`disallowedTools`、fresh context；独立写入场景再按事实使用 worktree；
+- Codex：custom agent sandbox / named agent config；Skill catalog 可用 `allow_implicit_invocation`；更强 hook 只在真实 failure mode 出现后评估；
+- Cursor：只使用当前 Runtime 已验证的原生能力，不伪造统一 enforcement。
 
-Core 只产生 readiness、Role、Scope、授权和路由要求，不写具体工具名。
+Core 只产生 readiness、Role、Scope、授权与路由要求，不写具体工具名。
 
-## 4. DSH：删除 Agent Teams 主路径
+## 4. DSH：continuable subagent 直接承载 Sacha 调度
 
-### 4.1 原因
+### 4.1 删除 Agent Teams 的理由
 
-Agent Teams 提供 roster、peer mailbox、共享 task board、`blockedBy`、task owner、revision/CAS 和 write-scope warning。这些能力适合普通 Agent 自行组织团队，但 Sacha 已经由 Coordination Contract 拥有：
+Agent Teams 提供 roster、peer mailbox、共享 task board、`blockedBy`、task owner、revision/CAS 与 write-scope warning。Sacha 已经由 Coordination Contract 拥有：
 
-- 工作单元拆分；
+- work-unit 拆分；
 - dependency DAG；
 - execution-ready / research-ready；
-- 波次与并发判断；
-- 单一写入者；
+- wave/并发判断；
+- single writer；
 - dispatch / barrier / aggregate；
-- Owner、revision 与恢复语义。
+- Owner 与恢复语义。
 
-把 Sacha DAG 再映射为 Team task DAG 会形成第二份调度状态和重复权威。Sacha 又要求 child 不拥有 Manager/派发权，因此 peer-to-peer Team 协作不是目标能力。
+再映射一份 Team task DAG 会形成重复调度状态。Sacha 又要求 child 不拥有 Manager/派发权，因此 peer-to-peer Team 协作不是目标能力。
 
-### 4.2 新主路径
-
-使用正式 continuable subagent：
+### 4.2 主路径
 
 ```text
-Manager / 主任务形成 ready work unit
-    ↓
-DSH Adapter 选择一个具名 Sacha delegation tool
-    ↓
-continuable subagent 返回 durable child id
-    ↓
-主任务继续其他不冲突工作
-    ↓
-child settlement / report 到达
-    ↓
-主任务消费结果并重算 Sacha DAG
+Sacha Manager 形成 ready work unit / DAG
+        ↓
+DSH Adapter 选择 continuable delegation surface
+        ↓
+Runtime 返回 durable child id
+        ↓
+Root 继续其他 ready work
+        ↓
+settlement / report
+        ↓
+Root 消费结果并重算同一份 Sacha DAG
 ```
 
-依赖图只留在 Sacha。DSH Runtime 只拥有 child 生命周期、消息、interrupt、列表、settlement 和真实 child route。
+DSH 只拥有 child 生命周期、消息、interrupt、列表、settlement 与真实 child route；依赖图只有 Sacha 一份权威。
 
-### 4.3 DSH 需要的三个 delegation surface
+### 4.3 `sacha-subagents` companion
 
-部署组合建议暴露三类官方 `dsh-tool-subagent` 实例；名称是 Adapter 合同的一部分，具体工具过滤以目标 DSH 版本真实工具目录验证后配置：
+仓库已新增：
 
-- `sacha_research`：fresh、continuable、只读调查型 child；
-- `sacha_worker`：fresh、continuable、普通 implementation child；
-- `sacha_review`：fresh、continuable、独立 Reviewer child。
+```text
+integrations/dsh/sacha-subagents/
+├─ package.json
+├─ cordis.patch.yml
+└─ README.md
+```
 
-共同要求：
+它是 DSH profile bundle，只组合官方 `@deepseek-ai/dsh-tool-subagent`，暴露：
 
-- `maxDepth=1` 或等价运行时限制，保持 Sacha 单层派发；
-- child 输入必须自包含；
-- child 不取得工作流 Owner、Manager 或根终态责任；
-- 主任务只消费 child 的结果、证据、风险、协调请求和必要 reference；大 search/test dump 留在 child transcript；
-- DSH 支持逐 child provider/model/reasoning 时按 Adapter 路由；不支持时报告能力缺口，不静默伪造实际模型。
+- `sacha_research`
+- `sacha_worker`
+- `sacha_review`
 
-`toolFilter` 是 child 能力/注意力缩小的 Runtime 机制；更强文件只读如仍需要，应使用 DSH sandbox 的真实 enforcement，并记录 full/partial/unknown，而不是把提示词或 writeScopes 当安全边界。
+共同特征：
 
-### 4.4 barrier 语义
+- `backgroundMode: continuable`
+- `provider: spawn`
+- `maxDepth: 1`
+- 自包含 child persona
+- 不拥有 Sacha Gate、DAG、readiness、Scope、授权或 Outcome
 
-continuable subagent 没有 Agent Teams `wait_agent`。DSH Adapter 将 Core 的“dependency barrier → wait”映射为：
+能力边界：
 
-- 没有其他 ready work 时停止主动推进/park 当前 Activation；
-- 依赖 child 的 settlement/report 唤醒主任务；
-- 每次唤醒只消费新结果并重算剩余依赖；
-- 未满足全部阻塞依赖时不得提前进入后续 Role 或根终态。
+- **research**：移除 `write/edit`、当前平台 shell 与 standard `workflow/subagent/subagent_fork`；适合调查型 work unit；
+- **worker**：保留实施/验证工具，移除 standard delegation tools；
+- **review**：移除 `write/edit` 与 standard delegation tools，但保留 shell 做测试/diff；因此不是硬 read-only sandbox。
 
-此路径必须由真实 Runtime scenario 验证，不能由静态文档推断。
+三个 sibling `sacha_*` 名字故意不互相写进 `toolFilter` deny-list。DSH 会对未知 filter 名响亮失败，互相引用会引入注册顺序耦合；单层派发的真正 Runtime guard 是 `maxDepth=1`。Runtime scenario 必须证明没有 depth>1 child。
 
-## 5. DSH Visualizer
+当前 bundle 面向 standard coding preset 或真实工具面等价的组合；自定义 preset 不满足显式 tool 前提时应失败或不安装，不静默削弱限制。
+
+### 4.4 barrier
+
+DSH 主路径不依赖 Team `wait_agent`：
+
+- 还有 ready work：继续推进；
+- 没有 ready work 且有未满足 child 依赖：Root 停止主动推进；
+- settlement/report 到达后恢复；
+- 每次只消费新增结果并重算 DAG；
+- 只收到部分依赖时不得进入后续 Role 或根终态。
+
+这必须由真实 Runtime scenario 验证。
+
+## 5. DSH Visualizer：完整观察 Sacha，而不是替代 Sacha
 
 Visualizer 继续只观测，不拥有流程语义或调度。
 
-删除全部 Agent Teams 依赖和兼容代码，改为两类数据源：
+### 5.1 数据源
 
-1. `sacha_visual_event` 成功 tool call/result：Sacha phase、Gate、Manager wave、Review、Evidence；
-2. `ctx.subagents.listChildren(rootSessionId)` + live Agent registry：当前 root 的 continuable direct child id、label、running/idle/ready、是否存在下级。
+1. `sacha_visual_event` 成功 tool call/result：
+   - `phase`
+   - `gate`
+   - `manager_wave`
+   - `delegation`
+   - `review`
+   - `evidence`
+2. `ctx.subagents.listChildren(rootSessionId)` + live Agent registry：
+   - durable child id
+   - label
+   - `running | idle | ready`
+   - `hasChildren`
 
-UI 不再显示 Team task board、task revision、blockedBy、writeScopes 或 Team peer 状态。Manager wave 仍由 Sacha 事件展示调度进度；child 卡只展示 Runtime child 事实。若发现 `hasChildren=true`，以“违反 Sacha 单层派发的 Runtime 观测”作为 warning 展示，但不自行裁决任务失败。
+### 5.2 Manager DAG
 
-## 6. Runtime 场景验收
+`manager_wave` 不再只保存一组 unit id，而是保存**当时已由 Manager 决定的 DAG 快照**：
 
-新增 DSH Adapter 任务包至少覆盖：
+```text
+wave_id
+wave_state
+manager_units[]:
+  id
+  label
+  state
+  blocked_by[]
+```
 
-### 6.1 `dsh-continuable-parallel-barrier`
+Visualizer 由这些 Sacha 已提交事实画依赖图。它不是 Team task board，也不取得 DAG ownership。
 
-真实 failure mode：两个独立 child 并发后，主任务不能立即等待其中一个而浪费可用工作，也不能在只收到一个 settlement 时提前完成。
+### 5.3 work unit ↔ child
 
-验收：
+continuable child 真正发布并返回 durable id 后，DSH Adapter记录：
 
-- 主任务实际启动至少两个 direct continuable child；
-- child 都是 root 的直接子级且没有 grandchildren；
-- 首个 child 启动后，主任务继续推进另一个 ready unit；
-- 到达 barrier 后由 settlement 驱动恢复；
-- 只收到部分结果时重算依赖并继续等待剩余依赖；
-- 全部结果消费后才进入下一转换；
-- 原始 child id、启动调用、settlement、最终工作区与验证器输出可核对。
+```text
+event_type = delegation
+unit_id
+child_id
+delegation_state
+role?              # 已有 Sacha 事实
+surface?           # sacha_research/worker/review
+requested_route?
+effective_route?   # 只有 Runtime 直接证据存在才写
+```
 
-### 6.2 `dsh-continuable-review-isolation`
+Visualizer 因此可以显示：
 
-真实 failure mode：实现 child 和 Reviewer child 共享历史或 Reviewer 自行修改实现，导致独立性失真。
+```text
+Manager unit ──blocked_by──> Manager unit
+     │
+     └──delegation──> durable child
+                         ├─ label
+                         ├─ running/idle/ready
+                         └─ hasChildren
+```
 
-验收：
+不再从 child label 猜 work unit/Role；label 只允许做猫咪道具等纯展示选择。
 
-- Reviewer 是新的 direct continuable child；
-- Reviewer 输入只包含 Scope/Baseline/原始 evidence/reference 等自包含材料；
-- Reviewer 未参与前序方案/实现；
-- Runtime 能力面/沙箱按当前 DSH 能力如实记录；若无法证明只读则标记对应 enforcement 未验证，不用自报替代；
-- Reviewer Outcome 返回 Core 合法路线。
+若 `hasChildren=true`，只显示“需要复核单层派发”的 Runtime warning，不自行裁决任务失败。
 
-## 7. 文件级实施边界
+### 5.4 删除的 Team 面
 
-本轮应修改：
+现行源码不保留：
+
+- Agent Teams roster；
+- Team task DAG；
+- task revision/CAS；
+- Team `blockedBy`/owner/readiness；
+- `writeScopes`；
+- peer mailbox UI；
+- Team fallback/兼容分支。
+
+历史实现由 Git 保存，不在当前产品代码中保留废弃路径。
+
+## 6. 验证
+
+### 6.1 静态验证
+
+Visualizer 仍运行其 `pnpm verify`（typecheck、Vitest、bundle、preview build）。新增测试覆盖 Manager DAG layout、event normalization 和 replay folding。
+
+`sacha-subagents` 新增：
+
+```text
+tests/validate_dsh_subagents.py
+tests/test_dsh_subagents.py
+```
+
+验证：
+
+- 三个 surface 名称；
+- official `dsh-tool-subagent`；
+- continuable + `maxDepth=1`；
+- research 平台 shell 过滤；
+- reviewer `write/edit` 过滤；
+- Agent Teams 不回流；
+- sibling deny-list 不产生注册顺序耦合；
+- release.py 对 companion machine files 有最窄测试映射。
+
+### 6.2 Runtime task pack
+
+#### `dsh-continuable-parallel-barrier`
+
+验证：
+
+- 至少两个 Root direct continuable child；
+- 首个 child 启动后继续推进另一个 ready unit；
+- child 不产生 grandchildren；
+- barrier 由 settlement 驱动恢复；
+- 部分 settlement 不导致提前完成；
+- 最终产物只在所有前置依赖满足后生成；
+- child id、direct-parent、settlement、最终工作区和 verifier 原始输出可核对。
+
+#### `dsh-continuable-review-isolation`
+
+验证：
+
+- Reviewer 是新的 Root direct continuable child；
+- 输入自包含且来源独立；
+- Reviewer 未参与前序实现；
+- 自己核对最终实现与原始 evidence；
+- 无下级 child；
+- 能力/sandbox 只按 Runtime 直接证据声称；
+- Outcome 回到现有 Assurance 路线。
+
+## 7. 当前文件边界
+
+本轮实施涉及：
 
 - `plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md`
-- `integrations/dsh/sacha-visualizer/**` 中所有 Team 专用 Host/Client/type/test/README 内容
-- `PLUGIN_DESIGN.md` 中 visualizer/DSH transport 描述
-- `tests/runtime-scenarios/README.md`
-- 新增上述 DSH runtime scenario pack
-- `scripts/release.py` / `tests/test_release.py` 的最窄验证映射（如新增 machine files）
+- `integrations/dsh/sacha-subagents/**`
+- `integrations/dsh/sacha-visualizer/**`
+- `PLUGIN_DESIGN.md`
+- `tests/runtime-scenarios/**` 的 DSH 场景
+- `tests/validate_dsh_subagents.py`
+- `tests/test_dsh_subagents.py`
+- `scripts/release.py` 的 companion 最窄测试映射
 
-本轮不保留 Agent Teams fallback、Team task type、Team UI、Team 安装说明或废弃注释。历史 git 提交本身即保留旧实现，不在现行源码中留兼容分支。
+Codex Skill visibility、Claude native subagent surface 与更强 DSH Reviewer sandbox 仍是后续 Runtime-specific 增强；在各自真实 scenario 通过前不作为当前已验证能力。
