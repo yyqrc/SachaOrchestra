@@ -71,10 +71,6 @@ function hasActivity(snapshot: SachaActivitySnapshot | undefined): boolean {
   return snapshot !== undefined && (snapshot.events.length > 0 || snapshot.subagents.children.length > 0)
 }
 
-function hasOrchestration(snapshot: SachaActivitySnapshot): boolean {
-  return snapshot.events.length > 0 || snapshot.subagents.children.length > 0
-}
-
 function StateBadges({ state }: { readonly state: VisualState }): JSX.Element | null {
   const gates = (Object.entries(state.gates) as [SachaGate, VisualState['gates'][SachaGate]][])
     .filter((entry): entry is [SachaGate, NonNullable<VisualState['gates'][SachaGate]>] => entry[1] !== undefined)
@@ -153,10 +149,6 @@ function ManagerWaveGraph({ wave, state }: {
     () => new Map(state.delegations.map(value => [value.unitId, value])),
     [state.delegations],
   )
-  const childById = useMemo(
-    () => new Map<string, SubagentSnapshot>(),
-    [],
-  )
   return (
     <article className={css.waveCard} data-state={wave.state}>
       <div className={css.rowTitle}>
@@ -171,7 +163,6 @@ function ManagerWaveGraph({ wave, state }: {
           </svg>
           {layout.nodes.map(node => {
             const delegation = delegationByUnit.get(node.unit.id)
-            const child = delegation === undefined ? undefined : childById.get(delegation.childId)
             return (
               <div key={node.unit.id} className={css.graphNode} data-state={node.unit.state}
                 style={{ left: node.x, top: node.y, width: MANAGER_NODE_WIDTH, height: MANAGER_NODE_HEIGHT }}>
@@ -179,7 +170,7 @@ function ManagerWaveGraph({ wave, state }: {
                 <span className={css.graphNodeLabel} title={node.unit.label}>{node.unit.label}</span>
                 {delegation !== undefined ? (
                   <span className={css.graphNodeBinding} title={delegation.childId}>
-                    ↳ {delegation.childId.slice(0, 10)}{child === undefined ? '' : ` · ${child.status}`}
+                    ↳ {delegation.childId.slice(0, 10)}
                   </span>
                 ) : null}
               </div>
@@ -245,7 +236,7 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
   }, [])
 
   useEffect(() => {
-    if (snapshot === undefined || !hasOrchestration(snapshot)) return
+    if (snapshot === undefined || (snapshot.events.length === 0 && snapshot.subagents.children.length === 0)) return
     if (dismissedSessions.has(snapshot.sessionId) || autoOpenedFor === snapshot.sessionId) return
     setOpen(true)
     setAutoOpenedFor(snapshot.sessionId)
