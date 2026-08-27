@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.8`。
+- 当前 release：`0.12.9`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：`using-sacha` 在收到当前可执行目标以及查询或诊断转为方案、修改或持久化时必须先完成入口判断；Planner 发现未收口决定时必须先进入 Explore，再继续 Spec。新增对应语义转折 Runtime 场景，并纳入 `@sacha-orchestra/dsh-visualizer` 的 Sacha/Jojo 猫咪素材、Role/状态叠加、会话展开持久化和开发预览站。
-- 当前 breaking boundary：`0.12.8` 修正既有默认入口与 Planner→Explore 路由，不增加入口、Role、Gate、Artifact 或 Owner。DSH companion 仍独立于 Agent Plugin 发布 `root` 和三个 marketplace，其素材与界面变化不改变 Sacha Runtime 流程。
-- 当前成熟度：`0.12.8` 采用快速发版证据边界；using-sacha Skill validator、Runtime 场景 verifier 3 项测试，以及 companion Host/Client/预览站 typecheck、16 项测试、Host/Client bundle 和预览生产构建通过。新入口场景尚未在安装后的全新 Runtime 执行；Agent Plugin 安装/cache parity、fresh discovery、真实 DSH Session、官方 Agent Teams 和面板 Human 验收未验证。
+- 当前 release Scope：Human 可见进度与结果使用当前任务的对象和动作表达；入口判断、能力选择、职责路由、协作调度、记录和传输状态只在影响 Human 决定、授权、恢复或下一步时展示。`using-sacha` 直接处理时不单独报告入口结果，Direct 与完整流程场景分别核对任务表达和内部运行证据。
+- 当前 breaking boundary：`0.12.9` 只修正 Human 可见输出投影，不改变入口、Role、Gate、Artifact、Owner、授权或 Runtime 传输。
+- 当前成熟度：`0.12.9` 采用快速发版证据边界；4 个目标文件的有界 diff 与 whitespace 已核对，`executor-only` source-scenario 的任务结果和 verifier 通过。完整父任务 Human 投影、完整 Sacha 流程、安装/cache parity 与 fresh discovery 未验证。
 
 ## `1.0.0` 与后续方向
 

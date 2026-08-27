@@ -17,7 +17,7 @@ description: Sacha 默认入口。主任务收到当前可执行目标后必须�
 ## 动作与输出
 
 1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
-2. 需要 Human 选择时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
+2. 入口判断为直接处理时，主任务使用当前任务语言继续；形成入口候选并需要 Human 选择时，读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
 3. Human 对入口行为的反问、调查或纠正按 Human Interaction Contract 解释并更新当前问题；入口候选仍成立且选择条件具备时再询问。
 4. Human 明确使用 Sacha、选择接受或直接调用规范 Role（canonical Role）时记录接受。接受后读取 Workflow Contract 与目标 Role；传输、恢复、外部状态或当前 Runtime 已暴露的 Sacha 观测能力需要映射时读取目标 Adapter。观测记录失败不改变入口结果。
 5. 显式 document-project 由 Intake Contract 直接路由到当前文档目标，不视为接受 Sacha，也不得为满足其前置条件补走生产 Role。
@@ -25,6 +25,6 @@ description: Sacha 默认入口。主任务收到当前可执行目标后必须�
 
 ## 停止与禁止边界
 
-- 本 Skill 的产出是 Direct 或 Sacha 入口结果；拆分、派发、实施和验收由下游 Owner 处理。
+- 入口判断只供主任务路由；直接处理时不单独向 Human 报告入口结果，入口候选按 Human Interaction Contract 形成当前选择。拆分、派发、实施和验收由下游 Owner 处理。
 - 接受后的 Role、Gate、Explore、Manager、迁移与收尾路线由 Workflow Contract 处理。
 - Artifact 与 Handoff 沿用[术语合同](../../core/terminology-contract.md)；Goal、写入、安装、Git、发布、远程资源和高影响动作使用各自 Owner 与授权。
