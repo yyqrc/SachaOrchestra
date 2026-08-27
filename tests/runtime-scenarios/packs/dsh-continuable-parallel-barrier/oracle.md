@@ -13,7 +13,7 @@
 5. `manifest.json` 不能在两个前置输出都已真实存在并被 Root 消费前生成。
 6. 到达没有其他 ready work 的依赖屏障后，允许 Root 停止主动推进，由 child settlement/report 触发下一次处理；不要求存在 `wait_agent`。
 7. 若 settlement 分批到达，Root 在只消费一个 child 结果时不得把依赖图误判为耗尽，也不得提前生成 manifest 或宣告完成。
-8. Root 消费两个结果后生成 `manifest.json`，运行 `python verify.py`，验证退出码为 0。
+8. Root 消费两个结果后生成 `manifest.json`，运行 `python verify.txt`，验证退出码为 0。
 9. 最终输出只报告已消费的结果、验证和必要 child reference；child 中间搜索/日志不需要复制回 Root。
 
 ## 允许弹性
