@@ -6,9 +6,9 @@
 
 - 当前 release：`0.12.9`。
 - 当前待发布源码版本：未定版；Draft Scope 为 DSH continuable-subagent transport 与 Runtime surface/observability 迭代。
-- 当前待发布 Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，直接使用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 改为回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态；新增 DSH barrier/Reviewer Runtime task pack 和 companion release gate。Codex/Claude 的进一步 progressive disclosure 仍只保留设计，不在本次已实施 Scope 内。
-- 当前 breaking boundary：DSH 不再支持或保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 的旧 Team snapshot/model 也被删除。现行 DSH transport 以 continuable child + settlement-driven barrier 为唯一主路径。
-- 当前成熟度：源码、Adapter、bundle、Visualizer 数据模型、静态 validator 与 Runtime scenario oracle 已落库；真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth 行为、并发 settlement barrier、Reviewer isolation、Visualizer Host/Client `pnpm verify` 和浏览器投影仍需目标 Runtime 直接证据。Draft PR 在这些证据完成前不应视为 release-ready。
+- 当前待发布 Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，直接使用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 改为回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态；新增 DSH barrier/Reviewer Runtime task pack、Manager DAG/event replay 测试和 companion release gate。Codex/Claude 的进一步 progressive disclosure 仍只保留设计，不在本次已实施 Scope 内。
+- 当前 breaking boundary：DSH 不再支持或保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 的旧 Team snapshot/model 也被删除。现行 DSH transport 以 continuable child + settlement-driven barrier 为唯一主路径，Visualizer 以 Sacha `manager_wave`/`delegation` 和 DSH direct-child observation 为唯一主模型。
+- 当前成熟度：源码、Adapter、bundle、Visualizer 数据模型、静态 validator、release mapping 与 Runtime scenario oracle 已落库；真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth 行为、并发 settlement barrier、Reviewer isolation、Visualizer Host/Client `pnpm verify` 和浏览器投影仍需目标 Runtime 直接证据。Draft PR 在这些证据完成前不应视为 release-ready。
 
 ## `1.0.0` 与后续方向
 
