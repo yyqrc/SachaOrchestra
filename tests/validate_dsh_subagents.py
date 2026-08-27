@@ -66,7 +66,7 @@ def validate_bundle(root: Path = BUNDLE) -> dict[str, object]:
     reviewer = row(patch, "sacha-review")
 
     for name, block in (("research-posix", research_posix), ("research-windows", research_windows)):
-        for tool in ("write", "edit", "workflow", "subagent", "subagent_fork", "sacha_worker", "sacha_review"):
+        for tool in ("write", "edit", "workflow", "subagent", "subagent_fork"):
             require(f"            - {tool}\n" in block, f"{name} 未 deny {tool}")
     require("            - bash\n" in research_posix, "POSIX research 未 deny bash")
     require("            - pwsh\n" in research_windows, "Windows research 未 deny pwsh")
@@ -74,11 +74,20 @@ def validate_bundle(root: Path = BUNDLE) -> dict[str, object]:
     require("process.platform !== 'win32'" in research_windows, "Windows research 缺少平台 disable 条件")
 
     for name, block in (("worker", worker), ("review", reviewer)):
-        for tool in ("workflow", "subagent", "subagent_fork", "sacha_research", "sacha_worker", "sacha_review"):
+        for tool in ("workflow", "subagent", "subagent_fork"):
             require(f"            - {tool}\n" in block, f"{name} 未 deny {tool}")
     for tool in ("write", "edit"):
         require(f"            - {tool}\n" in reviewer, f"review 未 deny {tool}")
     require("            - bash\n" not in reviewer and "            - pwsh\n" not in reviewer, "review 不应移除 shell 验证能力")
+
+    # Sibling Sacha tools are intentionally not named in deny-lists: DSH rejects
+    # unknown filter names at composition time, so mutual references would make
+    # registration order significant. maxDepth=1 is the runtime nesting guard.
+    for block in (research_posix, research_windows, worker, reviewer):
+        deny_region = block.split("toolFilter:", 1)[1]
+        require("- sacha_research" not in deny_region, "deny-list 不应耦合 sibling sacha_research 注册顺序")
+        require("- sacha_worker" not in deny_region, "deny-list 不应耦合 sibling sacha_worker 注册顺序")
+        require("- sacha_review" not in deny_region, "deny-list 不应耦合 sibling sacha_review 注册顺序")
 
     return {
         "status": "pass",
