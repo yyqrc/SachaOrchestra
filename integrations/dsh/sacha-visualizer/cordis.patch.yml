@@ -1,5 +1,5 @@
 # Mount only the Sacha observability companion. Continuable subagent transport
-# remains a separate DSH profile composition owned by the runtime deployment.
+# and Sacha subagent surfaces remain separate DSH profile compositions.
 - insert:
     - id: sacha-visualizer
       name: '@sacha-orchestra/dsh-visualizer'
