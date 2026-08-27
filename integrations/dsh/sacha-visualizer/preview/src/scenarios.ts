@@ -7,7 +7,6 @@ export type PanelScenario = {
   readonly title: string
   readonly description: string
   readonly snapshot: SachaActivitySnapshot
-  readonly collapsed?: boolean
 }
 
 const NOW = 1_787_735_000_000
@@ -112,15 +111,6 @@ export const PANEL_SCENARIOS: readonly PanelScenario[] = [
         runtime: { eventType: 'evidence', layer: 'runtime', status: 'verified', references: ['runtime'], summary: 'Runtime 通过' },
       },
     }, [recorded(1, completePhase)], activeChildren.map(item => ({ ...item, status: 'ready' as const }))),
-  },
-  {
-    id: 'collapsed',
-    title: '收起徽标',
-    description: '面板收起后的活动计数和运行脉冲。',
-    collapsed: true,
-    snapshot: makeSnapshot('collapsed', {
-      phase: executorPhase, gates: {}, waves: [], evidence: {},
-    }, [recorded(1, executorPhase)], activeChildren),
   },
 ]
 
