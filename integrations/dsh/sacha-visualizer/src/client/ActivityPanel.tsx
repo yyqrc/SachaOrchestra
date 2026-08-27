@@ -1,4 +1,4 @@
-/** Sacha workflow and continuable-subagent observability panel. */
+/** Sacha workflow, Manager DAG, and continuable-subagent observability panel. */
 
 import {
   useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type CSSProperties,
@@ -8,6 +8,7 @@ import { useSachaActivity } from './activity-monitor.ts'
 import { CONDUCTOR_CAT, MEMBER_CAT, subagentCatProp } from './artwork.ts'
 import { CatArt } from './cats.tsx'
 import { MemberStatusArt } from './status-art.tsx'
+import { MANAGER_NODE_HEIGHT, MANAGER_NODE_WIDTH, managerGraphLayout } from './manager-graph.ts'
 import {
   DEFAULT_PANEL_LAYOUT, PANEL_LAYOUT_STORAGE_KEY, compactPanel, dockPanel, floatPanel,
   panelMaximumHeight, panelUsesAutoHeight, parsePanelLayout, resolvePanelLayout,
@@ -113,8 +114,10 @@ function Conductor({ snapshot }: { readonly snapshot: SachaActivitySnapshot }): 
   )
 }
 
-function ChildCard({ child }: { readonly child: SubagentSnapshot }): JSX.Element {
+function ChildCard({ child, state }: { readonly child: SubagentSnapshot; readonly state: VisualState }): JSX.Element {
   const prop = subagentCatProp(child)
+  const delegation = state.delegations.find(value => value.childId === child.id)
+  const route = delegation?.effectiveRoute ?? delegation?.requestedRoute
   return (
     <article className={css.childCard} data-status={child.status}>
       <div className={css.childAvatar}>
@@ -126,6 +129,14 @@ function ChildCard({ child }: { readonly child: SubagentSnapshot }): JSX.Element
           <strong title={child.label}>{child.label}</strong>
           <small>{CHILD_STATUS_LABEL[child.status]}</small>
         </div>
+        {delegation !== undefined ? (
+          <div className={css.bindingLine}>
+            <span>{delegation.unitId}</span>
+            {delegation.role !== undefined ? <span>{delegation.role}</span> : null}
+            {delegation.surface !== undefined ? <span>{delegation.surface}</span> : null}
+          </div>
+        ) : <div className={css.bindingMissing}>未观察到 Sacha work-unit 绑定</div>}
+        {route !== undefined ? <div className={css.meta}>{delegation?.effectiveRoute === undefined ? '请求路由' : '实际路由'} · {route}</div> : null}
         <code className={css.childId}>{child.id}</code>
         {child.hasChildren ? <span className={css.nestingWarning}>观察到下级 child · 需复核单层派发</span> : null}
       </div>
@@ -133,22 +144,63 @@ function ChildCard({ child }: { readonly child: SubagentSnapshot }): JSX.Element
   )
 }
 
-function WaveList({ state }: { readonly state: VisualState }): JSX.Element | null {
-  if (state.waves.length === 0) return null
+function ManagerWaveGraph({ wave, state }: {
+  readonly wave: VisualState['waves'][number]
+  readonly state: VisualState
+}): JSX.Element {
+  const layout = useMemo(() => managerGraphLayout(wave.units), [wave.units])
+  const delegationByUnit = useMemo(
+    () => new Map(state.delegations.map(value => [value.unitId, value])),
+    [state.delegations],
+  )
+  const childById = useMemo(
+    () => new Map<string, SubagentSnapshot>(),
+    [],
+  )
   return (
-    <section className={css.section} aria-label="Manager 波次">
-      <h3>Manager 波次</h3>
+    <article className={css.waveCard} data-state={wave.state}>
+      <div className={css.rowTitle}>
+        <strong>{wave.waveId}</strong>
+        <small>{wave.state}</small>
+      </div>
+      <span className={css.summary}>{wave.summary}</span>
+      <div className={css.graphViewport}>
+        <div className={css.graphCanvas} style={{ width: Math.max(layout.width, MANAGER_NODE_WIDTH), height: Math.max(layout.height, MANAGER_NODE_HEIGHT) }}>
+          <svg className={css.graphEdges} width={layout.width} height={layout.height} aria-hidden>
+            {layout.edges.map(edge => <path key={`${edge.from}:${edge.to}`} d={edge.path} />)}
+          </svg>
+          {layout.nodes.map(node => {
+            const delegation = delegationByUnit.get(node.unit.id)
+            const child = delegation === undefined ? undefined : childById.get(delegation.childId)
+            return (
+              <div key={node.unit.id} className={css.graphNode} data-state={node.unit.state}
+                style={{ left: node.x, top: node.y, width: MANAGER_NODE_WIDTH, height: MANAGER_NODE_HEIGHT }}>
+                <span className={css.graphNodeHead}><strong>{node.unit.id}</strong><small>{node.unit.state}</small></span>
+                <span className={css.graphNodeLabel} title={node.unit.label}>{node.unit.label}</span>
+                {delegation !== undefined ? (
+                  <span className={css.graphNodeBinding} title={delegation.childId}>
+                    ↳ {delegation.childId.slice(0, 10)}{child === undefined ? '' : ` · ${child.status}`}
+                  </span>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function ManagerSection({ snapshot }: { readonly snapshot: SachaActivitySnapshot }): JSX.Element | null {
+  if (snapshot.state.waves.length === 0) return null
+  return (
+    <section className={css.section} aria-label="Sacha Manager 波次与依赖">
+      <div className={css.sectionHead}>
+        <h3>Manager 波次 / 依赖</h3>
+        <small>来自 Sacha 已提交 DAG，不是 Runtime task board</small>
+      </div>
       <div className={css.waveList}>
-        {state.waves.map(wave => (
-          <article key={wave.waveId} className={css.waveRow} data-state={wave.state}>
-            <div className={css.rowTitle}>
-              <strong>{wave.waveId}</strong>
-              <small>{wave.state}</small>
-            </div>
-            <span className={css.summary}>{wave.summary}</span>
-            {wave.unitIds.length > 0 ? <code>{wave.unitIds.join(' · ')}</code> : null}
-          </article>
-        ))}
+        {snapshot.state.waves.map(wave => <ManagerWaveGraph key={wave.waveId} wave={wave} state={snapshot.state} />)}
       </div>
     </section>
   )
@@ -254,7 +306,7 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
       <div className={css.body}>
         <Conductor snapshot={snapshot} />
         <StateBadges state={snapshot.state} />
-        <WaveList state={snapshot.state} />
+        <ManagerSection snapshot={snapshot} />
         <section className={css.section} aria-label="Continuable subagents">
           <div className={css.sectionHead}>
             <h3>Continuable children</h3>
@@ -262,7 +314,7 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
           </div>
           {snapshot.subagents.children.length === 0
             ? <p className={css.emptyHint}>当前 Root Session 没有 continuable direct child。</p>
-            : <div className={css.childList}>{snapshot.subagents.children.map(child => <ChildCard key={child.id} child={child} />)}</div>}
+            : <div className={css.childList}>{snapshot.subagents.children.map(child => <ChildCard key={child.id} child={child} state={snapshot.state} />)}</div>}
         </section>
         {snapshot.warnings.length > 0 ? (
           <section className={css.warningBox} aria-label="观测警告">{snapshot.warnings.map(warning => <p key={warning}>{warning}</p>)}</section>
