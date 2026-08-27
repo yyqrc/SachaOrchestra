@@ -14,7 +14,7 @@
 - [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-提炼术语、入口、Role、Gate、readiness、授权、Review、Artifact 与完成判断仍由对应 Core/Skill 拥有。本 Adapter 只负责 DSH 传输、能力降级、恢复、观测记录与证据映射；只有 Root Session 所在主任务拥有派发、集成和根终态责任。可视化只投影已经提交的转换和 DSH 原生 subagent 状态，不参与判断，也不能作为实现、验证或 Human 验收证据。
+提炼术语、入口、Role、Gate、readiness、授权、Review、Artifact 与完成判断仍由对应 Core/Skill 拥有。本 Adapter 只负责 DSH 传输、能力降级、恢复、观测记录与证据映射；只有 Root Session 所在主任务拥有派发、集成和根终态责任。可视化只投影已经提交的转换、Manager 图和 DSH 原生 subagent 状态，不参与判断，也不能作为实现、验证或 Human 验收证据。
 
 ## 2. 能力发现与选择
 
@@ -62,11 +62,13 @@ Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter �
 
 `toolFilter` 只在当前 DSH provider 声明并实际接受该 capability 时使用；未知工具名、过滤失败或工具面无法回读时不得把提示词当作 enforcement。Reviewer 若依赖文件只读，应使用当前 DSH sandbox 的真实模式/结果，并区分 `full | partial | unknown`；read-only sandbox 不证明读隔离或网络隔离。
 
+仓库内可选 bundle `integrations/dsh/sacha-subagents` 提供当前标准 DSH coding preset 的三种默认 surface。它只组合官方 `dsh-tool-subagent`，不拥有 Sacha 语义；目标 Profile 不满足其显式工具前提时应响亮失败或不安装，不静默退化。
+
 ### 4.2 子模型路由
 
 具名 delegation tool 或当前等价 tool 暴露 `provider`、`model`、`reasoning_effort` 时，主任务按 Human 精确要求优先，其次按当前 work unit 的风险/成本选择完整 route，并在创建前执行 Runtime 可用的 route discovery/preflight。
 
-未暴露逐 child route 时，使用该 delegation surface 的已确认 provider/default；高风险 Planner、Executor 或独立 Reviewer若默认 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork 或自报模型降级。
+未暴露逐 child route 时，使用该 delegation surface 的已确认 provider/default；高风险 Planner、Executor 或独立 Reviewer 若默认 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork 或自报模型降级。
 
 实际 provider/model/reasoning 只有原生创建结果、child Session/Agent 遥测或可绑定 Runtime 证据明确返回时才记录；配置和 Agent 自报不构成实际模型证据。
 
@@ -78,12 +80,13 @@ Manager 仍按 Coordination Contract 形成工作单元、依赖波次、readine
 
 1. 主任务核对同一 Task/Scope revision、授权、单写入者和该单元的 capability/model route。
 2. 调用一次对应 continuable delegation tool；后台/continuable 为默认时保留返回的 durable child id。创建被拒且 child 未发布时才可重新评估并重试；已返回 child id 后不得重复创建同一 work unit。
-3. 派发后立即重算剩余 ready work。只要存在不依赖未完成结果且不冲突的工作，主任务继续执行或继续派发；不得因为已有 child 在跑就立刻阻塞。
-4. 到达依赖屏障且没有其他可推进工作时，主任务停止主动推进并等待 Runtime settlement/report 作为下一次可消费输入；DSH 主路径不依赖 Agent Teams `wait_agent`。
-5. 每次 child settlement/report 到达后，只消费新结果、实际验证、阻塞/风险、协调请求和必要 reference，再重算 Sacha 依赖图。只收到部分依赖时不得提前进入下一 Role 或根终态。
-6. `send_message` 只用于同一 child、同一 work unit/Owner 的后续 FIFO turn；它不能重定向已经运行中的当前 turn。新 Scope 或新的独立单元创建新 child。
-7. Human 取消、失活或继续会造成双写/增险时使用 `interrupt_agent`；中断只停止当前 turn，后续是否复用或放弃 child 由主任务重新判断。
-8. `list_agents` 只用于恢复/消歧 durable child id 与当前 `running | idle | ready` 快照，不用于忙轮询完成。Runtime settlement 是完成通知，child transcript/reference 是详细工作事实来源。
+3. 若 `sacha_visual_event` 可用，在 child id 已真实返回后记录一次 `delegation`，把当前 Sacha `unit_id` 映射到该 `child_id`；只有 Runtime 已证明的 route 才写 `effective_route`。记录失败只形成观测缺口，不撤销 child。
+4. 派发后立即重算剩余 ready work。只要存在不依赖未完成结果且不冲突的工作，主任务继续执行或继续派发；不得因为已有 child 在跑就立刻阻塞。
+5. 到达依赖屏障且没有其他可推进工作时，主任务停止主动推进并等待 Runtime settlement/report 作为下一次可消费输入；DSH 主路径不依赖 Agent Teams `wait_agent`。
+6. 每次 child settlement/report 到达后，只消费新结果、实际验证、阻塞/风险、协调请求和必要 reference，再重算 Sacha 依赖图。只收到部分依赖时不得提前进入下一 Role 或根终态；已有 delegation 观测时可按真实结果更新其 `delegation_state` 为 `settled | interrupted | failed`。
+7. `send_message` 只用于同一 child、同一 work unit/Owner 的后续 FIFO turn；它不能重定向已经运行中的当前 turn。新 Scope 或新的独立单元创建新 child。
+8. Human 取消、失活或继续会造成双写/增险时使用 `interrupt_agent`；中断只停止当前 turn，后续是否复用或放弃 child 由主任务重新判断。
+9. `list_agents` 只用于恢复/消歧 durable child id 与当前 `running | idle | ready` 快照，不用于忙轮询完成。Runtime settlement 是完成通知，child transcript/reference 是详细工作事实来源。
 
 Sacha 单层派发必须由当前 Runtime 的 direct-parent/depth 记录和 child 工具轨迹证明。发现 direct child 存在下级 child 时，当前 work unit 进入偏差处理；Visualizer 可显示该事实，但不拥有裁决。
 
@@ -97,19 +100,22 @@ Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract
 
 ## 7. Sacha 可视化记录
 
-当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill 转换已经提交后调用一次。工具记录失败不回滚真实流程；主任务保留失败 reference，并在本轮下一次 Human 进度或最终结果中披露“可视化未同步”。
+当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill/Adapter 事实已经提交后调用一次。工具记录失败不回滚真实流程；主任务保留失败 reference，并在本轮下一次 Human 进度或最终结果中披露“可视化未同步”。
 
 | `event_type` | 记录时机 | 必填映射 |
 | --- | --- | --- |
 | `phase` | Intake 结果、进入/退出 Role、支持节点、Direct 或根终态已经确定 | `phase`、`phase_state`、中文 `summary`；Scope 修订存在时传 `scope_revision` |
 | `gate` | Planner、Manager 或 Reviewer Gate 已由 Workflow 判定 | `gate`、`gate_decision`、中文 `summary` |
-| `manager_wave` | Manager 已建立波次、完成派发、到达依赖屏障、耗尽或阻塞 | `wave_id`、`wave_state`、`unit_ids`、中文 `summary` |
+| `manager_wave` | Manager 已建立/更新当前波次，或完成派发、到达依赖屏障、耗尽/阻塞 | `wave_id`、`wave_state`、`manager_units`、中文 `summary`；`manager_units` 是当前 Sacha Manager 图快照，每项含 `id`、Human 可读 `label`、Sacha `state` 与 `blocked_by` |
+| `delegation` | continuable child 已真实发布并返回 durable id；或该映射发生真实 settlement/interruption/failure | `unit_id`、`child_id`、`delegation_state`、中文 `summary`；已知时补 `role`、`surface`、`requested_route`，只有 Runtime 直接证据存在时补 `effective_route` |
 | `review` | Reviewer 已形成 Assurance Contract Outcome | `outcome`、中文 `summary` |
 | `evidence` | source、package、runtime 或 human 证据层的结果已经存在 | `evidence_layer`、`evidence_status`、中文 `summary` 与必要 `references` |
 
-不得为尚未发生的节点预写事件，不得根据计划把 Gate 写成已打开，不得把 Agent 自报写成 Runtime/Human 证据，也不得从面板颜色或 child 状态反推 Scope、授权、Outcome 或完成。重复恢复时只记录真实的新转换；同一已提交转换的工具结果状态不明时不重放，保留观测缺口。
+`manager_wave` 只回放 Manager 已经决定的依赖图，不创建或拥有 DAG；后续同一 `wave_id` 的事件用最新已提交快照更新展示。`delegation` 只把 Sacha work unit 与 DSH 已发布 child 对上；它不能从 child label 反推 Role，也不能把某个 child 的存在解释为该 unit 已完成。
 
-Visualizer 的 Runtime child 面只观察 root 的 continuable direct child：durable id、label、活动状态与是否存在下级。它不保存 Sacha DAG，不重建 task owner，不显示或推导 Agent Teams task revision、blockedBy、writeScopes 或 peer mailbox。
+不得为尚未发生的节点预写事件，不得根据计划把 Gate 写成已打开，不得把 Agent 自报写成 Runtime/Human 证据，也不得从面板颜色、DAG 节点或 child 状态反推 Scope、授权、Outcome 或完成。重复恢复时只记录真实的新转换；同一已提交转换的工具结果状态不明时不重放，保留观测缺口。
+
+Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：durable id、label、活动状态与是否存在下级；Sacha 图面只回放 `manager_wave` 与 `delegation` 已提交事实。它不重建 task owner，不显示或推导 Agent Teams task revision、writeScopes 或 peer mailbox。
 
 ## 8. 证据边界与必须验证的场景
 
@@ -125,6 +131,6 @@ Visualizer 的 Runtime child 面只观察 root 的 continuable direct child：du
 - `send_message`、interrupt、cold resume、`list_agents`；
 - child 无下级创建；
 - independent Reviewer 的输入来源与实际参与历史；
-- visualizer 对 continuable child 的 Host/Client snapshot 与 Session 回放。
+- visualizer 对 Manager dependency、unit↔child mapping、continuable child Host/Client snapshot 与 Session 回放。
 
 对应 Runtime task pack 见 `tests/runtime-scenarios/packs/dsh-continuable-parallel-barrier` 与 `dsh-continuable-review-isolation`。静态测试、Profile 配置或执行者总结不能替代这些行为证据。
