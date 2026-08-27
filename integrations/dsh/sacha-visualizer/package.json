@@ -1,7 +1,7 @@
 {
   "name": "@sacha-orchestra/dsh-visualizer",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness companion plugin for replayable Sacha workflow and continuable subagent visualization",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness companion plugin for replayable Sacha Manager graphs and continuable subagent visualization",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
