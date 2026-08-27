@@ -5,7 +5,6 @@ export const SACHA_PHASES = [
   'document-project', 'closeout', 'feedback', 'human-decision', 'complete', 'blocked',
 ] as const
 export type SachaPhase = (typeof SACHA_PHASES)[number]
-
 export const PHASE_STATES = ['entered', 'waiting', 'completed', 'blocked', 'cancelled'] as const
 export type PhaseState = (typeof PHASE_STATES)[number]
 export const SACHA_GATES = ['planner', 'manager', 'reviewer'] as const
@@ -62,28 +61,11 @@ export interface VisualState {
   readonly evidence: Partial<Record<EvidenceLayer, Extract<SachaVisualEvent, { eventType: 'evidence' }>>>
 }
 
-export interface TeamMemberSnapshot {
+export interface SubagentSnapshot {
   readonly id: string
-  readonly name: string
-  readonly role: 'lead' | 'teammate'
-  readonly status: 'running' | 'idle' | 'inactive' | 'provisioning' | 'failed'
-  readonly description?: string
-  readonly provider?: string
-  readonly model?: string
-  readonly diagnostics: readonly string[]
-}
-
-export interface TeamTaskSnapshot {
-  readonly id: string
-  readonly revision: number
-  readonly subject: string
-  readonly description: string
-  readonly status: 'pending' | 'in_progress' | 'completed' | 'deleted'
-  readonly blockedBy: readonly string[]
-  readonly writeScopes: readonly string[]
-  readonly ownerName?: string
-  readonly ready: boolean
-  readonly writeScopeWarnings: readonly string[]
+  readonly label: string
+  readonly status: 'running' | 'idle' | 'ready'
+  readonly hasChildren: boolean
 }
 
 export interface SachaActivitySnapshot {
@@ -91,11 +73,9 @@ export interface SachaActivitySnapshot {
   readonly sessionId: string
   readonly events: readonly RecordedVisualEvent[]
   readonly state: VisualState
-  readonly team: {
+  readonly subagents: {
     readonly available: boolean
-    readonly members: readonly TeamMemberSnapshot[]
-    readonly tasks: readonly TeamTaskSnapshot[]
+    readonly children: readonly SubagentSnapshot[]
   }
   readonly warnings: readonly string[]
 }
-
