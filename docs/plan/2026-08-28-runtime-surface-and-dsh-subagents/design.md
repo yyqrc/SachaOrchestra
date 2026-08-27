@@ -143,7 +143,7 @@ integrations/dsh/sacha-subagents/
 - **worker**：保留实施/验证工具，移除 standard delegation tools；
 - **review**：移除 `write/edit` 与 standard delegation tools，但保留 shell 做测试/diff；因此不是硬 read-only sandbox。
 
-三个 sibling `sacha_*` 名字故意不互相写进 `toolFilter` deny-list。DSH 会对未知 filter 名响亮失败，互相引用会引入注册顺序耦合；单层派发的真正 Runtime guard 是 `maxDepth=1`。Runtime scenario 必须证明没有 depth>1 child。
+三个 sibling `sacha_*` 名字故意不互相写进 `toolFilter` deny-list。DSH 会对未知 filter 名响亮失败，互相引用会引入注册顺序耦合；单层派发的真正 Runtime guard 是 `maxDepth=1`。因此 sibling surface 是否仍在 child schema 中属于 visibility 问题，而不是 authority 边界；Runtime scenario 必须证明任何继续委派都不能产生 depth>1 child。
 
 当前 bundle 面向 standard coding preset 或真实工具面等价的组合；自定义 preset 不满足显式 tool 前提时应失败或不安装，不静默削弱限制。
 
