@@ -1,0 +1,101 @@
+# Sacha-owned DSH delegation surfaces. This bundle does not own Sacha routing,
+# readiness, Scope, authorization, or completion. It only exposes three
+# continuable child capabilities over the official spawn provider.
+#
+# The target profile is expected to provide the host subagent service/spawn
+# provider and the standard control tools (send_message, interrupt_agent,
+# list_agents). The standard coding preset satisfies that contract.
+
+- insert:
+    # Research is split by platform so the shell tool name in the deny-list is
+    # always real. Unknown toolFilter names fail DSH startup by design.
+    - id: sacha-research-posix
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: !!js process.platform === 'win32'
+      config:
+        provider: spawn
+        toolName: sacha_research
+        backgroundMode: continuable
+        maxDepth: 1
+        persona: >-
+          You are a focused investigation subagent. Work from the supplied self-contained scope,
+          gather facts and evidence, and return a compact report with references and unknowns.
+          Do not modify project state and do not create or coordinate other agents.
+        toolFilter:
+          deny:
+            - write
+            - edit
+            - bash
+            - workflow
+            - subagent
+            - subagent_fork
+            - sacha_research
+            - sacha_worker
+            - sacha_review
+
+    - id: sacha-research-windows
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: !!js process.platform !== 'win32'
+      config:
+        provider: spawn
+        toolName: sacha_research
+        backgroundMode: continuable
+        maxDepth: 1
+        persona: >-
+          You are a focused investigation subagent. Work from the supplied self-contained scope,
+          gather facts and evidence, and return a compact report with references and unknowns.
+          Do not modify project state and do not create or coordinate other agents.
+        toolFilter:
+          deny:
+            - write
+            - edit
+            - pwsh
+            - workflow
+            - subagent
+            - subagent_fork
+            - sacha_research
+            - sacha_worker
+            - sacha_review
+
+    - id: sacha-worker
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: sacha_worker
+        backgroundMode: continuable
+        maxDepth: 1
+        persona: >-
+          You are a scoped implementation subagent. Implement only the supplied work unit,
+          verify the direct result, and report the delta, evidence, risks, and any coordination
+          request to the parent. Do not create or coordinate other agents.
+        toolFilter:
+          deny:
+            - workflow
+            - subagent
+            - subagent_fork
+            - sacha_research
+            - sacha_worker
+            - sacha_review
+
+    - id: sacha-review
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: sacha_review
+        backgroundMode: continuable
+        maxDepth: 1
+        persona: >-
+          You are an independent verification subagent. Review only the supplied final scope,
+          implementation references, and raw evidence. You may run verification commands, but do
+          not edit project files and do not create or coordinate other agents. If a defect exists,
+          report it to the parent instead of fixing it yourself.
+        toolFilter:
+          deny:
+            - write
+            - edit
+            - workflow
+            - subagent
+            - subagent_fork
+            - sacha_research
+            - sacha_worker
+            - sacha_review
