@@ -8,7 +8,7 @@
 - `sacha_worker`：实施型 direct child；
 - `sacha_review`：独立复核型 direct child。
 
-Sacha 的 Gate、Manager DAG、readiness、Scope、授权、Reviewer Outcome 和根终态仍由 `plugins/sacha-orchestra` 的 Core/Adapter 拥有。
+Sacha 的 Gate、Manager DAG、readiness、Scope、授权、Reviewer Outcome 和根终态仍由 `plugins/sacha-orchestra` 的 Core/Adapter 拥有。可选 `sacha-visualizer` 会把 Adapter 已提交的 Manager DAG/delegation 事件与这些 surface 产生的真实 durable child 对上；本 bundle 自己不发可视化事件。
 
 ## 为什么是 bundle，而不是新的 subagent runtime
 
