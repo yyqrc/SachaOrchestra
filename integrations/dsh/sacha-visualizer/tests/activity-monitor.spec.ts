@@ -7,8 +7,8 @@ function snapshot(sessionId: string): SachaActivitySnapshot {
     available: true,
     sessionId,
     events: [],
-    state: { gates: {}, waves: [], evidence: {} },
-    team: { available: false, members: [], tasks: [] },
+    state: { gates: {}, waves: [], delegations: [], evidence: {} },
+    subagents: { available: true, children: [] },
     warnings: [],
   }
 }

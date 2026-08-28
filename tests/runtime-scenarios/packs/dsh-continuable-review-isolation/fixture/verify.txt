@@ -1,0 +1,20 @@
+from pathlib import Path
+
+namespace: dict[str, object] = {}
+source = Path("token_mask.txt").read_text(encoding="utf-8")
+exec(compile(source, "token_mask.txt", "exec"), namespace)
+mask_token = namespace["mask_token"]
+
+cases = {
+    "": "",
+    "a": "*",
+    "abcd": "****",
+    "abcde": "*bcde",
+    "123456789": "*****6789",
+}
+
+for value, expected in cases.items():
+    actual = mask_token(value)
+    assert actual == expected, (value, expected, actual)
+
+print("verification=pass cases=5")

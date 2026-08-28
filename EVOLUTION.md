@@ -5,10 +5,10 @@
 ## 当前版本线
 
 - 当前 release：`0.12.9`。
-- 当前待发布源码版本：未开始。
-- 当前 release Scope：Human 可见进度与结果使用当前任务的对象和动作表达；入口判断、能力选择、职责路由、协作调度、记录和传输状态只在影响 Human 决定、授权、恢复或下一步时展示。`using-sacha` 直接处理时不单独报告入口结果，Direct 与完整流程场景分别核对任务表达和内部运行证据。
-- 当前 breaking boundary：`0.12.9` 只修正 Human 可见输出投影，不改变入口、Role、Gate、Artifact、Owner、授权或 Runtime 传输。
-- 当前成熟度：`0.12.9` 采用快速发版证据边界；4 个目标文件的有界 diff 与 whitespace 已核对，`executor-only` source-scenario 的任务结果和 verifier 通过。完整父任务 Human 投影、完整 Sacha 流程、安装/cache parity 与 fresh discovery 未验证。
+- 当前待发布源码版本：未定版；Draft Scope 为 DSH continuable-subagent transport 与 Runtime surface/observability 迭代。
+- 当前待发布 Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，直接使用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 改为回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态；新增 DSH barrier/Reviewer Runtime task pack、Manager DAG/event replay 测试和 companion release gate。Codex/Claude 的进一步 progressive disclosure 仍只保留设计，不在本次已实施 Scope 内。
+- 当前 breaking boundary：DSH 不再支持或保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 的旧 Team snapshot/model 也被删除。现行 DSH transport 以 continuable child + settlement-driven barrier 为唯一主路径，Visualizer 以 Sacha `manager_wave`/`delegation` 和 DSH direct-child observation 为唯一主模型。
+- 当前成熟度：源码、Adapter、bundle、Visualizer 数据模型、静态 validator、release mapping 与 Runtime scenario oracle 已落库；真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth 行为、并发 settlement barrier、Reviewer isolation、Visualizer Host/Client `pnpm verify` 和浏览器投影仍需目标 Runtime 直接证据。Draft PR 在这些证据完成前不应视为 release-ready。
 
 ## `1.0.0` 与后续方向
 

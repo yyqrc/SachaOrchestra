@@ -80,6 +80,7 @@ export function foldVisualState(events: readonly RecordedVisualEvent[]): VisualS
   let review: Extract<SachaVisualEvent, { eventType: 'review' }> | undefined
   const gates: Partial<Record<SachaGate, Extract<SachaVisualEvent, { eventType: 'gate' }>>> = {}
   const waves = new Map<string, Extract<SachaVisualEvent, { eventType: 'manager_wave' }>>()
+  const delegations = new Map<string, Extract<SachaVisualEvent, { eventType: 'delegation' }>>()
   const evidence: Partial<Record<EvidenceLayer, Extract<SachaVisualEvent, { eventType: 'evidence' }>>> = {}
   for (const item of events) {
     const value = item.value
@@ -87,6 +88,7 @@ export function foldVisualState(events: readonly RecordedVisualEvent[]): VisualS
       case 'phase': phase = value; break
       case 'gate': gates[value.gate] = value; break
       case 'manager_wave': waves.set(value.waveId, value); break
+      case 'delegation': delegations.set(value.unitId, value); break
       case 'review': review = value; break
       case 'evidence': evidence[value.layer] = value; break
     }
@@ -95,8 +97,8 @@ export function foldVisualState(events: readonly RecordedVisualEvent[]): VisualS
     ...(phase === undefined ? {} : { phase }),
     gates,
     waves: [...waves.values()],
+    delegations: [...delegations.values()],
     ...(review === undefined ? {} : { review }),
     evidence,
   }
 }
-
