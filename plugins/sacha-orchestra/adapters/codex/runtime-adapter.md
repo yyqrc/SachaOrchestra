@@ -100,31 +100,26 @@ Code Mode 只接收调用节点已确认的非 Agent 只读调用：至少两个
 
 asset 在创建 Promise 前校验调用数、单元标识、投影、输出上限和工具唯一可调用性，并预检最小 `outcome_unknown` 包络；随后每项只调用一次并按输入顺序返回 `settled`、`output_limit_exceeded` 或 `outcome_unknown`。Runtime 场景必须保留 asset path/hash、实际外层程序、嵌套 caller 关系、逐项原始结果和最终输出；源码字符串、fixture 或执行者自报不能替代真实行为证据。
 
-## 3. 子代理路由合同
+## 3. 能力载体与模型路由
 
-主任务每次首次创建前必须按 A → B → C 顺序处理：A 提供不依赖 Runtime 的事实，B 进行一次有序路由决策，C 按第 2.1 节已选协作界面组装完整原生参数；路由与协作界面是两个独立判断。A、B 或 C 任一步未完成时不得调用 `spawn_agent`。
+主任务每次首次创建前必须按 A → B → C 顺序处理：A 读取 Core 已判定事实与所需能力边界，B 选择模型路线，C 按当前协作界面组合 Agent 类型、模型和传输字段。自定义 Agent 只定义 `sandbox_mode`、工具面与执行边界；Role、readiness、Scope、授权和派发合法性仍由 Core/Skill 决定。
 
 ### A. 评估输入（不依赖 Runtime）
-
-Adapter 读取 Coordination Contract 产生的路由要求，归纳四项 Runtime 路由输入：
 
 | 输入 | 判断 |
 | --- | --- |
 | Human 或批准 Scope 的精确路由（若有） | 最高优先级；验证后原样使用，不自动改写 |
-| Role | Workflow 与 Reviewer Skill 已确定的正式独立 Reviewer 使用 Sol；其他 Role 不单独决定模型 |
+| 能力边界 | 只读研究；正式独立 Reviewer；获授权的写入/验证单元 |
+| Role | 正式独立 Reviewer 使用 Sol；其他 Role 不单独决定模型 |
 | 任务形态 | `broad`：需要跨 Owner 综合、复杂集成或边界仍需推理；`bounded`：目标、输入、边界和直接验证均自包含 |
 | 负荷 | `broad` 只分 `critical / standard`；`bounded` 只分 `nontrivial / light` |
 | 安全状态 | Scope/revision、上下文需求、写入者状态和 Reviewer 独立性决定能否派发/回退 |
 
-安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容风险至少按 `broad` 处理；其中困难回退、跨系统耦合或关键冲突为 `critical`。
+Coordination 判定的 `research-ready` 只读单元使用只读调查 Agent；正式独立 Reviewer 使用复核 Agent；`execution-ready` 写入单元使用实施 Agent。上下文污染风险只决定是否派发及选择哪类 Agent，不改变模型档位、Gate 或授权。
 
-按 Workflow 与 Reviewer Skill 已确定的正式独立 Reviewer 使用 Sol，不因 Scope 自包含而改用 Luna：Scope、Baseline、裁决问题、原始证据和停止条件明确，且没有上述 `critical` 事实时选择 `sol_medium`；存在 `critical` 事实时选择 `sol_xhigh`。文件数量、发版动作或正式 Review 名称本身不得触发 `sol_xhigh`。
+安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容风险至少按 `broad` 处理；其中困难回退、跨系统耦合或关键冲突为 `critical`。正式独立 Reviewer 不存在 `critical` 事实时选择 `sol_medium`，存在时选择 `sol_xhigh`；文件数量、发版动作或 Review 名称本身不得触发 `sol_xhigh`。
 
-上述字段只供本 Adapter 选择 Runtime 路由；就绪状态、依赖满足和 Manager 派发由 Core/Skill 负责。
-
-### B. 有序路由决定（首次命中即停止）
-
-除精确路由外先判断正式独立 Reviewer，再对其他工作单元判断“形态 × 负荷”，首个命中即停止：
+### B. 有序模型路由（首次命中即停止）
 
 1. `human_exact`：存在 Human/Scope 精确路由；无法解析或 Runtime 不支持时暂停，不自动换档。
 2. `sol_xhigh`：正式独立 Reviewer 存在 `critical` 事实，或其他工作单元为 `broad + critical`。
@@ -132,58 +127,53 @@ Adapter 读取 Coordination Contract 产生的路由要求，归纳四项 Runtim
 4. `luna_max`：`bounded + nontrivial`。
 5. `luna_xhigh`：`bounded + light`。
 
-正式独立 Reviewer 的 Baseline、裁决问题、原始证据、停止条件、独立性或 `critical/standard` 无法可靠判定时暂停；其他工作单元无法可靠判定 `broad/bounded`、`bounded` 输入不自包含或 Scope 不明确时暂停。Planner、Reviewer、Executor、Explore 研究和普通委派 Agent 共用这四档自动选择。
+正式独立 Reviewer 的 Baseline、裁决问题、原始证据、停止条件、独立性或风险无法可靠判定时暂停；其他工作单元无法可靠判定形态/负荷、输入不自足或 Scope 不明确时暂停。Planner、Reviewer、Executor、Explore 研究和普通委派 Agent 共用本顺序。
 
-Explore 的单个研究委派 Agent 和 Manager 协调的研究单元复用同一顺序；研究结果返回调用节点。
+### C. 按协作界面组合 `spawn_agent`
 
-### C. 按协作界面映射 `spawn_agent`
-
-C 只接受 B 的 `route_id` 和第 2.1 节唯一确定的协作界面。调用参数必须由“协作界面字段 + 路由字段”完整组成并原样提交；表中未列出的界面参数不得传入另一版本。不得用单独的通用 `agent_type`、父任务默认模型/推理强度继承，或只修补某个被拒字段来替代 B/C。调用因协作界面或路由字段不完整、不匹配而在 `accepted/started` 前被拒绝时，主任务必须从 A 重新核对并执行完整 A → B → C，不得只修补被拒字段后重试。已按 B/C 完整提交的主路由实际报告 `unavailable/failed` 时，不重新提交主路由；只有满足第 3.1 节全部条件时才直接执行该节唯一回退。
+C 只接受 A 的能力边界、B 的 `route_id` 和第 2.1 节唯一确定的协作界面。首次创建参数由协作界面字段、`agent_type` 与模型路由组成；任一部分缺失时不得调用 `spawn_agent`。
 
 #### C.1 协作界面字段
 
-| 协作界面 | 调用与必填字段 | 上下文参数 |
-| --- | --- | --- |
-| `v1` | `multi_agent_v1.spawn_agent(message=<工作单元>)`；v1 没有 `task_name` | 自包含输入固定 `fork_context=false`。不得自动使用 `true` 复制完整父历史；缺少未落盘事实时先把最小事实写入 `message`，无法自包含则暂停 |
-| `v2` | `collaboration.spawn_agent(message=<工作单元>)`；参数结构暴露 `task_name` 时另传 `task_name=<稳定短名>`，未暴露时禁止发送 | 自包含输入固定 `fork_turns="none"`；确需携带未落盘 Human 决定时只传能补足决定的最小正整数轮数。不得使用完整历史分叉 |
-
-`message` 必须自包含该工作单元的目标、Scope、输入 reference、完成检查和停止条件，并要求满足条件时返回协调请求；可用的 `task_name` 只标识工作单元，不承载语义。Adapter 不根据旧版本先例向当前参数结构添加未声明字段。
-
-#### C.2 路由字段
-
-| `route_id` | 精确路由字段 |
+| 协作界面 | 调用与上下文 |
 | --- | --- |
-| `human_exact` | 使用当前协作界面参数结构已验证支持的精确 `agent_type/model/reasoning_effort/service_tier`；Human 可指定其他 `model`/推理强度，Adapter 不替换或降级。无法形成当前界面接受的完整参数、`model` 不在当前创建能力内或覆盖值被拒绝时暂停 |
-| `sol_xhigh` | `model="gpt-5.6-sol"`, `reasoning_effort="xhigh"`；参数结构暴露 `agent_type` 时另传 `agent_type="default"`，未暴露时省略 |
-| `sol_medium` | `model="gpt-5.6-sol"`, `reasoning_effort="medium"`；参数结构暴露 `agent_type` 时另传 `agent_type="default"`，未暴露时省略 |
-| `luna_max` | `agent_type="sacha_luna_worker"`；命名定义固定 Luna/max，不覆盖 `model`、`reasoning_effort` 或 `service_tier` |
-| `luna_xhigh` | `agent_type="sacha_luna_worker_xhigh"`；命名定义固定 Luna/xhigh，不覆盖 `model`、`reasoning_effort` 或 `service_tier` |
+| `v1` | `multi_agent_v1.spawn_agent(message=<工作单元>, fork_context=false)`；v1 没有 `task_name`。缺少未落盘事实时先把最小事实写入 `message`，无法自足则暂停 |
+| `v2` | `collaboration.spawn_agent(message=<工作单元>, fork_turns="none")`；参数结构暴露 `task_name` 时传稳定短名。确需携带未落盘 Human 决定时只传最小正整数轮数 |
 
-自动路由只有上述四种组合，不选择 Terra、Sol `high/max/ultra`、带提供方前缀的模型或未限定的通用 `explorer/worker/default`。除表内明确要求的组合外，主任务不得单独传入这些通用 `agent_type`，也不得省略路由字段以继承父任务默认值。其他模型只在 `human_exact` 中按当前协作界面能力原样使用，不因模型目录可见或一次冒烟验证自动进入路由表。
+`message` 必须自包含目标、Scope、输入 reference、完成检查、停止条件与协调请求返回条件；不得复制完整父历史。
 
-`sol_xhigh` 与 `sol_medium` 要求当前参数结构支持覆盖 `model` 和 `reasoning_effort`。`luna_max` 与 `luna_xhigh` 要求当前参数结构支持 `agent_type` 且已发现对应带命名空间的 Agent 类型；仅有磁盘配置或安装记录不构成运行时发现。任一要求不成立时按主路由不可用处理，且只有满足第 3.1 节全部条件才可走一次回退。
+#### C.2 能力 Agent
 
-记录请求与实际协作界面、请求与实际路由；只有 Runtime 明确返回或可绑定遥测时才记录实际模型/推理强度。Direct/当前上下文不调用该映射。
-
-### 3.1 单次回退路由
-
-自动回退是独立的一次性路由。它只在主路由的原生调用**实际报告 `unavailable/failed` 且实例尚未 `accepted/started`**时，按同一评估使用下表唯一替代映射：
-
-| 主路由 | `v1` 唯一回退 | `v2` 唯一回退 |
+| 单元用途 | `agent_type` | 边界 |
 | --- | --- | --- |
-| `luna_max` 或 `luna_xhigh` | `multi_agent_v1.spawn_agent`：`agent_type="default"`, `model="gpt-5.6-sol"`, `reasoning_effort="medium"`, `fork_context=false`，沿用原 `message` | `collaboration.spawn_agent`：`model="gpt-5.6-sol"`, `reasoning_effort="medium"`, `fork_turns="none"`，沿用原 `message`；参数结构暴露 `agent_type`/`task_name` 时分别沿用 `agent_type="default"`/原 `task_name`，未暴露时不传 |
-| `sol_xhigh`、`sol_medium` 或 `human_exact` | 停止，不回退 | 停止，不回退 |
+| 只读研究 | `sacha_readonly_worker` | 必须由 Runtime 发现，且实际 `sandbox_mode="read-only"` |
+| 正式独立 Reviewer | `sacha_reviewer` | 除 `sandbox_mode` 外仍须核对真实参与历史和输入来源 |
+| 写入/验证 | `sacha_executer` | 必须由 Runtime 发现；不设置 `sandbox_mode`，沿用父任务实际 `sandbox_mode`，写入继续服从 Scope、授权和单写入者 |
 
-回退路由至多执行一次；自动路径保持表内四种主模型组合与一条替代映射。
+`sacha_readonly_worker`、`sacha_executer` 与 `sacha_reviewer` 的定义不得固定 `model` 或 `model_reasoning_effort`。DeepSeek 与 DeepSeek Pro 定义继续作为固定模型 Agent，仅供精确路线或兼容回退；它们不承载上述能力边界。Luna 由逐次 `model/reasoning_effort` 直接派发，不再使用固定模型 Agent。
 
-调用方必须同时证明：
+当前协作界面必须实际暴露 `agent_type`、`model` 和 `reasoning_effort` 的组合参数，并发现目标 Agent 类型，才能组合能力 Agent 与逐次模型路线。当前 `v2` schema 具备这三个字段；实际覆盖优先级、`sandbox_mode` 与有效模型仍需场景证据。`v1` 只有在当前工具面满足同一组合时才走统一映射；不满足时，写入单元仅可在精确模型一致时使用已发现的 DeepSeek 固定模型 Agent，只读研究与正式独立 Reviewer 停止派发，不用提示词冒充只读保护。
 
-- 仍是同一 Task/Scope/revision，且回退不扩大授权、Scope、写入或验收；
-- 没有写入迹象，旧写入者已进入 `terminal/cancelled`，且 Reviewer 独立性仍明确；
-- 失败发生在 `spawn_agent` 建立 Owner 之前，并已记录请求/实际协作界面、请求/实际路由与原始失败原因。
+#### C.3 模型路由字段与优先级
 
-任一条件不满足（包括可能已写入、旧写入者未终止、独立性不明、精确 Human/Scope 配置失败或回退再失败）立即暂停并生成有界偏差；不得连续试多档模型、静默改用 Runtime 默认值或再次创建同一 Scope 写入者。超时、忙碌、结果失败和用户取消都不属于“尚未 `started`”的自动回退。
+| `route_id` | 逐次字段 |
+| --- | --- |
+| `human_exact` | 使用当前协作界面已验证支持的精确 `model/reasoning_effort/service_tier`；不支持时暂停 |
+| `sol_xhigh` | `model="gpt-5.6-sol"`, `reasoning_effort="xhigh"` |
+| `sol_medium` | `model="gpt-5.6-sol"`, `reasoning_effort="medium"` |
+| `luna_max` | `model="gpt-5.6-luna"`, `reasoning_effort="max"` |
+| `luna_xhigh` | `model="gpt-5.6-luna"`, `reasoning_effort="xhigh"` |
+
+模型解析顺序为当前 `spawn` 的显式字段 → Agent TOML 默认字段 → 父任务模型路线。自动路线必须传入本表的逐次字段，不依赖父任务模型；能力 Agent 没有模型默认值，显式字段省略时才沿用父任务路线。每一级优先级都必须用实际模型与推理强度遥测验证，参数被接受、配置文件和 Agent 自报都不能代替。
+
+调用在 `accepted/started` 前因参数组合不支持而拒绝时，主任务从 A 重新核对一次，不只修补被拒字段。当前界面无法证明组合支持时按本节分支停止或使用唯一兼容路线，不根据另一版本先例猜测。
+
+### 3.1 单次模型回退
+
+只有 `luna_max` 或 `luna_xhigh` 的原生调用实际报告 `unavailable/failed`，且实例尚未 `accepted/started` 时，才在保持同一 `agent_type`、上下文字段与 `message` 的前提下回退一次到 `model="gpt-5.6-sol"`, `reasoning_effort="medium"`。能力 Agent 不可用、`sol_*`/`human_exact` 失败或回退失败时停止。
+
+调用方还必须证明 Task/Scope/revision 与授权未变、没有写入迹象、旧写入者已终止且 Reviewer 独立性仍明确，并记录请求/实际协作界面、`agent_type`、模型路线与原始失败。超时、忙碌、结果失败和用户取消不属于创建前模型不可用。
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、`accepted/started/terminal/cancelled`、工具错误和结果 reference。Code Mode 另回传 asset path/hash、外层调用 reference、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`；只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口，不把 Human UI 观察或委派 Agent 自报升级为机器证据。委派 Agent 自报也不能替代实际模型/提供方遥测。静态源码/测试的证据范围为本文结构与分支约束；Code Mode 能力、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、`accepted/started/terminal/cancelled`、工具错误和结果 reference。Code Mode 另回传 asset path/hash、外层调用 reference、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`；只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、`sandbox_mode` 和工具行为分别需要 Runtime 遥测、子任务配置回读或原生工具轨迹，配置文件、schema 和委派 Agent 自报都不能替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。静态源码/测试的证据范围为本文结构与分支约束；Code Mode 能力、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

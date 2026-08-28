@@ -79,7 +79,7 @@ Human 输出按 Human Interaction Contract 展示。存活状态证据来自当�
 
 ## 4. Agent 协调与 Artifact 映射
 
-主任务打开 Manager Gate 后，为每个就绪单元创建一个委派 Agent；`parallel_expected` 成立时在消费完成结果前启动至少两个实例。委派 Agent 满足条件时返回协调请求。共享工作树的同一文件/输出由集成 Owner 串行处理；隔离补丁/候选实现使用并行 `Agent` 上下文。
+主任务打开 Manager Gate 后，为每个就绪单元创建一个委派 Agent；`parallel_expected` 成立时在消费完成结果前启动至少两个实例。Coordination 已判定一个工作单元适合隔离高噪声中间过程时，主任务也可在 Manager Gate 关闭时使用新的 `Agent` 上下文，并按第 3.4 节选择只读或写入路线。委派 Agent 满足条件时返回协调请求。共享工作树的同一文件/输出由集成 Owner 串行处理；隔离补丁/候选实现使用并行 `Agent` 上下文。
 
 完成结果在传输需要时核对 revision/dedup；结果按消费者和风险保留必要变更，Artifact 只在消费者需要时落盘。真实 Runtime/槽位/依赖/Scope/授权阻塞为 `parallel_blocked`，条件满足却未启动为 `parallel_dispatch_missed`。单层派发由首次等待前的实时 Agent 树和直接父子标识证明。
 

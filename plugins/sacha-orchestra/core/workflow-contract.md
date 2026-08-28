@@ -18,11 +18,11 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
 - 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
-- 主任务发现多个候选单元、依赖、并发安全或正式恢复需要协调时打开 Manager Gate 并转到 Coordination；可在候选尚未完整拆分时调用。委派 Agent 发现相同事实时向主任务返回协调请求。单一职责内工作仍可由主任务完成，验证范围按风险从 diff/解析扩到集成、发布或真实环境。
+- 主任务在实施或有界探索前，先判断当前目标能否形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元；能够形成时打开 Manager Gate 并转到 Coordination 统一拆分和派发。已有多个候选、依赖、并发安全或正式恢复需要协调时同样打开 Gate；候选尚未完整拆分也可调用。只有一个单元且适合隔离中间过程时，主任务按 Coordination 直接管理一个委派 Agent，不打开 Manager Gate。不得只因困难、耗时或文件多而人为拆分。
 - 显式 Explore 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Explore 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
 - 主任务 → 通过显式入口、Planner 或 Roadmap 进入 Explore → 必须完整读取 Explore Skill，并按其输入、动作、输出与停止边界推进 → Explore 结果返回调用节点。
 - 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。
-- 三个 Gate 全关且无需恢复时，Executor 在当前上下文完成，不加载无消费者的 Assurance、Coordination、Artifact 或 Runtime Adapter。
+- 三个 Gate 全关且无需恢复时，Executor 处理不能形成独立工作单元的局部动作；一个已就绪实施单元满足 Coordination 的隔离条件时优先直接派发。只有发生派发时才加载 Coordination 与目标 Runtime Adapter，不加载无消费者的 Assurance 或 Artifact。
 
 ### 2.1 能力加载
 
@@ -34,19 +34,37 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - `risk-matched`：当前 Scope、验收或已识别风险需要该 capability 的验证输入或证据时加载；不为形式完整自动执行编译、Runtime 或其他高成本动作。
 - 当前节点 → 策略允许加载 → 完整读取规范 Skill 并另行核对 Role 边界、前置、副作用与授权 → 任一项不满足时只使用安全子集或回退项目规则、可发现 Domain Skill 和原生路线，并保留未验证项。
 
+### 2.2 下游 Skill 读取
+
+Runtime 不得依赖初始隐式目录寻找下游 Skill。主任务进入节点前，按当前路由完整读取对应入口：
+
+| 路由目标 | 正式入口 |
+| --- | --- |
+| Planner | [planner/SKILL.md](../skills/planner/SKILL.md) |
+| Explore | [explore/SKILL.md](../skills/explore/SKILL.md) |
+| Executor | [executor/SKILL.md](../skills/executor/SKILL.md) |
+| Reviewer | [reviewer/SKILL.md](../skills/reviewer/SKILL.md) |
+| Manager | [manager/SKILL.md](../skills/manager/SKILL.md) |
+| Roadmap | [roadmap/SKILL.md](../skills/roadmap/SKILL.md) |
+| document-project | [document-project/SKILL.md](../skills/document-project/SKILL.md) |
+| closeout | [closeout/SKILL.md](../skills/closeout/SKILL.md) |
+| Feedback | [feedback/SKILL.md](../skills/feedback/SKILL.md) |
+
+Human 显式调用上述 Skill 或 `setup-project`、`setup-agents` 时，Runtime 使用正式显式调用机制加载正文；显式可达不要求其进入初始隐式目录。
+
 ## 3. Role 与 Gate
 
 | Role | 唯一责任 | 禁止 |
 | --- | --- | --- |
-| Planner | 调查事实、比较实质方案、冻结 Scope/决策/验收 | 把规划当授权；实施生产修改 |
-| Executor | 在批准 Scope/明确目标内自主选择局部实现、实施、验证并记录证据 | 静默改变用户可见 Scope/冻结决策；虚报验证 |
-| Reviewer | 以独立来源对照 Scope、真实状态和原始证据裁决 | 改合同求通过；默认修复 |
+| [Planner](../skills/planner/SKILL.md) | 调查事实、比较实质方案、冻结 Scope/决策/验收 | 把规划当授权；实施生产修改 |
+| [Executor](../skills/executor/SKILL.md) | 在批准 Scope/明确目标内自主选择局部实现、实施、验证并记录证据 | 静默改变用户可见 Scope/冻结决策；虚报验证 |
+| [Reviewer](../skills/reviewer/SKILL.md) | 以独立来源对照 Scope、真实状态和原始证据裁决 | 改合同求通过；默认修复 |
 
 | Gate | 打开事实 | 不构成事实 |
 | --- | --- | --- |
 | Planner | 目标、验收/Owner 不清；实施前需关键 Human 澄清；需冻结/持久化 Spec；实质方案或难回退的跨 Owner 决策 | 复杂、文件多、耗时、多平台、无分歧修改 |
 | Reviewer | 安全/权限/持久数据、破坏性变更、困难回退、关键验证缺失/证据冲突或 Human 要求 | 文档标签、版本封装、可回退且完整验证的局部修改 |
-| Manager | 多个候选单元、依赖图、安全并发、正式恢复或多环境需要协调 Owner | 单一职责内工作；困难、耗时、多文件、只想增加 Agent |
+| Manager | 至少两个输入自足、输出可隔离且可独立检查的工作单元；多个候选、依赖图、安全并发、正式恢复或多环境需要协调 Owner | 无法形成独立完成检查的局部动作；困难、耗时、多文件或只想增加 Agent；一个单元仅需隔离中间过程 |
 
 Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Direct 或活跃工作流出现表中新的打开事实时必须重评估。
 名称或新上下文不证明 Reviewer 独立；参与当前方案/实现者不能作独立 Reviewer。

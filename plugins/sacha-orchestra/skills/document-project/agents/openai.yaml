@@ -2,3 +2,6 @@ interface:
   display_name: "Sacha Orchestra Document Project（项目文档）"
   short_description: "按模板安全新建或更新显式发布文档目标及策略文档"
   default_prompt: "使用 $sacha-orchestra:document-project 按模板安全新建或更新显式发布文档目标，或处理策略驱动的项目文档。"
+
+policy:
+  allow_implicit_invocation: false

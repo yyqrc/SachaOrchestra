@@ -23,7 +23,7 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct。
+- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
 - `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 同时构成本次写入授权，可绕过 Project Integration 按模板原子新建或更新；其他请求仍服从 Project Integration。
@@ -42,7 +42,7 @@ flowchart TD
     DIRECT -->|"出现改变执行方式的新事实"| INTAKE
     DIRECT --> CLOSE["结束 / 合法根终态"]
 
-    INTAKE -->|"显式 using-sacha / 明确 Sacha 请求：已接受"| PLANNER_GATE{"Planner Gate？"}
+    INTAKE -->|"明确要求用 Sacha 编排 / Human 选择接受：已接受"| PLANNER_GATE{"Planner Gate？"}
     INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
     INTAKE_HUMAN -->|"接受"| PLANNER_GATE
     INTAKE_HUMAN -->|"拒绝"| DIRECT
@@ -122,12 +122,14 @@ flowchart TD
     subgraph COORDINATION["Manager 是主任务内的协调闭环，不是第四个生产 Role"]
         INVOKER["主任务中的 Planner / Explore / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
         MANAGER_GATE -->|"否"| RETURN["返回调用节点，并恢复其原流向"]
-        MANAGER_GATE -->|"是"| MANAGER["Manager：评估、拆分、依赖、就绪判定"]
+        MANAGER_GATE -->|"是"| MANAGER["Manager：识别可独立单元、拆分、依赖、就绪判定"]
         MANAGER --> WAVE{"当前依赖波次"}
         WAVE -->|"至少两个已就绪，且写入 / 输出隔离"| PARALLEL["执行单层派发"]
-        WAVE -->|"一个已就绪，或多个已就绪但不可隔离"| SERIAL["调用节点串行完成本波"]
+        WAVE -->|"一个已就绪，且适合隔离中间过程"| SINGLE["派发当前单元"]
+        WAVE -->|"一个已就绪但不适合派发，或多个已就绪但不可隔离"| SERIAL["调用节点串行完成本波"]
         WAVE -->|"没有已就绪单元"| BLOCKED["阻塞与恢复条件"]
         PARALLEL --> PRODUCTIVE["推进其他不冲突的已就绪工作；仅在依赖屏障 wait"]
+        SINGLE --> PRODUCTIVE
         PRODUCTIVE --> AGGREGATE["聚合结果并重算剩余依赖图"]
         SERIAL --> AGGREGATE
         AGGREGATE -->|"未耗尽"| MANAGER
@@ -135,9 +137,9 @@ flowchart TD
         BLOCKED --> RETURN
     end
 
-    PLANNER -->|"多个候选、依赖或恢复协调"| INVOKER
+    PLANNER -->|"多个候选或可独立单元、依赖或恢复协调"| INVOKER
     EXPLORE -->|"多个候选研究单元、依赖或恢复协调"| INVOKER
-    EXECUTOR -->|"多个候选、依赖、并发安全或恢复协调"| INVOKER
+    EXECUTOR -->|"多个可独立实施单元、依赖、并发安全或恢复协调"| INVOKER
 
     subgraph FEEDBACK_FLOW["Feedback：独立 Human 手动入口"]
         FEEDBACK_HUMAN["Human 在另一真实任务显式调用 Feedback<br/>流程问题 / 使用反馈 / 插件开发想法"] --> FEEDBACK["Feedback 来源任务：有界只读调查"]
@@ -159,6 +161,7 @@ flowchart TD
 - 节点和有向边穷尽顶层产品流转；边文字与节点进入条件定义流转性质。没有边就不能跨节点接管。
 - Manager 是可重入的调用—返回函数：进入和退出保留调用节点，生命周期 owner 不变。Handoff 只在迁移、owner transfer 或有恢复消费者时按需携带，不是节点或终态。
 - 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 需要额外拆分或协调时返回协调请求。迁移完成后，目标任务成为主任务并取得派发权。
+- 主任务能形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元时，打开 Manager Gate 统一拆分和派发；一个单元只为隔离中间过程而使用直接委派 Agent 时不打开 Gate。Manager 已打开但当前波次只有一个合适单元时仍可派发。三种情况的就绪、派发与返回条件由 Coordination Contract 定义，不为增加 Agent 人为拆分局部修改。
 - Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
 - 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向 Human 说明真实失败、通用流程为何不足和影响，并取得明确批准。

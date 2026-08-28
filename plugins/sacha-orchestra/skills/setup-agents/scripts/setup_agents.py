@@ -14,18 +14,18 @@ from typing import Callable, Mapping
 
 
 OWNER_MARKER = "# managed-by: sacha-orchestra/setup-agents"
-TARGET_RELATIVE = Path("agents") / "sacha-luna-worker.toml"
-DEFAULT_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker.toml"
-XHIGH_TARGET_RELATIVE = Path("agents") / "sacha-luna-worker-xhigh.toml"
-XHIGH_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-luna-worker-xhigh.toml"
 DEEPSEEK_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-worker.toml"
 DEEPSEEK_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-worker.toml"
 DEEPSEEK_PRO_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-pro-worker.toml"
 DEEPSEEK_PRO_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-pro-worker.toml"
-K3_TARGET_RELATIVE = Path("agents") / "sacha-k3-worker.toml"
-K3_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-k3-worker.toml"
-IDENTITY_FIELDS = ("name", "model", "model_reasoning_effort")
-REQUIRED_FIELDS = (*IDENTITY_FIELDS, "description", "developer_instructions")
+READONLY_TARGET_RELATIVE = Path("agents") / "sacha-readonly-worker.toml"
+READONLY_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-readonly-worker.toml"
+REVIEWER_TARGET_RELATIVE = Path("agents") / "sacha-reviewer.toml"
+REVIEWER_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-reviewer.toml"
+EXECUTER_TARGET_RELATIVE = Path("agents") / "sacha-executer.toml"
+EXECUTER_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-executer.toml"
+CORE_REQUIRED_FIELDS = ("name", "description", "developer_instructions")
+MODEL_FIELDS = ("model", "model_reasoning_effort")
 
 
 class SetupAgentsError(RuntimeError):
@@ -37,15 +37,17 @@ class AgentDefinition:
     name: str
     target_relative: Path
     template_path: Path
-    reasoning_effort: str
+    model: str | None = None
+    reasoning_effort: str | None = None
+    sandbox_mode: str | None = None
 
 
 AGENT_DEFINITIONS = (
-    AgentDefinition("sacha_luna_worker", TARGET_RELATIVE, DEFAULT_TEMPLATE, "max"),
-    AgentDefinition("sacha_luna_worker_xhigh", XHIGH_TARGET_RELATIVE, XHIGH_TEMPLATE, "xhigh"),
-    AgentDefinition("sacha_deepseek_worker", DEEPSEEK_TARGET_RELATIVE, DEEPSEEK_TEMPLATE, "max"),
-    AgentDefinition("sacha_deepseek_pro_worker", DEEPSEEK_PRO_TARGET_RELATIVE, DEEPSEEK_PRO_TEMPLATE, "max"),
-    AgentDefinition("sacha_k3_worker", K3_TARGET_RELATIVE, K3_TEMPLATE, "max"),
+    AgentDefinition("sacha_readonly_worker", READONLY_TARGET_RELATIVE, READONLY_TEMPLATE, sandbox_mode="read-only"),
+    AgentDefinition("sacha_executer", EXECUTER_TARGET_RELATIVE, EXECUTER_TEMPLATE),
+    AgentDefinition("sacha_reviewer", REVIEWER_TARGET_RELATIVE, REVIEWER_TEMPLATE, sandbox_mode="read-only"),
+    AgentDefinition("sacha_deepseek_worker", DEEPSEEK_TARGET_RELATIVE, DEEPSEEK_TEMPLATE, "TT/deepseek-v4-flash-ioa", "max"),
+    AgentDefinition("sacha_deepseek_pro_worker", DEEPSEEK_PRO_TARGET_RELATIVE, DEEPSEEK_PRO_TEMPLATE, "TT/deepseek-v4-pro-ioa", "max"),
 )
 
 
@@ -81,7 +83,7 @@ def resolve_codex_home(
     return home
 
 
-def resolve_target(codex_home: Path, target_relative: Path = TARGET_RELATIVE) -> Path:
+def resolve_target(codex_home: Path, target_relative: Path = EXECUTER_TARGET_RELATIVE) -> Path:
     home = codex_home.resolve(strict=False)
     target = (home / target_relative).resolve(strict=False)
     try:
@@ -106,7 +108,7 @@ def validate_agent(
     expected_identity: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     parsed = parse_toml(data)
-    missing = [field for field in REQUIRED_FIELDS if not isinstance(parsed.get(field), str)]
+    missing = [field for field in CORE_REQUIRED_FIELDS if not isinstance(parsed.get(field), str)]
     if missing:
         raise SetupAgentsError("missing string fields: " + ", ".join(missing))
     mismatched = [
@@ -114,6 +116,29 @@ def validate_agent(
     ]
     if mismatched:
         raise SetupAgentsError("unexpected Agent identity: " + ", ".join(mismatched))
+    return parsed
+
+
+def expected_identity(definition: AgentDefinition) -> dict[str, object]:
+    identity: dict[str, object] = {"name": definition.name}
+    if definition.model is not None:
+        identity["model"] = definition.model
+    if definition.reasoning_effort is not None:
+        identity["model_reasoning_effort"] = definition.reasoning_effort
+    if definition.sandbox_mode is not None:
+        identity["sandbox_mode"] = definition.sandbox_mode
+    return identity
+
+
+def validate_definition(data: bytes, definition: AgentDefinition) -> dict[str, object]:
+    parsed = validate_agent(data, expected_identity(definition))
+    if definition.model is None:
+        fixed_model_fields = [field for field in MODEL_FIELDS if field in parsed]
+        if fixed_model_fields:
+            raise SetupAgentsError(
+                "capability-only Agent must omit fixed model fields: "
+                + ", ".join(fixed_model_fields)
+            )
     return parsed
 
 
@@ -148,11 +173,7 @@ def build_agent_plan(
     template = template_path.read_bytes()
     if not has_owner_marker(template):
         raise SetupAgentsError("template owner marker is missing")
-    expected_identity = {
-        "name": definition.name,
-        "model_reasoning_effort": definition.reasoning_effort,
-    }
-    template_semantics = validate_agent(template, expected_identity)
+    validate_definition(template, definition)
 
     current = target.read_bytes() if target.is_file() else None
     current_parse_error: str | None = None
@@ -257,10 +278,10 @@ def prepare_temp(
         raise
 
 
-def verify_installed(target: Path, expected: bytes) -> None:
+def verify_installed(target: Path, expected: bytes, definition: AgentDefinition) -> None:
     actual = target.read_bytes()
-    expected_parsed = validate_agent(expected)
-    validate_agent(actual, {key: expected_parsed[key] for key in IDENTITY_FIELDS})
+    validate_definition(expected, definition)
+    validate_definition(actual, definition)
     if actual != expected:
         raise SetupAgentsError("installed content mismatch")
 
@@ -314,11 +335,10 @@ def run_setup(
             if current_now != agent.current:
                 raise SetupAgentsError(f"target changed after planning: {agent.definition.name}")
         for agent in changed_agents:
-            template_parsed = validate_agent(agent.template)
             temp_paths[agent.target] = prepare_temp(
                 agent.target,
                 agent.template,
-                expected_identity={key: template_parsed[key] for key in IDENTITY_FIELDS},
+                expected_identity=expected_identity(agent.definition),
             )
         for agent in changed_agents:
             os.replace(temp_paths.pop(agent.target), agent.target)
@@ -326,7 +346,7 @@ def run_setup(
             if hook := hooks.get("after_replace"):
                 hook(agent.target)
         for agent in changed_agents:
-            verify_installed(agent.target, agent.template)
+            verify_installed(agent.target, agent.template, agent.definition)
     except Exception as exc:
         for temp_path in temp_paths.values():
             temp_path.unlink(missing_ok=True)

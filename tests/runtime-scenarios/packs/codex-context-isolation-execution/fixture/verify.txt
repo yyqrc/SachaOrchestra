@@ -1,0 +1,14 @@
+from pathlib import Path
+
+expected = {
+    "output/service-a.txt": "name=service-a\ntimeout=30\nretries=3\nowner=alpha\n",
+    "output/service-b.txt": "name=service-b\ntimeout=45\nretries=2\nowner=beta\n",
+    "release.txt": "service-a=ready\nservice-b=ready\n",
+}
+
+for raw_path, content in expected.items():
+    path = Path(raw_path)
+    assert path.is_file(), f"missing {raw_path}"
+    assert path.read_text(encoding="utf-8") == content, f"unexpected {raw_path}"
+
+print("verification passed")

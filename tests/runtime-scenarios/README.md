@@ -32,6 +32,10 @@
 - `workflow-language-boundary`：验证产品文本、运行日志、代码标识和 Handoff 边界。
 - `reviewer-semantic-chain`：验证 Reviewer 对正式入口、边界和证据范围的真实追踪。
 - `codex-code-mode-readonly-batch`：验证 Codex Code Mode 只读批量路线。
+- `codex-skill-entry-visibility`：验证 `using-sacha` 自动入口、下游 Skill 隐式可见性、显式调用和 Human 可见输出。
+- `codex-agent-capability-routing`：分别验证 Codex v1/v2 的无固定模型 Agent、逐次模型路线与只读 Reviewer。
+- `codex-context-isolation-research`：验证 Manager Gate 关闭时，一个高噪声调查可以使用新的直接委派 Agent 并只返回压缩结果。
+- `codex-context-isolation-execution`：验证多个独立实施单元由 Manager 统一派发，实施 Agent 吸收中间过程并返回压缩结果。
 - `dsh-continuable-parallel-barrier`：验证 DSH Root 直接创建多个 continuable child、派发后继续推进 ready work、在 barrier 依赖 settlement 恢复，且部分结果不会导致提前完成。
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
 

@@ -44,6 +44,8 @@
 
 首次创建必须使用 fresh/self-contained 语义；fork/继承父对话只在 Human 明确要求且 Core/Role 独立性与上下文边界仍成立时使用，自动路线不得用 fork 代替最小自包含输入。
 
+Coordination 已判定一个工作单元适合隔离高噪声中间过程时，Root Session 可在 Manager Gate 关闭的情况下直接创建一个对应子任务：只读研究使用 `sacha_research`，需要写入的 `execution-ready` 单元使用 `sacha_worker`。该映射只消费 Core 结论，不根据上下文用量、日志长度或模型判断自行打开 Gate。
+
 child prompt 必须包含：目标、Scope、输入 reference、允许写入范围或只读边界、完成检查、停止条件，以及发现需拆分/新增授权/Scope 变化时返回协调请求的要求。不得复制完整父对话。
 
 ## 4. Capability 与模型映射

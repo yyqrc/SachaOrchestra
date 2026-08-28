@@ -1,0 +1,4 @@
+name=service-b
+timeout=15
+retries=1
+owner=beta

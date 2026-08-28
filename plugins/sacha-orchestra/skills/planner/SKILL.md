@@ -27,7 +27,7 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 6. 第二遍回读逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。
 7. 第三遍回读只提供项目规则、项目事实和 Spec，核对不了解 Sacha 的 Executor 与 Reviewer 能否直接实施与评审。
 8. 向 Human 交付前必须完成格式、来源和项目语境核对；任一项不满足时由当前 Planner 原位修订并重新执行三遍回读。全部满足前不得交付 Spec、请求批准、进入 Executor 或依赖 Reviewer 发现问题。
-9. 工作流返回、协调和验证责任由主任务分别按 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 与 [Assurance Contract](../../core/assurance-contract.md) 处理，不写回 Spec。主任务出现多个候选单元、依赖或恢复协调时，调用 Manager 并消费 Coordination Contract 的分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
+9. 工作流返回、协调和验证责任由主任务分别按 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 与 [Assurance Contract](../../core/assurance-contract.md) 处理，不写回 Spec。主任务能形成至少两个独立调查单元，或出现多个候选、依赖或恢复协调时，调用 Manager 并消费其分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
 
 ## 输出
 

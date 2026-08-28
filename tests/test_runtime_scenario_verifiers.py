@@ -231,6 +231,39 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_context_execution_verifier(self, *, corrupted: bool = False) -> subprocess.CompletedProcess[str]:
+        fixture = PACKS / "codex-context-isolation-execution" / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            shutil.copytree(fixture, target, dirs_exist_ok=True)
+            output = target / "output"
+            output.mkdir()
+            (output / "service-a.txt").write_text(
+                "name=service-a\ntimeout=30\nretries=3\nowner=alpha\n",
+                encoding="utf-8",
+            )
+            (output / "service-b.txt").write_text(
+                "name=service-b\ntimeout=45\nretries=2\nowner=beta\n",
+                encoding="utf-8",
+            )
+            (target / "release.txt").write_text(
+                "service-a=ready\nservice-b=ready\n",
+                encoding="utf-8",
+            )
+            if corrupted:
+                (output / "service-b.txt").write_text(
+                    "name=service-b\ntimeout=15\nretries=1\nowner=beta\n",
+                    encoding="utf-8",
+                )
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.txt")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def test_bundled_verifiers_accept_valid_results(self) -> None:
         readonly = self.run_verifier("codex-code-mode-readonly-batch", readonly_result())
         self.assertEqual(readonly.returncode, 0, readonly.stdout + readonly.stderr)
@@ -255,6 +288,14 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         planner = self.run_planner_verifier()
         self.assertEqual(planner.returncode, 0, planner.stdout + planner.stderr)
         self.assertIn("planner_explore_manager_reviewer_status=pass", planner.stdout)
+
+        context_execution = self.run_context_execution_verifier()
+        self.assertEqual(
+            context_execution.returncode,
+            0,
+            context_execution.stdout + context_execution.stderr,
+        )
+        self.assertIn("verification passed", context_execution.stdout)
 
     def test_bundled_verifiers_reject_corrupted_results(self) -> None:
         invalid_readonly = readonly_result()
@@ -284,6 +325,10 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         planner = self.run_planner_verifier(corrupted=True)
         self.assertEqual(planner.returncode, 1)
         self.assertIn("request_timeout_ms must remain 30000", planner.stderr)
+
+        context_execution = self.run_context_execution_verifier(corrupted=True)
+        self.assertNotEqual(context_execution.returncode, 0)
+        self.assertIn("unexpected output/service-b.txt", context_execution.stderr)
 
     def test_reviewer_semantic_fixture_exposes_claimed_failures(self) -> None:
         result = self.run_reviewer_semantic_probe()

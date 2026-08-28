@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Agent Setup（全局 Agent 配置）"
-  short_description: "安全安装或刷新 Sacha 官方 Luna、DeepSeek Flash/Pro 与 K3 Agent"
-  default_prompt: "使用 $sacha-orchestra:setup-agents 安全安装或刷新 Sacha 官方带命名空间的 Luna、DeepSeek Flash/Pro 与 K3 Agent。"
+  short_description: "安全安装 Sacha 调查、实施、复核与 DeepSeek Agent"
+  default_prompt: "使用 $sacha-orchestra:setup-agents 安全安装或刷新 Sacha 官方调查、实施、复核与 DeepSeek Agent。"
 
 policy:
   allow_implicit_invocation: false

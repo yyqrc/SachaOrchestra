@@ -1,0 +1,9 @@
+1 disk_free_gb=187
+2 network_probe=not_run
+3 signing_key_loaded=true
+4 staging_cleanup_previous=partial
+5 stale_entry=artifacts/client-win64.zip type=directory
+6 stale_entry_owner=build-1840-debug
+7 package_config_changed=false
+8 source_revision_same_as_1841=true
+

@@ -12,14 +12,14 @@ description: 显式配置 Sacha 官方 Codex 自定义 Agent；普通流程不�
 ## 输入与首查
 
 1. 入口为 Human 显式调用；该调用授权本次创建、更新或保持由 Sacha 管理的文件。
-2. 目标为 `CODEX_HOME/agents/` 下的 `sacha-luna-worker.toml`、`sacha-luna-worker-xhigh.toml`、`sacha-deepseek-worker.toml`、`sacha-deepseek-pro-worker.toml` 和 `sacha-k3-worker.toml`；未设置时使用当前用户 `.codex`。对应 [Luna max](assets/sacha-luna-worker.toml)、[Luna xhigh](assets/sacha-luna-worker-xhigh.toml)、[DeepSeek](assets/sacha-deepseek-worker.toml)、[DeepSeek Pro](assets/sacha-deepseek-pro-worker.toml) 与 [K3](assets/sacha-k3-worker.toml) 模板是唯一 Owner。
+2. 目标为 `CODEX_HOME/agents/` 下的五个 `sacha-*` 受管文件；未设置时使用当前用户 `.codex`。[只读调查](assets/sacha-readonly-worker.toml)与[独立 Reviewer](assets/sacha-reviewer.toml)固定 `sandbox_mode="read-only"`；[实施验证](assets/sacha-executer.toml)不设置 `sandbox_mode`，沿用父任务实际边界。三者的模型与推理强度均由 Adapter 每次派发；[DeepSeek](assets/sacha-deepseek-worker.toml)与[DeepSeek Pro](assets/sacha-deepseek-pro-worker.toml)继续作为固定模型 Agent。对应模板是唯一 Owner。
 
 ## 动作顺序
 
 1. 运行[配置器](scripts/setup_agents.py) `--dry-run`，取得五个目标的 `create | update | no-op | conflict` 计划。
-2. Owner 标记与预期命名空间标识同时成立时允许自动更新；非 Sacha 文件或标识冲突会停止整批写入。旧 `luna-worker*.toml` 保持原状。
+2. Owner 标记与预期命名空间标识同时成立时允许自动更新；非 Sacha 文件或标识冲突会停止整批写入。已退出受管集合的 Luna/K3 文件和旧 `luna-worker*.toml` 保持原状。
 3. 无 `conflict` 时在同一调用中执行 `--write`。写入前重读全部写入前内容（preimage），全部临时 TOML 校验后原子替换。
-4. 写后按完整字节、必填字段和五个 Agent 标识回读；任一失败时整批补偿恢复。
+4. 写后按完整字节、共同必填字段和各 Agent 类型回读：固定模型 Agent 必须匹配模型与强度；能力 Agent 必须没有固定模型，只读类型还须匹配 `sandbox_mode`；任一失败时整批补偿恢复。
 
 ## 输出
 

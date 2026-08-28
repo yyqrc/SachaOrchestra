@@ -19,7 +19,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；工作流角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取，不从 Spec 推导。
 2. 实施事实证明批准 Spec 的范围、技术决定或验收失效时，返回具体项目事实和原始证据供主任务路由；产品代码、日志、异常、注释、界面、弹窗或其他项目输出只表达目标项目语义，不复制 Artifact Protocol 排除出 Spec 的信息。
-3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求；主任务出现多个候选单元、依赖、并发安全或正式恢复协调时，按 [Coordination Contract](../../core/coordination-contract.md) 调用 Manager 并消费其串行结论或派发结果；Executor 委派 Agent 返回协调请求；共享输出由集成 Owner 串行处理。
+3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求。实施前先按 [Workflow Contract](../../core/workflow-contract.md) 判断能否形成至少两个独立工作单元；成立时调用 Manager 统一拆分和派发。只有一个 `execution-ready` 单元且符合 [Coordination Contract](../../core/coordination-contract.md) 的上下文隔离条件时，主任务优先直接派发；局部动作留在当前上下文。Executor 委派 Agent 只返回结果或协调请求，共享输出由集成 Owner 串行处理。
 4. 按受影响的直接消费者、真实生产入口和交付层选择最窄充分验证，并读取退出状态、错误、警告和失败计数。聚焦测试、覆盖范围、构建、生成物、Runtime 和 Human 验收分别只证明其直接范围；动态加载、进程、设备或外部 Provider 行为必须由对应入口证明，输入、目标、配置和产物未变化时复用仍有效的证据。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
 5. Scope 内实现缺陷或验证失败由当前 Executor 修复并重验。
 

@@ -1,0 +1,12 @@
+1 compile started
+2 warnings=3
+3 errors=0
+4 unit tests started
+5 passed=418
+6 failed=0
+7 skipped=2
+8 integration tests started
+9 passed=31
+10 failed=0
+11 compile_and_tests exit_code=0
+

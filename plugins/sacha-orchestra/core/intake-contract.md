@@ -16,6 +16,7 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；元数据匹配到
 
 ## 3. 入口判断
 
+- Human 只有明确要求由本工作流编排当前目标、选择接受，或直接调用 Planner、Executor、Reviewer 时才接受。显式调用 `using-sacha` 只触发入口判断；任务对象、产品名或正文术语不得推断为执行方式选择。
 - Direct：目标、Scope、授权与验收足够明确，当前上下文可安全完成，且没有入口候选；无论复杂度、文件数和耗时，默认直接执行。
 - 入口候选按 Planner Gate 事实处理：
   - 尚无 Planner Gate 事实时，持久 Owner、跨上下文恢复或正式编排会实质改变执行方式，且 Human 尚未选择是否进入 Sacha。
@@ -42,7 +43,8 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；元数据匹配到
 
 | Human 输入 | 授权范围与下一路由 |
 | --- | --- |
-| 显式 `using-sacha`、明确要求使用 Sacha，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；主任务按 Workflow Contract 推进 |
+| 显式调用 `using-sacha` 评估入口 | 执行本合同的入口判断；只有 Human 随后明确选择接受才进入 Sacha 路由 |
+| 明确要求用 Sacha 编排当前目标、选择接受，或直接调用 Planner、Executor、Reviewer | 接受当前目标/Scope 的 Sacha 路由；主任务按 Workflow Contract 推进 |
 | 显式 Explore | 授权主任务在窄 Scope 内探索并管理一个有界只读研究委派 Agent；Explore 委派 Agent 只返回研究结果或协调请求，多个研究就绪单元由主任务按 Manager Gate 协调 |
 | 活跃 Planner 路由 Explore | 沿用既有 Sacha 接受状态与 Owner，结果返回 Planner |
 | 显式 Roadmap | 只授权当前 Roadmap 目标内读取项目事实、按需调用 Explore 做有界只读探索，并把自包含正文交给 document-project 按 Project Integration 写入；不接受 Sacha、不进入生产 Role、不创建或执行 Spec |

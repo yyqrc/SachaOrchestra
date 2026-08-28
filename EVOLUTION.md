@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.10`。
+- 当前 release：`0.12.11`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，改用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态，并新增 DSH barrier/Reviewer Runtime 场景和 companion release gate。入口元数据只在真实候选或 Human 显式使用时加载 `using-sacha`，`Direct` 与 `Direct Scope` 由术语合同统一拥有。
-- 当前 breaking boundary：DSH 不再保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 删除旧 Team snapshot/model，并以 continuable child、settlement-driven barrier、Sacha `manager_wave`/`delegation` 与 DSH direct-child observation 为唯一主模型。入口与术语修复不改变既有 Human 接受、Gate、Role、授权或验收。
-- 当前成熟度：`0.12.10` 采用快速发版证据边界；DSH bundle validator、32 项相关 Python 测试、Visualizer validator、7 个测试文件/16 项测试、Host/Client/preview 构建和 using-sacha Skill validator 通过。真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth、并发 settlement barrier、Reviewer isolation、浏览器投影，以及安装后清晰任务/入口候选的隐式匹配未验证。
+- 当前 release Scope：Codex 将只读调查、实施和独立复核能力与模型路线解耦；`using-sacha` 保持自动入口，其他 Sacha Skill 改为显式或按 Workflow 稳定 path 加载；Coordination 将上下文负担纳入拆分与派发，多个独立单元由 Manager 统一管理，单个合适单元直接派发；入口接受与 Human 输出不再从任务对象或源码内部结构推断。setup-agents 新增三个能力 Agent，Luna 改为逐次模型派发并移除 Luna/K3 固定模型定义。
+- 当前 breaking boundary：Human 只有明确要求编排、选择接受或直接调用规范 Role 时才接受 Sacha；除 `using-sacha` 外的 Sacha Skill 不再参与隐式目录；Manager Gate 会在至少两个输入自足、输出隔离且可独立检查的单元成立时打开；Codex 不再提供 `sacha_luna_worker`、`sacha_luna_worker_xhigh` 与 `sacha_k3_worker` 源码定义。
+- 当前成熟度：`0.12.11` 采用快速发版证据边界；44 项相关 Python 测试、受影响 Skill 校验、插件结构校验和当前 v2 原生 worker 的 Luna 创建参数通过。安装后 Skill 入口行为、三个新 Agent 的 fresh discovery、模型三级优先级、`sandbox_mode` 继承、Manager 实施隔离场景及 v1 分支未验证。
 
 ## `1.0.0` 与后续方向
 

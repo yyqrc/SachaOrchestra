@@ -1,0 +1,17 @@
+1 package worker started
+2 discovered output/bin/client.exe
+3 discovered output/data/catalog.json
+4 candidate archive path artifacts/client-win64.zip
+5 retry 1 started
+6 retry 1 reused staging directory
+7 retry 2 started
+8 retry 2 reused staging directory
+9 uploader not started
+10 checksum stage not started
+11 archive stage started
+12 ERROR destination exists as directory: artifacts/client-win64.zip
+13 stack: ArchiveWriter.open
+14 stack: PackagePipeline.create_archive
+15 stack: PackagePipeline.run
+16 worker exit_code=23
+

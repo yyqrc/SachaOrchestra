@@ -1,0 +1,4 @@
+name=service-a
+timeout=10
+retries=1
+owner=alpha

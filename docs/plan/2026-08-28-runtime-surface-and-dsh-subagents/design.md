@@ -5,10 +5,11 @@
 
 ## 1. 目标
 
-本轮收敛两个问题：
+本轮收敛三个互相关联的问题：
 
 1. Sacha 如何在项目 Skill、领域插件 Skill、MCP/工具和 Runtime 内置 Skill 同时存在时保持稳定自动入口与按需能力加载，而不接管宿主整个能力目录。
 2. DeepSeek Harness（DSH）如何删除 experimental Agent Teams 依赖，直接使用 continuable subagent，并让可视化完整观察 Sacha Manager DAG、work unit 到真实 child 的映射和 child Runtime 状态。
+3. Codex 自定义 Agent 如何只承载 `sandbox_mode` 和工具能力，模型由每次派发路线决定；一个高噪声工作单元如何在不打开 Manager Gate 时隔离中间过程。
 
 本轮不新增 Role、Gate、生命周期、Artifact 或完成定义；Direct-first、Planner/Executor/Reviewer、Manager、Assurance 与 Artifact 权威不变。
 
@@ -46,13 +47,13 @@ policy:
   allow_implicit_invocation: false
 ```
 
-推荐候选：
+当前源码采用：
 
-- `using-sacha` 保持 implicit 可见，继续承担自动入口；
-- Planner/Executor/Reviewer/Explore/Manager/Roadmap/document-project/closeout/feedback/setup-* 默认从 implicit catalog 隐藏，但保留 Human `$skill` 显式调用；
-- `using-sacha`/Workflow 通过稳定 locator 或 Runtime 正式 Skill read 机制读取目标 Skill。
+- `using-sacha` 继续允许隐式调用并承担自动入口；
+- 其他 Sacha Skill 默认不允许隐式调用，但保留 Human `$skill` 显式调用；
+- `using-sacha`/Workflow 通过稳定 path 或 Runtime 正式加载机制读取目标 Skill。
 
-**当前未直接实施。** 必须先用 Runtime scenario 比较自动入口召回与误触发；目录更短本身不是正确性证据。
+元数据与稳定 Role path 已实施；安装后的全新 Runtime 仍必须用 `codex-skill-entry-visibility` 场景验证自动入口、显式调用和实际目录。目录更短、YAML 通过校验或当前旧 cache 的行为都不是候选版本通过证据。
 
 ## 3. 渐进披露的跨 Runtime 抽象
 
@@ -77,6 +78,24 @@ Runtime 映射：
 - Cursor：只使用当前 Runtime 已验证的原生能力，不伪造统一 enforcement。
 
 Core 只产生 readiness、Role、Scope、授权与路由要求，不写具体工具名。
+
+### 3.1 Codex 能力载体
+
+Codex 采用三层映射：
+
+```text
+Coordination / Workflow 已判定的事实
+        ↓
+Codex Adapter：能力 Agent + 模型路线 + 传输
+        ↓
+自定义 Agent：sandbox_mode / 工具面 / 执行边界
+```
+
+`sacha_readonly_worker`、`sacha_executer` 与 `sacha_reviewer` 不固定模型；自动派发由 Codex Adapter 把能力 Agent 与本次 `model/reasoning_effort` 组合。实施 Agent 不设置 `sandbox_mode`，沿用父任务实际边界；另外两个 Agent 固定只读。Luna 直接通过逐次字段派发，DeepSeek 与 DeepSeek Pro 保留固定模型定义，Luna/K3 固定模型定义退出受管集合。自定义 Agent 不取得 Role、Workflow、授权或 Reviewer 独立性；正式语义与版本分支只读 [Coordination Contract](../../../plugins/sacha-orchestra/core/coordination-contract.md) 和 [Codex Adapter](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md)。
+
+### 3.2 单一高噪声工作单元
+
+一个输入自足的调查或实施单元若会产生对父任务后续决定无持续价值的中间内容，父任务按 Coordination Contract 优先使用新的直接委派 Agent，只消费压缩结果和稳定 reference。能形成至少两个输入自足、输出隔离且有独立完成检查的单元时，主任务打开 Manager Gate 统一拆分和派发；不能独立完成或验证的局部动作留在父任务。两条路线都不改变 Direct-first，也不新增记忆权威。
 
 ## 4. DSH：continuable subagent 直接承载 Sacha 调度
 
@@ -288,9 +307,25 @@ tests/test_dsh_subagents.py
 - 能力/sandbox 只按 Runtime 直接证据声称；
 - Outcome 回到现有 Assurance 路线。
 
+#### `codex-skill-entry-visibility`
+
+验证候选插件的全新 Skill 目录、`using-sacha` 自动入口、下游 Skill 显式调用、接受后稳定 Role path，以及首个回应和后续进度不会把产品源码术语误报为当前任务的内部执行状态。
+
+#### `codex-agent-capability-routing`
+
+分别验证 v1/v2 的 `agent_type + model + reasoning_effort` 组合、三个能力 Agent 的发现、显式派发字段/Agent 默认值/父任务路线的三级优先级、实际 `sandbox_mode` 与独立 Reviewer 输入来源；不支持的版本分支保留 `blocked`。
+
+#### `codex-context-isolation-research`
+
+验证只有一个已就绪单元、Manager Gate 关闭时可以创建新的直接委派 Agent，委派 Agent 不创建下级 Agent，父任务只消费压缩摘要与稳定 reference，并返回原调用节点。
+
+#### `codex-context-isolation-execution`
+
+验证多个输入自足、输出隔离的实施单元会打开 Manager Gate，由 `sacha_executer` 使用逐次 Luna 路线执行并继承父任务 `sandbox_mode`；主任务只聚合压缩结果、完成依赖输出和最终验证。
+
 ## 7. 当前文件边界
 
-本轮实施涉及：
+本轮相关实现还包括：
 
 - `plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md`
 - `integrations/dsh/sacha-subagents/**`
@@ -300,5 +335,10 @@ tests/test_dsh_subagents.py
 - `tests/validate_dsh_subagents.py`
 - `tests/test_dsh_subagents.py`
 - `scripts/release.py` 的 companion 最窄测试映射
+- `plugins/sacha-orchestra/core/coordination-contract.md`
+- `plugins/sacha-orchestra/adapters/codex/runtime-adapter.md`
+- `plugins/sacha-orchestra/skills/setup-agents/**`
+- `plugins/sacha-orchestra/skills/*/agents/openai.yaml`
+- `tests/runtime-scenarios/packs/codex-*`
 
-Codex Skill visibility、Claude native subagent surface 与更强 DSH Reviewer sandbox 仍是后续 Runtime-specific 增强；在各自真实 scenario 通过前不作为当前已验证能力。
+Codex Skill 可见性、能力 Agent、模型优先级、`sandbox_mode` 继承和上下文隔离派发只有在对应全新 Runtime 场景通过后才属于行为证据；当前源码、元数据、schema、配置器测试和执行者总结只证明各自覆盖面。
