@@ -13,11 +13,11 @@
 ## 通用运行流程
 
 1. 在工作区 `.temp/runtime-scenarios/<run-id>/<case-id>/` 创建唯一隔离 root，把 `fixture/` 复制进去，把 `task.md` 另存为中性 `instructions.md`，并把 [`assets/workspace-AGENTS.md`](assets/workspace-AGENTS.md) 复制为该 root 的 `AGENTS.md`。不得在包内原地执行，也不得把包名或 `oracle.md` 暴露给执行者。
-2. 执行上下文只接收中性任务、隔离 root、工作区规则和正式入口 Skill。执行者按入口 Skill 读取需要的 Core/Role/Adapter；不得读取仓库 `PLUGIN_DESIGN.md`、本 README、源任务包或 oracle。
-3. 运行者保存 Human 问题/答复、真实工作区 delta、验证器原始输出，以及目标 Runtime 能提供的原生 Agent 创建、parent/depth、route、settlement/终态和工具轨迹。事后总结或 Agent 自报不能替代这些原生记录。
+2. 运行者按任务包验收选择执行上下文：不要求 Manager 派发时，以 `fork_turns="none"` 启动不携带父对话历史的委派 Agent；要求 Manager 派发、Root Session 或 continuable direct-child 身份时，由 Human 明确发起或授权创建全新主任务，不先创建承载整个流程的委派 Agent。两种上下文都只接收中性任务、隔离 root、工作区规则和正式入口 Skill；全新 Runtime 使用发现能力，`source-scenario` 才提供当前源码 `using-sacha/SKILL.md` path。执行者按入口 Skill 读取需要的 Core/Role/Adapter，不得读取仓库 `PLUGIN_DESIGN.md`、本 README、源任务包或 oracle。
+3. 执行者需要 Human 澄清时，运行者只回答该问题，不补发预期 Role、Gate 或步骤。运行者保存 Human 问题/答复、真实工作区 delta、验证器原始输出，以及目标 Runtime 能提供的原生 Agent 创建、parent/depth、route、settlement/终态和工具轨迹；事后总结或 Agent 自报不能替代这些原生记录。
 4. Manager 派发后，运行者必须能证明每个被裁决的 work unit 的首次创建标识和直接 parent。需要验证单层派发时，优先保存机器可读 parent/depth/descendant 证据；不可达时才保留实时树快照，再不可达则对应证据为 `blocked`。
 5. 执行者结束后启动未参与实施的独立评估者；只给它 `oracle.md`、本次目标 Runtime Adapter、上述原始记录、最终工作区和验证器输出。独立评估者按 `pass | drift | blocked` 裁决，并指出第一处偏移与直接证据。
-6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为。
+6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为；安装后的全新发现只有在 Human 已授权安装并从全新任务启动时才能作为 Runtime 证据，其他运行标记为 `source-scenario`。
 
 ## 当前基线包
 

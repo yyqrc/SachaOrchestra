@@ -10,15 +10,16 @@ Intake 不依赖平台或项目。Runtime 发现归 Adapter；入口流程归 `u
 
 ## 2. 最小加载
 
-Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口由各自元数据发现。Skill 触发后可读取本文；Human 接受前不得仅为 Sacha 路由加载 Workflow Contract、Artifact Protocol、Project Integration 或生产 Role。
+Runtime 常驻默认入口只需要 `using-sacha` 元数据；元数据匹配到入口候选或 Human 显式调用 `using-sacha` 时，才加载入口 Skill 与本文。其他显式入口由各自元数据发现；Human 接受前不得仅为 Sacha 路由加载 Workflow Contract、Artifact Protocol、Project Integration 或生产 Role。
 
-`L0 Local Direct` 允许元数据、入口 Skill 与本文，但不进入生产 Sacha 生命周期，不生成 Goal、Artifact 或 Handoff。
+自动匹配路径的 Direct 只使用元数据完成筛选，不触发入口 Skill 或加载本文；保持当前任务直接执行，不生成 Goal、Artifact 或 Handoff。
 
 ## 3. 入口判断
 
-- `L0 Local Direct`：目标、Scope、授权与验收足够明确，当前上下文可安全完成，且没有入口候选；无论复杂度、文件数和耗时，默认直接执行。
-- `D0 入口候选`：没有 Planner Gate 事实，但持久 Owner、跨上下文恢复或正式编排会实质改变执行方式，且 Human 尚未选择是否进入 Sacha。
-- `Planner 入口候选`：目标、Scope、Acceptance、Owner 或路径存在实质不确定性；已有事实预计实施前需要关键 Human 澄清、先冻结/持久化可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。
+- Direct：目标、Scope、授权与验收足够明确，当前上下文可安全完成，且没有入口候选；无论复杂度、文件数和耗时，默认直接执行。
+- 入口候选按 Planner Gate 事实处理：
+  - 尚无 Planner Gate 事实时，持久 Owner、跨上下文恢复或正式编排会实质改变执行方式，且 Human 尚未选择是否进入 Sacha。
+  - 已有 Planner Gate 事实时，目标、Scope、Acceptance、Owner 或路径存在实质不确定性；实施前需要关键 Human 澄清、先冻结/持久化可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。
 
 - Planner、Executor、Reviewer 接受 Human 直接调用。
 - Explore 接受 Human 显式窄授权，或由活跃 Planner 路由。
@@ -32,10 +33,10 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；其他显式入口
 ## 4. 入口决定
 
 - 初次判断及 Direct 执行期间，主任务必须在继续形成实质方案、实施或持久化前检查语义转折。诊断演变为设计/修改、授权扩到新 Owner/平台，或新增 API 形态、Owner、回退/行为模式决策、Spec 消费者、跨上下文恢复需求，且这些事实会改变执行方式时，必须停止当前 Direct 推进并重新执行入口判断；完成入口决定前不得继续形成单一路线的实施方案。
-- 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节入口候选时保持 L0。
+- 同一目标或表面 Scope 名称未变，不得压过已改变的 Acceptance、风险、授权、Owner、实现边界或交付模型。没有第 3 节入口候选时保持 Direct。
 - 自动识别到入口候选时，只询问一次是否进入 Sacha，并按 Human Interaction Contract 说明新增能力、成本、执行影响与推荐。
 - Human 接受后，当前根 Owner 按需加载 Workflow Contract、当前 Adapter、已确认的 Project Integration 与目标 Role。
-- Human 拒绝后按当时事实保持 L0；同一入口候选不得重复推销或创建 Sacha Artifact。实质变化形成新入口候选时可再推荐一次。
+- Human 拒绝后按当时事实保持 Direct；同一入口候选不得重复推销或创建 Sacha Artifact。实质变化形成新入口候选时可再推荐一次。
 - reference、日志、进度、非语义文案或仅估算变化不触发重问。
 - 重复抑制只依赖当前上下文或正式恢复证据；不得新增跨会话注册表（Registry）。
 

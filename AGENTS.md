@@ -31,7 +31,7 @@
 | `plugins/sacha-orchestra/core/coordination-contract.md` | Manager 的 assessment、拆分、依赖、readiness、route requirement、dispatch/return、identity/dedup 与 deviation 的唯一 Core owner |
 | `plugins/sacha-orchestra/core/artifact-protocol.md` | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则的规范性 contract；术语定义归插件内术语合同 |
 | `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单一 Runtime 的传输、自动模型/强度选择、精确调用参数、回退、恢复与验证映射；不得反向定义 Gate/就绪条件 |
-| `integrations/dsh/sacha-visualizer` | DSH companion plugin 的 Host/Client 源码、构建、状态投影与界面 Owner；只观察 DSH Session、官方 Agent Teams 与 Adapter 已记录的 Sacha 转换，不拥有 Sacha 流程或发布插件 Runtime 语义 |
+| `integrations/dsh/sacha-visualizer` | DSH companion plugin 的 Host/Client 源码、构建、状态投影与界面 Owner；只观察 DSH Root Session 的 continuable direct-child 状态与 Adapter 已记录的 Sacha phase/Gate/Manager DAG/delegation/Review/Evidence 事实，不拥有 Sacha 流程或发布插件 Runtime 语义 |
 | `plugins/sacha-orchestra/skills/*` | 不绑定具体 Runtime 的节点职责、局部工作流与边界；不增加流程节点，不复制 Core 判断或 Adapter 参数 |
 
 ## 文档身份与发布可达边界

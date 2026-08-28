@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "收到可执行目标后先判断 Direct 或建议进入 Sacha"
-  default_prompt: "使用 $sacha-orchestra:using-sacha，在处理当前可执行目标前先判断 Direct 或建议进入 Sacha，并在查询或诊断转为方案、修改或持久化时重新判断。"
+  short_description: "需要关键 Human 决定、跨上下文恢复或正式协调时评估 Sacha"
+  default_prompt: "使用 $sacha-orchestra:using-sacha 评估当前已出现的入口候选，并说明是否建议进入 Sacha。"

@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.9`。
-- 当前待发布源码版本：未定版；Draft Scope 为 DSH continuable-subagent transport 与 Runtime surface/observability 迭代。
-- 当前待发布 Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，直接使用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 改为回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态；新增 DSH barrier/Reviewer Runtime task pack、Manager DAG/event replay 测试和 companion release gate。Codex/Claude 的进一步 progressive disclosure 仍只保留设计，不在本次已实施 Scope 内。
-- 当前 breaking boundary：DSH 不再支持或保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 的旧 Team snapshot/model 也被删除。现行 DSH transport 以 continuable child + settlement-driven barrier 为唯一主路径，Visualizer 以 Sacha `manager_wave`/`delegation` 和 DSH direct-child observation 为唯一主模型。
-- 当前成熟度：源码、Adapter、bundle、Visualizer 数据模型、静态 validator、release mapping 与 Runtime scenario oracle 已落库；真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth 行为、并发 settlement barrier、Reviewer isolation、Visualizer Host/Client `pnpm verify` 和浏览器投影仍需目标 Runtime 直接证据。Draft PR 在这些证据完成前不应视为 release-ready。
+- 当前 release：`0.12.10`。
+- 当前待发布源码版本：未开始。
+- 当前 release Scope：DSH Adapter 删除 experimental Agent Teams task/roster 传输，改用 Root-owned continuable subagent；新增 `sacha-subagents` bundle 组合 `sacha_research` / `sacha_worker` / `sacha_review`；Visualizer 0.2 回放 Sacha Manager DAG、work-unit↔durable-child delegation 与 Root direct-child 状态，并新增 DSH barrier/Reviewer Runtime 场景和 companion release gate。入口元数据只在真实候选或 Human 显式使用时加载 `using-sacha`，`Direct` 与 `Direct Scope` 由术语合同统一拥有。
+- 当前 breaking boundary：DSH 不再保留 Agent Teams fallback、Team task DAG、`spawn_teammate`/`team_task_*`/`wait_agent` 映射；Visualizer 删除旧 Team snapshot/model，并以 continuable child、settlement-driven barrier、Sacha `manager_wave`/`delegation` 与 DSH direct-child observation 为唯一主模型。入口与术语修复不改变既有 Human 接受、Gate、Role、授权或验收。
+- 当前成熟度：`0.12.10` 采用快速发版证据边界；DSH bundle validator、32 项相关 Python 测试、Visualizer validator、7 个测试文件/16 项测试、Host/Client/preview 构建和 using-sacha Skill validator 通过。真实 DSH fresh discovery、三个 surface 的 toolFilter/maxDepth、并发 settlement barrier、Reviewer isolation、浏览器投影，以及安装后清晰任务/入口候选的隐式匹配未验证。
 
 ## `1.0.0` 与后续方向
 

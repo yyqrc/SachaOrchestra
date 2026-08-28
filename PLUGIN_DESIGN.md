@@ -43,7 +43,7 @@ flowchart TD
     DIRECT --> CLOSE["结束 / 合法根终态"]
 
     INTAKE -->|"显式 using-sacha / 明确 Sacha 请求：已接受"| PLANNER_GATE{"Planner Gate？"}
-    INTAKE -->|"D0 / Planner 入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
+    INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
     INTAKE_HUMAN -->|"接受"| PLANNER_GATE
     INTAKE_HUMAN -->|"拒绝"| DIRECT
     PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]

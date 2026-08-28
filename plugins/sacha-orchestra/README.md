@@ -6,7 +6,7 @@
 
 ## 默认入口
 
-Codex 直接调用 `$sacha-orchestra:using-sacha`；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。也可在任务初次接收及语义转折点重评估。目标、Scope、授权与验收清晰时保持当前 task Direct；只有执行方式会因探索未知事实、持久化批准 Spec、跨 context owner/恢复、正式协调或独立复核而改变时才建议进入 Sacha，同一入口候选只询问一次。
+Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、持久化实施规格、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha，同一入口候选只询问一次。
 
 ## 显式入口
 
