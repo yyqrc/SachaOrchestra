@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -22,7 +23,7 @@ SETUP_SCRIPT = (
     / "scripts"
     / "generate_project_integration.py"
 )
-RESOLVER_SCRIPT = SETUP_SCRIPT.with_name("resolve_capability_queries.py")
+RESOLVER_SCRIPT = SETUP_SCRIPT.with_name("resolve_provider_queries.py")
 DOCUMENT_SCRIPT = (
     ROOT
     / "plugins"
@@ -32,7 +33,7 @@ DOCUMENT_SCRIPT = (
     / "scripts"
     / "generate_project_document.py"
 )
-TEMP_ROOT = ROOT / ".temp"
+TEMP_ROOT = ROOT / ".temp" / f"project-tests-{os.getpid()}"
 
 
 def fill_bundled_template(template: str, replacements: dict[str, str]) -> str:
@@ -67,7 +68,7 @@ def load_module(name: str, path: Path):
 
 
 generator = load_module("sacha_project_setup", SETUP_SCRIPT)
-resolver = load_module("sacha_capability_resolver", RESOLVER_SCRIPT)
+resolver = load_module("sacha_provider_resolver", RESOLVER_SCRIPT)
 document_generator = load_module("sacha_project_documentation", DOCUMENT_SCRIPT)
 
 
@@ -77,7 +78,7 @@ def digest(path: Path) -> str:
 
 class ProjectTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        TEMP_ROOT.mkdir(exist_ok=True)
+        TEMP_ROOT.mkdir(parents=True, exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(prefix="setup-minimal-", dir=TEMP_ROOT)
         self.root = Path(self.temp.name)
 
@@ -146,14 +147,18 @@ class ProjectTestCase(unittest.TestCase):
         units: list[dict[str, object]],
         *,
         skill_sha256: str | None = None,
+        load_policy: str | None = None,
     ) -> str:
+        value = {
+            "skill": skill.parent.name,
+            "skill_path": skill.relative_to(project).as_posix(),
+            "skill_sha256": skill_sha256 or digest(skill),
+            "units": units,
+        }
+        if load_policy is not None:
+            value["load_policy"] = load_policy
         return json.dumps(
-            {
-                "skill": skill.parent.name,
-                "skill_path": skill.relative_to(project).as_posix(),
-                "skill_sha256": skill_sha256 or digest(skill),
-                "units": units,
-            },
+            value,
             ensure_ascii=False,
         )
 

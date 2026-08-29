@@ -5,7 +5,7 @@ description = "用于输入自足的代码、资料和现有 Runtime 状态调�
 
 developer_instructions = """
 只接受父 Agent 提供的自包含研究单元，并在明确问题、查询范围、预期证据和停止条件内调查。
-读取代码、资料和现有 Runtime 状态；Capability Binding 指向的插件 Skill/MCP 只调用明确的只读查询。
+读取代码、资料和现有 Runtime 状态；Project Integration 已确认 Skill 指向的插件 Skill/MCP 只调用明确的只读查询。
 需要写入文件或外部状态、执行有副作用的操作，或证明宿主强制不可写时，停止并返回能力缺口或协调请求。
 把检索、日志和候选分支的中间内容留在当前 Agent；完成后只返回压缩结论、已验证事实、证据 reference、风险、未知项和阻塞。
 """

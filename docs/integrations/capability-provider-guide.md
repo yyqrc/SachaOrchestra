@@ -7,32 +7,31 @@
 
 | 变化 | 最小读取范围 |
 | --- | --- |
-| Provider catalog、canonical Skill 或 schema | “责任边界”→“Schema v2”→“Provider 迭代” |
-| Setup、Binding 或项目规则注入 | “责任边界”→“Setup 消费”→“Project Integration 同层配置” |
-| Role 如何消费 capability | “责任边界”→“Role 消费” |
+| Provider catalog、canonical Skill 或 schema | “责任边界”→“Schema v3”→“Provider 迭代” |
+| Setup、Skill loading 或项目规则注入 | “责任边界”→“Setup 消费”→“Project Integration 同层配置” |
+| Role 如何消费 Provider Skill | “责任边界”→“Role 消费” |
 | 经验候选或项目文档集成 | “责任边界”→“经验候选与项目存档”→“Provider 迭代” |
 
 ## 责任边界
 
-- Provider catalog：稳定 capability id、canonical Skill、副作用上界。
+- Provider catalog：对外公开且可独立调用的 canonical Skill、副作用上界。
 - Canonical `SKILL.md`：触发、前置、具体副作用、步骤、输出与领域证据。
 - Project-local `SKILL.md`：无 provider catalog 时，正文拥有可拆分 goal 与是否可独立调用的证据。
-- Setup/Binding：候选解析、项目 Skill 正文评估、Human 确认的 load policy、对账与写入。
+- Setup/Skill loading：候选解析、项目 Skill 正文评估、Human 为每个 Skill 确认一次 load policy、对账与写入。
 - Sacha：Intake、Gate、Scope、授权、Role 路由与 verdict。
 
-Catalog、Binding 或 Skill 可见性均不证明安装或运行正确，也不授予写入、运行时操作或外部动作。
+Catalog、Skill loading 或 Skill 可见性均不证明安装或运行正确，也不授予写入、运行时操作或外部动作。
 
-## Schema v2
+## Schema v3
 
 Provider 可在 plugin 根提供 `capabilities.json`：
 
 ```json
 {
-  "schema_version": "2",
+  "schema_version": "3",
   "provider": "cgame-unity",
   "capabilities": [
     {
-      "id": "project.inspect",
       "skill": "cgame-unity:project-inspect",
       "side_effect": "read_only"
     }
@@ -43,26 +42,27 @@ Provider 可在 plugin 根提供 `capabilities.json`：
 机器约束：
 
 - 根字段必须且只能是 `schema_version`、`provider`、`capabilities`。
-- `schema_version` 必须为字符串 `"2"`；`provider` 必须等于 Runtime 暴露的 canonical plugin name。
-- 每项字段必须且只能是 `id`、`skill`、`side_effect`。
-- `id` 使用小写字母、数字、`.`、`-`，且在 provider 内唯一。
-- `skill` 必须属于该 provider，并在当前 Runtime context 可见。
+- `schema_version` 必须为字符串 `"3"`；`provider` 必须等于 Runtime 暴露的 canonical plugin name。
+- 每项字段必须且只能是 `skill`、`side_effect`。
+- `skill` 必须属于该 provider、在 catalog 内唯一，并在当前 Runtime context 可见。
 - `side_effect` 只能是 `read_only` 或 `project_generated_state`，表示副作用上界，不是授权或 load policy。
 
-Catalog 不保存 summary、触发、前置、具体影响或输出；这些事实只有 canonical `SKILL.md` 拥有。Catalog 也不保存 load policy：Setup 必须展示候选，Human 按 [Workflow Contract](../../plugins/sacha-orchestra/core/workflow-contract.md) 选择 `on-demand`、`after-write-authorization`、`review-only` 或 `risk-matched` 后，才能形成可写入 Binding 的 mapping。
+Catalog 不保存 summary、触发、前置、具体影响或输出；这些事实只有 canonical `SKILL.md` 拥有。Runtime Skill catalog 的原始 `description` 用于候选选择，Setup 可在 dry-run/确认中原样展示，但 Project Integration 不保存摘要副本。Catalog 也不保存 load policy：Human 按 [Workflow Contract](../../plugins/sacha-orchestra/core/workflow-contract.md) 为每个 Skill 选择 `on-demand`、`change-authorized`、`review-only` 或 `risk-matched` 后，才能写入 Skill loading。
+
+现有 Schema v2 catalog 只作为真实已发布 Provider 的迁移输入继续接受：Resolver 校验其 `id` 后丢弃该字段，并要求 canonical Skill 唯一；新建或修改 Provider catalog 使用 Schema v3。Project Integration 不持久化 v2 `id`。
 
 ## Setup 消费
 
-1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 catalog path 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、ID、canonical/当前可见 Skill 与 side-effect 上界；没有稳定 catalog path 时使用 metadata 候选，已读取的 catalog 无效时拒绝本轮 Provider 解析并报告错误，不静默降级。
+1. Plugin provider：Setup 只从当前 Runtime 已暴露的 plugin/Skill metadata 建立候选；仅在已有稳定 catalog path 时定点读取同 plugin 的 catalog。Resolver 校验 schema、provider identity、canonical/当前可见 Skill、唯一性与 side-effect 上界；没有稳定 catalog path 时使用 metadata 候选，已读取的 catalog 无效时拒绝本轮 Provider 解析并报告错误，不静默降级。
 2. Project-local Skill：Setup 只扫描目标项目内已确认的 authority/independent root，完整读取每个 `SKILL.md` 正文；mirror 复用 authority，ignore 不消费。仅在正文声明为调用必需时读取项目内直接 path。
-3. 项目 Skill 的 id、目录名、frontmatter name/description 和关键词只用于定位，不得推导 capability。Setup 从正文拆分零到多个 goal unit，记录 goal、类型、副作用、静态入口、运行时前置、reason、覆盖步骤/输出的正文行与 Skill SHA-256，并判定 `schedulable`、`support_only` 或 `unavailable`。
-4. 只有正文定义可独立交付的有界目标、Skill 在当前 Runtime 可见且必需静态入口存在的 unit 才可进入候选；capability id 在该判定后分配。support/helper/reference/maintenance-only 或不可用 unit 不生成 mapping。
-5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从 prose、name 或 id 自行推断语义。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
-6. Human 集中确认 project root、reconciliation、每项 load policy、planned diff 与 hash 后，生成器才可写入。
-7. Binding 只保存 `capability id → canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、路径、query、前置或输出，rerun 重新读取。
-8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，Setup 注入不依赖 Capability Binding 或 load policy；若同一 Skill 还支持 Human 直接查询工程纪律，可作为公开 capability 进入 catalog 和 Binding。
+3. 项目 Skill 的目录名和 frontmatter `name` 只用于定位，canonical `description` 只用于候选选择；它们不得替代正文证明可独立调用。Setup 从正文拆分零到多个 goal unit，记录 goal、类型、副作用、静态入口、运行时前置、reason、覆盖步骤/输出的正文行与 Skill SHA-256，并判定 `schedulable`、`support_only` 或 `unavailable`。
+4. 只有正文定义至少一个可独立交付的有界目标、Skill 在当前 Runtime 可见且必需静态入口存在时，整个 Skill 才可进入 Skill loading。一个 Skill 的多个 unit 共享一项加载策略；具体动作仍由 Skill 正文、当前 Scope、授权、前置和风险决定。
+5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从名称或描述自行推断可调度性。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
+6. Human 集中确认 project root、每个 Skill 的原始 `description` 与 load policy、reconciliation、planned diff 与 hash 后，生成器才可写入。
+7. Skill loading 只保存 `canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、摘要、路径、query、unit、前置或输出，rerun 重新读取。
+8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，Setup 注入不依赖 Skill loading；若同一 Skill 还支持 Human 直接查询工程纪律，可作为公开 Skill 进入 catalog 和 Skill loading。
 
-Provider 不可见时保留既有 mapping 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换 mapping。
+Provider 不可见时保留既有 Skill loading 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换条目。
 
 ## Project Integration 同层配置
 
@@ -70,34 +70,34 @@ Setup 分别确认五类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
-| Capability bindings | Provider catalog 或项目 Skill 正文评估、Setup/Human | capability id、canonical Skill、load policy | Spec/文档路径、写入授权 |
+| Skill loading | Provider catalog 或项目 Skill 正文评估、Setup/Human | canonical Skill、load policy | Skill 摘要、unit、Spec/文档路径、写入或运行授权 |
 | Spec storage root | Setup/Human、Planner/Explore 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
 | Roadmap storage root | Setup/Human、Roadmap/document-project 消费 | 明确提供并原样保存的 Roadmap root、portability、`<YYYY-MM-DD>-<short-slug>-roadmap.md` 文件模式 | Spec 分组决定、Roadmap 正文或实施授权 |
 | Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization；可选 template catalog path kind/path | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path，也不冻结 catalog manifest 或模板 hash |
 | Pi one-shot 兼容路由 | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | 当前 Adapter 执行、plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开 capability 候选；不得选择 Spec base、Roadmap root、Project Documentation policy/root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider 能力消费链。五类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开公开 Skill 候选；不得选择 Spec base、Roadmap root、Project Documentation policy/root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider Skill 消费链。五类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
 首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Roadmap 另收独立 Roadmap root 并原样保存，例如 `G:\COD\iwiki\docs\roadmap`；Project Documentation 同样另收独立 root。三项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`，Roadmap path 为 Roadmap root 下的 `<YYYY-MM-DD>-<short-slug>-roadmap.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
 
 ## Role 消费
 
-Human 接受 Sacha 且任务需要项目能力时，Role：
+Human 接受 Sacha 且任务需要项目 Skill 时，Role：
 
-1. 从已确认 Binding 读取 capability、Skill 与 load policy。
-2. 按 policy 判断是否加载；mapping 本身不授权。
-3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据。
+1. 用当前 Runtime Skill catalog 的 canonical `name`、`description` 与 `path` 找到唯一匹配，并从 Project Integration 读取该 Skill 的 load policy。
+2. 按 policy 判断是否加载；条目本身不授权。`on-demand` 可在设计和规划阶段加载只读约束，`change-authorized` 只用于已经授权修改后才需要的实施 Skill。
+3. 确认 Skill 当前可见并完整读取 canonical `SKILL.md`，据此核对前置、具体副作用、输出和领域证据；描述缺失或候选不唯一时不得根据名称猜测。
 4. Provider 返回领域结果与 evidence reference；最终路由和 verdict 仍由 Sacha 合同决定。
 
 Planner/Explore 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 reference、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/path、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
 
 Provider 不拥有 Planner/Explore 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 使用 Project Context path，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
 
-无 Binding、无 mapping、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
+无 Skill loading 条目、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
 
 ## 经验候选与项目存档
 
-Provider 可声明 `experience.extract` 一类 `read_only` capability，把真实任务证据分类为项目事实和高价值领域/参考知识候选。候选应来自现有按需 Reference 未覆盖、需要额外多文件、源码、产物或 Runtime 调查才能复核的具体机制；一次窄搜索即可取得的路径、owner、API 声明、通用规则、未实施方案或未复核文档不进入候选。该能力：
+Provider 可把 `experience.extract` 一类只读 Skill 公开到 catalog，用于将真实任务证据分类为项目事实和高价值领域/参考知识候选。候选应来自现有按需 Reference 未覆盖、需要额外多文件、源码、产物或 Runtime 调查才能复核的具体机制；一次窄搜索即可取得的路径、owner、API 声明、通用规则、未实施方案或未复核文档不进入候选。该 Skill：
 
 - 不直接修改项目文档、provider 源码或 catalog；
 - 不决定文档 policy、root、授权、类型或最终正文；
@@ -109,8 +109,8 @@ Provider 可声明 `experience.extract` 一类 `read_only` capability，把真�
 
 迁移保持无隐式写入：旧 Project Integration 没有 template catalog 时行为确定为 bundled fallback；已有 catalog 按 path kind/path 由 Setup 刷新保留，旧的 manifest/profile/hash 快照在下一次确认写入时收敛为 path-only；只有绑定目录变化才改变项目 planned delta。移除使用 `--clear-documentation-template-catalog`。不会从既有 done/archive 文件反推绑定。消费项目的名称、绝对路径和领域文风只留在其 Project Integration/catalog，不进入跨项目 Core、Skill 或默认模板。
 
-项目事实归项目文档。跨项目候选要进入 provider 时，须在正常任务交付后取得 Human 同意，再路由到 provider 维护流程，以当前证据独立复核后迭代 canonical Skill/reference；不得让只读 `experience.extract` 自动 self-modify、创建任务、写文件或发 PR。维护流程不是公开消费能力时，不因存在于 `skills/` 就加入 capability catalog。
+项目事实归项目文档。跨项目候选要进入 provider 时，须在正常任务交付后取得 Human 同意，再路由到 provider 维护流程，以当前证据独立复核后迭代 canonical Skill/reference；不得让只读 `experience.extract` 自动 self-modify、创建任务、写文件或发 PR。维护流程不是公开消费能力时，不因存在于 `skills/` 就加入 provider catalog。
 
 ## Provider 迭代
 
-Provider 修改能力时，更新 canonical Skill；仅在 capability id、Skill mapping 或副作用上界变化时同步 catalog。术语 owner/定义/冲突和领域压力输入优先补入现有 `project-inspect`、`code-discovery`、`solution-comparison`、`change-guard` 等自然语言结果；只有真实独立能力缺口与消费者成立时才新增 capability。运行 provider 自身 schema/Skill/plugin 验证后，在消费项目执行 Setup dry-run；Human 确认 policy 与 reconciliation 后再刷新 Binding。新增经验提取能力时还要用真实任务验证只读边界、候选准入、证据分类、基础输出，以及调用方需要时的 Documentation 适配；不以模板或字符串存在代替真实 Skill 输出。Provider source、Runtime discovery、Binding refresh、Documentation write 和真实任务行为分别报告，不得互相替代。
+Provider 修改能力时，更新 canonical Skill；仅在公开 Skill 集合、canonical Skill identity 或副作用上界变化时同步 catalog。同名 Skill 保持职责与副作用兼容；职责发生破坏性变化时使用新的 Skill identity，不另建 capability id 或项目摘要。术语 owner/定义/冲突和领域压力输入优先补入现有 `project-inspect`、`code-discovery`、`solution-comparison`、`change-guard` 等自然语言结果；只有真实独立能力缺口与消费者成立时才新增公开 Skill。运行 provider 自身 schema/Skill/plugin 验证后，在消费项目执行 Setup dry-run；Human 确认 policy 与 reconciliation 后再刷新 Skill loading。新增经验提取能力时还要用真实任务验证只读边界、候选准入、证据分类、基础输出，以及调用方需要时的 Documentation 适配；不以模板或字符串存在代替真实 Skill 输出。Provider source、Runtime discovery、Skill loading refresh、Documentation write 和真实任务行为分别报告，不得互相替代。

@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.13.0`。
+- 当前 release：`0.14.0`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：首发独立 `@sacha-orchestra/dsh-companion@0.1.0`，合并 DSH continuable child surface 与 Visualizer，并在目标 Profile 为 Root 提供 `inspect | execute | review` 最小工具面、`sacha_tools` 有界查询/按需解锁、原生 Session 恢复和 Human 状态投影；同时自然化开发与安装后文本，不改变 Sacha Core、Role、Gate、授权或 Outcome。
-- 当前 breaking boundary：旧 `integrations/dsh/sacha-visualizer` 与 `sacha-subagents` 被单一 `sacha-companion` 取代；DSH Root 不再默认暴露完整工具目录，隐藏能力必须经下一 `request/header` 生效的精确解锁。continuable child 不继承 Root `sacha_tools`。未迁移的 Desktop Profile 旧本地链接会失效，迁移需要单独授权。
-- 当前成熟度：`0.13.0` 普通发版候选 tree `eccead82e606601147bdec9e02ad317fcbeeac17` 的 metadata coherence、release/companion 测试、clean 35-file companion package 和插件结构校验通过；Windows DSH Web Profile 的真实 inspect/execute/review header、同 response guard、cold resume、Client capability binding、按需 `write` 展开与 continuable child 隔离均有直接证据，独立 Review 为 `Accepted with follow-up`。Agent Plugin 安装/cache parity、Desktop 迁移、Linux、Code Mode、family late-registration 完整 DSH 场景与非 reduced-motion 最终动画未验证。
+- 当前 release Scope：Project Integration 从 capability id mapping 收敛为 canonical Skill identity + load policy；Schema 4 只持久化 Skill 与策略，Setup 决策使用 canonical `description` 但不复制摘要；只读 `change-guard` 可在设计与规划阶段按需加载，实际修改 Skill 使用 `change-authorized`。
+- 当前 breaking boundary：Project Integration 升为 Schema 4，移除持久化 capability id，并把 `after-write-authorization` 替换为 `change-authorized`；现有 Schema 3 可由新版 Setup 读取，但必须显式刷新后才成为现行 Skill loading。Setup CLI 使用 `--skill-loading`、`--reconcile-skill-loading` 和 `--unavailable-skill`。
+- 当前成熟度：`0.14.0` 普通发版候选 tree `d1fcb6a6b54b199f60845ff1be26302514f8e890` 的 candidate coherence、并行 `release.py prepare`、全量单元测试 `117/0`、Setup Skill 与插件结构校验通过，独立插件 Review 为 `Accepted with follow-up`。Client、LookDevProject、UnitySource、cpTools 的生产 Setup dry-run 均为 `ready` 且只计划更新 `workflow-rule.md`；Codex v2 source-scenario 已直接证明 description/path 选择、`on-demand`、只读 Skill child 和 Unity/C# 约束结果，完整场景因 v1 缺失、DeepSeek encrypted v2 投递、首次 message rollout 加密、安装后 fresh discovery 与部分工具面不可达而保持 `blocked`，未发现语义 drift。Agent Plugin 安装/cache parity、发布后 fresh discovery、其他 Runtime 与 Human 验收未验证。
 
 ## `1.0.0` 与后续方向
 

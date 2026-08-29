@@ -338,17 +338,16 @@ Inspect project state and return a bounded report.
             project,
             skill,
             [{
-                "id": "project.check",
                 "goal": "Inspect current project state.",
                 "kind": "inspect",
                 "admission": "schedulable",
                 "side_effect": "read_only",
-                "load_policy": "on-demand",
                 "evidence": ["8"],
                 "required_paths": [],
                 "runtime_prerequisites": [],
                 "reason": "The body defines a bounded inspection and report.",
             }],
+            load_policy="on-demand",
         )
         process = subprocess.run(
             (
@@ -372,7 +371,7 @@ Inspect project state and return a bounded report.
                 "local-check",
                 "--project-skill-evidence",
                 evidence,
-                "--reconcile-capabilities",
+                "--reconcile-skill-loading",
             ),
             capture_output=True,
             text=True,
@@ -384,8 +383,8 @@ Inspect project state and return a bounded report.
         result = json.loads(process.stdout)
         self.assertEqual(("ready", "dry_run"), (result["status"], result["transaction"]))
         self.assertEqual(
-            ["project.check"],
-            [item["id"] for item in result["project_capability_candidates"]],
+            ["Inspect current project state."],
+            [item["goal"] for item in result["project_skill_candidates"]],
         )
         self.assertFalse((project / "docs" / "workflow-rule.md").exists())
 

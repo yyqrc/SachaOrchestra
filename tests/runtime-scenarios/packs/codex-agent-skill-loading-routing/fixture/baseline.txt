@@ -1,0 +1,1 @@
+目标是修正 Unity `LineExporter` 的导出结果。方案必须保持 `MonoBehaviour`、类型名和 `[SerializeField] input` 的序列化身份；导出结果保持输入行顺序、忽略空行，并在末尾恰好保留一个 `\n`。本场景只形成实施前约束并判断当前实现，不修改源码。

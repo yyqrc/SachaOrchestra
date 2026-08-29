@@ -1,0 +1,1 @@
+输入依次为 alpha、空行、beta、gamma。当前 `Export()` 的实际结果尾部为两个 `LF`；没有 Unity 序列化迁移或字段改名授权。

@@ -12,7 +12,7 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 ## 输入与首查
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 确认 Planner Gate；两者皆无时不接管。
-2. 先读项目规则和真实状态。已确认的 Binding 可用时按 [Workflow Contract](../../core/workflow-contract.md) 的能力加载策略决定是否加载对应 Skill；加载后完整读取正文并另行核对前置、副作用、Role 边界和授权。策略不允许或缺少 Binding、映射、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项，不调用 Setup。
+2. 先读项目规则和真实状态。Project Integration 有目标 Skill 的已确认加载条目时，按 [Workflow Contract](../../core/workflow-contract.md) 的技能加载策略决定是否加载；设计和规划需要的只读约束可按 `on-demand` 在写入授权前使用。加载后完整读取正文并另行核对前置、副作用、Role 边界和授权。策略不允许或缺少条目、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项，不调用 Setup。
 3. 读取已落盘决定和相关项目 `CONTEXT.md`，按 Workflow Contract 完成冻结前检查。目标结果、Scope/Non-goals、验收或会改变方案的 Human 决定存在未收口项时，必须完整读取并调用 `$sacha-orchestra:explore`；Explore 返回且冻结条件满足后，才继续读取 Artifact Protocol、确定 Spec path 或起草 Spec。代码、项目规则或 Skill 可确认的事实先自行调查。
 4. Explore 返回后核对原问题、已确认决定、阻塞项、未验证项和关键术语；仍不足以冻结 Spec 时继续 Explore。一个有界研究委派 Agent 足够时，由主任务按 Coordination Contract 直接派发，不打开 Manager；Planner 委派 Agent 只返回研究结果或协调请求。
 

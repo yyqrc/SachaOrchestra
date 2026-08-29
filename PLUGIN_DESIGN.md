@@ -193,7 +193,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
 | 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
 | 显式支持/内部收尾 | document-project | 复用项目或内置模板生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，安全新建/更新发布文档和 Roadmap，并可维护 Context | 显式发布文档目标 → path 即本次授权；其他请求 → Project Integration 的 root/策略/授权；随后按文档类型生成或验证正文 → 原子写入 → 验证/报告 | 显式发布文档目标以 preimage 防并发；Roadmap/Context 不绕过 Project Integration；不生成 Roadmap 路线语义，不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
-| 工具/配置 | setup-project | 生成或刷新 Project Integration、Capability Binding、Spec/Roadmap/项目文档存储与可选兼容配置 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
+| 工具/配置 | setup-project | 生成或刷新 Project Integration、Skill loading、Spec/Roadmap/项目文档存储与可选兼容配置 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
 
 支持/控制 Skill 的迭代可修改已声明功能内的局部做法。新增功能、入口、外部副作用或跨节点接管，先改本文；不能以“只是补一步”绕过顶层设计。

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve loose provider/Skill queries against an explicit context catalog."""
+"""Resolve provider/Skill queries and propose Skill-level loading entries."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any
 
 
-CAPABILITY_LOAD_POLICIES = {"on-demand", "after-write-authorization", "review-only", "risk-matched"}
-PROVIDER_CATALOG_SCHEMA_VERSION = "2"
+SKILL_LOAD_POLICIES = {"on-demand", "change-authorized", "review-only", "risk-matched"}
+PROVIDER_CATALOG_SCHEMA_VERSIONS = {"2", "3"}
 PROVIDER_SIDE_EFFECTS = {"read_only", "project_generated_state"}
 CAPABILITY_ID_PATTERN = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
 PLUGIN_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -87,7 +87,7 @@ def validate_provider_catalog(
     expected_provider: str,
     visible_skills: tuple[str, ...],
 ) -> tuple[dict[str, str], ...]:
-    """Validate and normalize a provider-owned Schema v2 capability catalog."""
+    """Validate a provider catalog and normalize it to Skill-level entries."""
     if PLUGIN_NAME_PATTERN.fullmatch(expected_provider) is None:
         raise CatalogError("context provider must be a canonical lowercase plugin identity")
     if not isinstance(value, dict):
@@ -97,9 +97,10 @@ def validate_provider_catalog(
         raise CatalogError(
             f"provider catalog fields must be exactly {sorted(expected_root_keys)}"
         )
-    if value.get("schema_version") != PROVIDER_CATALOG_SCHEMA_VERSION:
+    schema_version = value.get("schema_version")
+    if schema_version not in PROVIDER_CATALOG_SCHEMA_VERSIONS:
         raise CatalogError(
-            f"provider catalog schema_version must be {PROVIDER_CATALOG_SCHEMA_VERSION!r}"
+            "provider catalog schema_version must be '2' or '3'"
         )
     if value.get("provider") != expected_provider:
         raise CatalogError("provider catalog identity must match the context provider")
@@ -113,7 +114,12 @@ def validate_provider_catalog(
         raise CatalogError("provider catalog capabilities must be an array")
     parsed: list[dict[str, str]] = []
     seen_ids: set[str] = set()
-    expected_capability_keys = {"id", "skill", "side_effect"}
+    seen_skills: set[str] = set()
+    expected_capability_keys = (
+        {"id", "skill", "side_effect"}
+        if schema_version == "2"
+        else {"skill", "side_effect"}
+    )
     for index, item in enumerate(capabilities):
         label = f"provider catalog capabilities[{index}]"
         if not isinstance(item, dict):
@@ -122,29 +128,32 @@ def validate_provider_catalog(
             raise CatalogError(
                 f"{label} fields must be exactly {sorted(expected_capability_keys)}"
             )
-        capability_id = item.get("id")
-        if (
-            not isinstance(capability_id, str)
-            or CAPABILITY_ID_PATTERN.fullmatch(capability_id) is None
-        ):
-            raise CatalogError(
-                f"{label}.id must use canonical lowercase letters, digits, dots or hyphens"
-            )
-        if capability_id in seen_ids:
-            raise CatalogError(f"duplicate provider capability id: {capability_id}")
-        seen_ids.add(capability_id)
+        if schema_version == "2":
+            capability_id = item.get("id")
+            if (
+                not isinstance(capability_id, str)
+                or CAPABILITY_ID_PATTERN.fullmatch(capability_id) is None
+            ):
+                raise CatalogError(
+                    f"{label}.id must use canonical lowercase letters, digits, dots or hyphens"
+                )
+            if capability_id in seen_ids:
+                raise CatalogError(f"duplicate provider capability id: {capability_id}")
+            seen_ids.add(capability_id)
         skill = _canonical_skill(item.get("skill"), f"{label}.skill")
         if not skill.startswith(f"{expected_provider}:"):
             raise CatalogError(f"{label}.skill must belong to the context provider")
         if skill not in visible:
             raise CatalogError(f"{label}.skill is not visible in the current context: {skill}")
+        if skill in seen_skills:
+            raise CatalogError(f"duplicate provider Skill: {skill}")
+        seen_skills.add(skill)
         side_effect = item.get("side_effect")
         if side_effect not in PROVIDER_SIDE_EFFECTS:
             raise CatalogError(
                 f"{label}.side_effect must be one of {sorted(PROVIDER_SIDE_EFFECTS)}"
             )
         parsed.append({
-            "id": capability_id,
             "skill": skill,
             "side_effect": side_effect,
         })
@@ -160,16 +169,18 @@ def _capabilities(value: Any, label: str) -> tuple[dict[str, str], ...]:
     for index, item in enumerate(value):
         if not isinstance(item, dict):
             raise CatalogError(f"{label}[{index}] must be an object")
-        capability_id = item.get("id")
         skill = item.get("skill")
-        if not isinstance(capability_id, str) or not capability_id.strip():
-            raise CatalogError(f"{label}[{index}].id must be a non-empty string")
         if not isinstance(skill, str) or not skill.strip():
             raise CatalogError(f"{label}[{index}].skill must be a non-empty string")
-        parsed.append({
-            "id": capability_id.strip(),
-            "skill": skill.strip(),
-        })
+        entry = {"skill": skill.strip()}
+        side_effect = item.get("side_effect")
+        if side_effect is not None:
+            if side_effect not in PROVIDER_SIDE_EFFECTS:
+                raise CatalogError(
+                    f"{label}[{index}].side_effect must be one of {sorted(PROVIDER_SIDE_EFFECTS)}"
+                )
+            entry["side_effect"] = side_effect
+        parsed.append(entry)
     return tuple(parsed)
 
 
@@ -266,6 +277,11 @@ def resolve_queries(
     proposed: dict[str, dict[str, str]] = {}
     policy_required: dict[str, dict[str, str]] = {}
     warnings: list[str] = []
+    descriptions = {
+        str(candidate["canonical"]): str(candidate.get("description", ""))
+        for candidate in candidates
+        if candidate["kind"] == "skill"
+    }
     for raw_query in queries:
         query = raw_query.strip()
         if not query:
@@ -292,60 +308,52 @@ def resolve_queries(
             if selected_item["kind"] == "provider" and not selected_item["capabilities"]:
                 warnings.append(f"provider_capabilities_missing:{selected_item['canonical']}")
             for capability in selected_item["capabilities"]:
-                load_policy = (load_policies or {}).get(capability["id"])
-                existing = proposed.get(capability["id"])
-                proposed_value = {
-                    "skill": capability["skill"],
-                }
-                if existing is not None and existing != proposed_value:
-                    warnings.append(
-                        f"capability_conflict:{capability['id']}:{existing['skill']}:{capability['skill']}"
+                skill = capability["skill"]
+                load_policy = (load_policies or {}).get(skill)
+                proposed[skill] = {"skill": skill}
+                if load_policy is None:
+                    policy_required[skill] = {
+                        "skill": skill,
+                        **(
+                            {"description": descriptions[skill]}
+                            if descriptions.get(skill)
+                            else {}
+                        ),
+                        **(
+                            {"side_effect": capability["side_effect"]}
+                            if "side_effect" in capability
+                            else {}
+                        ),
+                    }
+                elif load_policy not in SKILL_LOAD_POLICIES:
+                    raise CatalogError(
+                        f"load policy for {skill} must be one of "
+                        f"{sorted(SKILL_LOAD_POLICIES)}"
                     )
-                else:
-                    proposed[capability["id"]] = proposed_value
-                    if load_policy is None:
-                        policy_required[capability["id"]] = {
-                            "skill": capability["skill"],
-                            **(
-                                {"side_effect": capability["side_effect"]}
-                                if "side_effect" in capability
-                                else {}
-                            ),
-                        }
-                    else:
-                        if load_policy not in CAPABILITY_LOAD_POLICIES:
-                            raise CatalogError(
-                                f"load policy for {capability['id']} must be one of "
-                                f"{sorted(CAPABILITY_LOAD_POLICIES)}"
-                            )
         results.append({"query": query, "resolution": resolution, "candidates": ranked})
-    unknown_policy_ids = sorted(set(load_policies or {}) - set(proposed))
-    if unknown_policy_ids:
+    unknown_policy_skills = sorted(set(load_policies or {}) - set(proposed))
+    if unknown_policy_skills:
         raise CatalogError(
-            f"load policy has no selected capability: {', '.join(unknown_policy_ids)}"
+            f"load policy has no selected Skill: {', '.join(unknown_policy_skills)}"
         )
     status = "resolved" if all(item["resolution"] == "resolved" for item in results) and not any(
-        warning.startswith("capability_conflict:") for warning in warnings
+        warning.startswith("provider_conflict:") for warning in warnings
     ) and not policy_required else "needs_decision"
     return {
         "status": status,
         "queries": results,
         "selected": selected,
-        "proposed_capability_bindings": [
+        "proposed_skill_loadings": [
             {
-                "id": capability_id,
-                "skill": proposed[capability_id]["skill"],
-                "load_policy": (load_policies or {})[capability_id],
+                "skill": skill,
+                "load_policy": (load_policies or {})[skill],
             }
-            for capability_id in sorted(proposed)
-            if capability_id in (load_policies or {})
+            for skill in sorted(proposed)
+            if skill in (load_policies or {})
         ],
-        "policy_decisions_required": [
-            {
-                "id": capability_id,
-                **policy_required[capability_id],
-            }
-            for capability_id in sorted(policy_required)
+        "skill_policy_decisions_required": [
+            policy_required[skill]
+            for skill in sorted(policy_required)
         ],
         "warnings": sorted(set(warnings)),
     }
@@ -356,16 +364,16 @@ def _load_policy_args(values: list[str]) -> dict[str, str]:
     for value in values:
         parts = value.split("::")
         if len(parts) != 2 or not all(part.strip() for part in parts):
-            raise CatalogError("load policy must be <capability-id>::<policy>")
-        capability_id, policy = (part.strip() for part in parts)
-        if capability_id in parsed:
-            raise CatalogError(f"duplicate load policy: {capability_id}")
-        parsed[capability_id] = policy
+            raise CatalogError("load policy must be <canonical-skill>::<policy>")
+        skill, policy = (part.strip() for part in parts)
+        if skill in parsed:
+            raise CatalogError(f"duplicate load policy: {skill}")
+        parsed[skill] = policy
     return parsed
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Resolve loose setup-project provider and Skill queries.")
+    parser = argparse.ArgumentParser(description="Resolve setup-project provider and Skill queries.")
     parser.add_argument("--catalog", required=True, type=Path)
     parser.add_argument("--query", action="append", default=[])
     parser.add_argument("--load-policy", action="append", default=[])

@@ -235,7 +235,7 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         ), "tests.test_document_project"),
         (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
-        (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
+        (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_provider_queries.py", "tests/test_skill_loading.py"), "tests.test_skill_loading"),
         (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
         ((DSH_COMPANION_VALIDATOR,), "tests.test_release"),
         ((DSH_COMPANION_ROOT, "tests/test_dsh_companion.py", *DSH_RETIRED_TEST_PATHS), "tests.test_dsh_companion"),

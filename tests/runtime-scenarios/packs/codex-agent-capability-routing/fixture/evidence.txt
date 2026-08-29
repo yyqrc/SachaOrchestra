@@ -1,2 +1,0 @@
-输入依次为 alpha、空行、beta、gamma。实际输出 SHA-256 与 candidate.txt 一致。
-

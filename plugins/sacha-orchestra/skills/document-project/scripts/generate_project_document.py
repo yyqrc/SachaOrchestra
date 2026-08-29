@@ -15,7 +15,7 @@ from typing import Any
 
 
 INTEGRATION_GENERATOR = "<!-- Generator: sacha-orchestra:setup-project -->"
-INTEGRATION_SCHEMA = "<!-- Schema Version: 3 -->"
+INTEGRATION_SCHEMA_VERSIONS = {3, 4}
 INPUT_SCHEMA_VERSION = "1"
 DOCUMENT_TYPES = {"change-archive", "system-guide", "project-context", "roadmap"}
 TRIGGERS = {"human-request", "goal-closeout"}
@@ -237,8 +237,15 @@ def parse_project_integration(data: bytes) -> dict[str, Any]:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise DocumentError("Project Integration must be UTF-8") from exc
-    if INTEGRATION_GENERATOR not in text or INTEGRATION_SCHEMA not in text:
-        raise DocumentError("Project Integration is not a confirmed managed Schema v3 file")
+    schema_versions = re.findall(r"<!-- Schema Version: ([0-9]+) -->", text)
+    if (
+        INTEGRATION_GENERATOR not in text
+        or len(schema_versions) != 1
+        or int(schema_versions[0]) not in INTEGRATION_SCHEMA_VERSIONS
+    ):
+        raise DocumentError(
+            "Project Integration is not a confirmed managed Schema v3/v4 file"
+        )
     unresolved = _optional_section(text, "### Unresolved")
     if unresolved not in {None, "- 无"}:
         raise DocumentError("Project Integration has unresolved decisions")

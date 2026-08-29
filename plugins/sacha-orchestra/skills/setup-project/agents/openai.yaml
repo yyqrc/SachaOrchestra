@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Project Setup（项目接入）"
   short_description: "按正文评估项目 Skill，并安全生成 Sacha Project Integration"
-  default_prompt: "使用 $sacha-orchestra:setup-project 按正文评估项目 Skill，并安全生成当前项目的 Sacha Binding。"
+  default_prompt: "使用 $sacha-orchestra:setup-project 按正文评估项目 Skill，并安全生成当前项目的 Skill loading 与 Project Integration。"
 
 policy:
   allow_implicit_invocation: false

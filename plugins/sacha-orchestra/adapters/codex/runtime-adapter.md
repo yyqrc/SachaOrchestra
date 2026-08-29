@@ -150,18 +150,18 @@ C 只接受 A 的能力边界、B 的 `route_id` 和第 2.1 节唯一确定的�
 
 `message` 必须自包含目标、Scope、输入 reference、完成检查、停止条件与协调请求返回条件；不得复制完整父历史。
 
-工作单元消费已确认 Capability Binding 时，主任务在首次创建前按以下顺序组装；解析结果只进入本次调用，不写回 Project Integration：
+工作单元消费 Project Integration 已确认的 Skill loading 时，主任务在首次创建前按以下顺序组装；解析结果只进入本次调用，不写回 Project Integration：
 
-1. 从 Binding 取得唯一 capability id、canonical Skill 身份与 load policy；当前节点不满足 policy 时停止，不加载或派发降级 child。
+1. 取得唯一 canonical Skill 身份与 load policy；当前节点不满足 policy 时停止，不加载或派发降级 child。
 2. 只用当前 Runtime 的 Skill catalog/schema 把 canonical 身份解析为唯一可见项，并采用该项给出的绝对 `SKILL.md` path；不得扫描磁盘目录猜版本。path 不是绝对文件、不可读、身份不唯一或 Skill 不可见时停止。主任务完整读取该 Skill，并核对其插件/MCP 前置、具体副作用与当前 Role、Scope 和授权。
-3. `message` 除上述通用内容外，还必须给出 capability id、canonical 身份、绝对 path、允许的能力/副作用边界，并要求 child 在任何任务动作前完整读取该文件，不依赖自动 Skill instructions 或目录发现。Skill 所需插件/MCP 在 child 工具面不可达，或其副作用超过当前边界时，必须在 `spawn_agent` 前停止，不派发不带 Skill 的 fallback child。
+3. `message` 除上述通用内容外，还必须给出 canonical 身份、绝对 path、允许的能力/副作用边界，并要求 child 在任何任务动作前完整读取该文件，不依赖自动 Skill instructions 或目录发现。Skill 所需插件/MCP 在 child 工具面不可达，或其副作用超过当前边界时，必须在 `spawn_agent` 前停止，不派发不带 Skill 的 fallback child。
 4. 只有当前 `spawn_agent` schema 自身暴露结构化 Skill input 时，才把同一 Runtime catalog 项的 `name/path` 一并传入；App Server `turn/start` 支持 `skill` input 不能证明 child transport 支持。当前 `collaboration.spawn_agent` 未暴露该字段时，使用上述自包含 `message`，不得只传名称。
 
 #### C.2 能力 Agent
 
 | 单元用途 | `agent_type` | 边界 |
 | --- | --- | --- |
-| 只读研究 | `sacha_researcher` | 必须由 Runtime 发现；只接收无写入授权的 `research-ready` 单元，并使用 Capability Binding 指向的插件 Skill/MCP 只读查询 |
+| 只读研究 | `sacha_researcher` | 必须由 Runtime 发现；只接收无写入授权的 `research-ready` 单元，并使用当前 Skill loading 指向的插件 Skill/MCP 只读查询 |
 | 正式独立 Reviewer | `sacha_reviewer` | 必须核对真实参与历史和输入来源；可执行裁决所需、已有 Scope/授权覆盖的临时验证与插件 Skill/MCP 操作，不默认修复交付实现 |
 | 写入/验证 | `sacha_executer` | 必须由 Runtime 发现；不设置 `sandbox_mode`，沿用父任务实际 `sandbox_mode`，写入继续服从 Scope、授权和单写入者 |
 

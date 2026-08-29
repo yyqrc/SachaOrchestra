@@ -1,4 +1,4 @@
-"""Behavior tests for setup-project capability resolution."""
+"""Behavior tests for setup-project Skill loading resolution."""
 
 if __package__:
     from .project_test_support import ProjectTestCase, digest, generator, resolver
@@ -6,22 +6,24 @@ else:
     from project_test_support import ProjectTestCase, digest, generator, resolver
 
 
-class CapabilityResolutionTests(ProjectTestCase):
-    def test_capability_resolution_does_not_guess(self) -> None:
+class SkillLoadingTests(ProjectTestCase):
+    def test_skill_loading_resolution_does_not_guess(self) -> None:
         catalog = {
             "providers": [
                 {
                     "canonical": "cgame-unity",
                     "name": "cgame-unity",
                     "capabilities": [
-                        {
-                            "id": "compile.verify",
-                            "skill": "cgame-unity:compile-verify",
-                        }
+                        {"skill": "cgame-unity:compile-verify"}
                     ],
                 }
             ],
             "skills": [
+                {
+                    "canonical": "cgame-unity:compile-verify",
+                    "name": "compile-verify",
+                    "description": "Compile the current Unity project.",
+                },
                 {"canonical": "one:review", "name": "custom-review"},
                 {"canonical": "two:review", "name": "custom-review"},
             ],
@@ -35,10 +37,13 @@ class CapabilityResolutionTests(ProjectTestCase):
         )
 
         self.assertEqual("needs_decision", exact["status"])
-        self.assertEqual([], exact["proposed_capability_bindings"])
+        self.assertEqual([], exact["proposed_skill_loadings"])
         self.assertEqual(
-            [{"id": "compile.verify", "skill": "cgame-unity:compile-verify"}],
-            exact["policy_decisions_required"],
+            [{
+                "skill": "cgame-unity:compile-verify",
+                "description": "Compile the current Unity project.",
+            }],
+            exact["skill_policy_decisions_required"],
         )
         self.assertEqual([], exact["warnings"])
         self.assertEqual("needs_decision", ambiguous["status"])
@@ -47,17 +52,14 @@ class CapabilityResolutionTests(ProjectTestCase):
         self.assertEqual("needs_decision", roots["status"])
         self.assertIsNone(roots["project_root"])
 
-    def test_capability_resolution_requires_human_load_policy(self) -> None:
+    def test_skill_loading_resolution_requires_human_policy(self) -> None:
         catalog = {
             "providers": [
                 {
                     "canonical": "review-provider",
                     "name": "review-provider",
                     "capabilities": [
-                        {
-                            "id": "change.review",
-                            "skill": "review-provider:change-review",
-                        }
+                        {"skill": "review-provider:change-review"}
                     ],
                 }
             ]
@@ -67,46 +69,43 @@ class CapabilityResolutionTests(ProjectTestCase):
         result = resolver.resolve_queries(
             catalog,
             ("review-provider",),
-            load_policies={"change.review": "review-only"},
+            load_policies={"review-provider:change-review": "review-only"},
         )
 
         self.assertEqual("needs_decision", undecided["status"])
-        self.assertEqual([], undecided["proposed_capability_bindings"])
+        self.assertEqual([], undecided["proposed_skill_loadings"])
         self.assertEqual("resolved", result["status"])
         self.assertEqual(
             [{
-                "id": "change.review",
                 "skill": "review-provider:change-review",
                 "load_policy": "review-only",
             }],
-            result["proposed_capability_bindings"],
+            result["proposed_skill_loadings"],
         )
         self.assertEqual([], result["warnings"])
         with self.assertRaises(resolver.CatalogError):
             resolver.resolve_queries(
                 catalog,
                 ("review-provider",),
-                load_policies={"change.review": "always"},
+                load_policies={"review-provider:change-review": "always"},
             )
         with self.assertRaises(resolver.CatalogError):
             resolver.resolve_queries(
                 catalog,
                 ("review-provider",),
-                load_policies={"unknown.capability": "on-demand"},
+                load_policies={"unknown-provider:unknown-skill": "on-demand"},
             )
 
-    def test_provider_catalog_schema_v2_validation(self) -> None:
+    def test_provider_catalog_schema_v3_and_legacy_v2_validation(self) -> None:
         valid = {
-            "schema_version": "2",
+            "schema_version": "3",
             "provider": "cgame-unity",
             "capabilities": [
                 {
-                    "id": "compile.verify",
                     "skill": "cgame-unity:compile-verify",
                     "side_effect": "project_generated_state",
                 },
                 {
-                    "id": "project.inspect",
                     "skill": "cgame-unity:project-inspect",
                     "side_effect": "read_only",
                 },
@@ -123,20 +122,32 @@ class CapabilityResolutionTests(ProjectTestCase):
             visible_skills=visible,
         )
         self.assertEqual(2, len(parsed))
+        legacy = {
+            "schema_version": "2",
+            "provider": "cgame-unity",
+            "capabilities": [
+                {"id": "compile.verify", **valid["capabilities"][0]},
+                {"id": "project.inspect", **valid["capabilities"][1]},
+            ],
+        }
+        self.assertEqual(
+            parsed,
+            resolver.validate_provider_catalog(
+                legacy,
+                expected_provider="cgame-unity",
+                visible_skills=visible,
+            ),
+        )
 
         invalid_cases = {
             "schema": {**valid, "schema_version": "1"},
             "provider": {**valid, "provider": "other-provider"},
             "extra_root": {**valid, "summary": "duplicated owner"},
-            "bad_id": {
-                **valid,
-                "capabilities": [{**valid["capabilities"][0], "id": "Compile Verify"}],
-            },
-            "duplicate_id": {
+            "duplicate_skill": {
                 **valid,
                 "capabilities": [
                     valid["capabilities"][0],
-                    {**valid["capabilities"][1], "id": "compile.verify"},
+                    {**valid["capabilities"][1], "skill": "cgame-unity:compile-verify"},
                 ],
             },
             "foreign_skill": {
@@ -170,7 +181,7 @@ class CapabilityResolutionTests(ProjectTestCase):
                     visible_skills=visible,
                 )
 
-    def test_schema_v2_catalog_needs_policy_without_warning(self) -> None:
+    def test_schema_v2_catalog_migrates_to_skill_loading(self) -> None:
         provider_catalog = {
             "schema_version": "2",
             "provider": "cgame-unity",
@@ -186,63 +197,67 @@ class CapabilityResolutionTests(ProjectTestCase):
                 "name": "cgame-unity",
                 "visible_skills": ["cgame-unity:compile-verify"],
                 "catalog": provider_catalog,
-            }]
+            }],
+            "skills": [{
+                "canonical": "cgame-unity:compile-verify",
+                "name": "compile-verify",
+                "description": "Compile the affected Unity assembly.",
+            }],
         }
 
         undecided = resolver.resolve_queries(catalog, ("cgame-unity",))
         confirmed = resolver.resolve_queries(
             catalog,
             ("cgame-unity",),
-            load_policies={"compile.verify": "after-write-authorization"},
+            load_policies={"cgame-unity:compile-verify": "risk-matched"},
         )
 
         self.assertEqual("needs_decision", undecided["status"])
         self.assertEqual([], undecided["warnings"])
-        self.assertEqual([], undecided["proposed_capability_bindings"])
+        self.assertEqual([], undecided["proposed_skill_loadings"])
         self.assertEqual(
             [{
-                "id": "compile.verify",
                 "skill": "cgame-unity:compile-verify",
+                "description": "Compile the affected Unity assembly.",
                 "side_effect": "project_generated_state",
             }],
-            undecided["policy_decisions_required"],
+            undecided["skill_policy_decisions_required"],
         )
         self.assertEqual("resolved", confirmed["status"])
-        self.assertEqual([], confirmed["policy_decisions_required"])
+        self.assertEqual([], confirmed["skill_policy_decisions_required"])
         self.assertEqual(
             [{
-                "id": "compile.verify",
                 "skill": "cgame-unity:compile-verify",
-                "load_policy": "after-write-authorization",
+                "load_policy": "risk-matched",
             }],
-            confirmed["proposed_capability_bindings"],
+            confirmed["proposed_skill_loadings"],
         )
 
-    def test_capability_reconciliation_is_explicit_and_idempotent(self) -> None:
+    def test_skill_loading_reconciliation_is_explicit_and_idempotent(self) -> None:
         project = self.root / "capabilities"
         (project / ".git").mkdir(parents=True)
         (project / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
         (project / ".git" / "objects").mkdir()
 
         initial = (
-            "change.review::old-plugin:legacy-review::review-only",
-            "legacy.extra::old-plugin:extra::on-demand",
+            "old-plugin:legacy-review::review-only",
+            "old-plugin:extra::on-demand",
         )
         first = self.confirmed_setup(
             self.config(
                 project,
                 manage_agents=False,
                 scm_provider=None,
-                capability_bindings=initial,
-                reconcile_capabilities=True,
+                skill_loadings=initial,
+                reconcile_skill_loading=True,
             ),
         )
         self.assertEqual("committed", first["transaction"])
 
         workflow = project / "docs" / "workflow-rule.md"
         desired = (
-            "change.review::my-plugin:custom-review::review-only",
-            "compile.verify::cgame-unity:compile-verify::risk-matched",
+            "my-plugin:custom-review::review-only",
+            "cgame-unity:compile-verify::risk-matched",
         )
         updated_config = self.config(
             project,
@@ -251,8 +266,8 @@ class CapabilityResolutionTests(ProjectTestCase):
             spec_base_kind=None,
             spec_base=None,
             documentation_policy=None,
-            capability_bindings=desired,
-            reconcile_capabilities=True,
+            skill_loadings=desired,
+            reconcile_skill_loading=True,
             expected_workflow_sha256=digest(workflow),
         )
         before_update = workflow.read_bytes()
@@ -293,24 +308,121 @@ class CapabilityResolutionTests(ProjectTestCase):
                 project,
                 manage_agents=False,
                 scm_provider=None,
-                capability_bindings=desired,
-                reconcile_capabilities=True,
+                skill_loadings=desired,
+                reconcile_skill_loading=True,
             ),
             write=True,
         )
         self.assertEqual("no_changes", repeated["transaction"])
 
-    def test_capability_binding_requires_explicit_load_policy(self) -> None:
+    def test_schema_v3_multi_policy_skill_requires_explicit_migration(self) -> None:
+        project = self.root / "legacy-schema"
+        workflow = project / "docs" / "workflow-rule.md"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text(
+            """<!-- Generator: sacha-orchestra:setup-project -->
+<!-- Schema Version: 3 -->
+# Sacha Orchestra 项目接入
+
+`setup-project` 生成；只记录项目差异。
+
+## 项目绑定
+
+- Project AGENTS：`AGENTS.md`
+- SCM：未配置
+
+### Capability bindings
+
+- `on-demand`：`project.discover` -> `provider:operator`
+- `risk-matched`：`project.operate` -> `provider:operator`
+- `after-write-authorization`：`project.guard` -> `provider:guard`
+
+### Storage
+
+- Spec：`docs/plan`
+- 任务目录：`<YYYY-MM-DD>-<short-slug>/`
+- 文件：`spec.md`；探索决定：`decisions.md`（按需，与 Spec 同目录）
+- 项目文档：`disabled`
+- 项目 Context：`docs/CONTEXT.md`（术语与跨任务约束；setup 只记录 path，不创建正文）
+""",
+            encoding="utf-8",
+        )
+
+        blocked = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                scm_provider=None,
+                spec_base_kind=None,
+                spec_base=None,
+                documentation_policy=None,
+            )
+        )
+        self.assertEqual("refused", blocked["status"])
+        self.assertTrue(
+            any(
+                "multiple load policies" in str(item.get("reason", ""))
+                for item in blocked["skill_loading_reconciliation"]["warning"]
+            ),
+            blocked["skill_loading_reconciliation"],
+        )
+        legacy_guard = next(
+            item
+            for item in blocked["skill_loading_reconciliation"]["keep"]
+            if item["skill"] == "provider:guard"
+        )
+        self.assertEqual("change-authorized", legacy_guard["value"]["load_policy"])
+
+        migrated = generator.run_setup(
+            self.config(
+                project,
+                manage_agents=False,
+                scm_provider=None,
+                spec_base_kind=None,
+                spec_base=None,
+                documentation_policy=None,
+                skill_loadings=(
+                    "provider:guard::change-authorized",
+                    "provider:operator::on-demand",
+                ),
+                reconcile_skill_loading=True,
+            )
+        )
+        self.assertEqual("ready", migrated["status"], migrated["conflicts"])
+        content = migrated["workflow_rule"]["planned_content"]
+        self.assertIn("<!-- Schema Version: 4 -->", content)
+        self.assertIn("### Skill loading", content)
+        self.assertIn("- `on-demand`\n  - `provider:operator`", content)
+        self.assertIn("- `change-authorized`\n  - `provider:guard`", content)
+        self.assertNotIn("project.discover", content)
+
+    def test_setup_cli_exposes_only_skill_level_options(self) -> None:
+        options = generator.build_parser()._option_string_actions
+
+        for option in (
+            "--skill-loading",
+            "--reconcile-skill-loading",
+            "--unavailable-skill",
+        ):
+            self.assertIn(option, options)
+        for legacy in (
+            "--capability-binding",
+            "--reconcile-capabilities",
+            "--unavailable-capability-skill",
+        ):
+            self.assertNotIn(legacy, options)
+
+    def test_skill_loading_requires_explicit_policy(self) -> None:
         project = self.root / "policy-required"
         project.mkdir()
 
         result = generator.run_setup(
             self.config(
                 project,
-                capability_bindings=(
-                    "compile.verify::cgame-unity:compile-verify",
+                skill_loadings=(
+                    "cgame-unity:compile-verify",
                 ),
-                reconcile_capabilities=True,
+                reconcile_skill_loading=True,
             ),
             write=True,
         )
@@ -318,7 +430,7 @@ class CapabilityResolutionTests(ProjectTestCase):
         self.assertEqual("refused", result["status"])
         self.assertEqual("no_write", result["transaction"])
         self.assertEqual([], list(project.iterdir()))
-        self.assertIn("load-policy", result["conflicts"][0])
+        self.assertIn("skill_loading", result["conflicts"][0])
 
     def test_project_skill_mapping_requires_body_assessment(self) -> None:
         project = self.root / "project-skill-unassessed"
@@ -346,17 +458,17 @@ Read dependency boundaries and report structural risks without writing files.
             [skill.relative_to(project).as_posix()],
             result["unassessed_project_skills"],
         )
-        self.assertEqual([], result["project_capability_candidates"])
+        self.assertEqual([], result["project_skill_candidates"])
 
         guessed = generator.run_setup(
             self.config(
                 project,
                 manage_agents=False,
                 skill_root_bindings=(".agents/skills::authority",),
-                capability_bindings=(
-                    "architecture.health::architecture-health::on-demand",
+                skill_loadings=(
+                    "architecture-health::on-demand",
                 ),
-                reconcile_capabilities=True,
+                reconcile_skill_loading=True,
             )
         )
         self.assertEqual("refused", guessed["status"])
@@ -365,7 +477,7 @@ Read dependency boundaries and report structural risks without writing files.
             guessed["conflicts"],
         )
 
-    def test_project_skill_body_can_admit_multiple_capabilities(self) -> None:
+    def test_project_skill_body_can_admit_multiple_units_with_one_policy(self) -> None:
         project = self.root / "project-skill-composite"
         (project / "tools").mkdir(parents=True)
         (project / "tools" / "static.py").write_text("# static\n", encoding="utf-8")
@@ -388,30 +500,27 @@ Run `tools/remote.py` against an explicitly selected device.
             skill,
             [
                 {
-                    "id": "renderdoc.capture.analyze",
                     "goal": "Analyze an RDC capture without changing runtime state.",
                     "kind": "inspect",
                     "admission": "schedulable",
                     "side_effect": "read_only",
-                    "load_policy": "on-demand",
                     "evidence": ["8-9"],
                     "required_paths": ["tools/static.py"],
                     "runtime_prerequisites": [],
                     "reason": "The body defines a bounded static analysis workflow and output.",
                 },
                 {
-                    "id": "renderdoc.android.replay",
                     "goal": "Replay a capture on an explicitly selected Android device.",
                     "kind": "operate",
                     "admission": "schedulable",
                     "side_effect": "runtime_state",
-                    "load_policy": "after-write-authorization",
                     "evidence": ["11-12"],
                     "required_paths": ["tools/remote.py"],
                     "runtime_prerequisites": ["selected Android device"],
                     "reason": "The body defines a separate remote replay workflow.",
                 },
             ],
+            load_policy="on-demand",
         )
         config = self.config(
             project,
@@ -420,50 +529,39 @@ Run `tools/remote.py` against an explicitly selected device.
             assess_project_skills=True,
             visible_project_skills=("renderdoc-rdc-analysis",),
             project_skill_evidence=(evidence,),
-            reconcile_capabilities=True,
+            reconcile_skill_loading=True,
         )
 
         preview = generator.run_setup(config)
 
         self.assertEqual("ready", preview["status"], preview["conflicts"])
         self.assertEqual([], preview["unassessed_project_skills"])
-        self.assertEqual([], preview["project_policy_decisions_required"])
+        self.assertEqual([], preview["skill_policy_decisions_required"])
         self.assertEqual(
             [
-                "renderdoc.android.replay",
-                "renderdoc.capture.analyze",
+                "Analyze an RDC capture without changing runtime state.",
+                "Replay a capture on an explicitly selected Android device.",
             ],
             [
-                item["id"]
-                for item in preview["project_capability_candidates"]
+                item["goal"]
+                for item in preview["project_skill_candidates"]
             ],
         )
         self.assertEqual(
             [
-                {"id": "renderdoc.android.replay", "after": {
-                    "id": "renderdoc.android.replay",
-                    "skill": "renderdoc-rdc-analysis",
-                    "load_policy": "after-write-authorization",
-                }},
-                {"id": "renderdoc.capture.analyze", "after": {
-                    "id": "renderdoc.capture.analyze",
+                {"skill": "renderdoc-rdc-analysis", "after": {
                     "skill": "renderdoc-rdc-analysis",
                     "load_policy": "on-demand",
                 }},
             ],
-            preview["capability_reconciliation"]["add"],
+            preview["skill_loading_reconciliation"]["add"],
         )
 
         written = self.confirmed_setup(config)
         workflow = (project / "docs" / "workflow-rule.md").read_text(encoding="utf-8")
         self.assertEqual("committed", written["transaction"])
         self.assertIn(
-            "`after-write-authorization`：`renderdoc.android.replay` -> "
-            "`renderdoc-rdc-analysis`",
-            workflow,
-        )
-        self.assertIn(
-            "`on-demand`：`renderdoc.capture.analyze` -> `renderdoc-rdc-analysis`",
+            "- `on-demand`\n  - `renderdoc-rdc-analysis`",
             workflow,
         )
 
@@ -479,7 +577,6 @@ Run the project wrapper and report compile and link results.
 """,
         )
         unit = {
-            "id": "project.build",
             "goal": "Build the current project through its wrapper.",
             "kind": "build",
             "admission": "schedulable",
@@ -495,7 +592,7 @@ Run the project wrapper and report compile and link results.
             "skill_root_bindings": (".agents/skills::authority",),
             "assess_project_skills": True,
             "project_skill_evidence": (evidence,),
-            "reconcile_capabilities": True,
+            "reconcile_skill_loading": True,
         }
 
         invisible = generator.run_setup(self.config(project, **common))
@@ -515,13 +612,13 @@ Run the project wrapper and report compile and link results.
         self.assertEqual("refused", undecided["status"])
         self.assertEqual(
             [{
-                "id": "project.build",
                 "skill": "local-build",
-                "side_effect": "project_generated_state",
+                "description": "Project-local test Skill.",
+                "side_effects": ["project_generated_state"],
             }],
-            undecided["project_policy_decisions_required"],
+            undecided["skill_policy_decisions_required"],
         )
-        self.assertEqual([], undecided["capability_reconciliation"]["add"])
+        self.assertEqual([], undecided["skill_loading_reconciliation"]["add"])
 
         unavailable_evidence = self.project_skill_evidence(
             project,
@@ -544,11 +641,11 @@ Run the project wrapper and report compile and link results.
                 skill_root_bindings=(".agents/skills::authority",),
                 assess_project_skills=True,
                 project_skill_evidence=(unavailable_evidence,),
-                reconcile_capabilities=True,
+                reconcile_skill_loading=True,
             )
         )
         self.assertEqual("ready", unavailable["status"], unavailable["conflicts"])
-        self.assertEqual([], unavailable["project_capability_candidates"])
+        self.assertEqual([], unavailable["project_skill_candidates"])
         self.assertEqual(
             ["tools/missing-build-wrapper.py"],
             unavailable["project_skill_assessments"][0]["units"][0][
@@ -568,12 +665,10 @@ Run `tools/verify.py` and return its pass/fail evidence.
 """,
         )
         unit = {
-            "id": "project.verify",
             "goal": "Verify the current project through its local entrypoint.",
             "kind": "verify",
             "admission": "schedulable",
             "side_effect": "read_only",
-            "load_policy": "on-demand",
             "evidence": ["8"],
             "required_paths": [],
             "runtime_prerequisites": [],
@@ -584,23 +679,26 @@ Run `tools/verify.py` and return its pass/fail evidence.
             skill,
             [unit],
             skill_sha256="0" * 64,
+            load_policy="on-demand",
         )
         frontmatter = self.project_skill_evidence(
             project,
             skill,
             [{**unit, "evidence": ["2"]}],
+            load_policy="on-demand",
         )
         missing_path = self.project_skill_evidence(
             project,
             skill,
             [{**unit, "required_paths": ["tools/verify.py"]}],
+            load_policy="on-demand",
         )
         common = {
             "manage_agents": False,
             "skill_root_bindings": (".agents/skills::authority",),
             "assess_project_skills": True,
             "visible_project_skills": ("local-verify",),
-            "reconcile_capabilities": True,
+            "reconcile_skill_loading": True,
         }
 
         for label, evidence, expected in (
@@ -617,7 +715,7 @@ Run `tools/verify.py` and return its pass/fail evidence.
                     )
                 )
                 self.assertEqual("refused", result["status"])
-                self.assertEqual([], result["project_capability_candidates"])
+                self.assertEqual([], result["project_skill_candidates"])
                 self.assertTrue(
                     any(expected in item for item in result["conflicts"]),
                     result["conflicts"],
@@ -656,11 +754,11 @@ Format evidence for another workflow; this is not a standalone execution goal.
                 skill_root_bindings=(".agents/skills::authority",),
                 assess_project_skills=True,
                 project_skill_evidence=(evidence,),
-                reconcile_capabilities=True,
+                reconcile_skill_loading=True,
             )
         )
 
         self.assertEqual("ready", result["status"], result["conflicts"])
         self.assertEqual([], result["unassessed_project_skills"])
-        self.assertEqual([], result["project_capability_candidates"])
-        self.assertEqual([], result["capability_reconciliation"]["add"])
+        self.assertEqual([], result["project_skill_candidates"])
+        self.assertEqual([], result["skill_loading_reconciliation"]["add"])

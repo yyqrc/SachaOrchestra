@@ -16,7 +16,9 @@ from typing import Callable, Mapping
 
 
 GENERATOR_MARKER = "<!-- Generator: sacha-orchestra:setup-project -->"
-SCHEMA_MARKER = "<!-- Schema Version: 3 -->"
+SCHEMA_VERSION = 4
+LEGACY_SCHEMA_VERSION = 3
+SCHEMA_MARKER = f"<!-- Schema Version: {SCHEMA_VERSION} -->"
 LEGACY_IGNORED_RULE_CANDIDATES_MARKER = "Sacha ignored rule candidates"
 WORKFLOW_STATE_GENERATOR = "sacha-orchestra:setup-project"
 WORKFLOW_STATE_SCHEMA_VERSION = 1
@@ -30,7 +32,16 @@ LEGACY_PROJECT_RULES_HEADING = "## 领域工程纪律（由 provider project-rul
 CONVENTIONAL_SKILL_ROOTS = (".agents/skills", ".codex/skills", ".claude/skills")
 CONVENTIONAL_RULE_NAMES = ("TEAM.md", "PROJECT.md", "EditorTools.md")
 LOAD_POLICIES = {"always", "role-entry", "on-demand"}
-CAPABILITY_LOAD_POLICIES = {"on-demand", "after-write-authorization", "review-only", "risk-matched"}
+SKILL_LOAD_POLICY_ORDER = (
+    "on-demand",
+    "change-authorized",
+    "review-only",
+    "risk-matched",
+)
+SKILL_LOAD_POLICIES = set(SKILL_LOAD_POLICY_ORDER)
+LEGACY_SKILL_LOAD_POLICY_ALIASES = {
+    "after-write-authorization": "change-authorized",
+}
 PROJECT_SKILL_KINDS = {"inspect", "change", "verify", "build", "operate", "coordinate"}
 PROJECT_SKILL_ADMISSIONS = {"schedulable", "support_only", "unavailable"}
 PROJECT_SKILL_SIDE_EFFECTS = {
@@ -96,11 +107,11 @@ class SetupConfig:
     rule_bindings: tuple[str, ...] = ()
     ignored_rule_candidates: tuple[str, ...] = ()
     skill_root_bindings: tuple[str, ...] = ()
-    capability_bindings: tuple[str, ...] = ()
-    reconcile_capabilities: bool = False
+    skill_loadings: tuple[str, ...] = ()
+    reconcile_skill_loading: bool = False
     pi_model_bindings: tuple[str, ...] = ()
     clear_pi_model_bindings: bool = False
-    unavailable_capability_skills: tuple[str, ...] = ()
+    unavailable_skills: tuple[str, ...] = ()
     assess_project_skills: bool = False
     visible_project_skills: tuple[str, ...] = ()
     project_skill_evidence: tuple[str, ...] = ()
@@ -651,15 +662,6 @@ def _parse_skill_root_bindings(root: Path, values: tuple[str, ...]) -> tuple[dic
     return tuple(parsed[path] for path in sorted(parsed))
 
 
-def _normalize_capability_id(value: str) -> str:
-    normalized = value.strip()
-    if normalized != value or normalized != normalized.casefold():
-        raise SetupError("capability id must already be canonical lowercase without surrounding whitespace")
-    if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", normalized):
-        raise SetupError("capability id must use lowercase letters, digits, dots or hyphens")
-    return normalized
-
-
 def _normalize_skill_identity(value: str) -> str:
     normalized = value.strip()
     if normalized != value or normalized != normalized.casefold() or "_" in normalized:
@@ -669,22 +671,32 @@ def _normalize_skill_identity(value: str) -> str:
     return normalized
 
 
-def _parse_capability_bindings(values: tuple[str, ...]) -> tuple[dict[str, str], ...]:
+def _normalize_skill_load_policy(value: str, *, allow_legacy: bool = False) -> str:
+    policy = value.strip()
+    if policy != value or policy != policy.casefold():
+        raise SetupError(
+            "Skill load policy must already be canonical lowercase without surrounding whitespace"
+        )
+    if allow_legacy:
+        policy = LEGACY_SKILL_LOAD_POLICY_ALIASES.get(policy, policy)
+    if policy not in SKILL_LOAD_POLICIES:
+        raise SetupError(
+            "Skill load policy must be on-demand, change-authorized, review-only or risk-matched"
+        )
+    return policy
+
+
+def _parse_skill_loadings(values: tuple[str, ...]) -> tuple[dict[str, str], ...]:
     parsed: dict[str, dict[str, str]] = {}
     for value in values:
         parts = value.split("::")
-        if len(parts) != 3:
-            raise SetupError("capability_binding must be <capability-id>::<canonical-skill>::<load-policy>")
-        capability_id = _normalize_capability_id(parts[0])
-        skill = _normalize_skill_identity(parts[1])
-        policy = parts[2]
-        if policy != policy.strip() or policy != policy.casefold():
-            raise SetupError("capability load policy must already be canonical lowercase without surrounding whitespace")
-        if policy not in CAPABILITY_LOAD_POLICIES:
-            raise SetupError("capability load policy must be on-demand, after-write-authorization, review-only or risk-matched")
-        if capability_id in parsed:
-            raise SetupError(f"duplicate capability binding: {capability_id}")
-        parsed[capability_id] = {"id": capability_id, "skill": skill, "load_policy": policy}
+        if len(parts) != 2:
+            raise SetupError("skill_loading must be <canonical-skill>::<load-policy>")
+        skill = _normalize_skill_identity(parts[0])
+        policy = _normalize_skill_load_policy(parts[1])
+        if skill in parsed:
+            raise SetupError(f"duplicate Skill loading: {skill}")
+        parsed[skill] = {"skill": skill, "load_policy": policy}
     return tuple(parsed[key] for key in sorted(parsed))
 
 
@@ -774,7 +786,7 @@ def _validate_body_evidence(
         if start > end or end > len(lines):
             raise SetupError(f"project Skill unit evidence is outside {relative}: {raw_range}")
         if start <= frontmatter_end_line:
-            raise SetupError("project Skill capability evidence must cite the Skill body, not frontmatter")
+            raise SetupError("project Skill evidence must cite the Skill body, not frontmatter")
         if not any(lines[index - 1].strip() for index in range(start, end + 1)):
             raise SetupError("project Skill unit evidence cannot cite only blank body lines")
     return ranges
@@ -819,25 +831,26 @@ def _assess_project_skills(
     assessments: list[dict[str, object]] = []
     candidates: list[dict[str, object]] = []
     bindings: list[dict[str, str]] = []
-    policy_decisions: list[dict[str, str]] = []
+    policy_decisions: list[dict[str, object]] = []
     assessed_paths: set[str] = set()
-    capability_ids: set[str] = set()
     evidence_paths: set[str] = set()
 
     for evidence_index, raw_evidence in enumerate(evidence_values):
         local_candidates: list[dict[str, object]] = []
         local_bindings: list[dict[str, str]] = []
-        local_policies: list[dict[str, str]] = []
-        local_ids: set[str] = set()
+        local_policies: list[dict[str, object]] = []
         try:
             parsed = json.loads(raw_evidence)
             if not isinstance(parsed, dict):
                 raise SetupError("project Skill evidence must be a JSON object")
-            evidence_fields = {"skill", "skill_path", "skill_sha256", "units"}
-            if set(parsed) != evidence_fields:
+            required_evidence_fields = {"skill", "skill_path", "skill_sha256", "units"}
+            optional_evidence_fields = {"load_policy"}
+            if not required_evidence_fields.issubset(parsed) or set(parsed) - (
+                required_evidence_fields | optional_evidence_fields
+            ):
                 raise SetupError(
-                    f"project Skill evidence fields must be exactly: "
-                    f"{', '.join(sorted(evidence_fields))}"
+                    "project Skill evidence must contain skill, skill_path, skill_sha256 and units; "
+                    "only load_policy is optional"
                 )
             skill = _normalize_skill_identity(
                 _required_text(parsed.get("skill"), "project Skill evidence skill")
@@ -865,7 +878,7 @@ def _assess_project_skills(
             text, current_hash = _read_discovery_text(skill_path, skill_relative)
             if expected_hash != current_hash or current_hash != discovered["sha256"]:
                 raise SetupError(f"project Skill evidence SHA-256 is stale: {skill_relative}")
-            parsed_name, _ = _parse_skill_identity(text, skill_relative)
+            parsed_name, description = _parse_skill_identity(text, skill_relative)
             if parsed_name.casefold() != skill:
                 raise SetupError("project Skill evidence identity changed after discovery")
 
@@ -887,8 +900,6 @@ def _assess_project_skills(
                     "required_paths",
                     "runtime_prerequisites",
                     "reason",
-                    "id",
-                    "load_policy",
                 }
                 unknown_unit_fields = set(raw_unit) - unit_fields
                 if unknown_unit_fields:
@@ -961,44 +972,9 @@ def _assess_project_skills(
                 if missing_required_paths:
                     normalized_unit["missing_required_paths"] = missing_required_paths
                 if admission == "schedulable":
-                    capability_id = _normalize_capability_id(
-                        _required_text(
-                            raw_unit.get("id"),
-                            f"project Skill evidence units[{unit_index}].id",
-                        )
-                    )
-                    if capability_id in capability_ids or capability_id in local_ids:
-                        raise SetupError(
-                            f"duplicate project capability id in body evidence: {capability_id}"
-                        )
-                    local_ids.add(capability_id)
-                    normalized_unit["id"] = capability_id
-                    if skill not in visible_skills:
-                        raise SetupError(
-                            f"project Skill is not visible in the current Runtime: {skill}"
-                        )
-                    raw_policy = raw_unit.get("load_policy")
-                    if raw_policy is None:
-                        local_policies.append({
-                            "id": capability_id,
-                            "skill": skill,
-                            "side_effect": side_effect,
-                        })
-                    else:
-                        policy = _canonical_choice(
-                            raw_policy,
-                            f"project Skill evidence units[{unit_index}].load_policy",
-                            CAPABILITY_LOAD_POLICIES,
-                        )
-                        normalized_unit["load_policy"] = policy
-                        local_bindings.append({
-                            "id": capability_id,
-                            "skill": skill,
-                            "load_policy": policy,
-                        })
                     local_candidates.append({
-                        "id": capability_id,
                         "skill": skill,
+                        "description": description,
                         "goal": goal,
                         "kind": kind,
                         "side_effect": side_effect,
@@ -1006,24 +982,47 @@ def _assess_project_skills(
                         "required_paths": normalized_required_paths,
                         "runtime_prerequisites": runtime_prerequisites,
                         "reason": reason,
-                        **(
-                            {"load_policy": normalized_unit["load_policy"]}
-                            if "load_policy" in normalized_unit
-                            else {}
-                        ),
                     })
-                elif "id" in raw_unit or "load_policy" in raw_unit:
-                    raise SetupError(
-                        "support_only or unavailable project Skill units cannot declare "
-                        "a capability id or load_policy"
-                    )
                 normalized_units.append(normalized_unit)
+
+            schedulable_units = [
+                unit for unit in normalized_units if unit["admission"] == "schedulable"
+            ]
+            if schedulable_units:
+                if skill not in visible_skills:
+                    raise SetupError(
+                        f"project Skill is not visible in the current Runtime: {skill}"
+                    )
+                if not description:
+                    raise SetupError(
+                        f"schedulable project Skill description is missing: {skill_relative}"
+                    )
+                side_effects = sorted({str(unit["side_effect"]) for unit in schedulable_units})
+                raw_policy = parsed.get("load_policy")
+                if raw_policy is None:
+                    local_policies.append({
+                        "skill": skill,
+                        "description": description,
+                        "side_effects": side_effects,
+                    })
+                else:
+                    policy = _normalize_skill_load_policy(
+                        _required_text(raw_policy, "project Skill evidence load_policy")
+                    )
+                    local_bindings.append({
+                        "skill": skill,
+                        "load_policy": policy,
+                    })
+            elif "load_policy" in parsed:
+                raise SetupError(
+                    "project Skill evidence without schedulable units cannot declare load_policy"
+                )
 
             evidence_paths.add(skill_relative)
             assessed_paths.add(skill_relative)
-            capability_ids.update(local_ids)
             assessments.append({
                 "skill": skill,
+                "description": description,
                 "skill_path": skill_relative,
                 "skill_sha256": current_hash,
                 "units": normalized_units,
@@ -1041,9 +1040,15 @@ def _assess_project_skills(
     )
     return {
         "assessments": sorted(assessments, key=lambda item: str(item["skill_path"])),
-        "candidates": sorted(candidates, key=lambda item: str(item["id"])),
-        "bindings": tuple(sorted(bindings, key=lambda item: item["id"])),
-        "policy_decisions_required": sorted(policy_decisions, key=lambda item: item["id"]),
+        "candidates": sorted(
+            candidates,
+            key=lambda item: (str(item["skill"]), str(item["goal"])),
+        ),
+        "bindings": tuple(sorted(bindings, key=lambda item: item["skill"])),
+        "policy_decisions_required": sorted(
+            policy_decisions,
+            key=lambda item: str(item["skill"]),
+        ),
         "unassessed": unassessed,
         "conflicts": conflicts,
     }
@@ -1139,11 +1144,14 @@ def _parse_existing_project_values(
         return {}
     if GENERATOR_MARKER not in text:
         return {}
-    if SCHEMA_MARKER not in text:
-        raise SetupError("managed workflow rule must use Schema Version 3")
-
     schema_match = re.search(r"<!-- Schema Version: ([0-9]+) -->", text)
-    schema_version = None if schema_match is None else int(schema_match.group(1))
+    if schema_match is None:
+        raise SetupError("managed workflow rule is missing a schema version")
+    schema_version = int(schema_match.group(1))
+    if schema_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
+        raise SetupError(
+            f"managed workflow rule must use Schema Version {LEGACY_SCHEMA_VERSION} or {SCHEMA_VERSION}"
+        )
 
     def backtick_value(label: str) -> str | None:
         match = re.search(rf"(?m)^- {re.escape(label)}：`([^`]+)`", text)
@@ -1224,37 +1232,57 @@ def _parse_existing_project_values(
                 "authority": authority or None,
             })
 
-    capability_bindings = []
-    capability_dirty = []
-    capability_section = re.search(r"(?ms)^### Capability bindings\s*\n(.*?)(?=^### )", text)
-    if capability_section:
-        for line in capability_section.group(1).splitlines():
-            stripped = line.strip()
-            if not stripped or stripped == "- 无":
-                continue
-            grouped = re.fullmatch(r"- `([^`]+)`：(.+)", stripped)
-            if grouped:
-                pairs = re.findall(r"`([^`]+)` -> `([^`]+)`", grouped.group(2))
-                if pairs:
-                    capability_bindings.extend({
-                        "id": capability_id,
-                        "skill": skill,
-                        "load_policy": grouped.group(1),
-                    } for capability_id, skill in pairs)
+    skill_loadings = []
+    skill_loading_dirty = []
+    if schema_version == SCHEMA_VERSION:
+        loading_section = re.search(r"(?ms)^### Skill loading\s*\n(.*?)(?=^### )", text)
+        if loading_section:
+            current_policy: str | None = None
+            for line in loading_section.group(1).splitlines():
+                if not line.strip() or line.strip() == "- 无":
                     continue
-            match = re.fullmatch(
-                r"- `([^`]+)` -> `([^`]+)`；load policy = `([^`]+)`"
-                r"(?:；fallback = `discoverable-domain-skill-or-native-role`)?",
-                stripped,
-            )
-            if match is None:
-                capability_dirty.append(stripped)
-                continue
-            capability_bindings.append({
-                "id": match.group(1),
-                "skill": match.group(2),
-                "load_policy": match.group(3),
-            })
+                policy_match = re.fullmatch(r"- `([^`]+)`", line.strip())
+                if policy_match:
+                    current_policy = policy_match.group(1)
+                    continue
+                skill_match = re.fullmatch(r"[ \t]+- `([^`]+)`", line)
+                if skill_match and current_policy is not None:
+                    skill_loadings.append({
+                        "skill": skill_match.group(1),
+                        "load_policy": current_policy,
+                    })
+                    continue
+                skill_loading_dirty.append(line.strip())
+    else:
+        capability_section = re.search(r"(?ms)^### Capability bindings\s*\n(.*?)(?=^### )", text)
+        if capability_section:
+            for line in capability_section.group(1).splitlines():
+                stripped = line.strip()
+                if not stripped or stripped == "- 无":
+                    continue
+                grouped = re.fullmatch(r"- `([^`]+)`：(.+)", stripped)
+                if grouped:
+                    pairs = re.findall(r"`([^`]+)` -> `([^`]+)`", grouped.group(2))
+                    if pairs:
+                        skill_loadings.extend({
+                            "legacy_id": capability_id,
+                            "skill": skill,
+                            "load_policy": grouped.group(1),
+                        } for capability_id, skill in pairs)
+                        continue
+                match = re.fullmatch(
+                    r"- `([^`]+)` -> `([^`]+)`；load policy = `([^`]+)`"
+                    r"(?:；fallback = `discoverable-domain-skill-or-native-role`)?",
+                    stripped,
+                )
+                if match is None:
+                    skill_loading_dirty.append(stripped)
+                    continue
+                skill_loadings.append({
+                    "legacy_id": match.group(1),
+                    "skill": match.group(2),
+                    "load_policy": match.group(3),
+                })
     pi_model_bindings = []
     pi_model_section = re.search(
         r"(?ms)^### Pi one-shot model routing\s*\n(.*?)(?=^### |^## |\Z)",
@@ -1350,8 +1378,8 @@ def _parse_existing_project_values(
         "rule_bindings": tuple(rule_bindings),
         "ignored_rule_candidates": tuple(ignored_rule_candidates),
         "skill_root_bindings": tuple(skill_root_bindings),
-        "capability_bindings": tuple(capability_bindings),
-        "capability_dirty": tuple(capability_dirty),
+        "skill_loadings": tuple(skill_loadings),
+        "skill_loading_dirty": tuple(skill_loading_dirty),
         "pi_model_bindings": tuple(pi_model_bindings),
         "documentation": documentation,
         "spec_storage": spec_storage,
@@ -1662,7 +1690,7 @@ def _discover_project_integration(
     }
 
 
-def _reconcile_capabilities(
+def _reconcile_skill_loadings(
     existing: tuple[dict[str, str], ...],
     requested: tuple[dict[str, str], ...],
     *,
@@ -1672,25 +1700,35 @@ def _reconcile_capabilities(
 ) -> tuple[tuple[dict[str, str], ...], dict[str, list[dict[str, object]]], bool]:
     existing_map: dict[str, dict[str, str]] = {}
     invalid_existing: list[dict[str, object]] = []
+    invalid_existing_skills: set[str] = set()
     for item in existing:
         try:
-            capability_id = _normalize_capability_id(str(item["id"]))
             skill = _normalize_skill_identity(str(item["skill"]))
-            policy = str(item.get("load_policy", "on-demand"))
-            if policy != policy.strip() or policy != policy.casefold():
-                raise SetupError("existing capability load policy is not canonical")
-            if policy not in CAPABILITY_LOAD_POLICIES:
-                raise SetupError("invalid existing capability load policy")
-            normalized = {"id": capability_id, "skill": skill, "load_policy": policy}
-            if capability_id in existing_map:
-                invalid_existing.append({"entry": capability_id, "reason": "duplicate_existing_capability"})
+            policy = _normalize_skill_load_policy(
+                str(item.get("load_policy", "on-demand")),
+                allow_legacy="legacy_id" in item,
+            )
+            normalized = {"skill": skill, "load_policy": policy}
+            if (
+                skill in existing_map
+                and existing_map[skill] != normalized
+                and skill not in invalid_existing_skills
+            ):
+                invalid_existing.append({
+                    "entry": skill,
+                    "reason": "legacy Skill has multiple load policies; explicit reconciliation is required",
+                })
+                invalid_existing_skills.add(skill)
             else:
-                existing_map[capability_id] = normalized
+                existing_map[skill] = normalized
         except (KeyError, SetupError) as exc:
             invalid_existing.append({"entry": repr(item), "reason": str(exc)})
-    invalid_existing.extend({"entry": item, "reason": "unparsed_managed_capability"} for item in dirty_entries)
+    invalid_existing.extend({
+        "entry": item,
+        "reason": "unparsed managed Skill loading",
+    } for item in dirty_entries)
 
-    requested_map = {item["id"]: dict(item) for item in requested}
+    requested_map = {item["skill"]: dict(item) for item in requested}
     if reconcile:
         desired_map = requested_map
     else:
@@ -1704,17 +1742,17 @@ def _reconcile_capabilities(
         "remove": [],
         "warning": [],
     }
-    for capability_id in sorted(set(existing_map) | set(desired_map)):
-        before = existing_map.get(capability_id)
-        after = desired_map.get(capability_id)
+    for skill in sorted(set(existing_map) | set(desired_map)):
+        before = existing_map.get(skill)
+        after = desired_map.get(skill)
         if before is None and after is not None:
-            changes["add"].append({"id": capability_id, "after": after})
+            changes["add"].append({"skill": skill, "after": after})
         elif before is not None and after is None:
-            changes["remove"].append({"id": capability_id, "before": before})
+            changes["remove"].append({"skill": skill, "before": before})
         elif before == after:
-            changes["keep"].append({"id": capability_id, "value": after})
+            changes["keep"].append({"skill": skill, "value": after})
         else:
-            changes["replace"].append({"id": capability_id, "before": before, "after": after})
+            changes["replace"].append({"skill": skill, "before": before, "after": after})
     for item in invalid_existing:
         target = "remove" if reconcile else "warning"
         changes[target].append(item)
@@ -1722,7 +1760,6 @@ def _reconcile_capabilities(
     for item in desired_map.values():
         if item["skill"] in unavailable:
             changes["warning"].append({
-                "id": item["id"],
                 "skill": item["skill"],
                 "reason": "unavailable_in_current_context_fallback_retained",
             })
@@ -1737,7 +1774,7 @@ def render_workflow_rule(
     roadmap_storage: Mapping[str, str],
     human_guide: str | None,
     discovery: Mapping[str, object],
-    capability_bindings: tuple[dict[str, str], ...],
+    skill_loadings: tuple[dict[str, str], ...],
     pi_model_bindings: tuple[dict[str, str], ...],
     documentation: Mapping[str, object],
 ) -> bytes:
@@ -1757,14 +1794,16 @@ def render_workflow_rule(
     for item in discovery["skill_root_bindings"]:
         suffix = f"；authority = `{item['authority']}`" if item["decision"] == "mirror" else ""
         skill_lines.append(f"- `{item['path']}`：`{item['decision']}`{suffix}")
-    capability_groups: dict[str, list[str]] = {}
-    for item in capability_bindings:
-        capability_groups.setdefault(item["load_policy"], []).append(
-            f"`{item['id']}` -> `{item['skill']}`"
-        )
-    capability_lines = [
-        f"- `{policy}`：" + "；".join(entries)
-        for policy, entries in capability_groups.items()
+    skill_loading_groups: dict[str, list[str]] = {}
+    for item in skill_loadings:
+        skill_loading_groups.setdefault(item["load_policy"], []).append(item["skill"])
+    skill_loading_blocks = [
+        "\n".join((
+            f"- `{policy}`",
+            *(f"  - `{skill}`" for skill in sorted(skill_loading_groups[policy])),
+        ))
+        for policy in SKILL_LOAD_POLICY_ORDER
+        if policy in skill_loading_groups
     ]
     unresolved_lines = [
         f"- {item.get('kind', 'unknown')}：`{item.get('path', '.')}`（{item.get('reason', 'unresolved')}）"
@@ -1797,8 +1836,8 @@ def render_workflow_rule(
         sections.append("### Rule bindings\n\n" + "\n".join(rule_lines))
     if skill_lines:
         sections.append("### Skill roots\n\n" + "\n".join(skill_lines))
-    if capability_lines:
-        sections.append("### Capability bindings\n\n" + "\n".join(capability_lines))
+    if skill_loading_blocks:
+        sections.append("### Skill loading\n\n" + "\n\n".join(skill_loading_blocks))
     if pi_model_bindings:
         pi_model_lines = [
             f"- `{item['route']}` -> `{item['model']}`"
@@ -2063,10 +2102,10 @@ def _base_result(
         "agents_block": {"path": agents_rel, "enabled": manage_agents, "action": "disabled"},
         "project_rules_reconciliation": {"keep": [], "add": [], "update": [], "remove": []},
         "project_skill_assessments": [],
-        "project_capability_candidates": [],
-        "project_policy_decisions_required": [],
+        "project_skill_candidates": [],
+        "skill_policy_decisions_required": [],
         "unassessed_project_skills": [],
-        "capability_reconciliation": {
+        "skill_loading_reconciliation": {
             "keep": [],
             "add": [],
             "replace": [],
@@ -2320,7 +2359,7 @@ def run_setup(
                 f"{item['path']}::{item['decision']}" + (f"::{item['authority']}" if item.get("authority") else "")
                 for item in existing_values.get("skill_root_bindings", ())
             ))
-        capability_bindings = _parse_capability_bindings(config.capability_bindings)
+        skill_loadings = _parse_skill_loadings(config.skill_loadings)
         if config.pi_model_bindings and config.clear_pi_model_bindings:
             raise SetupError(
                 "pi_model_bindings and clear_pi_model_bindings are mutually exclusive"
@@ -2334,9 +2373,11 @@ def run_setup(
                 f"{item['route']}::{item['model']}"
                 for item in existing_values.get("pi_model_bindings", ())
             ))
-        unavailable_skills = _normalize_unavailable_skills(config.unavailable_capability_skills)
-        existing_capabilities = tuple(existing_values.get("capability_bindings", ()))
-        capability_dirty = tuple(str(item) for item in existing_values.get("capability_dirty", ()))
+        unavailable_skills = _normalize_unavailable_skills(config.unavailable_skills)
+        existing_skill_loadings = tuple(existing_values.get("skill_loadings", ()))
+        skill_loading_dirty = tuple(
+            str(item) for item in existing_values.get("skill_loading_dirty", ())
+        )
         if workflow_path == agents_path:
             raise SetupError("workflow rule and Project AGENTS must be different files")
     except (OSError, UnicodeError, SetupError) as exc:
@@ -2387,51 +2428,50 @@ def run_setup(
         ),
     )
     result["project_skill_assessments"] = assessment["assessments"]
-    result["project_capability_candidates"] = assessment["candidates"]
-    result["project_policy_decisions_required"] = assessment[
+    result["project_skill_candidates"] = assessment["candidates"]
+    result["skill_policy_decisions_required"] = assessment[
         "policy_decisions_required"
     ]
     result["unassessed_project_skills"] = assessment["unassessed"]
     result["conflicts"].extend(assessment["conflicts"])
 
-    requested_capabilities: dict[str, dict[str, str]] = {}
+    requested_skill_loadings: dict[str, dict[str, str]] = {}
     mapping_conflicts: list[str] = []
-    for item in capability_bindings:
+    for item in skill_loadings:
         if ":" not in item["skill"]:
             mapping_conflicts.append(
-                "unprefixed capability-binding cannot add a project Skill; "
+                "unprefixed Skill loading cannot add a project Skill; "
                 "use project Skill evidence derived from the full body"
             )
             continue
-        requested_capabilities[item["id"]] = dict(item)
+        requested_skill_loadings[item["skill"]] = dict(item)
     for item in assessment["bindings"]:
-        if item["id"] in requested_capabilities:
+        if item["skill"] in requested_skill_loadings:
             mapping_conflicts.append(
-                f"capability id is declared by both provider and project Skill evidence: "
-                f"{item['id']}"
+                f"Skill loading is declared by both provider and project Skill evidence: "
+                f"{item['skill']}"
             )
             continue
-        requested_capabilities[item["id"]] = dict(item)
+        requested_skill_loadings[item["skill"]] = dict(item)
     result["conflicts"].extend(mapping_conflicts)
-    effective_capabilities, capability_reconciliation, capability_blocked = _reconcile_capabilities(
-        existing_capabilities,
-        tuple(requested_capabilities[key] for key in sorted(requested_capabilities)),
-        reconcile=config.reconcile_capabilities,
+    effective_skill_loadings, skill_loading_reconciliation, skill_loading_blocked = _reconcile_skill_loadings(
+        existing_skill_loadings,
+        tuple(requested_skill_loadings[key] for key in sorted(requested_skill_loadings)),
+        reconcile=config.reconcile_skill_loading,
         unavailable_skills=unavailable_skills,
-        dirty_entries=capability_dirty,
+        dirty_entries=skill_loading_dirty,
     )
     admitted_project_bindings = {
-        (item["id"], item["skill"])
+        item["skill"]
         for item in assessment["bindings"]
     }
-    for item in effective_capabilities:
-        if ":" not in item["skill"] and (item["id"], item["skill"]) not in admitted_project_bindings:
-            capability_reconciliation["warning"].append({
-                "id": item["id"],
+    for item in effective_skill_loadings:
+        if ":" not in item["skill"] and item["skill"] not in admitted_project_bindings:
+            skill_loading_reconciliation["warning"].append({
                 "skill": item["skill"],
                 "reason": "existing_project_skill_mapping_not_reverified_from_current_body",
             })
-    result["capability_reconciliation"] = capability_reconciliation
+    result["skill_loading_reconciliation"] = skill_loading_reconciliation
     assessment_blocked = bool(
         assessment["conflicts"]
         or assessment["unassessed"]
@@ -2449,7 +2489,7 @@ def run_setup(
             roadmap_storage,
             human_guide,
             discovery,
-            effective_capabilities,
+            effective_skill_loadings,
             pi_model_bindings,
             documentation,
         )
@@ -2464,7 +2504,7 @@ def run_setup(
             assert workflow_preimage is not None
             has_generator = GENERATOR_MARKER.encode("utf-8") in workflow_preimage
             schema_markers = re.findall(rb"<!-- Schema Version: ([^>]+) -->", workflow_preimage)
-            if has_generator and schema_markers == [b"3"]:
+            if has_generator and schema_markers in ([b"3"], [b"4"]):
                 pass
             elif has_generator or schema_markers:
                 result["workflow_rule"]["action"] = "refuse"
@@ -2638,7 +2678,7 @@ def run_setup(
         "sources": configuration_sources,
         "planned_delta_sha256": planned_delta_sha256,
     }
-    if discovery_blocked or capability_blocked or assessment_blocked:
+    if discovery_blocked or skill_loading_blocked or assessment_blocked:
         decision_conflicts: list[str] = list(result["conflicts"])
         if discovery["status"] == "incomplete":
             decision_conflicts.append("Project Binding discovery or decisions are incomplete")
@@ -2646,15 +2686,17 @@ def run_setup(
             decision_conflicts.append("Project Binding discovery requires explicit decisions")
         if discovery["conflicts"]:
             decision_conflicts.append("Project Binding conflicts require explicit resolution")
-        if capability_blocked:
-            decision_conflicts.append("managed capability data is invalid; explicit reconciliation is required")
+        if skill_loading_blocked:
+            decision_conflicts.append(
+                "managed Skill loading data is invalid; explicit reconciliation is required"
+            )
         if assessment["unassessed"]:
             decision_conflicts.append(
-                "project Skills require full-body assessment before capability reconciliation"
+                "project Skills require full-body assessment before Skill loading reconciliation"
             )
         if assessment["policy_decisions_required"]:
             decision_conflicts.append(
-                "项目能力备选项需要明确的 load-policy 决定"
+                "项目 Skill 需要明确的加载策略决定"
             )
         result.update(status="refused", transaction="no_write", conflicts=decision_conflicts)
         return result
@@ -2834,11 +2876,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--rule-binding", action="append", default=[])
     parser.add_argument("--ignore-rule-candidate", action="append", default=[])
     parser.add_argument("--skill-root-binding", action="append", default=[])
-    parser.add_argument("--capability-binding", action="append", default=[])
-    parser.add_argument("--reconcile-capabilities", action="store_true")
+    parser.add_argument("--skill-loading", action="append", default=[])
+    parser.add_argument("--reconcile-skill-loading", action="store_true")
     parser.add_argument("--pi-model-binding", action="append", default=[])
     parser.add_argument("--clear-pi-model-bindings", action="store_true")
-    parser.add_argument("--unavailable-capability-skill", action="append", default=[])
+    parser.add_argument("--unavailable-skill", action="append", default=[])
     parser.add_argument("--assess-project-skills", action="store_true")
     parser.add_argument("--visible-project-skill", action="append", default=[])
     parser.add_argument("--project-skill-evidence", action="append", default=[])
@@ -2897,11 +2939,11 @@ def main() -> int:
         rule_bindings=tuple(args.rule_binding),
         ignored_rule_candidates=tuple(args.ignore_rule_candidate),
         skill_root_bindings=tuple(args.skill_root_binding),
-        capability_bindings=tuple(args.capability_binding),
-        reconcile_capabilities=args.reconcile_capabilities,
+        skill_loadings=tuple(args.skill_loading),
+        reconcile_skill_loading=args.reconcile_skill_loading,
         pi_model_bindings=tuple(args.pi_model_binding),
         clear_pi_model_bindings=args.clear_pi_model_bindings,
-        unavailable_capability_skills=tuple(args.unavailable_capability_skill),
+        unavailable_skills=tuple(args.unavailable_skill),
         assess_project_skills=args.assess_project_skills,
         visible_project_skills=tuple(args.visible_project_skill),
         project_skill_evidence=tuple(args.project_skill_evidence),

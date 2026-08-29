@@ -13,7 +13,7 @@ description: Human 明确表示不理解，或显式请求探索、脑暴、解�
 
 1. 入口为 Human 显式调用、活跃 Planner 发现目标结果、Scope/Non-goals、验收或实质决定未收口后的显式路由，或活跃 Roadmap 为同一目标请求的有界只读探索；Roadmap 调用的结果返回 Roadmap，不接受 Sacha 或进入生产 Role。
    - Explore → 通过 Handoff、探索决定记录或旧 task 继续既有目标 → 必须恢复当前关注点、阻塞性未决项与 `Unknown` 并重建有界挑战图 → 相关挑战面共同构成本轮输入。
-2. 先从代码、项目规则和已提供的 Domain/项目 Skill 核对事实。Project Integration 的已确认 Binding 可用时按 [Workflow Contract](../../core/workflow-contract.md) 的能力加载策略决定是否加载对应 Skill；加载后完整读取正文并另行核对只读边界、前置、副作用和授权，不满足时回退项目规则、可发现 Domain Skill 或原生路线并保留未验证项。Project Integration 给出 Project Context path 时，按当前术语、架构或跨任务约束查询相关 `CONTEXT.md`，不遍历历史任务目录。待查事实涉及单一 Runtime 的传输、工具可达性、模型、派发/返回或恢复时，先识别目标 Runtime 并读取其 Adapter；Adapter 合同与 Runtime 实测分别构成约束和现状证据，不得只凭其中一层归因。
+2. 先从代码、项目规则和已提供的 Domain/项目 Skill 核对事实。Project Integration 有目标 Skill 的已确认加载条目时，按 [Workflow Contract](../../core/workflow-contract.md) 的技能加载策略决定是否加载；设计、调查和方案比较需要的只读约束可按 `on-demand` 使用。加载后完整读取正文并另行核对只读边界、前置、副作用和授权，不满足时回退项目规则、可发现 Domain Skill 或原生路线并保留未验证项。Project Integration 给出 Project Context path 时，按当前术语、架构或跨任务约束查询相关 `CONTEXT.md`，不遍历历史任务目录。待查事实涉及单一 Runtime 的传输、工具可达性、模型、派发/返回或恢复时，先识别目标 Runtime 并读取其 Adapter；Adapter 合同与 Runtime 实测分别构成约束和现状证据，不得只凭其中一层归因。
 3. 只把无法自行确认、会改变方案且决定权属于 Human 的内容列为问题。Planner/Executor 可依据已确认语义安全决定的局部实现选择直接进入方案。
 
 ## 动作顺序

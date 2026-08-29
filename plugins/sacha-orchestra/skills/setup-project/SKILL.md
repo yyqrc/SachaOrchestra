@@ -7,17 +7,17 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 
 ## 功能
 
-主流程外的显式配置能力：发现并生成或刷新一个 Project Integration，使 Role 能定位项目规则、Capability Binding、Spec/Documentation/Context 位置。项目实施、文档正文和用户级 Agent 配置由对应 Skill 处理。
+主流程外的显式配置能力：发现并生成或刷新一个 Project Integration，使 Role 能定位项目规则、Skill loading、Spec/Documentation/Context 位置。项目实施、文档正文和用户级 Agent 配置由对应 Skill 处理。
 
 ## 输入与首查
 
-1. 接收 Human 显式 project base；未提供时由[解析器](scripts/resolve_capability_queries.py)从 Binding、AGENTS 和 SCM 定位唯一 project root。多候选保持 `unresolved`。
-2. Catalog 提供 `id`、规范 Skill（canonical Skill）和副作用；Human 按 [Workflow Contract](../../core/workflow-contract.md) 确认每项能力加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的目标。
+1. 接收 Human 显式 project base；未提供时由[解析器](scripts/resolve_provider_queries.py)从 Project Integration、AGENTS 和 SCM 定位唯一 project root。多候选保持 `unresolved`。
+2. Runtime catalog 提供规范 Skill（canonical Skill）的 `name`、`description` 和 `path`；Provider catalog 可补充公开 Skill 与副作用上界。Setup 展示 canonical `description`，Human 按 [Workflow Contract](../../core/workflow-contract.md) 为每个 Skill 确认一次加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的 Skill。
 3. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
 
 ## 动作顺序
 
-1. [生成器](scripts/generate_project_integration.py)核对正文证据、SHA-256、path 和可见性。缺失、歧义、冲突或策略未确认时停止写入。
+1. [生成器](scripts/generate_project_integration.py)核对正文证据、SHA-256、path 和可见性。一个 Skill 可包含多个目标单元，但 Project Integration 只保存一项 canonical Skill 身份与加载策略，不保存 capability id、正文摘要或 unit mapping。缺失、歧义、冲突或策略未确认时停止写入。
 2. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)执行 `--list-models`，按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选；使用 `--pi-model-binding <route>::<provider/model>` 保存 Human 选择，使用 `--clear-pi-model-bindings` 清空。
 3. 配置文档位置：
    - 首次 Spec storage root 默认 `docs/plan`。

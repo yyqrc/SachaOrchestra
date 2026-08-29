@@ -24,15 +24,15 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。
 - 三个 Gate 全关且无需恢复时，Executor 处理不能形成独立工作单元的局部动作；一个已就绪实施单元满足 Coordination 的隔离条件时优先直接派发。只有发生派发时才加载 Coordination 与目标 Runtime Adapter，不加载无消费者的 Assurance 或 Artifact。
 
-### 2.1 能力加载
+### 2.1 技能加载
 
-本节沿用[术语合同](terminology-contract.md)的能力加载策略；Project Integration 没有已确认 Binding 时不推导策略：
+本节沿用[术语合同](terminology-contract.md)的技能加载策略；Project Integration 没有目标 Skill 的已确认条目时不推导项目策略：
 
-- `on-demand`：当前节点需要该 capability 的领域结果时加载。
-- `after-write-authorization`：目标 Scope 已有 Human 写入授权，且当前节点需要实施前约束或领域输入时加载；不表示可以执行 Skill 内的写入或运行操作。
-- `review-only`：当前节点是显式或本合同路由的 Reviewer，且该 capability 会改变裁决时加载。
-- `risk-matched`：当前 Scope、验收或已识别风险需要该 capability 的验证输入或证据时加载；不为形式完整自动执行编译、Runtime 或其他高成本动作。
-- 当前节点 → 策略允许加载 → 完整读取规范 Skill 并另行核对 Role 边界、前置、副作用与授权 → 任一项不满足时只使用安全子集或回退项目规则、可发现 Domain Skill 和原生路线，并保留未验证项。
+- `on-demand`：当前节点的任务语义匹配规范 Skill 的 `description`，且设计、规划、调查或实施需要其约束或领域输入时加载；只读 `change-guard` 不等待项目写入授权。
+- `change-authorized`：目标 Scope 已有 Human 修改授权，且当前节点需要该 Skill 实施项目变化时加载；加载不表示可以执行 Skill 内的写入、构建、Runtime 或外部动作。
+- `review-only`：当前节点是显式或本合同路由的 Reviewer，且该 Skill 会改变裁决时加载。
+- `risk-matched`：当前 Scope、验收或已识别风险需要该 Skill 的验证输入或证据时加载；不为形式完整自动执行编译、Runtime 或其他高成本动作。
+- 当前节点 → 用 Runtime Skill catalog 的 canonical `name`、`description` 与 `path` 选择唯一匹配 → 策略允许加载 → 完整读取规范 Skill 并另行核对 Role 边界、前置、副作用与授权 → 任一项不满足时只使用安全子集或回退项目规则、可发现 Domain Skill 和原生路线，并保留未验证项。名称或描述不足以唯一选择时不得猜测。
 
 ### 2.2 下游 Skill 读取
 
