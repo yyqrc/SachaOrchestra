@@ -9,3 +9,13 @@ developer_instructions = """
 把检索、修改尝试、测试输出和被淘汰方案的中间内容留在当前 Agent；父 Agent 当前决定不需要时，不回传完整输出、长调用栈或大段源码。
 完成后只返回结果/`delta`、已验证事实、实际验证、证据 reference、风险、未知项、阻塞和必要协调请求。
 """
+
+[features]
+memories = false
+request_permissions_tool = false
+
+[skills]
+include_instructions = false
+
+[skills.bundled]
+enabled = false

@@ -37,6 +37,10 @@ class SetupAgentsTests(unittest.TestCase):
         }
         self.primary_name = "sacha_executer"
         self.primary_target = self.targets[self.primary_name]
+        self.legacy_researcher_target = setup_agents.resolve_target(
+            self.codex_home,
+            setup_agents.LEGACY_RESEARCHER_TARGET_RELATIVE,
+        )
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -56,6 +60,22 @@ class SetupAgentsTests(unittest.TestCase):
         self.assertTrue(
             all(not target.exists() for name, target in self.targets.items() if name not in excluded)
         )
+
+    def write_legacy_researcher(self, *, managed: bool = True) -> bytes:
+        lines = []
+        if managed:
+            lines.append(setup_agents.OWNER_MARKER)
+        lines.extend(
+            (
+                'name = "sacha_readonly_worker"',
+                'description = "legacy researcher"',
+                'developer_instructions = "legacy"',
+            )
+        )
+        content = ("\n".join(lines) + "\n").encode("utf-8")
+        self.legacy_researcher_target.parent.mkdir(exist_ok=True)
+        self.legacy_researcher_target.write_bytes(content)
+        return content
 
     def test_path_resolution_prefers_codex_home_and_falls_back(self) -> None:
         selected = setup_agents.resolve_codex_home(
@@ -126,15 +146,35 @@ class SetupAgentsTests(unittest.TestCase):
         for name, target in self.targets.items():
             self.assertEqual(target.read_bytes(), self.templates[name])
 
-        readonly = tomllib.loads(self.targets["sacha_readonly_worker"].read_text(encoding="utf-8"))
+        researcher = tomllib.loads(self.targets["sacha_researcher"].read_text(encoding="utf-8"))
         executer = tomllib.loads(self.targets["sacha_executer"].read_text(encoding="utf-8"))
         reviewer = tomllib.loads(self.targets["sacha_reviewer"].read_text(encoding="utf-8"))
-        self.assertEqual(readonly["sandbox_mode"], "read-only")
-        self.assertEqual(reviewer["sandbox_mode"], "read-only")
-        for capability in (readonly, executer, reviewer):
+        self.assertEqual(
+            researcher["features"],
+            {
+                "shell_tool": False,
+                "apps": False,
+                "memories": False,
+                "request_permissions_tool": False,
+            },
+        )
+        self.assertEqual(
+            executer["features"],
+            {"memories": False, "request_permissions_tool": False},
+        )
+        self.assertEqual(
+            reviewer["features"],
+            {"memories": False, "request_permissions_tool": False},
+        )
+        expected_skills = {
+            "include_instructions": False,
+            "bundled": {"enabled": False},
+        }
+        for capability in (researcher, executer, reviewer):
             self.assertNotIn("model", capability)
             self.assertNotIn("model_reasoning_effort", capability)
-        self.assertNotIn("sandbox_mode", executer)
+            self.assertNotIn("sandbox_mode", capability)
+            self.assertEqual(capability["skills"], expected_skills)
 
         deepseek = tomllib.loads(self.targets["sacha_deepseek_worker"].read_text(encoding="utf-8"))
         deepseek_pro = tomllib.loads(self.targets["sacha_deepseek_pro_worker"].read_text(encoding="utf-8"))
@@ -148,6 +188,48 @@ class SetupAgentsTests(unittest.TestCase):
         )
         again = self.dry_run()
         self.assertEqual((again["action"], again["delta"]), ("no-op", ""))
+
+    def test_migrates_managed_legacy_researcher(self) -> None:
+        legacy = self.write_legacy_researcher()
+        plan = self.dry_run()
+        self.assertEqual(plan["retired_agents"][0]["action"], "remove")
+        self.assertIn(str(self.legacy_researcher_target), plan["delta"])
+
+        result = self.apply()
+        self.assertEqual((result["status"], result["transaction"]), ("ok", "written"))
+        self.assertEqual(result["retired_paths"], [str(self.legacy_researcher_target)])
+        self.assertFalse(self.legacy_researcher_target.exists())
+        self.assertEqual(
+            self.targets["sacha_researcher"].read_bytes(),
+            self.templates["sacha_researcher"],
+        )
+        self.assertNotEqual(self.templates["sacha_researcher"], legacy)
+        self.assertEqual(self.dry_run()["action"], "no-op")
+
+    def test_unmanaged_legacy_researcher_blocks_migration(self) -> None:
+        legacy = self.write_legacy_researcher(managed=False)
+        self.assertEqual(self.dry_run()["retired_agents"][0]["action"], "conflict")
+        result = self.apply()
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "no_write"))
+        self.assertEqual(self.legacy_researcher_target.read_bytes(), legacy)
+        self.assert_no_targets()
+
+    def test_embedded_owner_marker_does_not_authorize_legacy_removal(self) -> None:
+        self.legacy_researcher_target.parent.mkdir(exist_ok=True)
+        legacy = (
+            'name = "sacha_readonly_worker"\n'
+            'description = "unmanaged"\n'
+            'developer_instructions = """\n'
+            f"{setup_agents.OWNER_MARKER}\n"
+            '"""\n'
+        ).encode("utf-8")
+        self.legacy_researcher_target.write_bytes(legacy)
+
+        self.assertEqual(self.dry_run()["retired_agents"][0]["action"], "conflict")
+        result = self.apply()
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "no_write"))
+        self.assertEqual(self.legacy_researcher_target.read_bytes(), legacy)
+        self.assert_no_targets()
 
     def test_semantically_identical_unmanaged_files_are_conflicts(self) -> None:
         self.primary_target.parent.mkdir()
@@ -264,20 +346,82 @@ class SetupAgentsTests(unittest.TestCase):
         self.assertEqual(self.primary_target.read_bytes(), old)
         self.assert_no_targets(self.primary_name)
 
+    def test_failure_after_legacy_retirement_rolls_back_all_targets(self) -> None:
+        legacy = self.write_legacy_researcher()
+
+        def fail_after_retire(_target: Path) -> None:
+            raise RuntimeError("injected retirement failure")
+
+        result = self.apply(_test_hooks={"after_retire": fail_after_retire})
+        self.assertEqual((result["status"], result["transaction"]), ("refused", "rolled_back"))
+        self.assertEqual(self.legacy_researcher_target.read_bytes(), legacy)
+        self.assert_no_targets()
+
     def test_capability_only_template_with_fixed_model_is_refused(self) -> None:
-        bad_template = self.root / "bad-readonly.toml"
-        bad_template.write_text(
-            self.templates["sacha_readonly_worker"].decode("utf-8")
-            + '\nmodel = "gpt-5.6-luna"\n',
-            encoding="utf-8",
+        bad_template = self.root / "bad-researcher.toml"
+        text = self.templates["sacha_researcher"].decode("utf-8")
+        bad_template.write_bytes(
+            text.replace(
+                'developer_instructions = """',
+                'model = "gpt-5.6-luna"\n\ndeveloper_instructions = """',
+                1,
+            ).encode("utf-8"),
         )
         result = setup_agents.run_setup(
             codex_home=self.codex_home,
-            _template_paths={"sacha_readonly_worker": bad_template},
+            _template_paths={"sacha_researcher": bad_template},
         )
         self.assertEqual(result["transaction"], "no_write")
         self.assertIn("must omit fixed model fields", result["errors"][0])
         self.assert_no_targets()
+
+    def test_capability_only_template_with_sandbox_mode_is_refused(self) -> None:
+        bad_template = self.root / "bad-researcher.toml"
+        text = self.templates["sacha_researcher"].decode("utf-8")
+        bad_template.write_bytes(
+            text.replace(
+                'developer_instructions = """',
+                'sandbox_mode = "read-only"\n\ndeveloper_instructions = """',
+                1,
+            ).encode("utf-8"),
+        )
+        result = setup_agents.run_setup(
+            codex_home=self.codex_home,
+            _template_paths={"sacha_researcher": bad_template},
+        )
+        self.assertEqual(result["transaction"], "no_write")
+        self.assertIn("must omit sandbox_mode", result["errors"][0])
+        self.assert_no_targets()
+
+    def test_capability_only_template_requires_feature_and_skill_reductions(self) -> None:
+        template = self.templates["sacha_researcher"].decode("utf-8")
+        cases = (
+            (
+                "feature",
+                template.replace("shell_tool = false", "shell_tool = true", 1),
+                "unexpected feature reductions",
+            ),
+            (
+                "skills",
+                template.replace(
+                    "include_instructions = false",
+                    "include_instructions = true",
+                    1,
+                ),
+                "unexpected Skill reductions",
+            ),
+        )
+        for label, text, expected_error in cases:
+            with self.subTest(label=label):
+                bad_template = self.root / f"bad-researcher-{label}.toml"
+                bad_template.write_bytes(text.encode("utf-8"))
+                result = setup_agents.run_setup(
+                    codex_home=self.codex_home,
+                    _template_paths={"sacha_researcher": bad_template},
+                )
+                self.assertEqual(result["transaction"], "no_write")
+                self.assertIn(expected_error, result["errors"][0])
+                self.assert_no_targets()
 
 
 if __name__ == "__main__":

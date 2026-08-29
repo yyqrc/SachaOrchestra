@@ -18,8 +18,10 @@ DEEPSEEK_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-worker.toml"
 DEEPSEEK_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-worker.toml"
 DEEPSEEK_PRO_TARGET_RELATIVE = Path("agents") / "sacha-deepseek-pro-worker.toml"
 DEEPSEEK_PRO_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-deepseek-pro-worker.toml"
-READONLY_TARGET_RELATIVE = Path("agents") / "sacha-readonly-worker.toml"
-READONLY_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-readonly-worker.toml"
+RESEARCHER_TARGET_RELATIVE = Path("agents") / "sacha-researcher.toml"
+RESEARCHER_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-researcher.toml"
+LEGACY_RESEARCHER_TARGET_RELATIVE = Path("agents") / "sacha-readonly-worker.toml"
+LEGACY_RESEARCHER_NAME = "sacha_readonly_worker"
 REVIEWER_TARGET_RELATIVE = Path("agents") / "sacha-reviewer.toml"
 REVIEWER_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-reviewer.toml"
 EXECUTER_TARGET_RELATIVE = Path("agents") / "sacha-executer.toml"
@@ -39,13 +41,32 @@ class AgentDefinition:
     template_path: Path
     model: str | None = None
     reasoning_effort: str | None = None
-    sandbox_mode: str | None = None
+    disabled_features: tuple[str, ...] = ()
+    disable_automatic_skills: bool = False
 
 
 AGENT_DEFINITIONS = (
-    AgentDefinition("sacha_readonly_worker", READONLY_TARGET_RELATIVE, READONLY_TEMPLATE, sandbox_mode="read-only"),
-    AgentDefinition("sacha_executer", EXECUTER_TARGET_RELATIVE, EXECUTER_TEMPLATE),
-    AgentDefinition("sacha_reviewer", REVIEWER_TARGET_RELATIVE, REVIEWER_TEMPLATE, sandbox_mode="read-only"),
+    AgentDefinition(
+        "sacha_researcher",
+        RESEARCHER_TARGET_RELATIVE,
+        RESEARCHER_TEMPLATE,
+        disabled_features=("shell_tool", "apps", "memories", "request_permissions_tool"),
+        disable_automatic_skills=True,
+    ),
+    AgentDefinition(
+        "sacha_executer",
+        EXECUTER_TARGET_RELATIVE,
+        EXECUTER_TEMPLATE,
+        disabled_features=("memories", "request_permissions_tool"),
+        disable_automatic_skills=True,
+    ),
+    AgentDefinition(
+        "sacha_reviewer",
+        REVIEWER_TARGET_RELATIVE,
+        REVIEWER_TEMPLATE,
+        disabled_features=("memories", "request_permissions_tool"),
+        disable_automatic_skills=True,
+    ),
     AgentDefinition("sacha_deepseek_worker", DEEPSEEK_TARGET_RELATIVE, DEEPSEEK_TEMPLATE, "TT/deepseek-v4-flash-ioa", "max"),
     AgentDefinition("sacha_deepseek_pro_worker", DEEPSEEK_PRO_TARGET_RELATIVE, DEEPSEEK_PRO_TEMPLATE, "TT/deepseek-v4-pro-ioa", "max"),
 )
@@ -63,9 +84,20 @@ class AgentPlan:
 
 
 @dataclass(frozen=True)
+class RetiredAgentPlan:
+    name: str
+    target: Path
+    current: bytes | None
+    action: str
+    delta: str
+    current_parse_error: str | None
+
+
+@dataclass(frozen=True)
 class Plan:
     codex_home: Path
     agents: tuple[AgentPlan, ...]
+    retired_agents: tuple[RetiredAgentPlan, ...]
 
 
 def resolve_codex_home(
@@ -125,8 +157,6 @@ def expected_identity(definition: AgentDefinition) -> dict[str, object]:
         identity["model"] = definition.model
     if definition.reasoning_effort is not None:
         identity["model_reasoning_effort"] = definition.reasoning_effort
-    if definition.sandbox_mode is not None:
-        identity["sandbox_mode"] = definition.sandbox_mode
     return identity
 
 
@@ -139,12 +169,32 @@ def validate_definition(data: bytes, definition: AgentDefinition) -> dict[str, o
                 "capability-only Agent must omit fixed model fields: "
                 + ", ".join(fixed_model_fields)
             )
+        if "sandbox_mode" in parsed:
+            raise SetupAgentsError(
+                "capability-only Agent must omit sandbox_mode"
+            )
+    if definition.disabled_features:
+        expected_features = {feature: False for feature in definition.disabled_features}
+        if parsed.get("features") != expected_features:
+            raise SetupAgentsError(
+                f"unexpected feature reductions for {definition.name}"
+            )
+    if definition.disable_automatic_skills:
+        expected_skills = {
+            "include_instructions": False,
+            "bundled": {"enabled": False},
+        }
+        if parsed.get("skills") != expected_skills:
+            raise SetupAgentsError(
+                f"unexpected Skill reductions for {definition.name}"
+            )
     return parsed
 
 
 def has_owner_marker(data: bytes) -> bool:
     try:
-        return OWNER_MARKER in data.decode("utf-8").splitlines()
+        lines = data.decode("utf-8").splitlines()
+        return bool(lines) and lines[0] == OWNER_MARKER
     except UnicodeDecodeError:
         return False
 
@@ -158,6 +208,18 @@ def render_delta(target: Path, current: bytes | None, generated: bytes) -> str:
             after,
             fromfile=str(target) if current is not None else "/dev/null",
             tofile=str(target),
+        )
+    )
+
+
+def render_removal_delta(target: Path, current: bytes) -> str:
+    before = current.decode("utf-8", errors="replace").splitlines(keepends=True)
+    return "".join(
+        difflib.unified_diff(
+            before,
+            [],
+            fromfile=str(target),
+            tofile="/dev/null",
         )
     )
 
@@ -208,6 +270,37 @@ def build_agent_plan(
     )
 
 
+def build_retired_agent_plan(home: Path) -> RetiredAgentPlan:
+    target = resolve_target(home, LEGACY_RESEARCHER_TARGET_RELATIVE)
+    current = target.read_bytes() if target.is_file() else None
+    current_parse_error: str | None = None
+    if current is None:
+        action = "no-op"
+    else:
+        try:
+            current_semantics = parse_toml(current)
+        except SetupAgentsError as exc:
+            current_semantics = None
+            current_parse_error = str(exc)
+        if (
+            has_owner_marker(current)
+            and current_semantics is not None
+            and current_semantics.get("name") == LEGACY_RESEARCHER_NAME
+        ):
+            action = "remove"
+        else:
+            action = "conflict"
+    delta = render_removal_delta(target, current) if action == "remove" and current else ""
+    return RetiredAgentPlan(
+        LEGACY_RESEARCHER_NAME,
+        target,
+        current,
+        action,
+        delta,
+        current_parse_error,
+    )
+
+
 def build_plan(
     codex_home: str | Path | None = None,
     *,
@@ -223,7 +316,8 @@ def build_plan(
         build_agent_plan(home, definition, _template_path=overrides.get(definition.name))
         for definition in AGENT_DEFINITIONS
     )
-    return Plan(home, agents)
+    retired_agents = (build_retired_agent_plan(home),)
+    return Plan(home, agents, retired_agents)
 
 
 def plan_result(plan: Plan) -> dict[str, object]:
@@ -232,14 +326,26 @@ def plan_result(plan: Plan) -> dict[str, object]:
         for agent in plan.agents
         if agent.current_parse_error
     ]
+    warnings.extend(
+        f"{agent.target}: {agent.current_parse_error}"
+        for agent in plan.retired_agents
+        if agent.current_parse_error
+    )
     actions = {agent.action for agent in plan.agents}
+    actions.update(
+        agent.action for agent in plan.retired_agents if agent.action != "no-op"
+    )
     action = next(iter(actions)) if len(actions) == 1 else "mixed"
     return {
         "status": "planned",
         "transaction": "dry_run",
         "action": action,
         "target_paths": [str(agent.target) for agent in plan.agents],
-        "delta": "\n".join(agent.delta for agent in plan.agents if agent.delta),
+        "delta": "\n".join(
+            agent.delta
+            for agent in (*plan.agents, *plan.retired_agents)
+            if agent.delta
+        ),
         "agents": [
             {
                 "name": agent.definition.name,
@@ -249,6 +355,16 @@ def plan_result(plan: Plan) -> dict[str, object]:
                 "current_parse_error": agent.current_parse_error,
             }
             for agent in plan.agents
+        ],
+        "retired_agents": [
+            {
+                "name": agent.name,
+                "action": agent.action,
+                "target_path": str(agent.target),
+                "delta": agent.delta,
+                "current_parse_error": agent.current_parse_error,
+            }
+            for agent in plan.retired_agents
         ],
         "warnings": warnings,
     }
@@ -308,23 +424,42 @@ def run_setup(
     result = plan_result(plan)
     if not write:
         return result
-    changed_agents = [agent for agent in plan.agents if agent.action != "no-op"]
-    if not changed_agents:
-        result.update(status="ok", transaction="no_changes")
+    conflicts = [agent for agent in plan.agents if agent.action == "conflict"]
+    retired_conflicts = [
+        agent for agent in plan.retired_agents if agent.action == "conflict"
+    ]
+    if conflicts or retired_conflicts:
+        result.update(
+            status="refused",
+            transaction="no_write",
+            errors=[
+                "non-Sacha or identity-conflicting Agent file cannot be overwritten or retired"
+            ],
+        )
         return result
-    if any(agent.action == "conflict" for agent in changed_agents):
-        result.update(status="refused", transaction="no_write", errors=["non-Sacha or identity-conflicting Agent file cannot be overwritten"])
+    changed_agents = [
+        agent for agent in plan.agents if agent.action in {"create", "update"}
+    ]
+    retired_agents = [
+        agent for agent in plan.retired_agents if agent.action == "remove"
+    ]
+    if not changed_agents and not retired_agents:
+        result.update(status="ok", transaction="no_changes")
         return result
 
     parent = plan.codex_home / "agents"
     parent_created = False
     temp_paths: dict[Path, Path] = {}
     replaced_agents: list[AgentPlan] = []
+    removed_retired_agents: list[RetiredAgentPlan] = []
     hooks = dict(_test_hooks or {})
     try:
         for agent in plan.agents:
             if resolve_target(plan.codex_home, agent.definition.target_relative) != agent.target:
                 raise SetupAgentsError(f"Agent target resolution changed before write: {agent.definition.name}")
+        for agent in plan.retired_agents:
+            if resolve_target(plan.codex_home, LEGACY_RESEARCHER_TARGET_RELATIVE) != agent.target:
+                raise SetupAgentsError(f"retired Agent target resolution changed before write: {agent.name}")
         if not parent.exists():
             parent.mkdir()
             parent_created = True
@@ -334,6 +469,10 @@ def run_setup(
             current_now = agent.target.read_bytes() if agent.target.is_file() else None
             if current_now != agent.current:
                 raise SetupAgentsError(f"target changed after planning: {agent.definition.name}")
+        for agent in plan.retired_agents:
+            current_now = agent.target.read_bytes() if agent.target.is_file() else None
+            if current_now != agent.current:
+                raise SetupAgentsError(f"target changed after planning: {agent.name}")
         for agent in changed_agents:
             temp_paths[agent.target] = prepare_temp(
                 agent.target,
@@ -347,10 +486,20 @@ def run_setup(
                 hook(agent.target)
         for agent in changed_agents:
             verify_installed(agent.target, agent.template, agent.definition)
+        for agent in retired_agents:
+            current_now = agent.target.read_bytes() if agent.target.is_file() else None
+            if current_now != agent.current:
+                raise SetupAgentsError(f"retired Agent changed before removal: {agent.name}")
+            agent.target.unlink()
+            removed_retired_agents.append(agent)
+            if hook := hooks.get("after_retire"):
+                hook(agent.target)
+            if agent.target.exists():
+                raise SetupAgentsError(f"retired Agent still exists after removal: {agent.name}")
     except Exception as exc:
         for temp_path in temp_paths.values():
             temp_path.unlink(missing_ok=True)
-        if not replaced_agents:
+        if not replaced_agents and not removed_retired_agents:
             if parent_created:
                 try:
                     parent.rmdir()
@@ -359,6 +508,20 @@ def run_setup(
             result.update(status="refused", transaction="no_write", errors=[f"write failed: {type(exc).__name__}: {exc}"])
             return result
         try:
+            for agent in reversed(removed_retired_agents):
+                if agent.target.exists() or agent.current is None:
+                    raise SetupAgentsError(
+                        f"retired Agent target changed before rollback: {agent.name}"
+                    )
+                restore_temp = prepare_temp(agent.target, agent.current, validate=False)
+                try:
+                    os.replace(restore_temp, agent.target)
+                finally:
+                    restore_temp.unlink(missing_ok=True)
+                if agent.target.read_bytes() != agent.current:
+                    raise SetupAgentsError(
+                        f"retired Agent rollback verification failed: {agent.name}"
+                    )
             for agent in reversed(replaced_agents):
                 if agent.target.read_bytes() != agent.template:
                     raise SetupAgentsError(f"generated file changed before rollback: {agent.definition.name}")
@@ -384,6 +547,7 @@ def run_setup(
         status="ok",
         transaction="written",
         written_paths=[str(agent.target) for agent in changed_agents],
+        retired_paths=[str(agent.target) for agent in retired_agents],
     )
     return result
 

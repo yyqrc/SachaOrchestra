@@ -100,9 +100,17 @@ Code Mode 只接收调用节点已确认的非 Agent 只读调用：至少两个
 
 asset 在创建 Promise 前校验调用数、单元标识、投影、输出上限和工具唯一可调用性，并预检最小 `outcome_unknown` 包络；随后每项只调用一次并按输入顺序返回 `settled`、`output_limit_exceeded` 或 `outcome_unknown`。Runtime 场景必须保留 asset path/hash、实际外层程序、嵌套 caller 关系、逐项原始结果和最终输出；源码字符串、fixture 或执行者自报不能替代真实行为证据。
 
+### 2.8 原生工具搜索
+
+调用节点需要工具时，按当前任务实际暴露的入口处理：目标工具已在模型工具面时直接调用；目标工具不可见且原生 `tool_search` 可用时，用 capability 或 namespace 搜索，并只调用唯一匹配的返回结果；搜索不可用、没有匹配或结果不唯一时，使用同一 Scope 与副作用边界内已经确认的原生 fallback，或者报告能力缺口。
+
+根任务与每个 child 分别执行上述判断，并在 spawn、resume、compaction 或 Runtime 重连后重新检查。MCP 工具使用当前实际表面；Code Mode 工具只按第 2.7 节从当前 `ALL_TOOLS` 选择已确认目标，不能替代模型工具面或 `tool_search` 结果。
+
+工具发现和 fallback 不改变 Scope、授权或外部副作用边界。Researcher 只使用直接可见或搜索得到的只读工具；需要 `exec_command`、`apply_patch` 或其他写入入口时返回调用节点。
+
 ## 3. 能力载体与模型路由
 
-主任务每次首次创建前必须按 A → B → C 顺序处理：A 读取 Core 已判定事实与所需能力边界，B 选择模型路线，C 按当前协作界面组合 Agent 类型、模型和传输字段。自定义 Agent 只定义 `sandbox_mode`、工具面与执行边界；Role、readiness、Scope、授权和派发合法性仍由 Core/Skill 决定。
+主任务每次首次创建前必须按 A → B → C 顺序处理：A 读取 Core 已判定事实与所需能力边界，B 选择模型路线，C 按当前协作界面组合 Agent 类型、模型和传输字段。自定义 Agent 提供 developer instructions、模型设置及 feature/Skill 降权；permission profile、sandbox、MCP、工具暴露和 Code Mode 集合沿用当前 Runtime。Role、readiness、Scope、授权和派发合法性仍由 Core/Skill 决定。
 
 ### A. 评估输入（不依赖 Runtime）
 
@@ -142,17 +150,24 @@ C 只接受 A 的能力边界、B 的 `route_id` 和第 2.1 节唯一确定的�
 
 `message` 必须自包含目标、Scope、输入 reference、完成检查、停止条件与协调请求返回条件；不得复制完整父历史。
 
+工作单元消费已确认 Capability Binding 时，主任务在首次创建前按以下顺序组装；解析结果只进入本次调用，不写回 Project Integration：
+
+1. 从 Binding 取得唯一 capability id、canonical Skill 身份与 load policy；当前节点不满足 policy 时停止，不加载或派发降级 child。
+2. 只用当前 Runtime 的 Skill catalog/schema 把 canonical 身份解析为唯一可见项，并采用该项给出的绝对 `SKILL.md` path；不得扫描磁盘目录猜版本。path 不是绝对文件、不可读、身份不唯一或 Skill 不可见时停止。主任务完整读取该 Skill，并核对其插件/MCP 前置、具体副作用与当前 Role、Scope 和授权。
+3. `message` 除上述通用内容外，还必须给出 capability id、canonical 身份、绝对 path、允许的能力/副作用边界，并要求 child 在任何任务动作前完整读取该文件，不依赖自动 Skill instructions 或目录发现。Skill 所需插件/MCP 在 child 工具面不可达，或其副作用超过当前边界时，必须在 `spawn_agent` 前停止，不派发不带 Skill 的 fallback child。
+4. 只有当前 `spawn_agent` schema 自身暴露结构化 Skill input 时，才把同一 Runtime catalog 项的 `name/path` 一并传入；App Server `turn/start` 支持 `skill` input 不能证明 child transport 支持。当前 `collaboration.spawn_agent` 未暴露该字段时，使用上述自包含 `message`，不得只传名称。
+
 #### C.2 能力 Agent
 
 | 单元用途 | `agent_type` | 边界 |
 | --- | --- | --- |
-| 只读研究 | `sacha_readonly_worker` | 必须由 Runtime 发现，且实际 `sandbox_mode="read-only"` |
-| 正式独立 Reviewer | `sacha_reviewer` | 除 `sandbox_mode` 外仍须核对真实参与历史和输入来源 |
+| 只读研究 | `sacha_researcher` | 必须由 Runtime 发现；只接收无写入授权的 `research-ready` 单元，并使用 Capability Binding 指向的插件 Skill/MCP 只读查询 |
+| 正式独立 Reviewer | `sacha_reviewer` | 必须核对真实参与历史和输入来源；可执行裁决所需、已有 Scope/授权覆盖的临时验证与插件 Skill/MCP 操作，不默认修复交付实现 |
 | 写入/验证 | `sacha_executer` | 必须由 Runtime 发现；不设置 `sandbox_mode`，沿用父任务实际 `sandbox_mode`，写入继续服从 Scope、授权和单写入者 |
 
-`sacha_readonly_worker`、`sacha_executer` 与 `sacha_reviewer` 的定义不得固定 `model` 或 `model_reasoning_effort`。DeepSeek 与 DeepSeek Pro 定义继续作为固定模型 Agent，仅供精确路线或兼容回退；它们不承载上述能力边界。Luna 由逐次 `model/reasoning_effort` 直接派发，不再使用固定模型 Agent。
+`sacha_researcher`、`sacha_executer` 与 `sacha_reviewer` 的定义不得固定 `model` 或 `model_reasoning_effort`。DeepSeek 与 DeepSeek Pro 定义继续作为固定模型 Agent，仅供精确路线或兼容回退；它们不承载上述能力边界。Luna 由逐次 `model/reasoning_effort` 直接派发，不再使用固定模型 Agent。
 
-当前协作界面必须实际暴露 `agent_type`、`model` 和 `reasoning_effort` 的组合参数，并发现目标 Agent 类型，才能组合能力 Agent 与逐次模型路线。当前 `v2` schema 具备这三个字段；实际覆盖优先级、`sandbox_mode` 与有效模型仍需场景证据。`v1` 只有在当前工具面满足同一组合时才走统一映射；不满足时，写入单元仅可在精确模型一致时使用已发现的 DeepSeek 固定模型 Agent，只读研究与正式独立 Reviewer 停止派发，不用提示词冒充只读保护。
+当前协作界面必须实际暴露 `agent_type`、`model` 和 `reasoning_effort` 的组合参数，并发现目标 Agent 类型，才能组合能力 Agent 与逐次模型路线。当前 `v2` schema 具备这三个字段；覆盖优先级、feature/Skill 降权、permission profile、工具面与有效模型由场景证据确认。`v1` 只在当前工具面满足同一组合时使用统一映射；其他分支按已发现的兼容路线处理，目标 Role 缺少完成条件时停止派发。
 
 #### C.3 模型路由字段与优先级
 
@@ -176,4 +191,4 @@ C 只接受 A 的能力边界、B 的 `route_id` 和第 2.1 节唯一确定的�
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、`accepted/started/terminal/cancelled`、工具错误和结果 reference。Code Mode 另回传 asset path/hash、外层调用 reference、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`；只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、`sandbox_mode` 和工具行为分别需要 Runtime 遥测、子任务配置回读或原生工具轨迹，配置文件、schema 和委派 Agent 自报都不能替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。静态源码/测试的证据范围为本文结构与分支约束；Code Mode 能力、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、`accepted/started/terminal/cancelled`、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；Code Mode 另回传 asset path/hash、外层调用 reference、`ALL_TOOLS` 中命中的目标、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。静态源码/测试的证据范围为本文结构与分支约束；Tool Search、Code Mode、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
