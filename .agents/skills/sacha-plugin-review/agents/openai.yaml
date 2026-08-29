@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha 插件评审"
-  short_description: "只读评审 Sacha 插件差异的 Owner、发布边界与真实证据"
-  default_prompt: "使用 $sacha-plugin-review 对当前 Sacha 插件差异做有界语义评审。"
+  short_description: "只读检查 Sacha 插件差异、安装内容和验证证据是否支持正确交付"
+  default_prompt: "使用 $sacha-plugin-review 检查当前 Sacha 插件差异是否存在会阻塞交付的问题。"

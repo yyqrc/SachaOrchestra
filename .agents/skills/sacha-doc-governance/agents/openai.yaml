@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha 文档治理"
-  short_description: "审查和维护 Sacha 开发文档与发布文档的归属、语义和历史边界"
-  default_prompt: "使用 $sacha-doc-governance 审查这次 Sacha 文档改动的归属、语义与历史边界。"
+  short_description: "整理和审查 Sacha 文档，确保内容位置正确、含义完整且安装后可用"
+  default_prompt: "使用 $sacha-doc-governance 整理这次 Sacha 文档改动，核对内容位置、现有使用方和安装后可用性。"
