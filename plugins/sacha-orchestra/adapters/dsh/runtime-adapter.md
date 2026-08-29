@@ -25,11 +25,15 @@
 - child settlement 能以 Runtime notice 回到直接 parent；
 - 需要 child 主动回报时可选 `report` child capability。
 
-只有当前工具面和 Runtime 结果能证明上述能力；磁盘源码、Profile 配置、安装记录和其他会话先例只能说明预期。若具名 Sacha delegation tool 不可达，但当前 Runtime 存在等价 continuable tool，Adapter 可在完整核对其 `backgroundMode`、fresh/fork 语义、child route、depth 与 capability 限制后使用；无法证明等价时停止该派发单元并报告 Runtime 能力缺口。
+具名 Sacha surface 的调用必须省略 `run_in_background` 或显式传 `true`，并从创建结果取得 durable continuable child id。显式 `false` 进入 foreground one-shot，不满足 Sacha 的 direct-child、settlement 和恢复路径，不得作为正式 Planner/Explore、Executor 或 Reviewer transport。
+
+只有当前工具 schema、child `request/header` 与 Runtime 结果能证明上述能力；磁盘源码、Profile 配置、安装记录和其他会话先例只能说明预期。工具同名也不证明语义相同：例如 `list_agents` 必须实际暴露 `scope=children|descendants` 才是 continuable subagent control；被 Agent Teams 等 Profile 组件覆盖成其他 schema 时记录为恢复能力缺口。若具名 Sacha delegation tool 不可达，但当前 Runtime 存在等价 continuable tool，Adapter 可在完整核对其 `backgroundMode`、fresh/fork 语义、child route、depth 与 capability 限制后使用；具名 surface 已调用失败时，不得把 standard `subagent`、Agent Teams teammate 或另一个 Role surface 当作自动重试。无法证明等价时停止该派发单元并报告 Runtime 能力缺口。
 
 `subagent` one-shot、ACP/远程 Provider、Codex/Claude Code provider 或其他 transport 不能在未核对 continuable、恢复和 child route 语义时替代本主路径。
 
 `sacha_visual_event` 是可选观测能力。它存在时，主任务按第 7 节记录已经提交的 Sacha 转换；缺失、失败或不可达只形成观测缺口，不打开或关闭 Gate，不撤销已提交动作，也不阻塞能够独立验证的工作流。
+
+目标 Profile 安装 `integrations/dsh/sacha-companion` 时，Companion 对 live Root 提供 task-aware `inspect | execute | review` 工具 profile 与 `sacha_tools` 查询/解锁。该分类只控制 DSH 的 model-visible/executable surface，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功 control 记录和 recovery 结果；隐藏工具需要当前 work unit 且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
 
 ## 3. 主任务、Role 与 child 映射
 
@@ -64,15 +68,17 @@ Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter �
 
 `toolFilter` 只在当前 DSH provider 声明并实际接受该 capability 时使用；未知工具名、过滤失败或工具面无法回读时不得把提示词当作 enforcement。Reviewer 若依赖文件只读，应使用当前 DSH sandbox 的真实模式/结果，并区分 `full | partial | unknown`；read-only sandbox 不证明读隔离或网络隔离。
 
-仓库内可选 bundle `integrations/dsh/sacha-subagents` 提供当前标准 DSH coding preset 的三种默认 surface。它只组合官方 `dsh-tool-subagent`，不拥有 Sacha 语义；目标 Profile 不满足其显式工具前提时应响亮失败或不安装，不静默退化。
+每个 surface 首次使用或 Profile/插件/版本变化后，Adapter 必须从 child `request/header.tools` 建立能力包络，至少分开记录：本地文件、shell/进程、Web、MCP/App/外部系统、自动 Skill 与明确 reference、权限/控制工具、下级 Agent、模型路线和 continuable/recovery。当前 work unit 的必需能力不属于已验证包络时，留在 Root、选择已核对等价 surface 或停止该单元；不能只因 Role 名称或 persona 匹配就派发。
+
+仓库内单一 package `integrations/dsh/sacha-companion` 提供当前标准 DSH coding preset 的 Root policy 与三种默认 child surface。当前 Runtime 的 continuable activation 会同时出现在 `AgentRegistry.roots()`，Companion 还必须用 child 原生 `subagent/descriptor` 排除它，并在 child scope 移除继承的 `sacha_tools`；不得用 durable `parentSession` 推导 Sacha Owner。它只组合 DSH Runtime 能力，不拥有 Sacha 语义；目标 Profile 不满足显式工具、schema/guard、provider 或恢复前提时应响亮失败或不安装，不静默退化。
 
 ### 4.2 子模型路由
 
-具名 delegation tool 或当前等价 tool 暴露 `provider`、`model`、`reasoning_effort` 时，主任务按 Human 精确要求优先，其次按当前 work unit 的风险/成本选择完整 route，并在创建前执行 Runtime 可用的 route discovery/preflight。
+当前 DSH `0.1.1-rc.2` 的 `dsh-tool-subagent` 实例可配置固定 `agentOptions.provider/model/maxTokens`，但模型调用不接受逐 child `provider/model/reasoning_effort`。仓库 bundle 省略 `agentOptions`，因此使用 Root 的 provider/model 继承；需要不同固定 route 时只能由 Profile 提供另一个唯一 `toolName` 的已核对实例。
 
-未暴露逐 child route 时，使用该 delegation surface 的已确认 provider/default；高风险 Planner、Executor 或独立 Reviewer 若默认 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork 或自报模型降级。
+主任务只选择当前工具目录中已装配且质量满足要求的 surface，不把 Core route requirement 改写成目标 Runtime 不支持的逐调用字段。高风险 Planner、Executor 或独立 Reviewer 若继承 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork、另一个 Role surface或自报模型降级。
 
-实际 provider/model/reasoning 只有原生创建结果、child Session/Agent 遥测或可绑定 Runtime 证据明确返回时才记录；配置和 Agent 自报不构成实际模型证据。
+配置中的 `agentOptions`、child descriptor、child `request/header.config` 与实际 `assistant/message.source` 分别只证明声明、请求和实际 provider/model；reasoning 只有 request header 或可绑定 Runtime 遥测明确返回时才记录。配置和 Agent 自报不构成实际模型证据。
 
 ## 5. 派发、并发、barrier 与返回
 
@@ -81,14 +87,15 @@ Manager 仍按 Coordination Contract 形成工作单元、依赖波次、readine
 每个 ready work unit 的派发流程：
 
 1. 主任务核对同一 Task/Scope revision、授权、单写入者和该单元的 capability/model route。
-2. 调用一次对应 continuable delegation tool；后台/continuable 为默认时保留返回的 durable child id。创建被拒且 child 未发布时才可重新评估并重试；已返回 child id 后不得重复创建同一 work unit。
-3. 若 `sacha_visual_event` 可用，在 child id 已真实返回后记录一次 `delegation`，把当前 Sacha `unit_id` 映射到该 `child_id`；只有 Runtime 已证明的 route 才写 `effective_route`。记录失败只形成观测缺口，不撤销 child。
-4. 派发后立即重算剩余 ready work。只要存在不依赖未完成结果且不冲突的工作，主任务继续执行或继续派发；不得因为已有 child 在跑就立刻阻塞。
-5. 到达依赖屏障且没有其他可推进工作时，主任务停止主动推进并等待 Runtime settlement/report 作为下一次可消费输入；DSH 主路径不依赖 Agent Teams `wait_agent`。
-6. 每次 child settlement/report 到达后，只消费新结果、实际验证、阻塞/风险、协调请求和必要 reference，再重算 Sacha 依赖图。只收到部分依赖时不得提前进入下一 Role 或根终态；已有 delegation 观测时可按真实结果更新其 `delegation_state` 为 `settled | interrupted | failed`。
-7. `send_message` 只用于同一 child、同一 work unit/Owner 的后续 FIFO turn；它不能重定向已经运行中的当前 turn。新 Scope 或新的独立单元创建新 child。
-8. Human 取消、失活或继续会造成双写/增险时使用 `interrupt_agent`；中断只停止当前 turn，后续是否复用或放弃 child 由主任务重新判断。
-9. `list_agents` 只用于恢复/消歧 durable child id 与当前 `running | idle | ready` 快照，不用于忙轮询完成。Runtime settlement 是完成通知，child transcript/reference 是详细工作事实来源。
+2. 调用一次对应 delegation tool，省略 `run_in_background` 或显式传 `true`；只接受 `{kind: continuable, subagentId}` 或等价的 durable child id 结果。foreground/one-shot 结果、surface 错误或没有 durable id 都使当前单元进入能力缺口；不得换用 standard `subagent`、Agent Teams teammate 或另一个 Role surface 重试。
+3. 创建被拒且没有 child 发布时，只有输入或已装配 surface 发生可证实变化才可重新评估；已返回 child id 后不得重复创建同一 work unit。
+4. 若 `sacha_visual_event` 可用，在 child id 已真实返回后记录一次 `delegation`，把当前 Sacha `unit_id` 映射到该 `child_id`；只有 Runtime 已证明的 route 才写 `effective_route`。记录失败只形成观测缺口，不撤销 child。
+5. 派发后立即重算剩余 ready work。只要存在不依赖未完成结果且不冲突的工作，主任务继续执行或继续派发；不得因为已有 child 在跑就立刻阻塞。
+6. 到达依赖屏障且没有其他可推进工作时，主任务停止主动推进并等待 Runtime settlement/report 作为下一次可消费输入；DSH 主路径不依赖 Agent Teams `wait_agent`。
+7. 每次 child settlement/report 到达后，只消费新结果、实际验证、阻塞/风险、协调请求和必要 reference，再重算 Sacha 依赖图。只收到部分依赖时不得提前进入下一 Role 或根终态；已有 delegation 观测时可按真实结果更新其 `delegation_state` 为 `settled | interrupted | failed`。
+8. `send_message` 只用于同一 child、同一 work unit/Owner 的后续 FIFO turn；它不能重定向已经运行中的当前 turn。新 Scope 或新的独立单元创建新 child。
+9. Human 取消、失活或继续会造成双写/增险时使用 `interrupt_agent`；中断只停止当前 turn，后续是否复用或放弃 child 由主任务重新判断。
+10. 只有 `list_agents` 当前 schema 含 continuable `scope` 时，才用于恢复/消歧 durable child id 与 `running | idle | ready` 快照，不用于忙轮询完成。同名工具被其他 Profile 能力覆盖时不得误用；外部运行者可用 DSH Host `subagent.list/history` 与 Session export 取证，但这不等于模型获得恢复工具。Runtime settlement 是完成通知，child transcript/reference 是详细工作事实来源。
 
 Sacha 单层派发必须由当前 Runtime 的 direct-parent/depth 记录和 child 工具轨迹证明。发现 direct child 存在下级 child 时，当前 work unit 进入偏差处理；Visualizer 可显示该事实，但不拥有裁决。
 
@@ -124,8 +131,11 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 源码与文档检查只证明本映射存在。以下行为必须使用目标 DSH 版本的真实 Runtime evidence：
 
 - Agent Plugin fresh discovery；
+- Companion Root `inspect | execute | review` 的首个 `request/header.tools`、same-scope schema/section/guard 对齐和隐藏工具负例；
+- `sacha_tools` status/catalog/help/unlock/reset、同 response 拒绝、下一 step 放行和 cold resume；
 - 具名 `sacha_research` / `sacha_worker` / `sacha_review` 或等价 continuable surface discovery；
 - fresh child、逐 child route、toolFilter、maxDepth 与 sandbox 实际值；
+- research/review 的最终工具目录不含本地写入、MCP/App/外部系统、Agent Teams、Sacha sibling 或长尾控制能力；Reviewer 只按任务需要保留 shell；
 - 两个以上 direct child 的并发启动；
 - 主任务在 child 运行时继续推进其他 ready work；
 - dependency barrier 后 settlement-driven resume；
@@ -133,6 +143,9 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 - `send_message`、interrupt、cold resume、`list_agents`；
 - child 无下级创建；
 - independent Reviewer 的输入来源与实际参与历史；
+- Sacha surface 只使用 continuable 路线；显式 foreground/one-shot 与 surface failure 不回退 standard subagent 或 Agent Teams；
+- `list_agents` 同名工具的实际 schema、被 Profile 覆盖时的恢复能力缺口；
+- subagent/teammate 不安装 Root policy，Root profile 不改变 child toolFilter；
 - visualizer 对 Manager dependency、unit↔child mapping、continuable child Host/Client snapshot 与 Session 回放。
 
 对应 Runtime task pack 见 `tests/runtime-scenarios/packs/dsh-continuable-parallel-barrier` 与 `dsh-continuable-review-isolation`。静态测试、Profile 配置或执行者总结不能替代这些行为证据。

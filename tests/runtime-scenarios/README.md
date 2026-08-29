@@ -38,6 +38,7 @@
 - `codex-context-isolation-execution`：验证多个独立实施单元由 Manager 统一派发，实施 Agent 吸收中间过程并返回压缩结果。
 - `dsh-continuable-parallel-barrier`：验证 DSH Root 直接创建多个 continuable child、派发后继续推进 ready work、在 barrier 依赖 settlement 恢复，且部分结果不会导致提前完成。
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
+- `dsh-companion-root-surface-routing`：验证 DSH Profile 的 Root 工具面按任务收窄、隐藏目录可查询、同层工具可在下一 step 解锁、reset/cold resume 可恢复，且 child 不继承 Root policy。
 
 新增包必须来自真实 failure mode 或待验证的流程变化；先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。不得为覆盖节点数量拼接不自然任务。
 

@@ -107,6 +107,20 @@ export interface SubagentSnapshot {
   readonly hasChildren: boolean
 }
 
+export interface ToolSurfaceSnapshot {
+  readonly sessionId: string
+  readonly profile: 'inspect' | 'execute' | 'review'
+  readonly visibleCount: number
+  readonly hiddenCount: number
+  readonly visible: readonly string[]
+  readonly hidden: readonly string[]
+  readonly advertised: readonly string[]
+  readonly unlocked: readonly string[]
+  readonly source: 'control' | 'user-message' | 'pending-inbox' | 'bootstrap'
+  readonly fallback: boolean
+  readonly warnings: readonly string[]
+}
+
 export interface SachaActivitySnapshot {
   readonly available: boolean
   readonly sessionId: string
@@ -116,5 +130,6 @@ export interface SachaActivitySnapshot {
     readonly available: boolean
     readonly children: readonly SubagentSnapshot[]
   }
+  readonly toolSurface?: ToolSurfaceSnapshot
   readonly warnings: readonly string[]
 }

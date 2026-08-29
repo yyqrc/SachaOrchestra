@@ -6,7 +6,7 @@
 
 - 本文件是项目级 `AGENTS.md`；全局规则中的安全、授权、证据、Git 和用户改动保护仍然生效。
 - 本文件、根目录 `README.md`、`PLUGIN_DESIGN.md`、`EVOLUTION.md`、`.agents/skills/**` 与 `docs/**` 供插件开发使用，不进入发布插件。
-- 本仓库的本地 Agent Plugin 市场只发布 `plugins/sacha-orchestra`；单独构建和安装的 DSH 配套插件位于 `integrations/dsh/sacha-visualizer`，不进入三个市场，也不属于 Agent Plugin 的发布 `root`。
+- 本仓库的本地 Agent Plugin 市场只发布 `plugins/sacha-orchestra`；单独构建和安装的唯一 DSH 配套包位于 `integrations/dsh/sacha-companion`，不进入三个市场，也不属于 Agent Plugin 的发布 `root`。
 - 当前发布版本、待发布源码版本、破坏性变更边界、成熟度和尚未实施的长期方向以 [`EVOLUTION.md`](EVOLUTION.md) 为准；现行架构和流程仍由 `PLUGIN_DESIGN.md` 及相应的运行时负责文件定义。部署清单记录当前源码版本，Git 标签标记已经发布的版本。
 - `EVOLUTION.md` 只记录版本、当前破坏性变更边界、成熟度和尚未实施的方向，不授权实施。
 
@@ -31,7 +31,7 @@
 | `plugins/sacha-orchestra/core/coordination-contract.md` | 负责定义 Manager 的评估、拆分、依赖、就绪判定、流转要求、派发与返回、身份与去重及偏差处理 |
 | `plugins/sacha-orchestra/core/artifact-protocol.md` | 工作记录（Artifact）的生成条件、最小内容、Spec 完成、权威关系与恢复规则；术语定义归插件内术语合同 |
 | `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单一运行环境的传输、自动模型和强度选择、精确调用参数、回退、恢复与验证映射；不得反向定义决策关口或就绪条件 |
-| `integrations/dsh/sacha-visualizer` | DSH 配套插件的宿主端和客户端源码、构建、状态投影与界面；只观察 DSH 根会话中仍可继续的直接子任务状态，以及适配器已记录的 Sacha 阶段、决策关口、Manager 依赖图、委派、评审和证据，不定义 Sacha 流程或发布插件的运行语义 |
+| `integrations/dsh/sacha-companion` | 唯一 DSH 配套包：负责 Profile 内 Root 工具暴露的任务分类、限制、查询、解锁与恢复，组合 continuable child surface，并拥有 Host/Client 状态投影、构建和界面；只消费现有 Sacha 任务、角色和已提交事实，不定义入口、决策关口、就绪判定、授权、调度、评审结果、完成判断或发布插件运行语义 |
 | `plugins/sacha-orchestra/skills/*` | 不绑定具体运行环境的节点职责、局部工作流与边界；不增加流程节点，不复制核心合同判断或适配器参数 |
 
 ## 文档身份与发布可达边界

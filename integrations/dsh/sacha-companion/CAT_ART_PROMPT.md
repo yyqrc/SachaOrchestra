@@ -1,6 +1,6 @@
 # Sacha / Jojo 猫咪 Role 贴图精修提示词（交给 Codex）
 
-> 用途：把这段完整粘贴给 Codex，让它精修 `integrations/dsh/sacha-visualizer/src/client/cats.tsx` 里的猫咪 SVG 贴图。
+> 用途：把这段完整粘贴给 Codex，让它精修 `integrations/dsh/sacha-companion/src/client/cats.tsx` 里的猫咪 SVG 贴图。
 > 目标：在**不改动任何其他文件**的前提下，只重写 `cats.tsx` 内部的 SVG 绘制，产出更精致、更生动的布偶猫 Sacha 与长毛美短 Jojo 卡通形象。
 
 ---
@@ -93,7 +93,7 @@
 
 ## 6. 验收标准
 
-- `pnpm typecheck` 与 `pnpm test`（在 `integrations/dsh/sacha-visualizer` 下）全部通过；`artwork.spec.ts` 不需要改。
+- `pnpm typecheck` 与 `pnpm test`（在 `integrations/dsh/sacha-companion` 下）全部通过；`artwork.spec.ts` 不需要改。
 - `cats.tsx` 导出接口与类型完全不变，其它文件零改动。
 - 两只猫在 40–46px 渲染下仍能一眼区分品种与眼色；12 种 prop 全部可辨。
 - 眨眼与耳朵微动画自然、不喧宾夺主；reduced-motion 下静止。

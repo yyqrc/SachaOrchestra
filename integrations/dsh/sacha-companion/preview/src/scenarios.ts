@@ -30,21 +30,39 @@ function makeSnapshot(
   children: readonly SubagentSnapshot[] = [],
   warnings: readonly string[] = [],
 ): SachaActivitySnapshot {
+  const profile = state.phase?.phase === 'reviewer'
+    ? 'review' as const
+    : state.phase?.phase === 'executor'
+      ? 'execute' as const
+      : 'inspect' as const
   return {
     available: true,
     sessionId: `preview-${id}`,
     events,
     state,
     subagents: { available: true, children },
+    toolSurface: {
+      sessionId: `preview-${id}`,
+      profile,
+      visibleCount: profile === 'execute' ? 14 : 9,
+      hiddenCount: profile === 'execute' ? 37 : 42,
+      visible: ['read', 'grep', 'sacha_tools'],
+      hidden: ['mcp_unity'],
+      advertised: ['read', 'grep', 'sacha_tools'],
+      unlocked: [],
+      source: 'user-message',
+      fallback: false,
+      warnings: [],
+    },
     warnings,
   }
 }
 
-const plannerPhase = { eventType: 'phase', phase: 'planner', state: 'entered', summary: '正在澄清目标并冻结可执行范围' } as const
-const executorPhase = { eventType: 'phase', phase: 'executor', state: 'entered', summary: '两个独立工作单元已派发，主任务继续推进' } as const
-const reviewerPhase = { eventType: 'phase', phase: 'reviewer', state: 'waiting', summary: '实现已返回，等待独立审查结论' } as const
-const blockedPhase = { eventType: 'phase', phase: 'blocked', state: 'blocked', summary: '依赖尚未满足，需要继续等待恢复条件' } as const
-const completePhase = { eventType: 'phase', phase: 'complete', state: 'completed', summary: '实现、审查和证据均已收齐' } as const
+const plannerPhase = { eventType: 'phase', phase: 'planner', state: 'entered', summary: '正在确认目标和下一步' } as const
+const executorPhase = { eventType: 'phase', phase: 'executor', state: 'entered', summary: '两项工作正在同时推进' } as const
+const reviewerPhase = { eventType: 'phase', phase: 'reviewer', state: 'waiting', summary: '修改已经完成，正在确认结果' } as const
+const blockedPhase = { eventType: 'phase', phase: 'blocked', state: 'blocked', summary: '发现异常分派，暂时无法继续' } as const
+const completePhase = { eventType: 'phase', phase: 'complete', state: 'completed', summary: '工作与验证均已完成' } as const
 
 const researchChild = child('Research auth surface', 'idle')
 const executorChild = child('Executor implementation', 'running')
@@ -54,8 +72,8 @@ const activeChildren: readonly SubagentSnapshot[] = [researchChild, executorChil
 const managerUnits: readonly ManagerUnitSnapshot[] = [
   unit('auth-read', '调查鉴权边界', 'running'),
   unit('implementation', '实施最小修改', 'running'),
-  unit('final-review', '独立复核', 'waiting', ['implementation']),
-  unit('closeout', '汇总并收口', 'waiting', ['auth-read', 'final-review']),
+  unit('final-review', '确认最终结果', 'waiting', ['implementation']),
+  unit('closeout', '汇总结果', 'waiting', ['auth-read', 'final-review']),
 ]
 
 const activeDelegations: VisualState['delegations'] = [
@@ -67,50 +85,50 @@ const activeDelegations: VisualState['delegations'] = [
 export const PANEL_SCENARIOS: readonly PanelScenario[] = [
   {
     id: 'sacha-only',
-    title: '仅 Sacha 流程',
-    description: '没有 direct child 时只显示入口、Gate 和 Sacha 状态。',
+    title: '仅显示当前进展',
+    description: '没有并行工作时，显示当前状态和需要关注的信息。',
     snapshot: makeSnapshot('sacha-only', {
       phase: plannerPhase,
-      gates: { planner: { eventType: 'gate', gate: 'planner', decision: 'open', summary: 'Planner Gate 已打开' } },
+      gates: { planner: { eventType: 'gate', gate: 'planner', decision: 'open', summary: '需要先确认目标和做法' } },
       waves: [], delegations: [], evidence: {},
     }, [recorded(1, plannerPhase)]),
   },
   {
     id: 'running-children',
-    title: 'Manager DAG + children',
-    description: '显示 Sacha 依赖图、波次、work unit 与 durable child 的绑定。',
+    title: '多项工作同时进行',
+    description: '显示工作先后关系和当前进度。',
     snapshot: makeSnapshot('running-children', {
       phase: executorPhase,
-      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: 'Manager 协调已启用' } },
-      waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'dispatched', units: managerUnits, summary: '两个 ready unit 已派发；Reviewer 等待 implementation' }],
+      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: '多项工作需要协调' } },
+      waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'dispatched', units: managerUnits, summary: '两项工作正在进行，最终确认需要等待修改完成' }],
       delegations: activeDelegations,
       evidence: {},
     }, [recorded(1, executorPhase)], activeChildren),
   },
   {
     id: 'review',
-    title: '等待独立审查',
-    description: 'Reviewer Gate、Review Outcome、依赖与 Reviewer child 映射。',
+    title: '等待结果确认',
+    description: '修改完成后，显示结果状态和下一步。',
     snapshot: makeSnapshot('review', {
       phase: reviewerPhase,
-      gates: { reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'open', summary: 'Reviewer Gate 已打开' } },
+      gates: { reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'open', summary: '正在确认最终结果' } },
       waves: [{
-        eventType: 'manager_wave', waveId: 'wave-review', state: 'waiting', summary: '实现已完成，独立复核正在运行',
-        units: [unit('implementation', '实施最小修改', 'completed'), unit('final-review', '独立复核', 'running', ['implementation'])],
+        eventType: 'manager_wave', waveId: 'wave-review', state: 'waiting', summary: '修改已完成，正在确认最终结果',
+        units: [unit('implementation', '实施最小修改', 'completed'), unit('final-review', '确认最终结果', 'running', ['implementation'])],
       }],
       delegations: [activeDelegations[1]!, { ...activeDelegations[2]!, state: 'dispatched' }],
-      review: { eventType: 'review', outcome: 'needs_fix', summary: 'Needs Fix：验证发现行为不符' },
+      review: { eventType: 'review', outcome: 'needs_fix', summary: '验证发现问题，需要调整' },
       evidence: { source: { eventType: 'evidence', layer: 'source', status: 'verified', references: ['src'], summary: '源码已核对' } },
     }, [recorded(1, reviewerPhase)], [executorChild, { ...reviewerChild, status: 'running' }]),
   },
   {
     id: 'nested-warning',
-    title: '单层派发偏差',
-    description: '观察到 direct child 又创建了下级 child，仅显示 Runtime warning。',
+    title: '发现重复分派',
+    description: '出现异常分派时给出清晰提示。',
     snapshot: makeSnapshot('nested-warning', {
       phase: blockedPhase,
-      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: '需要复核派发偏差' } },
-      waves: [{ eventType: 'manager_wave', waveId: 'wave-2', state: 'blocked', units: [unit('nested-unit', '检查嵌套派发', 'blocked')], summary: '观察到下级 child' }],
+      gates: { manager: { eventType: 'gate', gate: 'manager', decision: 'open', summary: '发现重复分派，需要处理' } },
+      waves: [{ eventType: 'manager_wave', waveId: 'wave-2', state: 'blocked', units: [unit('nested-unit', '处理重复分派', 'blocked')], summary: '发现重复分派' }],
       delegations: [{ eventType: 'delegation', summary: 'nested-unit 已派发', unitId: 'nested-unit', childId: 'child-executor-nested-attempt', state: 'dispatched', role: 'executor', surface: 'sacha_worker' }],
       evidence: {},
     }, [recorded(1, blockedPhase)], [child('Executor nested attempt', 'idle', { hasChildren: true })], ['观察到下级 child；Sacha 单层派发约束需要复核']),
@@ -118,17 +136,17 @@ export const PANEL_SCENARIOS: readonly PanelScenario[] = [
   {
     id: 'complete',
     title: '全部完成',
-    description: '完成 phase、完整依赖图、Review Accepted 和 evidence 状态。',
+    description: '工作、验证和结果都已收齐。',
     snapshot: makeSnapshot('complete', {
       phase: completePhase,
       gates: {
         planner: { eventType: 'gate', gate: 'planner', decision: 'closed', summary: '无需规划' },
         manager: { eventType: 'gate', gate: 'manager', decision: 'closed', summary: '协调已结束' },
-        reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'closed', summary: '审查已结束' },
+        reviewer: { eventType: 'gate', gate: 'reviewer', decision: 'closed', summary: '结果已确认' },
       },
       waves: [{ eventType: 'manager_wave', waveId: 'wave-1', state: 'completed', units: managerUnits.map(value => ({ ...value, state: 'completed' as const })), summary: '本波依赖全部满足并已消费' }],
       delegations: activeDelegations.map(value => ({ ...value, state: 'settled' as const })),
-      review: { eventType: 'review', outcome: 'accepted', summary: 'Accepted' },
+      review: { eventType: 'review', outcome: 'accepted', summary: '结果已确认' },
       evidence: {
         source: { eventType: 'evidence', layer: 'source', status: 'verified', references: ['source'], summary: '源码通过' },
         runtime: { eventType: 'evidence', layer: 'runtime', status: 'verified', references: ['runtime'], summary: 'Runtime 通过' },

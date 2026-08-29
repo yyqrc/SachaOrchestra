@@ -224,11 +224,11 @@ class ReleaseScriptTests(unittest.TestCase):
         with self.assertRaisesRegex(release.ReleaseError, "缺少最窄测试映射"):
             release.validation_commands("0.1.0", [path], deltas={path: (None, "print('x')\n")})
 
-    def test_dsh_visualizer_machine_files_select_package_validator(self) -> None:
+    def test_dsh_companion_machine_files_select_package_validator(self) -> None:
         paths = [
-            "integrations/dsh/sacha-visualizer/package.json",
-            "integrations/dsh/sacha-visualizer/cordis.patch.yml",
-            "integrations/dsh/sacha-visualizer/src/index.ts",
+            "integrations/dsh/sacha-companion/package.json",
+            "integrations/dsh/sacha-companion/cordis.patch.yml",
+            "integrations/dsh/sacha-companion/src/index.ts",
         ]
         commands = release.validation_commands(
             "0.1.0",
@@ -236,11 +236,11 @@ class ReleaseScriptTests(unittest.TestCase):
             deltas={path: (None, "candidate\n") for path in paths},
         )
         rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn(release.DSH_VISUALIZER_VALIDATOR, rendered)
-        self.assertEqual(rendered.count(release.DSH_VISUALIZER_VALIDATOR), 1)
+        self.assertIn(release.DSH_COMPANION_VALIDATOR, rendered)
+        self.assertEqual(rendered.count(release.DSH_COMPANION_VALIDATOR), 1)
 
-    def test_dsh_visualizer_validator_change_runs_release_tests(self) -> None:
-        path = release.DSH_VISUALIZER_VALIDATOR
+    def test_dsh_companion_validator_change_runs_release_tests(self) -> None:
+        path = release.DSH_COMPANION_VALIDATOR
         commands = release.validation_commands(
             "0.1.0",
             [path],
@@ -249,6 +249,26 @@ class ReleaseScriptTests(unittest.TestCase):
         rendered = "\n".join(" ".join(command) for command in commands)
         self.assertIn("tests.test_release", rendered)
         self.assertNotIn(path, rendered)
+
+    def test_retired_dsh_companion_paths_select_migration_validation(self) -> None:
+        paths = [
+            "integrations/dsh/sacha-visualizer/package.json",
+            "integrations/dsh/sacha-visualizer/cordis.patch.yml",
+            "integrations/dsh/sacha-subagents/package.json",
+            "integrations/dsh/sacha-subagents/cordis.patch.yml",
+            "tests/test_dsh_subagents.py",
+            "tests/validate_dsh_subagents.py",
+            "tests/validate_dsh_visualizer.py",
+        ]
+        commands = release.validation_commands(
+            "0.1.0",
+            paths,
+            deltas={path: ("retired\n", None) for path in paths},
+        )
+        rendered = "\n".join(" ".join(command) for command in commands)
+        self.assertIn("tests.test_dsh_companion", rendered)
+        self.assertIn(release.DSH_COMPANION_VALIDATOR, rendered)
+        self.assertEqual(rendered.count(release.DSH_COMPANION_VALIDATOR), 1)
 
     def test_production_schema_selects_its_direct_test(self) -> None:
         paths = [

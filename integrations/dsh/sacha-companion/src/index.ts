@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeVisualEvent } from './normalize.ts'
 import { foldVisualState, recordedVisualEvents } from './snapshot.ts'
+import { installRootToolSurfacePolicy } from './tool-surface-policy.ts'
 import type { SachaActivitySnapshot, SubagentSnapshot, VisualEventInput } from './types.ts'
 
 interface WebRouteHost {
@@ -176,6 +177,8 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 /** Register the recorder immediately and the Web route when its optional service appears. */
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.tools.register(visualEventTool), 'sacha-visualizer: recorder tool')
+  const toolSurface = installRootToolSurfacePolicy(ctx)
+  ctx.effect(() => toolSurface.dispose, 'sacha-companion: Root tool surface')
 
   let webRegistered = false
   const registerWeb = (): void => {
@@ -207,6 +210,7 @@ export function apply(ctx: Context): void {
           events: folded.events,
           state: foldVisualState(folded.events),
           subagents: observed.subagents,
+          toolSurface: toolSurface.snapshot(rawSessionId),
           warnings: [...folded.warnings, ...observed.warnings],
         }
         json(res, 200, snapshot)

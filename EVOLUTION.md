@@ -4,11 +4,11 @@
 
 ## 当前版本线
 
-- 当前 release：`0.12.12`。
+- 当前 release：`0.13.0`。
 - 当前待发布源码版本：未开始。
-- 当前 release Scope：Codex 能力 Agent 将只读研究、实施验证与独立复核分别映射为 `sacha_researcher`、`sacha_executer` 与 `sacha_reviewer`，并只在宿主支持的 feature/Skill 范围内缩减能力面；setup-agents 安全迁移旧 `sacha_readonly_worker`。Capability Binding 在派发前解析当前 Runtime 唯一可达的 canonical `SKILL.md` path，并通过 child 首次工作单元精确传入；原生工具搜索只按每个 root/child 的实际工具面条件使用。
-- 当前 breaking boundary：Codex 不再提供 `sacha_readonly_worker` 源码定义；Researcher 只承担无写入授权的读取与分析，但配置降权不构成宿主硬只读证明。Reviewer 保留裁决所需的验证能力且不默认修复交付实现。Capability Binding 与 Project Integration schema 不增加绝对 path、工具字段或平行 Registry。
-- 当前成熟度：`0.12.12` 普通发版候选的 metadata coherence、19 项 setup-agents 测试和插件结构校验通过，独立 Review 为 `Accepted with follow-up`。安装/cache parity、`sacha_researcher` fresh discovery、旧 Agent 消失、三类 Agent 的真实工具面/permission profile、模型优先级、child 首次读取 canonical Skill、v1 分支与 `tool_search` Runtime 行为未验证。
+- 当前 release Scope：首发独立 `@sacha-orchestra/dsh-companion@0.1.0`，合并 DSH continuable child surface 与 Visualizer，并在目标 Profile 为 Root 提供 `inspect | execute | review` 最小工具面、`sacha_tools` 有界查询/按需解锁、原生 Session 恢复和 Human 状态投影；同时自然化开发与安装后文本，不改变 Sacha Core、Role、Gate、授权或 Outcome。
+- 当前 breaking boundary：旧 `integrations/dsh/sacha-visualizer` 与 `sacha-subagents` 被单一 `sacha-companion` 取代；DSH Root 不再默认暴露完整工具目录，隐藏能力必须经下一 `request/header` 生效的精确解锁。continuable child 不继承 Root `sacha_tools`。未迁移的 Desktop Profile 旧本地链接会失效，迁移需要单独授权。
+- 当前成熟度：`0.13.0` 普通发版候选 tree `eccead82e606601147bdec9e02ad317fcbeeac17` 的 metadata coherence、release/companion 测试、clean 35-file companion package 和插件结构校验通过；Windows DSH Web Profile 的真实 inspect/execute/review header、同 response guard、cold resume、Client capability binding、按需 `write` 展开与 continuable child 隔离均有直接证据，独立 Review 为 `Accepted with follow-up`。Agent Plugin 安装/cache parity、Desktop 迁移、Linux、Code Mode、family late-registration 完整 DSH 场景与非 reduced-motion 最终动画未验证。
 
 ## `1.0.0` 与后续方向
 

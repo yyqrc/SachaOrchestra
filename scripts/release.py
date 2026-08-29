@@ -37,10 +37,17 @@ DEPLOYMENT_MANIFESTS = {
 PRODUCTION_TESTED_MARKDOWN = {
     "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
 }
-DSH_VISUALIZER_ROOT = "integrations/dsh/sacha-visualizer/"
-DSH_VISUALIZER_VALIDATOR = "tests/validate_dsh_visualizer.py"
-DSH_SUBAGENTS_ROOT = "integrations/dsh/sacha-subagents/"
-DSH_SUBAGENTS_VALIDATOR = "tests/validate_dsh_subagents.py"
+DSH_COMPANION_ROOT = "integrations/dsh/sacha-companion/"
+DSH_COMPANION_VALIDATOR = "tests/validate_dsh_companion.py"
+DSH_RETIRED_ROOTS = (
+    "integrations/dsh/sacha-visualizer/",
+    "integrations/dsh/sacha-subagents/",
+)
+DSH_RETIRED_TEST_PATHS = (
+    "tests/test_dsh_subagents.py",
+    "tests/validate_dsh_subagents.py",
+    "tests/validate_dsh_visualizer.py",
+)
 
 
 class ReleaseError(RuntimeError):
@@ -230,8 +237,8 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_capability_queries.py", "tests/test_capability_resolution.py"), "tests.test_capability_resolution"),
         (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
-        ((DSH_VISUALIZER_VALIDATOR,), "tests.test_release"),
-        ((DSH_SUBAGENTS_ROOT, DSH_SUBAGENTS_VALIDATOR, "tests/test_dsh_subagents.py"), "tests.test_dsh_subagents"),
+        ((DSH_COMPANION_VALIDATOR,), "tests.test_release"),
+        ((DSH_COMPANION_ROOT, "tests/test_dsh_companion.py", *DSH_RETIRED_TEST_PATHS), "tests.test_dsh_companion"),
         (
             (
                 "tests/test_runtime_scenario_verifiers.py",
@@ -258,7 +265,12 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
         and not path.endswith("/agents/openai.yaml")
     ]
     for path in machine_paths:
-        if path.startswith(DSH_VISUALIZER_ROOT):
+        if (
+            path.startswith(DSH_COMPANION_ROOT)
+            or any(path.startswith(prefix) for prefix in DSH_RETIRED_ROOTS)
+            or path in DSH_RETIRED_TEST_PATHS
+        ):
+            modules.add("tests.test_dsh_companion")
             continue
         matched = False
         for prefixes, module in mappings:
@@ -295,10 +307,13 @@ def validation_commands(
         (python, "-B", "-m", "unittest", module)
         for module in narrow_test_modules(staged)
     )
-    if any(path.startswith(DSH_VISUALIZER_ROOT) for path in staged):
-        commands.append((python, "-B", DSH_VISUALIZER_VALIDATOR))
-    if any(path.startswith(DSH_SUBAGENTS_ROOT) for path in staged):
-        commands.append((python, "-B", DSH_SUBAGENTS_VALIDATOR))
+    if any(
+        path.startswith(DSH_COMPANION_ROOT)
+        or any(path.startswith(prefix) for prefix in DSH_RETIRED_ROOTS)
+        or path in DSH_RETIRED_TEST_PATHS
+        for path in staged
+    ):
+        commands.append((python, "-B", DSH_COMPANION_VALIDATOR))
     if requires_plugin_validation(staged, deltas):
         commands.append(
             (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))

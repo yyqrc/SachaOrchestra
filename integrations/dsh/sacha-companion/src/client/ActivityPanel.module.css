@@ -1,5 +1,7 @@
 .panel {
   position: absolute;
+  top: 0;
+  left: 0;
   z-index: 30;
   display: flex;
   min-width: 280px;
@@ -94,10 +96,23 @@
 .conductor,
 .childCard,
 .waveCard,
+.toolSurface,
 .warningBox {
   border: 1px solid var(--dsw-alias-border-secondary, rgba(127, 127, 127, .16));
   border-radius: 12px;
   background: var(--dsw-alias-bg-secondary, #f8f8f9);
+}
+
+.toolSurface {
+  display: flex;
+  flex-direction: column;
+  padding: 9px 10px;
+}
+
+.toolSurfaceWarning {
+  margin-top: 5px;
+  color: #b42318;
+  font-size: 11px;
 }
 
 .conductor {
@@ -105,6 +120,18 @@
   align-items: center;
   gap: 10px;
   padding: 10px;
+}
+
+.conductor[data-state='entered'] > svg {
+  animation: sachaFloat 2.4s ease-in-out infinite;
+}
+
+.conductor[data-state='waiting'] > svg {
+  animation: sachaThink 2.8s ease-in-out infinite;
+}
+
+.conductor[data-state='completed'] > svg {
+  animation: sachaBreathe 4.2s ease-in-out infinite;
 }
 
 .conductorText,
@@ -209,16 +236,30 @@
 
 .childAvatar {
   position: relative;
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.childAvatar[data-status='running'] > svg {
+  animation: sachaFloat 2.4s ease-in-out infinite;
+}
+
+.childAvatar[data-status='idle'] > svg {
+  animation: sachaBreathe 4.2s ease-in-out infinite;
+}
+
+.childAvatar[data-status='ready'] > svg {
+  animation: sachaThink 2.8s ease-in-out infinite;
 }
 
 .statusArt {
   position: absolute;
-  right: -4px;
-  bottom: -2px;
+  top: -7px;
+  right: -7px;
   display: inline-flex;
-  border-radius: 999px;
-  background: var(--dsw-alias-bg-primary, #fff);
+  background: transparent;
 }
 
 .bindingLine {
@@ -380,7 +421,26 @@
   50% { opacity: 1; transform: scale(1.08); }
 }
 
+@keyframes sachaFloat {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-2px) rotate(4deg); }
+}
+
+@keyframes sachaBreathe {
+  0%, 100% { opacity: .82; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes sachaThink {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panelDot[data-busy="true"],
-  .badgeDot[data-busy="true"] { animation: none; }
+  .badgeDot[data-busy="true"],
+  .conductor[data-state] > svg,
+  .childAvatar[data-status] > svg {
+    animation: none;
+  }
 }

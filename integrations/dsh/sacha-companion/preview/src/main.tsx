@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { ObservableSnapshot, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { ActivityPanel } from '../../src/client/ActivityPanel.tsx'
+import panelCss from '../../src/client/ActivityPanel.module.css'
 import { CatArt, type CatKind, type CatProp } from '../../src/client/cats.tsx'
 import { PANEL_LAYOUT_STORAGE_KEY } from '../../src/client/panel-geometry.ts'
 import { MemberStatusArt } from '../../src/client/status-art.tsx'
@@ -17,6 +18,15 @@ const PROPS: readonly CatProp[] = [
 const CHILD_STATUSES: readonly SubagentSnapshot['status'][] = ['running', 'idle', 'ready']
 const STATUS_LABELS: Record<SubagentSnapshot['status'], string> = {
   running: '运行中', idle: '空闲', ready: '可恢复',
+}
+const STATUS_DESCRIPTIONS: Record<SubagentSnapshot['status'], string> = {
+  running: '正在处理', idle: '暂时空闲', ready: '可以继续',
+}
+const CAT_LABELS: Record<CatKind, string> = { sacha: 'Sacha', jojo: 'Jojo' }
+const PROP_LABELS: Record<CatProp, string> = {
+  none: '无道具', conductor: '协调', explore: '探索', research: '调研', engineer: '开发',
+  security: '安全', docs: '文档', data: '数据', operator: '运维', design: '设计', qa: '测试',
+  working: '工作中', sleeping: '休息', thinking: '思考',
 }
 
 const search = new URLSearchParams(window.location.search)
@@ -50,7 +60,7 @@ function PanelScenarioApp({ scenario }: { readonly scenario: PanelScenario }): J
   return (
     <div className="panelPage" data-shell-overlay>
       <div className="fakeConversation" data-phase="active">
-        <span>DSH 会话区域</span>
+        <span>会话内容</span>
         <small>{scenario.title}</small>
       </div>
       <ActivityPanel sessionsList={sessionsList} />
@@ -61,9 +71,9 @@ function PanelScenarioApp({ scenario }: { readonly scenario: PanelScenario }): J
 function CatCard({ kind, prop }: { readonly kind: CatKind; readonly prop: CatProp }): JSX.Element {
   return (
     <article className="effectCard">
-      <div className="artStage"><CatArt kind={kind} prop={prop} size={72} title={`${kind} ${prop}`} /></div>
-      <strong>{prop}</strong>
-      <span>{kind === 'sacha' ? 'Sacha' : 'Jojo'}</span>
+      <div className="artStage"><CatArt kind={kind} prop={prop} size={72} title={`${CAT_LABELS[kind]} · ${PROP_LABELS[prop]}`} /></div>
+      <strong>{PROP_LABELS[prop]}</strong>
+      <span>{CAT_LABELS[kind]}</span>
     </article>
   )
 }
@@ -71,14 +81,16 @@ function CatCard({ kind, prop }: { readonly kind: CatKind; readonly prop: CatPro
 function StatusCard({ status }: { readonly status: SubagentSnapshot['status'] }): JSX.Element {
   return (
     <article className="statusCard">
-      <div className="artStage" style={{ position: 'relative' }}>
-        <CatArt kind="jojo" prop="engineer" size={58} title="child" />
-        <span style={{ position: 'absolute', right: 2, bottom: 2 }}>
-          <MemberStatusArt status={status} size={22} />
+      <div className="artStage">
+        <span className={panelCss.childAvatar} data-status={status}>
+          <CatArt kind="jojo" prop="engineer" size={58} title="协作任务" />
+          <span className={panelCss.statusArt}>
+            <MemberStatusArt status={status} size={22} />
+          </span>
         </span>
       </div>
       <strong>{STATUS_LABELS[status]}</strong>
-      <span>{status}</span>
+      <span>{STATUS_DESCRIPTIONS[status]}</span>
     </article>
   )
 }
@@ -89,28 +101,28 @@ function App(): JSX.Element {
     <main className="previewApp">
       <header className="hero">
         <div>
-          <p className="eyebrow">Sacha Visualizer · 开发预览</p>
-          <h1>Continuable subagent 可视化效果台</h1>
-          <p>检查生产猫咪素材、Role 道具、running/idle/ready 状态与新的 Sacha panel scenarios。</p>
+          <p className="eyebrow">任务协作 · 开发预览</p>
+          <h1>任务协作可视化效果台</h1>
+          <p>检查猫咪素材、工作状态、任务依赖和异常提示在真实面板中的表现。</p>
         </div>
         <div className="heroCats">
-          <CatArt kind="sacha" prop="conductor" size={96} title="Sacha conductor" />
-          <CatArt kind="jojo" prop="engineer" size={96} title="Jojo child" />
+          <CatArt kind="sacha" prop="conductor" size={96} title="Sacha · 协调" />
+          <CatArt kind="jojo" prop="engineer" size={96} title="Jojo · 协作" />
         </div>
       </header>
 
       <section className="previewSection">
         <div className="sectionHeading">
-          <div><p className="eyebrow">Runtime child</p><h2>状态角标</h2></div>
+          <div><p className="eyebrow">工作状态</p><h2>状态图标</h2></div>
         </div>
         <div className="statusGrid">{CHILD_STATUSES.map(status => <StatusCard key={status} status={status} />)}</div>
       </section>
 
       <section className="previewSection">
         <div className="sectionHeading">
-          <div><p className="eyebrow">Display only</p><h2>Role 道具</h2></div>
+          <div><p className="eyebrow">猫咪素材</p><h2>工作道具</h2></div>
           <select value={kind} onChange={event => { setKind(event.target.value as CatKind) }}>
-            {CAT_KINDS.map(value => <option key={value} value={value}>{value}</option>)}
+            {CAT_KINDS.map(value => <option key={value} value={value}>{CAT_LABELS[value]}</option>)}
           </select>
         </div>
         <div className="effectGrid">{PROPS.map(prop => <CatCard key={prop} kind={kind} prop={prop} />)}</div>
@@ -118,7 +130,7 @@ function App(): JSX.Element {
 
       <section className="previewSection">
         <div className="sectionHeading">
-          <div><p className="eyebrow">Production panel</p><h2>场景</h2></div>
+          <div><p className="eyebrow">实际面板</p><h2>典型场景</h2></div>
         </div>
         <div className="scenarioGrid">
           {PANEL_SCENARIOS.map(scenario => (
