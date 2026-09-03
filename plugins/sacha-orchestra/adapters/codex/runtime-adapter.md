@@ -26,6 +26,7 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 | Human 进度 | `commentary` | 只映射 Core 已判定需要展示的新事实、风险、阻塞或计划变化 |
 | Human 最终结果 | `final` | 汇总当前 Owner 已产出的结果、证据、风险、未验证项与下一步 |
 | 独立任务结果等待 | `wait_threads` | 仅用于有明确结果消费者的依赖或全新验证；Owner 转移不调用 |
+| Roadmap 后续 Sacha Planner 任务创建 | `create_thread` + 一次有界 `wait_threads` | Human 已确认 Roadmap 明确推荐的 Sacha Planner 任务时创建；不是 Owner 迁移，不继承 Roadmap 授权 |
 | Feedback 目标任务查询 | `list_threads` + 有界 `read_thread` | 只为唯一反馈标识查询；候选需要消歧或存活状态证据时才读对应任务 |
 | Feedback 目标任务创建 | `create_thread` | Human 在另一真实任务显式调用 Feedback 且无唯一匹配时恰好一次；类型为单向用户任务 Owner 转移 |
 | 用户可见任务迁移 | `create_thread` | 只处理明确迁移批准；类型为用户任务 Owner 转移，Source 交付 reference 后结束 |
@@ -57,6 +58,17 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 ### 2.3 Codex Role 调用面
 
 主任务按第 3 节为 Planner、Reviewer、Executor、Explore 研究和普通工作单元组装首次创建参数；Role 作为评估输入，协作界面只决定传输编码。Manager 在主任务内运行，不是委派 Agent。委派 Agent 满足条件时返回协调请求，不调用子代理传输。
+
+#### 2.3.1 Roadmap 后续 Sacha Planner 任务
+
+Roadmap 已完成、其当前推荐明确说明另开 Sacha Planner 任务形成完整 Spec，且 Human 随后确认创建时，Adapter 创建一个用户可见 Codex 任务：
+
+1. 使用当前项目对应的已保存 Codex Project；无法唯一确定时先让 Human 消歧，不创建 projectless 替代任务。
+2. `create_thread(prompt=...)` 的初始输入必须显式写明“使用 Sacha Planner”，并携带唯一 Roadmap path、候选 Spec 目标/Scope、已确认决定、阻塞性未决项、当前只读边界与未授予的实施动作。不得把“冻结完整 Spec”弱化为普通调查或聊天草案，也不得复制整份 Roadmap。
+3. 创建成功后只调用一次有界 `wait_threads` 核对目标任务已经按显式 Planner 请求开始；目标再次询问是否使用 Sacha、按 Direct 展开完整领域调查或初始输入丢失时，报告交接偏差并保留唯一目标 reference，不创建第二个任务。
+4. 目标任务独立读取项目规则、Workflow 和 Planner Skill；Roadmap 的写入授权、任务状态与未落盘上下文不随创建传递。来源任务交付目标 reference 后结束，不等待完整 Spec 终态。
+
+Roadmap 只推荐普通任务、推荐没有明确 Sacha Planner，或 Human 没有确认创建时，不进入本节；新任务按普通 Intake 重新判断。
 
 ### 2.4 Human 手动调用的 Feedback 转移
 

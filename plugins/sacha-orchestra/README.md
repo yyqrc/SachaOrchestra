@@ -6,12 +6,12 @@
 
 ## 默认入口
 
-Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、持久化实施规格、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha，同一入口候选只询问一次。
+Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。候选成立后必须在继续领域调查前询问，同一入口候选只询问一次。
 
 ## 显式入口
 
 - 高级入口：`planner`、`executor`、`reviewer`；显式 `explore` 保持窄授权，目标项目源码、配置、资源与外部状态只读，可按 Artifact Protocol 写探索决定记录。
-- `roadmap` 是主流程外显式规划入口：按需复用 Explore，生成可脱离 Sacha 独立理解的长期项目路线图，并通过 `document-project` 写入 Project Integration 配置的 Roadmap root；不创建或执行 Spec。
+- `roadmap` 是主流程外显式规划入口：按需复用 Explore，生成可脱离 Sacha 独立理解的长期项目路线图，并通过 `document-project` 写入 Project Integration 配置的 Roadmap root；不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须明确推荐 Sacha Planner 任务；Human 确认创建后，目标任务从显式 Planner 入口开始且不继承 Roadmap 授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 即本次写入授权，可按模板新建或原位更新且不要求 Project Integration；其他请求继续服从项目策略。不接受 Sacha、不补走生产 Role。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求：收口只原位完成当前唯一 Spec，存档只映射 `document-project`，组合动作先收口再存档；只讨论或引用这些词语不执行动作。
 - `feedback` 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。来源任务交付唯一目标任务 reference 后结束，目标任务按普通任务重新判断。

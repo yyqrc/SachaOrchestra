@@ -163,6 +163,30 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
                 check=False,
             )
 
+    def run_readonly_scenario_verifier(
+        self,
+        pack_name: str,
+        *,
+        with_unexpected_file: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        pack = PACKS / pack_name
+        fixture = pack / "fixture"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            shutil.copytree(fixture, target, dirs_exist_ok=True)
+            shutil.copy2(pack / "task.md", target / "instructions.md")
+            shutil.copy2(ROOT / "tests" / "runtime-scenarios" / "assets" / "workspace-AGENTS.md", target / "AGENTS.md")
+            if with_unexpected_file:
+                (target / "unexpected.md").write_text("unexpected\n", encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-B", str(target / "verify.py")],
+                cwd=target,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+
     def run_roadmap_verifier(self, *, with_unexpected_file: bool = False) -> subprocess.CompletedProcess[str]:
         pack = PACKS / "roadmap-self-contained-document"
         fixture = pack / "fixture"
@@ -281,6 +305,14 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         self.assertEqual(semantic_turn.returncode, 0, semantic_turn.stdout + semantic_turn.stderr)
         self.assertIn("OK: using-sacha semantic-turn scenario root remained read-only", semantic_turn.stdout)
 
+        spec_intake = self.run_readonly_scenario_verifier("using-sacha-spec-intake")
+        self.assertEqual(spec_intake.returncode, 0, spec_intake.stdout + spec_intake.stderr)
+        self.assertIn("OK: using-sacha Spec intake scenario root remained read-only", spec_intake.stdout)
+
+        roadmap_handoff = self.run_readonly_scenario_verifier("roadmap-spec-task-handoff")
+        self.assertEqual(roadmap_handoff.returncode, 0, roadmap_handoff.stdout + roadmap_handoff.stderr)
+        self.assertIn("OK: Roadmap Spec task handoff scenario root remained read-only", roadmap_handoff.stdout)
+
         roadmap = self.run_roadmap_verifier()
         self.assertEqual(roadmap.returncode, 0, roadmap.stdout + roadmap.stderr)
         self.assertIn("OK: Roadmap created at", roadmap.stdout)
@@ -317,6 +349,20 @@ class RuntimeScenarioVerifierTests(unittest.TestCase):
         semantic_turn = self.run_using_sacha_semantic_turn_verifier(with_unexpected_file=True)
         self.assertEqual(semantic_turn.returncode, 1)
         self.assertIn("unexpected files", semantic_turn.stdout)
+
+        spec_intake = self.run_readonly_scenario_verifier(
+            "using-sacha-spec-intake",
+            with_unexpected_file=True,
+        )
+        self.assertEqual(spec_intake.returncode, 1)
+        self.assertIn("unexpected files", spec_intake.stdout)
+
+        roadmap_handoff = self.run_readonly_scenario_verifier(
+            "roadmap-spec-task-handoff",
+            with_unexpected_file=True,
+        )
+        self.assertEqual(roadmap_handoff.returncode, 1)
+        self.assertIn("unexpected files", roadmap_handoff.stdout)
 
         roadmap = self.run_roadmap_verifier(with_unexpected_file=True)
         self.assertEqual(roadmap.returncode, 1)

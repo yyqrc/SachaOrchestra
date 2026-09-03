@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "需要关键 Human 决定、跨上下文恢复或正式协调时评估 Sacha"
+  short_description: "完整 Spec、关键决定或跨上下文恢复需要时评估 Sacha"
   default_prompt: "使用 $sacha-orchestra:using-sacha 评估当前已出现的入口候选，并说明是否建议进入 Sacha。"

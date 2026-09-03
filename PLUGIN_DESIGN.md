@@ -24,9 +24,9 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。
+- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。完整 Spec 已明确作为后续实施或验收输入时，入口候选必须在领域调查前完成判断。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
-- `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。
+- `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须把它明确推荐为 Sacha Planner 任务；Human 确认创建后，新任务从既有显式 Planner 入口开始，不继承 Roadmap 的写入或实施授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 同时构成本次写入授权，可绕过 Project Integration 按模板原子新建或更新；其他请求仍服从 Project Integration。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求；只拥有预检与动作顺序，Spec 完成和项目文档分别沿用 Artifact Protocol 与 `document-project`。
 - Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
@@ -164,6 +164,7 @@ flowchart TD
 - 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 需要额外拆分或协调时返回协调请求。迁移完成后，目标任务成为主任务并取得派发权。
 - 主任务能形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元时，打开 Manager Gate 统一拆分和派发；一个单元只为隔离中间过程而使用直接委派 Agent 时不打开 Gate。Manager 已打开但当前波次只有一个合适单元时仍可派发。三种情况的就绪、派发与返回条件由 Coordination Contract 定义，不为增加 Agent 人为拆分局部修改。
 - Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
+- Roadmap 完成后的独立 Spec 任务是 Human 发起的新目标，不把 Roadmap 节点延长为生产流程。Roadmap 先明确推荐 Sacha Planner 任务及其影响，Human 确认创建后由 Runtime Adapter 建立新任务；目标任务以显式 Planner 输入从既有入口开始。推荐没有明确 Sacha Planner，或 Human 只泛指新任务时，不得推断接受。
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
 - 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向 Human 说明真实失败、通用流程为何不足和影响，并取得明确批准。
 
@@ -186,9 +187,9 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
-| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct 或一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
+| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct，或在领域调查前完成一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
 | 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 按 Artifact Protocol 写入必要的探索决定记录 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；目标项目源码、配置、资源与外部状态保持只读，可写探索决定记录，不冻结 Scope |
-| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root |
+| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 → 按需明确推荐独立 Sacha Planner 任务 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root；新任务须由 Human 确认创建 |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
 | 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |

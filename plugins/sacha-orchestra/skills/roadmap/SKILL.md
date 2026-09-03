@@ -26,15 +26,17 @@ description: Human 显式要求生成、整理或更新跨阶段项目 Roadmap �
 6. Roadmap 面向项目 Human 与 Agent：移除 Sacha 上下文后仍须理解目标、阶段、依赖、完成信号和 Spec 分组。正文不得写 Sacha Role、Gate、Skill 调用、task/thread ID、Adapter、Handoff、内部路由或“返回某节点”等流程信息。
 7. 读取选中的 Roadmap Profile/template 取得文风、章节组织和 generation policy；Profile 不得改变或省略第 5 步的必需语义。再读取 [Roadmap 文档输入](../document-project/assets/roadmap.json)，填充 `template_profile`、完整正文、document type `roadmap`、目标 path 和 create/update 意图后交给 `$sacha-orchestra:document-project`。document-project 按 Project Integration 的 Roadmap root 执行 dry-run、写入授权、Profile/template SHA-256、preimage、原子创建/更新、并发检查和回读验证；Roadmap 不绕过该 Skill 直接写文件。
 8. document-project 返回后核对实际 path、transaction、验证、冲突和未验证项；写入失败时保留完整自包含正文及恢复条件，不把 draft 宣称为已持久化 Roadmap。
+9. Roadmap 完成后，只有某个候选 Spec 已有明确目标、来源与后续消费者，且独立任务会实质改善完整 Spec 的澄清、持久化或恢复时，才按 Workflow Contract 推荐另开任务。推荐必须明确写成 Sacha Planner 任务，并按 Human Interaction Contract 说明先澄清再形成完整 Spec、创建用户任务的影响以及不包含实施授权；Human 确认创建后，才把 Roadmap path、目标/Scope、已确认决定、未决项和“使用 Sacha Planner”交给目标 Runtime Adapter。不得只推荐普通 Codex 任务后让目标重新猜测入口。
 
 ## 输出
 
 - 返回 Roadmap 的目标、实际或计划 path、create/update、阶段摘要、Spec 映射、document-project transaction、验证、冲突、`Unknown` 与未验证边界。
 - 成功写入时提供可直接打开的 Roadmap path；未写入时明确标记 draft 和恢复入口。
+- 推荐独立完整 Spec 任务时，提供明确的 Sacha Planner 任务目标及创建选择；创建成功后提供目标任务 reference，不等待其完成。
 
 ## 停止与禁止边界
 
 - Roadmap 是项目文档，不是 Artifact、Spec、任务状态、实施授权或完成证据。
-- 不创建或执行 Spec、阶段、Issue、Ticket、分支、发布或外部资源；后续实施由 Human 另行发起。
+- 不自动创建或执行 Spec、阶段、Issue、Ticket、分支、发布或外部资源；后续实施由 Human 另行发起。Human 确认创建已经明确推荐的 Sacha Planner 任务时，只授权 Runtime Adapter 创建这一个用户任务，不授权目标项目写入或实施。
 - 不从文件名、目录排序、旧任务记录或 Sacha 输出推断项目当前状态；当前状态只接受项目规则、源码、配置、正式项目文档、运行证据或 Human 决定。
 - Roadmap root、文档 path 与写入授权分别沿用 Project Integration 和 document-project；root 外写入、Git、安装、发布和外部动作需要各自明确授权。

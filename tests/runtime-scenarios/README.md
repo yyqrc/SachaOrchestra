@@ -23,10 +23,12 @@
 
 - `executor-only`：清晰、低风险、单 Owner 的本地写入应直接完成。
 - `using-sacha-semantic-turn`：验证查询/诊断转为修改时重新判断入口，Human 反问入口行为不被当成接受。
+- `using-sacha-spec-intake`：验证完整 Spec 已作为后续实施或验收输入时，在领域调查前形成一次入口候选。
 - `planner-explore-manager-reviewer`：验证 Planner/Explore、多个隔离单元协调和独立复核。
 - `explore-shared-context-loop`：验证 Human 不理解背景时先调查、解释、允许纠正，再进入真正 Human 决定。
 - `explore-handoff-continuation`：验证 Explore 的恢复与返回调用节点。
 - `roadmap-self-contained-document`：验证主流程外 Roadmap 与 document-project。
+- `roadmap-spec-task-handoff`：验证 Roadmap 推荐独立完整 Spec 任务、Human 确认创建及 Codex 目标任务显式 Planner 入口。
 - `closeout-command`：验证明确收口只完成当前唯一 Spec。
 - `project-facing-spec`：验证项目实施规格不混入工作流内部语义。
 - `workflow-language-boundary`：验证产品文本、运行日志、代码标识和 Handoff 边界。

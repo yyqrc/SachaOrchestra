@@ -243,8 +243,10 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
             (
                 "tests/test_runtime_scenario_verifiers.py",
                 "tests/runtime-scenarios/packs/explore-shared-context-loop/",
+                "tests/runtime-scenarios/packs/using-sacha-spec-intake/",
                 "tests/runtime-scenarios/packs/planner-explore-manager-reviewer/",
                 "tests/runtime-scenarios/packs/roadmap-self-contained-document/",
+                "tests/runtime-scenarios/packs/roadmap-spec-task-handoff/",
                 "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
                 "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
                 "tests/runtime-scenarios/packs/reviewer-semantic-chain/",
