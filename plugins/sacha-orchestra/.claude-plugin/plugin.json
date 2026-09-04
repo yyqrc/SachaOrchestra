@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "Sacha Orchestra 的 Claude Code 部署包。清晰且已授权的任务保持 Direct，仅在编排会实质改变执行时使用精简派发、按项目 Skill 加载的 Runtime 和按 Role 选择的模型；提供三个生产 Role、Manager 协调、显式 Explore、主流程外 Roadmap、项目配置，以及 Human 显式请求或策略驱动的项目文档。",
   "author": {
     "name": "Sacha Orchestra"

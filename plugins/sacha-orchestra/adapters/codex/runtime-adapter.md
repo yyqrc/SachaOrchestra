@@ -139,6 +139,8 @@ Coordination 判定的 `research-ready` 只读单元使用只读调查 Agent；�
 
 安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容风险至少按 `broad` 处理；其中困难回退、跨系统耦合或关键冲突为 `critical`。正式独立 Reviewer 不存在 `critical` 事实时选择 `sol_medium`，存在时选择 `sol_xhigh`；文件数量、发版动作或 Review 名称本身不得触发 `sol_xhigh`。
 
+任务形态必须分别核对实施边界与失败影响。精确 Scope、文件清单或直接验证只能证明实施边界明确；预期结果仍会破坏性地删除或覆盖状态、改变多个既有消费者使用的持久数据解释或身份，或者正确性依赖跨系统生命周期、并发与兼容性时，仍按 `broad` 处理。反之，底层位置、文件数量或验证成本本身不能把输入自足、影响有界且可直接验证的工作单元升级为 `broad`。
+
 ### B. 有序模型路由（首次命中即停止）
 
 1. `human_exact`：存在 Human/Scope 精确路由；无法解析或 Runtime 不支持时暂停，不自动换档。
@@ -203,4 +205,4 @@ C 只接受 A 的能力边界、B 的 `route_id` 和第 2.1 节唯一确定的�
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、`accepted/started/terminal/cancelled`、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；Code Mode 另回传 asset path/hash、外层调用 reference、`ALL_TOOLS` 中命中的目标、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。静态源码/测试的证据范围为本文结构与分支约束；Tool Search、Code Mode、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、`accepted/started/terminal/cancelled`、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；Code Mode 另回传 asset path/hash、外层调用 reference、`ALL_TOOLS` 中命中的目标、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。静态源码/测试的证据范围为本文结构与分支约束；Tool Search、Code Mode、嵌套调用、协作界面发现、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

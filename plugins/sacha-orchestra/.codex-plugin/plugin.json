@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "Codex deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework.",
   "author": {
     "name": "Sacha Orchestra"
