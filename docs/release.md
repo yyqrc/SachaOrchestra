@@ -10,14 +10,15 @@
 
 ## 快速发版
 
-Human 说“快速发版”时默认递增 patch 版本；只人工核对 Evolution 的当前 release 与当前待发布源码版本状态，并机器核对三个 deployment manifest、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。跳过普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime。
+Human 说“快速发版”时默认递增 patch 版本；只人工核对 Evolution 的当前 release 与当前待发布源码版本状态，并机器核对三个 deployment manifest、annotated tag 到 `HEAD` 的指向及 push 后远端分支/tag。普通回归、Skill/Plugin validator、完整 release coherence、安装/cache parity、fresh discovery 和 Runtime 不属于快速发版默认动作；只有根 `AGENTS.md` 的验证规则实际触发某项，或 Human 明确要求时才执行。
 
-快速发版授权 commit、annotated tag 和 push，不授权安装、refresh、cache 修改或 Runtime 验收；跳过项必须在交付中明确标记。
+快速发版授权 commit、annotated tag 和 push，不授权安装、refresh、cache 修改或 Runtime 验收。未触发的检查不形成待补验证，也不要求在交付中列成欠账；已经出现的失败、明确风险或已触发但未完成的验收仍必须报告。
 
 ## 普通发版
 
-Human 说“发版”时，运行风险对应的普通验证与完整 metadata coherence；安装和 Runtime 仍按明确授权与发布目标决定。
+Human 说“发版”时，按实际改动运行必要的机械检查和最窄测试；真实 Runtime 只在根 `AGENTS.md` 的触发条件成立或 Human 明确要求时执行。安装仍按明确授权与发布目标决定。
 
+- 发版动作本身不触发 fresh discovery 或 Runtime 验收；没有具体行为问题、高风险验收要求或 Human 明确要求时，不为补齐版本记录而新建或重跑 Runtime 场景。
 - Scope、版本和 Review 结论稳定时优先使用 `scripts/release.py prepare|publish|install`；脚本不可用时才使用下文的定向 fallback。
 - 执行者发现同一 Scope 已有仍有效的独立 Review，且精确暂存发布内容、验收输入和证据边界未超出该 Review 时复用原结论；发版本身不触发重审。任一项变化时只审原结论后的精确暂存变化及其影响，按风险选择最低充分模型与推理强度，不因发布动作默认提高强度。实施收尾本应完成但缺失的 Review 只补未审 staged delta，不得借发版重启完整调查。
 - 执行者先精确暂存当前待发布源码版本对应的发布内容并取得唯一 staged tree；需要增量 Review 时立即以该 tree、精确 diff、受影响 Owner/消费者和已有证据派发独立 Reviewer，同时在主任务运行 `release.py prepare`，不得等待一方结束后才启动另一方。
