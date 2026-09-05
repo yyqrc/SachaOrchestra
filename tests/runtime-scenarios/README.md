@@ -10,6 +10,13 @@
 - `fixture/`：复制到本次隔离 root 的真实输入和验证器。
 - `oracle.md`：只交给独立评估者，定义预期流程、允许弹性和偏移条件；执行 Agent 不得预读。
 
+## 什么时候新增场景
+
+- 场景优先记录实际使用中已经出现、修复后需要防止再次出现的问题。普通规则整理、措辞调整、新版本发布，或者某项行为以前没有专门跑过，都不是新增场景的理由。
+- 只有两种情况可以在没有既有失败记录时新增：权限、安全、删除或覆盖状态、不可逆外部动作等高风险变化，不宜等待日常使用暴露；或者 Human 明确要求建立实际运行验收。
+- `oracle.md` 必须写清问题来源和判定依据：实际发生了什么，或者要提前避免什么高风险后果。没有具体问题来源，不新增任务包。
+- 场景只回答对应问题，不承担通用覆盖率。某个未触发的场景没有执行，不自动形成后续验证清单。
+
 ## 通用运行流程
 
 1. 在工作区 `.temp/runtime-scenarios/<run-id>/<case-id>/` 创建唯一隔离 root，把 `fixture/` 复制进去，把 `task.md` 另存为中性 `instructions.md`，并把 [`assets/workspace-AGENTS.md`](assets/workspace-AGENTS.md) 复制为该 root 的 `AGENTS.md`。不得在包内原地执行，也不得把包名或 `oracle.md` 暴露给执行者。
@@ -43,7 +50,7 @@
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
 - `dsh-companion-root-surface-routing`：验证 DSH Profile 的 Root 工具面按任务收窄、隐藏目录可查询、同层工具可在下一 step 解锁、reset/cold resume 可恢复，且 child 不继承 Root policy。
 
-新增包必须来自真实 failure mode 或待验证的流程变化；先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。不得为覆盖节点数量拼接不自然任务。
+新增包必须满足“什么时候新增场景”的条件；先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。不得为增加覆盖数量拼接不自然任务。
 
 ## 已取代证据
 
