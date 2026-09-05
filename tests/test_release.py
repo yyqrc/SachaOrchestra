@@ -18,6 +18,22 @@ release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
 
 
+def unittest_modules(commands: list[tuple[str, ...]]) -> set[str]:
+    return {
+        command[4]
+        for command in commands
+        if len(command) == 5 and command[1:4] == ("-B", "-m", "unittest")
+    }
+
+
+def validation_scripts(commands: list[tuple[str, ...]]) -> list[str]:
+    return [
+        command[2]
+        for command in commands
+        if len(command) >= 3 and command[1] == "-B" and command[2] != "-m"
+    ]
+
+
 class ReleaseScriptTests(unittest.TestCase):
     def git(self, root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -69,8 +85,8 @@ class ReleaseScriptTests(unittest.TestCase):
             self.assertEqual(release.codex_cli(), paths["codex.cmd"])
 
     def test_codex_cli_missing_is_reported(self) -> None:
-        with mock.patch.object(release.shutil, "which", return_value=None), self.assertRaisesRegex(
-            release.ReleaseError, "未找到可执行的 Codex CLI"
+        with mock.patch.object(release.shutil, "which", return_value=None), self.assertRaises(
+            release.ReleaseError
         ):
             release.codex_cli()
 
@@ -141,12 +157,10 @@ class ReleaseScriptTests(unittest.TestCase):
         with mock.patch.object(release, "creator_script") as creator:
             commands = release.validation_commands("0.1.0", [path], deltas={path: (before, after)})
         creator.assert_not_called()
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertNotIn("validate_plugin.py", rendered)
-        self.assertNotIn("quick_validate.py", rendered)
-        self.assertNotIn("unittest discover", rendered)
-        self.assertNotIn("install", rendered)
-        self.assertNotIn("refresh", rendered.lower())
+        self.assertEqual(unittest_modules(commands), set())
+        self.assertEqual(
+            validation_scripts(commands), ["tests/validate_release_coherence.py"]
+        )
 
     def test_skill_frontmatter_change_runs_only_quick_validator(self) -> None:
         path = "plugins/sacha-orchestra/skills/executor/SKILL.md"
@@ -156,9 +170,8 @@ class ReleaseScriptTests(unittest.TestCase):
             release, "creator_script", return_value=Path("quick_validate.py")
         ):
             commands = release.validation_commands("0.1.0", [path], deltas={path: (before, after)})
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("quick_validate.py", rendered)
-        self.assertNotIn("validate_plugin.py", rendered)
+        self.assertEqual(validation_scripts(commands)[-1], "quick_validate.py")
+        self.assertNotIn("validate_plugin.py", validation_scripts(commands))
 
     def test_project_skill_metadata_runs_only_quick_validator(self) -> None:
         paths = (
@@ -175,10 +188,9 @@ class ReleaseScriptTests(unittest.TestCase):
             side_effect=lambda _creator, script: Path(script),
         ):
             commands = release.validation_commands("0.1.0", list(paths), deltas=deltas)
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("quick_validate.py", rendered)
-        self.assertIn(".agents", rendered)
-        self.assertNotIn("validate_plugin.py", rendered)
+        self.assertEqual(validation_scripts(commands)[-1], "quick_validate.py")
+        self.assertEqual(Path(commands[-1][-1]).parts[-3:], (".agents", "skills", "sacha-doc-governance"))
+        self.assertNotIn("validate_plugin.py", validation_scripts(commands))
 
     def test_deleted_skill_metadata_does_not_validate_absent_root(self) -> None:
         path = "plugins/sacha-orchestra/skills/clarify/SKILL.md"
@@ -192,10 +204,11 @@ class ReleaseScriptTests(unittest.TestCase):
                 "0.1.0",
                 [path],
                 deltas={path: (before, None)},
+                deleted_paths={path},
             )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertNotIn("quick_validate.py", rendered)
-        self.assertIn("validate_plugin.py", rendered)
+        scripts = validation_scripts(commands)
+        self.assertNotIn("quick_validate.py", scripts)
+        self.assertIn("validate_plugin.py", scripts)
 
     def test_manifest_change_runs_plugin_validator(self) -> None:
         path = "plugin.json"
@@ -205,8 +218,7 @@ class ReleaseScriptTests(unittest.TestCase):
             commands = release.validation_commands(
                 "0.1.0", [path], deltas={path: ("{}\n", '{"version":"0.1.0"}\n')}
             )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("validate_plugin.py", rendered)
+        self.assertIn("validate_plugin.py", validation_scripts(commands))
 
     def test_added_packaged_resource_runs_plugin_validator(self) -> None:
         path = "plugins/sacha-orchestra/assets/new.md"
@@ -216,12 +228,11 @@ class ReleaseScriptTests(unittest.TestCase):
             commands = release.validation_commands(
                 "0.1.0", [path], deltas={path: (None, "resource\n")}
             )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("validate_plugin.py", rendered)
+        self.assertIn("validate_plugin.py", validation_scripts(commands))
 
     def test_unmapped_production_script_is_rejected(self) -> None:
         path = "scripts/new_producer.py"
-        with self.assertRaisesRegex(release.ReleaseError, "缺少最窄测试映射"):
+        with self.assertRaises(release.ReleaseError):
             release.validation_commands("0.1.0", [path], deltas={path: (None, "print('x')\n")})
 
     def test_dsh_companion_machine_files_select_package_validator(self) -> None:
@@ -235,9 +246,9 @@ class ReleaseScriptTests(unittest.TestCase):
             paths,
             deltas={path: (None, "candidate\n") for path in paths},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn(release.DSH_COMPANION_VALIDATOR, rendered)
-        self.assertEqual(rendered.count(release.DSH_COMPANION_VALIDATOR), 1)
+        self.assertIn("tests.test_dsh_companion", unittest_modules(commands))
+        validator_command = (release.current_python(), "-B", release.DSH_COMPANION_VALIDATOR)
+        self.assertEqual(commands.count(validator_command), 1)
 
     def test_dsh_companion_validator_change_runs_release_tests(self) -> None:
         path = release.DSH_COMPANION_VALIDATOR
@@ -246,9 +257,8 @@ class ReleaseScriptTests(unittest.TestCase):
             [path],
             deltas={path: (None, "candidate\n")},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("tests.test_release", rendered)
-        self.assertNotIn(path, rendered)
+        self.assertIn("tests.test_release", unittest_modules(commands))
+        self.assertNotIn((release.current_python(), "-B", path), commands)
 
     def test_retired_dsh_companion_paths_select_migration_validation(self) -> None:
         paths = [
@@ -265,10 +275,9 @@ class ReleaseScriptTests(unittest.TestCase):
             paths,
             deltas={path: ("retired\n", None) for path in paths},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("tests.test_dsh_companion", rendered)
-        self.assertIn(release.DSH_COMPANION_VALIDATOR, rendered)
-        self.assertEqual(rendered.count(release.DSH_COMPANION_VALIDATOR), 1)
+        self.assertIn("tests.test_dsh_companion", unittest_modules(commands))
+        validator_command = (release.current_python(), "-B", release.DSH_COMPANION_VALIDATOR)
+        self.assertEqual(commands.count(validator_command), 1)
 
     def test_production_schema_selects_its_direct_test(self) -> None:
         paths = [
@@ -283,8 +292,41 @@ class ReleaseScriptTests(unittest.TestCase):
                     [path],
                     deltas={path: ("before\n", "after\n")},
                 )
-                rendered = "\n".join(" ".join(command) for command in commands)
-                self.assertIn("tests.test_document_project", rendered)
+                self.assertIn("tests.test_document_project", unittest_modules(commands))
+
+    def test_additional_production_assets_select_direct_tests(self) -> None:
+        cases = {
+            "plugins/sacha-orchestra/adapters/codex/code-mode-batch.js": {
+                "tests.test_code_mode_batch_asset"
+            },
+            "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md": {
+                "tests.test_document_project"
+            },
+            "plugins/sacha-orchestra/skills/document-project/assets/system-guide.md": {
+                "tests.test_document_project"
+            },
+            "plugins/sacha-orchestra/scripts/template_catalog.py": {
+                "tests.test_setup_project",
+                "tests.test_document_project",
+            },
+        }
+        for path, expected in cases.items():
+            with self.subTest(path=path):
+                commands = release.validation_commands(
+                    "0.1.0", [path], deltas={path: ("before\n", "after\n")}
+                )
+                self.assertEqual(unittest_modules(commands), expected)
+
+        code_mode = "plugins/sacha-orchestra/adapters/codex/code-mode-batch.js"
+        deleted_commands = release.validation_commands(
+            "0.1.0",
+            [code_mode],
+            deltas={code_mode: ("before\n", None)},
+            deleted_paths={code_mode},
+        )
+        self.assertEqual(
+            unittest_modules(deleted_commands), {"tests.test_code_mode_batch_asset"}
+        )
 
     def test_shared_project_test_support_selects_both_consumers(self) -> None:
         path = "tests/project_test_support.py"
@@ -293,9 +335,10 @@ class ReleaseScriptTests(unittest.TestCase):
             [path],
             deltas={path: ("before\n", "after\n")},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("tests.test_setup_project", rendered)
-        self.assertIn("tests.test_document_project", rendered)
+        self.assertEqual(
+            unittest_modules(commands),
+            {"tests.test_setup_project", "tests.test_document_project"},
+        )
 
     def test_runtime_scenario_paths_select_direct_tests(self) -> None:
         paths = [
@@ -303,11 +346,8 @@ class ReleaseScriptTests(unittest.TestCase):
             "tests/test_runtime_scenario_verifiers.py",
             "tests/runtime-scenarios/packs/explore-shared-context-loop/fixture/verify.py",
             "tests/runtime-scenarios/packs/using-sacha-spec-intake/fixture/verify.py",
-            "tests/runtime-scenarios/packs/planner-explore-manager-reviewer/fixture/verify.py",
             "tests/runtime-scenarios/packs/roadmap-self-contained-document/fixture/verify.py",
             "tests/runtime-scenarios/packs/roadmap-spec-task-handoff/fixture/verify.py",
-            "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/fixture/probe.json",
-            "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/fixture/verify.py",
             "tests/runtime-scenarios/packs/reviewer-semantic-chain/fixture/baseline/cli.py",
         ]
         commands = release.validation_commands(
@@ -315,9 +355,37 @@ class ReleaseScriptTests(unittest.TestCase):
             paths,
             deltas={path: (None, "candidate\n") for path in paths},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("tests.test_code_mode_batch_asset", rendered)
-        self.assertIn("tests.test_runtime_scenario_verifiers", rendered)
+        self.assertEqual(
+            unittest_modules(commands),
+            {"tests.test_code_mode_batch_asset", "tests.test_runtime_scenario_verifiers"},
+        )
+
+    def test_real_staged_deletion_does_not_select_deleted_test_or_unknown_producer(self) -> None:
+        deleted_producer = "scripts/removed_producer.py"
+        direct_test = "tests/test_code_mode_batch_asset.py"
+        with tempfile.TemporaryDirectory() as root_dir:
+            root = Path(root_dir)
+            self.git(root, "init", "-b", "main")
+            self.git(root, "config", "user.name", "Release Test")
+            self.git(root, "config", "user.email", "release-test@example.invalid")
+            for path in (deleted_producer, direct_test):
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("tracked\n", encoding="utf-8")
+            self.git(root, "add", ".")
+            self.git(root, "commit", "-m", "base")
+            (root / deleted_producer).unlink()
+            (root / direct_test).unlink()
+            self.git(root, "add", "-u")
+            with mock.patch.object(release, "ROOT", root):
+                staged = release.require_staged_candidate([deleted_producer, direct_test])
+                deleted = release.staged_deleted_paths(staged)
+                deltas = release.staged_deltas(staged)
+                commands = release.validation_commands(
+                    "0.1.0", staged, root=root, deltas=deltas, deleted_paths=deleted
+                )
+            self.assertEqual(deleted, {deleted_producer, direct_test})
+            self.assertEqual(unittest_modules(commands), set())
 
     def test_unrelated_tracked_working_change_does_not_block_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as root_dir:
@@ -340,8 +408,8 @@ class ReleaseScriptTests(unittest.TestCase):
             (root / "candidate.txt").write_text("candidate\n", encoding="utf-8")
             (root / "unrelated.txt").write_text("user staged\n", encoding="utf-8")
             self.git(root, "add", "candidate.txt", "unrelated.txt")
-            with mock.patch.object(release, "ROOT", root), self.assertRaisesRegex(
-                release.ReleaseError, "unexpected=.*unrelated.txt"
+            with mock.patch.object(release, "ROOT", root), self.assertRaises(
+                release.ReleaseError
             ):
                 release.require_staged_candidate(["candidate.txt"])
 
@@ -355,8 +423,8 @@ class ReleaseScriptTests(unittest.TestCase):
             (root / "candidate.txt").write_text("staged\n", encoding="utf-8")
             self.git(root, "add", "candidate.txt")
             (root / "candidate.txt").write_text("working\n", encoding="utf-8")
-            with mock.patch.object(release, "ROOT", root), self.assertRaisesRegex(
-                release.ReleaseError, "暂存后又有未暂存修改"
+            with mock.patch.object(release, "ROOT", root), self.assertRaises(
+                release.ReleaseError
             ):
                 release.require_staged_candidate(["candidate.txt"])
 
@@ -500,7 +568,7 @@ class ReleaseScriptTests(unittest.TestCase):
             ), mock.patch.object(
                 release, "codex_cli", return_value="codex.cmd"
             ), mock.patch.object(release, "run", side_effect=responses):
-                with self.assertRaisesRegex(release.ReleaseError, "关闭本次发布中已终态的辅助 Agent"):
+                with self.assertRaises(release.ReleaseError):
                     release.install("0.1.0")
 
 

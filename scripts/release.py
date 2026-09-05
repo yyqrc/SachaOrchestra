@@ -35,7 +35,9 @@ DEPLOYMENT_MANIFESTS = {
     "plugins/sacha-orchestra/.cursor-plugin/plugin.json",
 }
 PRODUCTION_TESTED_MARKDOWN = {
+    "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md",
     "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
+    "plugins/sacha-orchestra/skills/document-project/assets/system-guide.md",
 }
 DSH_COMPANION_ROOT = "integrations/dsh/sacha-companion/"
 DSH_COMPANION_VALIDATOR = "tests/validate_dsh_companion.py"
@@ -171,6 +173,15 @@ def staged_deltas(staged: list[str]) -> dict[str, tuple[str | None, str | None]]
     }
 
 
+def staged_deleted_paths(staged: list[str]) -> set[str]:
+    deleted = {
+        line
+        for line in git("diff", "--cached", "--name-only", "--diff-filter=D").stdout.splitlines()
+        if line
+    }
+    return deleted.intersection(staged)
+
+
 def changed_skill_metadata_roots(
     staged: list[str],
     deltas: dict[str, tuple[str | None, str | None]],
@@ -202,6 +213,7 @@ def changed_skill_metadata_roots(
 def requires_plugin_validation(
     staged: list[str],
     deltas: dict[str, tuple[str | None, str | None]],
+    deleted_paths: set[str],
 ) -> bool:
     for path in staged:
         before, after = deltas[path]
@@ -210,12 +222,14 @@ def requires_plugin_validation(
             and path.endswith("/agents/openai.yaml")
         ):
             return True
-        if path.startswith("plugins/sacha-orchestra/") and (before is None or after is None):
+        if path.startswith("plugins/sacha-orchestra/") and (
+            before is None or path in deleted_paths
+        ):
             return True
     return False
 
 
-def narrow_test_modules(staged: list[str]) -> list[str]:
+def narrow_test_modules(staged: list[str], deleted_paths: set[str]) -> list[str]:
     mappings = (
         (("scripts/release.py", "tests/test_release.py", "tests/validate_release_coherence.py"), "tests.test_release"),
         ((
@@ -232,11 +246,18 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
             "plugins/sacha-orchestra/skills/document-project/assets/project-context.json",
             "plugins/sacha-orchestra/skills/document-project/assets/roadmap.json",
             "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
+            "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md",
+            "plugins/sacha-orchestra/skills/document-project/assets/system-guide.md",
         ), "tests.test_document_project"),
+        (("plugins/sacha-orchestra/scripts/template_catalog.py",), "tests.test_setup_project"),
+        (("plugins/sacha-orchestra/scripts/template_catalog.py",), "tests.test_document_project"),
         (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_provider_queries.py", "tests/test_skill_loading.py"), "tests.test_skill_loading"),
-        (("tests/test_code_mode_batch_asset.py",), "tests.test_code_mode_batch_asset"),
+        ((
+            "plugins/sacha-orchestra/adapters/codex/code-mode-batch.js",
+            "tests/test_code_mode_batch_asset.py",
+        ), "tests.test_code_mode_batch_asset"),
         ((DSH_COMPANION_VALIDATOR,), "tests.test_release"),
         ((DSH_COMPANION_ROOT, "tests/test_dsh_companion.py", *DSH_RETIRED_TEST_PATHS), "tests.test_dsh_companion"),
         (
@@ -244,23 +265,34 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
                 "tests/test_runtime_scenario_verifiers.py",
                 "tests/runtime-scenarios/packs/explore-shared-context-loop/",
                 "tests/runtime-scenarios/packs/using-sacha-spec-intake/",
-                "tests/runtime-scenarios/packs/planner-explore-manager-reviewer/",
                 "tests/runtime-scenarios/packs/roadmap-self-contained-document/",
                 "tests/runtime-scenarios/packs/roadmap-spec-task-handoff/",
-                "tests/runtime-scenarios/packs/codex-code-mode-readonly-batch/",
-                "tests/runtime-scenarios/packs/codex-code-mode-v1-batch/",
                 "tests/runtime-scenarios/packs/reviewer-semantic-chain/",
             ),
             "tests.test_runtime_scenario_verifiers",
         ),
     )
     modules: set[str] = set()
+    deleted_modules = {
+        module
+        for test_path, module in (
+            ("tests/test_release.py", "tests.test_release"),
+            ("tests/test_setup_project.py", "tests.test_setup_project"),
+            ("tests/test_document_project.py", "tests.test_document_project"),
+            ("tests/test_setup_agents.py", "tests.test_setup_agents"),
+            ("tests/test_skill_loading.py", "tests.test_skill_loading"),
+            ("tests/test_code_mode_batch_asset.py", "tests.test_code_mode_batch_asset"),
+            ("tests/test_dsh_companion.py", "tests.test_dsh_companion"),
+            ("tests/test_runtime_scenario_verifiers.py", "tests.test_runtime_scenario_verifiers"),
+        )
+        if test_path in deleted_paths
+    }
     machine_paths = [
         path
         for path in staged
         if (
             Path(path).suffix.lower()
-            in {".py", ".ps1", ".mjs", ".json", ".toml", ".yaml", ".yml"}
+            in {".py", ".ps1", ".js", ".mjs", ".json", ".toml", ".yaml", ".yml"}
             or path in PRODUCTION_TESTED_MARKDOWN
         )
         and path not in DEPLOYMENT_MANIFESTS
@@ -272,14 +304,16 @@ def narrow_test_modules(staged: list[str]) -> list[str]:
             or any(path.startswith(prefix) for prefix in DSH_RETIRED_ROOTS)
             or path in DSH_RETIRED_TEST_PATHS
         ):
-            modules.add("tests.test_dsh_companion")
+            if "tests.test_dsh_companion" not in deleted_modules:
+                modules.add("tests.test_dsh_companion")
             continue
         matched = False
         for prefixes, module in mappings:
             if any(path == prefix or path.startswith(prefix) for prefix in prefixes):
-                modules.add(module)
+                if module not in deleted_modules:
+                    modules.add(module)
                 matched = True
-        if not matched:
+        if not matched and path not in deleted_paths:
             raise ReleaseError(f"生产脚本缺少最窄测试映射：{path}")
     return sorted(modules)
 
@@ -289,9 +323,12 @@ def validation_commands(
     staged: list[str],
     root: Path = ROOT,
     deltas: dict[str, tuple[str | None, str | None]] | None = None,
+    deleted_paths: set[str] | None = None,
 ) -> list[tuple[str, ...]]:
     if deltas is None:
         deltas = staged_deltas(staged)
+    if deleted_paths is None:
+        deleted_paths = set()
     python = current_python()
     plugin = root / "plugins" / "sacha-orchestra"
     commands: list[tuple[str, ...]] = [
@@ -307,16 +344,16 @@ def validation_commands(
     ]
     commands.extend(
         (python, "-B", "-m", "unittest", module)
-        for module in narrow_test_modules(staged)
+        for module in narrow_test_modules(staged, deleted_paths)
     )
     if any(
         path.startswith(DSH_COMPANION_ROOT)
         or any(path.startswith(prefix) for prefix in DSH_RETIRED_ROOTS)
         or path in DSH_RETIRED_TEST_PATHS
         for path in staged
-    ):
+    ) and DSH_COMPANION_VALIDATOR not in deleted_paths:
         commands.append((python, "-B", DSH_COMPANION_VALIDATOR))
-    if requires_plugin_validation(staged, deltas):
+    if requires_plugin_validation(staged, deltas, deleted_paths):
         commands.append(
             (python, "-B", str(creator_script("plugin-creator", "validate_plugin.py")), str(plugin))
         )
@@ -370,9 +407,12 @@ def run_validation(
 def prepare(version: str, expected: list[str]) -> None:
     started = time.perf_counter()
     staged = require_staged_candidate(expected)
+    deleted_paths = staged_deleted_paths(staged)
     deltas = staged_deltas(staged)
     with staged_snapshot() as (snapshot, tree):
-        commands = validation_commands(version, staged, snapshot, deltas)
+        commands = validation_commands(
+            version, staged, snapshot, deltas, deleted_paths
+        )
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(commands)) as pool:
             futures = [pool.submit(run_validation, command, snapshot) for command in commands]
             results = [future.result() for future in futures]

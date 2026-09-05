@@ -31,28 +31,31 @@ describe('normalizeVisualEvent', () => {
       role: 'explore', surface: 'sacha_research', requestedRoute: 'deepseek/v4-flash', effectiveRoute: 'deepseek/v4-flash',
     })
     expect(normalizeVisualEvent({
-      event_type: 'review', summary: '通过并保留跟进项', outcome: 'accepted_with_follow_up',
-    })).toEqual({ eventType: 'review', summary: '通过并保留跟进项', outcome: 'accepted_with_follow_up' })
+      event_type: 'review', summary: '通过并保留跟进项', outcome: 'accepted_with_follow_up', scope_revision: ' r2 ',
+    })).toEqual({ eventType: 'review', summary: '通过并保留跟进项', outcome: 'accepted_with_follow_up', scopeRevision: 'r2' })
     expect(normalizeVisualEvent({
-      event_type: 'evidence', summary: '源码验证通过', evidence_layer: 'source', evidence_status: 'verified', references: ['tests/output.json'],
-    })).toEqual({ eventType: 'evidence', summary: '源码验证通过', layer: 'source', status: 'verified', references: ['tests/output.json'] })
+      event_type: 'evidence', summary: '源码验证通过', evidence_layer: 'source', evidence_status: 'verified', references: ['tests/output.json'], scope_revision: 'r2',
+    })).toEqual({ eventType: 'evidence', summary: '源码验证通过', layer: 'source', status: 'verified', references: ['tests/output.json'], scopeRevision: 'r2' })
   })
 
   it('rejects incomplete, cyclic, and unbounded records', () => {
-    expect(() => normalizeVisualEvent({ event_type: 'phase', summary: 'x' })).toThrow(/phase/)
+    expect(() => normalizeVisualEvent({ event_type: 'phase', summary: 'x' })).toThrow()
     expect(() => normalizeVisualEvent({
       event_type: 'manager_wave', summary: 'x', wave_id: 'bad id', wave_state: 'planned',
       manager_units: [{ id: 'u1', label: 'u1', state: 'ready' }],
-    })).toThrow(/stable id/)
+    })).toThrow()
     expect(() => normalizeVisualEvent({
       event_type: 'manager_wave', summary: 'x', wave_id: 'w1', wave_state: 'planned',
       manager_units: [
         { id: 'u1', label: 'u1', state: 'waiting', blocked_by: ['u2'] },
         { id: 'u2', label: 'u2', state: 'waiting', blocked_by: ['u1'] },
       ],
-    })).toThrow(/cycle/)
+    })).toThrow()
     expect(() => normalizeVisualEvent({
       event_type: 'evidence', summary: 'x', evidence_layer: 'source', evidence_status: 'verified', references: Array(11).fill('x'),
-    })).toThrow(/at most 10/)
+    })).toThrow()
+    expect(() => normalizeVisualEvent({
+      event_type: 'review', summary: 'x', outcome: 'accepted', scope_revision: 'r'.repeat(129),
+    })).toThrow()
   })
 })

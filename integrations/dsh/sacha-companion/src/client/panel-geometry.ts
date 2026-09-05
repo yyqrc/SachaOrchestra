@@ -2,7 +2,6 @@
 
 export type PanelMode = 'docked' | 'floating'
 export type PanelHeightMode = 'auto' | 'manual'
-export type PanelResizeEdge = 'left' | 'bottom' | 'corner'
 
 export interface PanelLayout {
   readonly mode: PanelMode
@@ -137,33 +136,4 @@ export function floatPanel(layout: PanelLayout, bounds: PanelBounds): PanelLayou
 /** Return to the right dock, restoring content-fit height. */
 export function dockPanel(layout: PanelLayout, bounds: PanelBounds): PanelLayout {
   return resolvePanelLayout({ ...layout, mode: 'docked', heightMode: 'auto' }, bounds)
-}
-
-export function movePanel(layout: PanelLayout, dx: number, dy: number, bounds: PanelBounds): PanelLayout {
-  const floating = floatPanel(layout, bounds)
-  return resolvePanelLayout({ ...floating, x: floating.x + dx, y: floating.y + dy }, bounds)
-}
-
-/** Resize while preserving the edge opposite the active handle. */
-export function resizePanel(
-  layout: PanelLayout,
-  edge: PanelResizeEdge,
-  dx: number,
-  dy: number,
-  bounds: PanelBounds,
-): PanelLayout {
-  const resolved = resolvePanelLayout(layout, bounds)
-  if (resolved.mode === 'docked') {
-    if (edge !== 'left') return resolved
-    return resolvePanelLayout({ ...resolved, width: resolved.width - dx }, bounds)
-  }
-  if (edge === 'left') {
-    const right = resolved.x + resolved.width
-    const candidate = resolvePanelLayout({ ...resolved, width: resolved.width - dx }, bounds)
-    return resolvePanelLayout({ ...candidate, x: right - candidate.width }, bounds)
-  }
-  if (edge === 'bottom') {
-    return resolvePanelLayout({ ...resolved, height: resolved.height + dy, heightMode: 'manual' }, bounds)
-  }
-  return resolvePanelLayout({ ...resolved, width: resolved.width + dx, height: resolved.height + dy, heightMode: 'manual' }, bounds)
 }

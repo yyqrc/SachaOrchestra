@@ -59,6 +59,7 @@ const EVENT_OUTPUT_SCHEMA = {
   additionalProperties: false,
   properties: {
     recorded: { type: 'boolean', required: true, const: true },
+    scopeRevision: { type: 'string' },
     eventType: {
       type: 'string',
       required: true,
@@ -89,7 +90,7 @@ const visualEventTool = defineTool({
     summary: { type: 'string', required: true, description: 'Concise Human-facing Chinese summary.' },
     phase: { type: 'string', enum: ['intake', 'direct', 'planner', 'explore', 'executor', 'reviewer', 'roadmap', 'document-project', 'closeout', 'feedback', 'human-decision', 'complete', 'blocked'] },
     phase_state: { type: 'string', enum: ['entered', 'waiting', 'completed', 'blocked', 'cancelled'] },
-    scope_revision: { type: 'string' },
+    scope_revision: { type: 'string', description: 'Known scope revision for phase, review, or evidence. Unassociated results remain historical and cannot confirm the current revision.' },
     gate: { type: 'string', enum: ['planner', 'manager', 'reviewer'] },
     gate_decision: { type: 'string', enum: ['open', 'closed'] },
     wave_id: { type: 'string' },
@@ -123,7 +124,10 @@ const visualEventTool = defineTool({
   output: jsonOutput(EVENT_OUTPUT_SCHEMA),
   execute(args) {
     const value = normalizeVisualEvent(args as VisualEventInput)
-    return Promise.resolve({ recorded: true as const, eventType: value.eventType })
+    return Promise.resolve({
+      recorded: true as const, eventType: value.eventType,
+      ...('scopeRevision' in value && value.scopeRevision !== undefined ? { scopeRevision: value.scopeRevision } : {}),
+    })
   },
 })
 

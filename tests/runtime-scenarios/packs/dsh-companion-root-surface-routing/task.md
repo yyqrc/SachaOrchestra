@@ -1,10 +1,12 @@
-# 任务
+# 连续 Human 消息
 
-只读检查当前 DSH Root 的工具面，不修改工作区，也不创建或唤醒任何协作者：
+运行者必须把以下两段作为同一 DSH Root 对话中的两条 Human 消息依次发送，不得合并，也不得提前向执行者展示第二条。
 
-1. 调用 `sacha_tools status`，记录当前 profile、可见/隐藏数量、source、unlocked 与 fallback。
-2. 用 `catalog` 查询 `wait_agent`，再用 `help` 读取它的参数；不要列出完整工具目录。
-3. 解锁 `wait_agent`。必须等工具返回后的下一 step 再调用 `wait_agent(timeout_ms=10000)`。
-4. 调用 `reset`，再调用一次 `status`，确认临时解锁已经清除。
-5. 最终只汇总上述返回；不要调用其他工具。
+## 第一条
+
+只读检查当前 DSH Root 的工具面。调用 `sacha_tools status`，记录当前 profile、可见/隐藏数量、source、unlocked 与 fallback；不要修改工作区，也不要创建或唤醒协作者。
+
+## 第二条
+
+现在请直接实施：把隔离工作区 `README.md` 的标题改为 `# Execute surface selected`，然后报告修改和验证。不要修改其他文件，也不要安装、发布或创建协作者。
 

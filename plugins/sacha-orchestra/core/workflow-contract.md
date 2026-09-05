@@ -18,11 +18,11 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
 - 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
-- 主任务在实施或有界探索前，先判断当前目标能否形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元；能够形成时打开 Manager Gate 并转到 Coordination 统一拆分和派发。已有多个候选、依赖、并发安全或正式恢复需要协调时同样打开 Gate；候选尚未完整拆分也可调用。只有一个单元且适合隔离中间过程时，主任务按 Coordination 直接管理一个委派 Agent，不打开 Manager Gate。不得只因困难、耗时或文件多而人为拆分。
+- 主任务在实施或有界探索前，先判断当前目标能否形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元；能够形成时打开 Manager Gate 并转到 Coordination 统一协调；就绪不等于必须派发，主任务可完成部分单元或串行处理。已有多个候选、依赖、并发安全或正式恢复需要协调时同样打开 Gate；候选尚未完整拆分也可调用。只有一个单元且适合隔离中间过程时，主任务按 Coordination 直接管理一个委派 Agent，不打开 Manager Gate。不得只因困难、耗时或文件多而人为拆分。
 - 显式 Explore 的研究保持只读窄授权；主任务发现多个候选问题、依赖图或正式恢复时打开 Manager Gate。一个窄研究可由主任务直接派发；Explore 委派 Agent 只返回研究结果或协调请求，就绪判定与派发规则由 Coordination 定义。
 - 主任务 → 通过显式入口、Planner 或 Roadmap 进入 Explore → 必须完整读取 Explore Skill，并按其输入、动作、输出与停止边界推进 → Explore 结果返回调用节点。
 - 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。Roadmap 完成后若建议为一个候选 Spec 另开任务，必须先按 Human Interaction Contract 明确说明这是 Sacha Planner 任务及其执行影响；只有 Human 确认创建后，Runtime Adapter 才创建新任务并把显式 Planner 请求写入初始输入。
-- 三个 Gate 全关且无需恢复时，Executor 处理不能形成独立工作单元的局部动作；一个已就绪实施单元满足 Coordination 的隔离条件时优先直接派发。只有发生派发时才加载 Coordination 与目标 Runtime Adapter，不加载无消费者的 Assurance 或 Artifact。
+- 三个 Gate 全关且无需恢复时，Executor 处理不能形成独立工作单元的局部动作；一个已就绪实施单元满足 Coordination 的安全条件且派发有实际收益时才直接派发。只有发生派发时才加载 Coordination 与目标 Runtime Adapter，不加载无消费者的 Assurance 或 Artifact。
 
 ### 2.1 技能加载
 
@@ -71,7 +71,7 @@ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Dir
 
 ## 4. 生命周期与 Human 路由
 
-通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Explore、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；任一项未收口时必须路由 Explore，不得冻结或持久化 Spec，全部收口后才可形成 Spec。显式 Roadmap 使用第 2 节的独立路线，不进入该生产生命周期。进入 closeout 后按本合同第 5 节流转；显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
+通用生命周期只按本合同推进：Direct 在当前任务完成；接受 Sacha 后按 Gate 进入 Planner/Explore、Executor、Reviewer 和文档候选；Manager 只在主任务内运行并返回调用节点。Planner 进入后必须先判断目标结果、Scope/Non-goals、验收及会改变方案的 Human 决定是否足以冻结；可直接取得的小事实先由 Planner 核对；仍需持续探索、存在会改变方案的未决事实或 Human 决定时路由 Explore，相关决定未收口前不得冻结或持久化 Spec，收口后才可形成 Spec。显式 Roadmap 使用第 2 节的独立路线，不进入该生产生命周期。进入 closeout 后按本合同第 5 节流转；显式调用 document-project 时直接进入当前文档目标，不接受 Sacha 或补走生产 Role；正常 Sacha 生命周期仍独立执行文档候选检查。Feedback 是主流程之外由 Human 在另一个真实任务手动调用的独立支持入口。不得新增隐藏阶段或旁路。
 
 Roadmap 完成后的独立 Spec 任务重新从入口开始，不把 Roadmap 的状态、授权或上下文当作已接受 Sacha。只有 Roadmap 的当前推荐已经明确说明新任务使用 Sacha Planner，且 Human 随后确认创建时，该确认才同时构成新目标的 Sacha 接受与任务创建授权；目标任务的初始输入必须保留显式 Planner 请求。缺少任一条件时，新任务按普通 Intake 重新判断。
 
@@ -93,7 +93,7 @@ Human → 取消或不再继续 → 主任务结束。
 
 Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Explore、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
 
-动态路由：出现 Planner Gate 新事实 → Planner；Planner 冻结条件不足 → Explore；Explore 返回后仍不足 → 继续 Explore，足够后才冻结 Spec；Roadmap 事实不足 → Explore → Roadmap，正文就绪 → document-project → Roadmap 结束；Roadmap 明确推荐独立 Sacha Planner 任务且 Human 确认创建 → 新任务从显式 Planner 入口开始；新增高影响授权 → Human；Reviewer 路由按 Assurance；委派/返回失败按 Coordination。
+动态路由：出现 Planner Gate 新事实 → Planner；Planner 先核对小事实；仍需持续探索、实质事实或 Human 决定 → Explore；Explore 返回后按剩余问题继续核对或探索，足够后才冻结 Spec；Roadmap 事实不足 → Explore → Roadmap，正文就绪 → document-project → Roadmap 结束；Roadmap 明确推荐独立 Sacha Planner 任务且 Human 确认创建 → 新任务从显式 Planner 入口开始；新增高影响授权 → Human；Reviewer 路由按 Assurance；委派/返回失败按 Coordination。
 Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
 
 主任务直接推进 Role 完成结果、已批准方案向 Executor 的转换、同 Scope 返修/补证据/复验、唯一 Owner 路由和已授权收尾。Direct Scope 由用户目标与明确约束界定；只有 Human 或 Spec 明确指定时，预计文件列表才成为硬性允许列表。

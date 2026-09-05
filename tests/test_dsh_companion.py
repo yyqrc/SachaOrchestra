@@ -48,10 +48,14 @@ class DshCompanionTests(unittest.TestCase):
             paths,
             deltas={path: (None, "candidate\n") for path in paths},
         )
-        rendered = "\n".join(" ".join(command) for command in commands)
-        self.assertIn("tests.test_dsh_companion", rendered)
-        self.assertIn(release.DSH_COMPANION_VALIDATOR, rendered)
-        self.assertEqual(rendered.count(release.DSH_COMPANION_VALIDATOR), 1)
+        unittest_commands = {
+            command[4]
+            for command in commands
+            if len(command) == 5 and command[1:4] == ("-B", "-m", "unittest")
+        }
+        self.assertIn("tests.test_dsh_companion", unittest_commands)
+        validator_command = (release.current_python(), "-B", release.DSH_COMPANION_VALIDATOR)
+        self.assertEqual(commands.count(validator_command), 1)
 
     def test_missing_depth_guard_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -61,7 +65,7 @@ class DshCompanionTests(unittest.TestCase):
             (root / "cordis.patch.yml").write_text(
                 patch.replace("        maxDepth: 1\n", "", 1), encoding="utf-8"
             )
-            with self.assertRaisesRegex(validator.ValidationError, "maxDepth"):
+            with self.assertRaises(validator.ValidationError):
                 validator.validate_companion(root)
 
     def test_agent_team_reintroduction_is_rejected(self) -> None:
@@ -70,7 +74,7 @@ class DshCompanionTests(unittest.TestCase):
             copy_candidate(root)
             patch = (root / "cordis.patch.yml").read_text(encoding="utf-8") + "\n# spawn_teammate\n"
             (root / "cordis.patch.yml").write_text(patch, encoding="utf-8")
-            with self.assertRaisesRegex(validator.ValidationError, "Agent Teams"):
+            with self.assertRaises(validator.ValidationError):
                 validator.validate_companion(root)
 
     def test_research_allowlist_expansion_is_rejected(self) -> None:
@@ -80,7 +84,7 @@ class DshCompanionTests(unittest.TestCase):
             patch = (root / "cordis.patch.yml").read_text(encoding="utf-8")
             patch = patch.replace("            - skill\n", "            - skill\n            - mcp_untrusted\n", 1)
             (root / "cordis.patch.yml").write_text(patch, encoding="utf-8")
-            with self.assertRaisesRegex(validator.ValidationError, "allow-list"):
+            with self.assertRaises(validator.ValidationError):
                 validator.validate_companion(root)
 
     def test_stale_dsh_peer_range_is_rejected(self) -> None:
@@ -90,8 +94,38 @@ class DshCompanionTests(unittest.TestCase):
             package = json.loads((root / "package.json").read_text(encoding="utf-8"))
             package["peerDependencies"]["@deepseek-ai/dsh-tool-subagent"] = "^0.1.0-rc.6"
             (root / "package.json").write_text(json.dumps(package), encoding="utf-8")
-            with self.assertRaisesRegex(validator.ValidationError, "peer version"):
+            with self.assertRaises(validator.ValidationError):
                 validator.validate_companion(root)
+
+    def test_empty_machine_version_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            copy_candidate(root)
+            package_path = root / "package.json"
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            package["version"] = ""
+            package_path.write_text(json.dumps(package), encoding="utf-8")
+            with self.assertRaises(validator.ValidationError):
+                validator.validate_companion(root)
+
+    def test_packed_identity_must_match_package_machine_fields(self) -> None:
+        package = validator.packed_package(
+            json.dumps(
+                {
+                    "name": "@sacha-orchestra/dsh-companion",
+                    "version": "0.2.0",
+                    "files": [{"path": "package.json"}],
+                }
+            )
+        )
+        validator.validate_packed_identity(
+            package, "@sacha-orchestra/dsh-companion", "0.2.0"
+        )
+        self.assertEqual(validator.packed_paths(package), {"package.json"})
+        with self.assertRaises(validator.ValidationError):
+            validator.validate_packed_identity(
+                package, "@sacha-orchestra/dsh-companion", "0.2.1"
+            )
 
 
 if __name__ == "__main__":

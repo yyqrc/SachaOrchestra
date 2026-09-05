@@ -1,5 +1,7 @@
 # Runtime 能力面后续迭代
 
+> 历史记录，已被后续实现取代；不作为当前实施顺序或运行状态。现行规则见[运行时适配器](../../../plugins/sacha-orchestra/adapters/codex/runtime-adapter.md)与[DSH 配套包](../../../integrations/dsh/sacha-companion/README.md)。
+
 > 状态：进行中  
 > 基线：Sacha Orchestra 0.12.11  
 > 用途：跨会话继续迭代 Codex、Claude Code、Cursor 与 DSH 的子 Agent 能力边界和验证方式。

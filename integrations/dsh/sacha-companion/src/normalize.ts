@@ -107,9 +107,10 @@ function managerUnits(value: unknown): ManagerUnitSnapshot[] {
 /** Convert one tool input into the exact event consumed by the panel. */
 export function normalizeVisualEvent(input: VisualEventInput): SachaVisualEvent {
   const summary = text('summary', input.summary, MAX_SUMMARY_CHARS)
+  const scopeRevision = ['phase', 'review', 'evidence'].includes(input.event_type)
+    ? optionalText('scope_revision', input.scope_revision, MAX_SCOPE_CHARS) : undefined
   switch (input.event_type) {
     case 'phase': {
-      const scopeRevision = optionalText('scope_revision', input.scope_revision, MAX_SCOPE_CHARS)
       return {
         eventType: 'phase',
         summary,
@@ -155,6 +156,7 @@ export function normalizeVisualEvent(input: VisualEventInput): SachaVisualEvent 
         eventType: 'review',
         summary,
         outcome: oneOf('outcome', input.outcome, REVIEW_OUTCOMES),
+        ...(scopeRevision === undefined ? {} : { scopeRevision }),
       }
     case 'evidence':
       return {
@@ -163,6 +165,7 @@ export function normalizeVisualEvent(input: VisualEventInput): SachaVisualEvent 
         layer: oneOf('evidence_layer', input.evidence_layer, EVIDENCE_LAYERS),
         status: oneOf('evidence_status', input.evidence_status, EVIDENCE_STATUSES),
         references: references(input.references),
+        ...(scopeRevision === undefined ? {} : { scopeRevision }),
       }
     default:
       throw new TypeError(`unsupported event_type ${String(input.event_type)}`)

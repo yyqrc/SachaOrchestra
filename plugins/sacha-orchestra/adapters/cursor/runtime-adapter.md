@@ -43,7 +43,7 @@ Cursor Subagent 使用独立上下文，只由主任务通过当前可用的 Tas
 | Planner/Explore 研究 | 新委派 Agent，输入对应 Skill、目标、Scope、事实 reference 与返回检查 | Cursor Subagent 从干净上下文开始；满足条件时返回协调请求 |
 | Executor | 当前主对话，或 Scope/写入边界明确的新委派 Agent | 委派 Agent 只完成当前单元并返回；同一文件或共享输出保持单一活跃写入者 |
 | Reviewer | 未参与方案和实现的新 Subagent | 名称不同不构成来源独立；核对实际参与历史与输入来源 |
-| Manager 就绪单元 | 主任务为每个隔离单元创建一个委派 Agent | 至少两个单元同时就绪且输出隔离时才并行派发；遵守单层派发 |
+| Manager 就绪单元 | 主任务按 Coordination 的收益判断选择派发单元 | 至少两个单元同时就绪且输出隔离时才并行派发；遵守单层派发 |
 | 前台等待 | 前台 Subagent 调用直接返回终态结果 | 只在当前步骤确实依赖结果时使用 |
 | 后台等待 | 保留原生 Agent ID/完成通知，在依赖屏障消费结果 | 等待前推进其他不冲突的就绪工作；超时只报告存活状态 |
 | 同一目标继续 | 用原生 Agent ID resume | 仅同一 Owner、Scope 和连续目标；新 Scope 新建工作单元 |
@@ -53,29 +53,29 @@ Cursor Subagent 使用独立上下文，只由主任务通过当前可用的 Tas
 
 ### 4.1 模型映射
 
-默认预算档为 Cursor Teams Premium seat（当前月付 `$120/seat`，年付折算 `$96/seat`）：它有彼此独立的 First-party models 与 Third-party API 用量池，包含量是 Standard seat 的 5 倍。具体 token/金额额度与剩余量不写死；派发前只在 Dashboard 或当前 Runtime 可读时使用实时值。
+不预设用户套餐、座席价格、包含量或告警线。预算池、阈值和额度仅在用户/项目已有明确配置及当前可读依据时适用；无数据时不推断预算，也不按未知阈值自动降档。下列模型映射仍须经当前 Runtime 目录核对，预算要求不创建新的配置格式。
 
 当前主对话使用 Human 已选模型；没有精确选择时优先 `Auto` 或 Cursor Grok 4.5 medium non-fast。Subagent 按下表首次命中路由，Human/批准 Scope 的精确模型始终优先：
 
 | `route_id` | 进入条件 | 请求模型 | 预算意图 |
 | --- | --- | --- | --- |
 | `human_exact` | Human 或批准 Scope 指定精确模型/参数 | 当前 Runtime 验证支持后原样使用 | 不因套餐自动改写；不可用时暂停 |
-| `premium_review_frontier` | Reviewer 处理 release、安全、权限、持久数据、不可逆外部动作或广泛兼容风险 | `claude-opus-5[effort=high]` | 使用 Third-party API 池换取正式独立复核；同一波次至多一个活跃 frontier Reviewer |
-| `premium_grok_high` | Planner/Executor 属于上述高风险，或跨 Owner 关键集成失败会造成困难回退 | 当前 Runtime 发现的 Cursor Grok 4.5 high non-fast 精确 ID | 在 First-party models 池内处理关键长程推理/集成；同一波次至多一个 high 工作单元 |
+| `premium_review_frontier` | Reviewer 处理 release、安全、权限、持久数据、不可逆外部动作或广泛兼容风险 | `claude-opus-5[effort=high]` | 正式独立复核；并发限制只采用已确认配置 |
+| `premium_grok_high` | Planner/Executor 属于上述高风险，或跨 Owner 关键集成失败会造成困难回退 | 当前 Runtime 发现的 Cursor Grok 4.5 high non-fast 精确 ID | 关键长程推理/集成；并发限制只采用已确认配置 |
 | `premium_grok_standard` | 其他 Planner、Executor、Reviewer，且不是两个以上同类并行委派 Agent | 当前 Runtime 发现的 Cursor Grok 4.5 medium non-fast 精确 ID | 生产 Role 默认；用较高单次成本换取长程执行、调查与验证质量 |
 | `premium_composer_standard` | Manager 协调的有界研究单元、Explore 研究、只读探索、可自包含轻任务，或两个以上隔离委派 Agent | `composer-2.5[fast=false]` | First-party models 池的吞吐档；避免 Grok 成本随并行数量线性放大 |
 | `premium_composer_fast` | Human 明确要求低延迟，或当前依赖屏障的短任务以延迟而非 token 成本为主要约束 | `composer-2.5[fast=true]` | First-party models 池的显式加速档；不得因“Premium 额度多”默认启用 |
 
-`premium_grok_standard` 是生产 Role 自动路径默认值，`premium_composer_standard` 是辅助/并行默认值。Grok 4.5 与 Composer 2.5 都消耗 First-party models 池；Grok standard 单 token 成本更高，但官方长程 Agent/代码基准整体更强，而 Grok standard 仍低于 Composer fast 的当前 token 单价。Adapter 不硬编码近期变更过的 Grok slug，只使用当前 Runtime 模型列表返回的 medium/high non-fast 精确 ID。
+`premium_grok_standard` 是生产 Role 自动路径默认值，`premium_composer_standard` 是辅助/并行默认值。具体计费池、费率和当前性能比较不在本文设定，按当前宿主资料核对。Adapter 不硬编码近期变更过的 Grok slug，只使用当前 Runtime 模型列表返回的 medium/high non-fast 精确 ID。
 
 `Auto` 只留在当前主对话或 Runtime 无法为 Subagent 固定 Grok/Composer、且 Human 接受动态模型时使用；正式 Reviewer 不用不可追踪的动态选择替代请求模型记录。Max/超长 context 只在输入实际超过普通上下文或 Human 精确指定时启用，套餐充足本身不是开启条件。
 
-预算与并发按以下顺序约束：
+并发先消费 Coordination 的决定；以下预算限制只在对应用户/项目配置和实时依据存在时适用，不从路线名称推断套餐：
 
-1. 多个就绪单元仍由 Coordination 决定能否并行；Adapter 只限制 `premium_grok_high` 与第三方 frontier 路由同一波次单实例，两个以上委派 Agent 使用 Composer 2.5 standard。
+1. 多个就绪单元仍由 Coordination 决定能否并行；已有明确预算限制时再约束相应路线的并发；没有配置时不推断单实例上限。
 2. Third-party API 池接近团队告警线时，尚未开始且不属于 `human_exact` 的 Review 改用 `premium_grok_standard`；高风险 Reviewer 必须披露模型变化和证据影响，不能把同模型参与历史误作独立来源。
 3. First-party models 池接近告警线时先关闭 fast，再把尚未开始且非高风险的 `premium_grok_standard` 降到 `premium_composer_standard`，同时减少无消费者的委派 Agent 并保持 Direct；高风险 Grok 路由不得静默降级，也不得通过改用更贵的第三方模型规避 First-party 限额。
-4. Background/Cloud Agent 有独立 usage/spend control 时，派发前同时满足对应限额；Premium seat 不自动授权额外消费或 Cloud 动作。
+4. Background/Cloud Agent 有独立 usage/spend control 时，派发前同时满足对应限额；套餐不自动授权额外消费或 Cloud 动作。
 
 团队限制、区域、套餐限制、BYOK 或 Runtime fallback 可能覆盖 Subagent 的 `model`。主路由在实例尚未 accepted/started 且没有写入迹象时，可从 `premium_grok_high` 或 `premium_grok_standard` 回退一次到 `premium_composer_standard`，但高风险证据要求仍能满足才执行；`human_exact`、已启动实例、结果失败、超时或用户取消不回退。只有原生结果或可绑定遥测明确返回时才记录实际模型/参数，否则标记未验证。
 

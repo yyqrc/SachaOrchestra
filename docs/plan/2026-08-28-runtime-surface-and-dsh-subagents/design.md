@@ -1,5 +1,7 @@
 # Runtime Surface 与 DSH Continuable Subagent 迭代设计
 
+> 历史设计，旧分包已由单一 Companion 取代。现行入口见[DSH 适配器](../../../plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md)、[配套包](../../../integrations/dsh/sacha-companion/README.md)与[验证入口](../../../tests/validate_dsh_companion.py)；以下冻结正文不代表当前实现。
+
 > 状态：本轮实施设计；只记录当前仍采用或仍待验证的方案。
 > 日期：2026-08-28
 

@@ -1,4 +1,4 @@
-internal sealed class BatchMaterialRegistry
+internal sealed class MaterialRegistry
 {
     internal string canonicalMaterialGuid;
 }

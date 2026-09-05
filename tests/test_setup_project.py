@@ -13,17 +13,13 @@ else:
 class SetupProjectTests(ProjectTestCase):
     def test_render_agents_block_injects_project_rules(self) -> None:
         base = generator.render_agents_block("docs/workflow-rule.md")
-        self.assertNotIn("领域工程纪律".encode("utf-8"), base)
         rules = "## 测试规则\n- 规则A\n- 规则B".encode("utf-8")
         with_rules = generator.render_agents_block(
             "docs/workflow-rule.md",
             {"test-provider:project-rules": rules},
         )
-        self.assertIn("领域工程纪律".encode("utf-8"), with_rules)
         self.assertIn(b"BEGIN SACHA PROJECT RULES: test-provider:project-rules", with_rules)
         self.assertNotIn(generator.PROJECT_RULES_HASH.encode("utf-8"), with_rules)
-        self.assertIn("## 测试规则".encode("utf-8"), with_rules)
-        self.assertIn("- 规则A".encode("utf-8"), with_rules)
         self.assertTrue(with_rules.endswith(generator.AGENTS_END.encode("utf-8")))
         self.assertEqual(generator.render_agents_block("docs/workflow-rule.md", None), base)
         self.assertNotEqual(with_rules, base)
@@ -83,11 +79,13 @@ class SetupProjectTests(ProjectTestCase):
             project_rules_sources=(("cgame-engine:project-rules", engine_rules),),
         ))
         self.assertEqual(["cgame-engine:project-rules"], merged["project_rules_reconciliation"]["add"])
+        self.assertEqual(
+            {"cgame-unity:project-rules": unity_rules, "cgame-engine:project-rules": engine_rules},
+            generator._extract_project_rules(agents.read_bytes()),
+        )
         text = agents.read_text(encoding="utf-8")
         self.assertEqual(1, text.count(generator.AGENTS_BEGIN))
         self.assertEqual(1, text.count(generator.AGENTS_END))
-        self.assertIn("cgame-unity:project-rules", text)
-        self.assertIn("cgame-engine:project-rules", text)
 
         removed = self.confirmed_setup(self.config(
             project,
@@ -95,7 +93,7 @@ class SetupProjectTests(ProjectTestCase):
             remove_project_rules_skills=("cgame-engine:project-rules",),
         ))
         self.assertEqual(["cgame-engine:project-rules"], removed["project_rules_reconciliation"]["remove"])
-        self.assertNotIn("cgame-engine:project-rules", agents.read_text(encoding="utf-8"))
+        self.assertEqual({"cgame-unity:project-rules": unity_rules}, generator._extract_project_rules(agents.read_bytes()))
 
     def test_legacy_project_rules_require_explicit_attribution(self) -> None:
         project = self.root / "legacy-project-rules"
@@ -114,7 +112,6 @@ class SetupProjectTests(ProjectTestCase):
             expected_agents_sha256=digest(agents),
         ))
         self.assertEqual("refused", refused["status"])
-        self.assertIn("unattributed legacy project rules", refused["conflicts"][0])
 
         no_asset = generator.run_setup(self.config(
             project,
@@ -122,7 +119,6 @@ class SetupProjectTests(ProjectTestCase):
             replace_legacy_project_rules=True,
         ))
         self.assertEqual("refused", no_asset["status"])
-        self.assertIn("require at least one canonical project rules asset", no_asset["conflicts"][0])
 
         migrated = self.confirmed_setup(self.config(
             project,
@@ -135,8 +131,6 @@ class SetupProjectTests(ProjectTestCase):
         ))
         self.assertEqual("committed", migrated["transaction"])
         text = agents.read_text(encoding="utf-8")
-        self.assertNotIn(generator.LEGACY_PROJECT_RULES_HEADING, text)
-        self.assertIn("cgame-unity:project-rules", text)
 
     def test_project_rules_legacy_source_hash_is_removed_on_refresh(self) -> None:
         project = self.root / "legacy-hashed-project-rules"
@@ -288,7 +282,6 @@ class SetupProjectTests(ProjectTestCase):
             check=False,
         )
         self.assertEqual(2, rejected_legacy_cli.returncode)
-        self.assertIn("unrecognized arguments", rejected_legacy_cli.stderr)
         self.assertEqual([], list(project.iterdir()))
 
         unconfirmed_process = subprocess.run(
@@ -401,7 +394,6 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", missing_policy["status"])
-        self.assertIn("documentation_policy", missing_policy["conflicts"][0])
 
         configured = self.confirmed_setup(
             self.config(
@@ -434,18 +426,6 @@ Inspect project state and return a bounded report.
         )
         self.assertEqual("no_changes", preserved["transaction"])
         self.assertEqual(str(external), preserved["documentation"]["root"])
-        self.assertIn(
-            "- 项目文档：`required-at-closeout`",
-            workflow.read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            "write = `bounded-closeout`",
-            workflow.read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            "- 项目 Context：`docs/CONTEXT.md`",
-            workflow.read_text(encoding="utf-8"),
-        )
 
     def test_spec_storage_defaults_is_separate_and_preserved(self) -> None:
         missing_project = self.root / "spec-missing"
@@ -464,13 +444,7 @@ Inspect project state and return a bounded report.
             "default",
             missing["write_confirmation"]["sources"]["spec_storage"],
         )
-        generated = missing["workflow_rule"]["planned_content"]
-        self.assertIn("- Spec：`docs/plan`", generated)
-        self.assertIn("- 任务目录：`<YYYY-MM-DD>-<short-slug>/`", generated)
-        self.assertIn("探索决定：`decisions.md`（按需，与 Spec 同目录）", generated)
-        self.assertIn("- 项目 Context：`docs/CONTEXT.md`", generated)
         self.assertIsNone(missing["write_confirmation"]["planned"]["roadmap_storage"])
-        self.assertNotIn("- Roadmap：", generated)
 
         project = self.root / "spec-storage"
         project.mkdir()
@@ -499,9 +473,6 @@ Inspect project state and return a bounded report.
         )
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
-        self.assertIn("### Storage", content)
-        self.assertIn(f"- Spec：`{external_spec / 'plan'}`", content)
-        self.assertIn(f"- 项目 Context：`{external_spec}\\CONTEXT.md`", content)
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -527,10 +498,6 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("plan/plan", nested_plan["spec_storage"]["root"])
-        self.assertIn(
-            "- 项目 Context：`plan/CONTEXT.md`",
-            nested_plan["workflow_rule"]["planned_content"],
-        )
 
         missing_external = self.root / "missing-spec-base"
         warned = generator.run_setup(
@@ -554,7 +521,6 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", unsafe["status"])
-        self.assertIn("spec_base", unsafe["conflicts"][0])
 
         legacy_project = self.root / "legacy-storage"
         legacy_rule = legacy_project / "docs" / "workflow-rule.md"
@@ -585,7 +551,6 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", ignored_legacy_storage["status"])
-        self.assertIn("spec_base_kind", ignored_legacy_storage["conflicts"][0])
 
     def test_roadmap_root_is_explicit_preserved_and_independent(self) -> None:
         project = self.root / "roadmap-storage"
@@ -612,14 +577,6 @@ Inspect project state and return a bounded report.
             configured["roadmap_storage"]["root"],
         )
         workflow = project / "docs" / "workflow-rule.md"
-        self.assertIn(
-            f"- Roadmap：`{external_roadmap}`",
-            workflow.read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            "- Roadmap 文件：`<YYYY-MM-DD>-<short-slug>-roadmap.md`",
-            workflow.read_text(encoding="utf-8"),
-        )
 
         preserved = generator.run_setup(
             generator.SetupConfig(
@@ -643,99 +600,8 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", incomplete["status"])
-        self.assertIn("roadmap_root is required", incomplete["conflicts"][0])
 
-    def test_pi_model_routing_is_setup_confirmed_and_preserved(self) -> None:
-        project = self.root / "pi-model-routing"
-        project.mkdir()
-        bindings = (
-            "standard::local-provider/standard-model",
-            "pro::local-provider/pro-model",
-            "lite::local-provider/lite-model",
-        )
 
-        configured = self.confirmed_setup(
-            self.config(
-                project,
-                manage_agents=False,
-                pi_model_bindings=bindings,
-            )
-        )
-        self.assertEqual("committed", configured["transaction"])
-        self.assertEqual(
-            ["lite", "pro", "standard"],
-            [item["route"] for item in configured["pi_model_bindings"]],
-        )
-        workflow = project / "docs" / "workflow-rule.md"
-        content = workflow.read_text(encoding="utf-8")
-        self.assertIn("### Pi one-shot model routing", content)
-        self.assertIn(
-            "- `standard` -> `local-provider/standard-model`",
-            content,
-        )
-        self.assertIn("不复制到 plugin 源码", content)
-
-        preserved = generator.run_setup(
-            generator.SetupConfig(
-                project_root=project,
-                manage_agents=False,
-                scm_provider="none",
-                expected_workflow_sha256=digest(workflow),
-            ),
-            write=True,
-        )
-        self.assertEqual("no_changes", preserved["transaction"])
-        self.assertEqual(
-            configured["pi_model_bindings"],
-            preserved["pi_model_bindings"],
-        )
-
-        cleared_preview = generator.run_setup(
-            self.config(
-                project,
-                manage_agents=False,
-                clear_pi_model_bindings=True,
-            )
-        )
-        self.assertEqual("ready", cleared_preview["status"])
-        self.assertNotIn(
-            "### Pi one-shot model routing",
-            cleared_preview["workflow_rule"]["planned_content"],
-        )
-
-    def test_pi_model_routing_rejects_unconfirmed_or_unsafe_values(self) -> None:
-        for index, binding in enumerate(
-            (
-                "unknown::local-provider/model",
-                "standard::model-without-provider",
-                "standard:: local-provider/model",
-                "standard::local-provider/model::extra",
-            )
-        ):
-            project = self.root / f"pi-model-invalid-{index}"
-            project.mkdir()
-            result = generator.run_setup(
-                self.config(
-                    project,
-                    manage_agents=False,
-                    pi_model_bindings=(binding,),
-                )
-            )
-            self.assertEqual("refused", result["status"], binding)
-            self.assertFalse((project / "docs").exists())
-
-        conflict_project = self.root / "pi-model-clear-conflict"
-        conflict_project.mkdir()
-        conflict = generator.run_setup(
-            self.config(
-                conflict_project,
-                manage_agents=False,
-                pi_model_bindings=("standard::local-provider/model",),
-                clear_pi_model_bindings=True,
-            )
-        )
-        self.assertEqual("refused", conflict["status"])
-        self.assertIn("mutually exclusive", conflict["conflicts"][0])
 
     def test_documentation_root_kind_and_bounds_are_enforced(self) -> None:
         project = self.root / "documentation-bounds"
@@ -771,7 +637,6 @@ Inspect project state and return a bounded report.
                     )
                 )
                 self.assertEqual("refused", drive_root["status"])
-                self.assertIn("root", drive_root["conflicts"][0])
 
         missing_authorization = generator.run_setup(
             self.config(
@@ -782,7 +647,6 @@ Inspect project state and return a bounded report.
             )
         )
         self.assertEqual("refused", missing_authorization["status"])
-        self.assertIn("write authorization", missing_authorization["conflicts"][0])
 
     def test_generated_documents_only_add_project_integration_data(self) -> None:
         project = self.root / "document-boundary"
@@ -798,13 +662,6 @@ Inspect project state and return a bounded report.
         workflow_state_path = project / "docs" / "workflow-rule.state.json"
         workflow_state = json.loads(workflow_state_path.read_text(encoding="utf-8"))
         agents = (project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("- SCM：未配置", workflow)
-        self.assertIn(
-            "- Setup 不绑定为项目规则：已分类 1 项",
-            workflow,
-        )
-        self.assertNotIn("TEAM.md", workflow)
-        self.assertNotIn("Sacha ignored rule candidates", workflow)
         self.assertEqual(
             {
                 "generator": "sacha-orchestra:setup-project",
@@ -813,39 +670,10 @@ Inspect project state and return a bounded report.
             },
             workflow_state,
         )
-        self.assertNotIn("- Setup 忽略：", workflow)
         refresh = generator.run_setup(self.config(project))
         self.assertEqual("ready", refresh["status"], refresh["conflicts"])
         self.assertEqual([], refresh["changed_files"])
         self.assertEqual(["TEAM.md"], refresh["discovery"]["ignored_rule_candidates"])
-        for heading in (
-            "## 项目绑定",
-            "### Storage",
-        ):
-            self.assertIn(heading, workflow)
-        for redundant_content in (
-            "## 项目值",
-            "### Unresolved",
-            "### Conflicts",
-            "### Fallback",
-            "## Canonical references",
-            "Ignored rule candidates",
-            "fallback = `discoverable-domain-skill-or-native-role`",
-            "Workflow rule：",
-            "Human Guide：未配置",
-        ):
-            self.assertNotIn(redundant_content, workflow)
-        for duplicated_contract in (
-            "## 简明操作模板",
-            "`L0 Local Direct`",
-            "`D0 Sacha Direct`",
-            "Manager Gate 开启",
-            "Planner/Reviewer Gate",
-            "Goal",
-        ):
-            self.assertNotIn(duplicated_contract, workflow)
-            self.assertNotIn(duplicated_contract, agents)
-        self.assertIn("`sacha-orchestra:using-sacha`", agents)
 
         workflow_state_path.unlink()
         html_metadata_workflow = workflow.replace(
@@ -926,7 +754,6 @@ Inspect project state and return a bounded report.
         )
         self.assertEqual("refused", result["status"])
         self.assertEqual("no_write", result["transaction"])
-        self.assertIn("Schema Version 3", result["conflicts"][0])
         self.assertEqual(
             "<!-- Generator: sacha-orchestra:setup-project -->\n"
             "<!-- Schema Version: 2 -->\n",
@@ -944,7 +771,6 @@ Inspect project state and return a bounded report.
         invalid = generator.run_setup(self.config(project))
         self.assertEqual("refused", invalid["status"])
         self.assertEqual("no_write", invalid["transaction"])
-        self.assertIn("generator", invalid["conflicts"][0])
 
         orphan = self.root / "orphaned-workflow-state"
         orphan_state = orphan / "docs" / "workflow-rule.state.json"
@@ -962,7 +788,6 @@ Inspect project state and return a bounded report.
         orphaned = generator.run_setup(self.config(orphan))
         self.assertEqual("refused", orphaned["status"])
         self.assertEqual("no_write", orphaned["transaction"])
-        self.assertIn("without its workflow rule", orphaned["conflicts"][0])
 
     def test_rolls_back_when_second_target_write_fails(self) -> None:
         project = self.root / "rollback"

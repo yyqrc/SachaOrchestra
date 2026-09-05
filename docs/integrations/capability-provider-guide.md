@@ -66,7 +66,7 @@ Provider 不可见时保留既有 Skill loading 并使用 fallback；只有 Huma
 
 ## Project Integration 同层配置
 
-Setup 分别确认五类项目值，不得互相推导：
+Setup 分别确认四类项目值，不得互相推导：
 
 | 配置 | Owner | 保存内容 | 不承担 |
 | --- | --- | --- | --- |
@@ -74,9 +74,8 @@ Setup 分别确认五类项目值，不得互相推导：
 | Spec storage root | Setup/Human、Planner/Explore 消费 | Spec base 派生的 Spec storage root、同一 Spec base 下的 Project Context path、portability、任务目录模式、`spec.md`；按需 `decisions.md` 同目录 | 是否需要发布项目文档 |
 | Roadmap storage root | Setup/Human、Roadmap/document-project 消费 | 明确提供并原样保存的 Roadmap root、portability、`<YYYY-MM-DD>-<short-slug>-roadmap.md` 文件模式 | Spec 分组决定、Roadmap 正文或实施授权 |
 | Project documentation | Setup/Human、Documentation writer 消费 | Project Documentation root 原值、portability、write authorization；可选 template catalog path kind/path | Spec/Review/Handoff 权威、provider mapping；不拥有 Project Context path，也不冻结 catalog manifest 或模板 hash |
-| Pi one-shot 兼容路由 | 本机 Pi 只读巡检、Setup/Human | 通用 route 到精确 `provider/model` 的项目内映射 | 当前 Adapter 执行、plugin 默认型号、完整模型清单、运行授权 |
 
-Provider query 只展开公开 Skill 候选；不得选择 Spec base、Roadmap root、Project Documentation policy/root、写入授权或 Pi 型号。Pi one-shot model routing 只是 `setup-project` 保留的兼容配置，当前 Sacha Adapter 不执行，也不属于 Provider Skill 消费链。五类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
+Provider query 只展开公开 Skill 候选；不得选择 Spec base、Roadmap root、Project Documentation policy/root 或写入授权。四类值可在同一次 Setup 集中确认，但各自独立保存、rerun 分别保留。
 
 首次没有既有或显式 Spec storage root 时，Setup 推荐项目内 Spec storage root `docs/plan`。Human 显式配置时只提供 Spec base；Setup 派生 Spec storage root `<spec-base>/plan`，并把 Project Context path 定位到 `<spec-base>/CONTEXT.md`。Roadmap 另收独立 Roadmap root 并原样保存，例如 `G:\COD\iwiki\docs\roadmap`；Project Documentation 同样另收独立 root。三项配置不要求同 root 且不得互相推导。任务 path 为 Spec storage root 下的 `<YYYY-MM-DD>-<short-slug>/spec.md`，Roadmap path 为 Roadmap root 下的 `<YYYY-MM-DD>-<short-slug>-roadmap.md`。Setup 只保存/生成 path，不扫描历史任务，也不因配置自动创建正文。
 

@@ -33,7 +33,9 @@
 
 `sacha_visual_event` 是可选观测能力。它存在时，主任务按第 7 节记录已经提交的 Sacha 转换；缺失、失败或不可达只形成观测缺口，不打开或关闭 Gate，不撤销已提交动作，也不阻塞能够独立验证的工作流。
 
-目标 Profile 安装 `integrations/dsh/sacha-companion` 时，Companion 对 live Root 提供 task-aware `inspect | execute | review` 工具 profile 与 `sacha_tools` 查询/解锁。该分类只控制 DSH 的 model-visible/executable surface，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功 control 记录和 recovery 结果；隐藏工具需要当前 work unit 且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
+目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，Companion 对 live Root 提供 `inspect | execute | review` 工具 profile 与 `sacha_tools` 查询/解锁。首次消息不明确时采用 inspect；后续明确实施、只读或评审指令重新选择基础 profile，并清空临时解锁，中性继续或进度询问保持当前选择。冷恢复按原生事件顺序处理指令及成功配对的控制调用，新指令之前发起的旧控制调用不能用晚到结果重新解锁。新增工具仍须在下一次 `request/header.tools` 出现后才能执行；切换失败不提交成功状态，也不宣称此前运行的工具已停止。
+
+该分类只控制 DSH 的可见与可执行工具，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功控制记录和恢复结果；隐藏工具需要当前工作单元且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
 
 ## 3. 主任务、Role 与 child 映射
 
@@ -70,7 +72,7 @@ Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter �
 
 每个 surface 首次使用或 Profile/插件/版本变化后，Adapter 必须从 child `request/header.tools` 建立能力包络，至少分开记录：本地文件、shell/进程、Web、MCP/App/外部系统、自动 Skill 与明确 reference、权限/控制工具、下级 Agent、模型路线和 continuable/recovery。当前 work unit 的必需能力不属于已验证包络时，留在 Root、选择已核对等价 surface 或停止该单元；不能只因 Role 名称或 persona 匹配就派发。
 
-仓库内单一 package `integrations/dsh/sacha-companion` 提供当前标准 DSH coding preset 的 Root policy 与三种默认 child surface。当前 Runtime 的 continuable activation 会同时出现在 `AgentRegistry.roots()`，Companion 还必须用 child 原生 `subagent/descriptor` 排除它，并在 child scope 移除继承的 `sacha_tools`；不得用 durable `parentSession` 推导 Sacha Owner。它只组合 DSH Runtime 能力，不拥有 Sacha 语义；目标 Profile 不满足显式工具、schema/guard、provider 或恢复前提时应响亮失败或不安装，不静默退化。
+独立配套包 `@sacha-orchestra/dsh-companion` 提供当前标准 DSH coding preset 的 Root policy 与三种默认 child surface。当前 Runtime 的 continuable activation 会同时出现在 `AgentRegistry.roots()`，Companion 还必须用 child 原生 `subagent/descriptor` 排除它，并在 child scope 移除继承的 `sacha_tools`；不得用 durable `parentSession` 推导 Sacha Owner。它只组合 DSH Runtime 能力，不拥有 Sacha 语义；目标 Profile 不满足显式工具、schema/guard、provider 或恢复前提时应响亮失败或不安装，不静默退化。
 
 ### 4.2 子模型路由
 
@@ -117,8 +119,8 @@ Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract
 | `gate` | Planner、Manager 或 Reviewer Gate 已由 Workflow 判定 | `gate`、`gate_decision`、中文 `summary` |
 | `manager_wave` | Manager 已建立/更新当前波次，或完成派发、到达依赖屏障、耗尽/阻塞 | `wave_id`、`wave_state`、`manager_units`、中文 `summary`；`manager_units` 是当前 Sacha Manager 图快照，每项含 `id`、Human 可读 `label`、Sacha `state` 与 `blocked_by` |
 | `delegation` | continuable child 已真实发布并返回 durable id；或该映射发生真实 settlement/interruption/failure | `unit_id`、`child_id`、`delegation_state`、中文 `summary`；已知时补 `role`、`surface`、`requested_route`，只有 Runtime 直接证据存在时补 `effective_route` |
-| `review` | Reviewer 已形成 Assurance Contract Outcome | `outcome`、中文 `summary` |
-| `evidence` | source、package、runtime 或 human 证据层的结果已经存在 | `evidence_layer`、`evidence_status`、中文 `summary` 与必要 `references` |
+| `review` | Reviewer 已形成 Assurance Contract Outcome | `outcome`、中文 `summary`；适用修订已知时传 `scope_revision` |
+| `evidence` | source、package、runtime 或 human 证据层的结果已经存在 | `evidence_layer`、`evidence_status`、中文 `summary` 与必要 `references`；适用修订已知时传 `scope_revision` |
 
 `manager_wave` 只回放 Manager 已经决定的依赖图，不创建或拥有 DAG；后续同一 `wave_id` 的事件用最新已提交快照更新展示。`delegation` 只把 Sacha work unit 与 DSH 已发布 child 对上；它不能从 child label 反推 Role，也不能把某个 child 的存在解释为该 unit 已完成。
 
@@ -126,9 +128,11 @@ Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract
 
 Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：durable id、label、活动状态与是否存在下级；Sacha 图面只回放 `manager_wave` 与 `delegation` 已提交事实。它不重建 task owner，不显示或推导 Agent Teams task revision、writeScopes 或 peer mailbox。
 
-## 8. 证据边界与必须验证的场景
+评审和证据只有明确对应当前阶段的 `scope_revision` 才进入当前结果卡。旧修订或未关联结果继续保留在原时间线，不推断为当前通过；连接失败时客户端保留上次快照并标为历史，不能沿用当前运行或通过的展示。
 
-源码与文档检查只证明本映射存在。以下行为必须使用目标 DSH 版本的真实 Runtime evidence：
+## 8. 证据边界
+
+源码与文档检查只证明本映射存在。根据实际修改、交付声明和明确案例，从下列维度选择所需证据；这不是每次必跑矩阵。声明某项实际行为时，必须取得目标 DSH 版本的真实运行证据：
 
 - Agent Plugin fresh discovery；
 - Companion Root `inspect | execute | review` 的首个 `request/header.tools`、same-scope schema/section/guard 对齐和隐藏工具负例；
@@ -148,4 +152,4 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 - subagent/teammate 不安装 Root policy，Root profile 不改变 child toolFilter；
 - visualizer 对 Manager dependency、unit↔child mapping、continuable child Host/Client snapshot 与 Session 回放。
 
-对应 Runtime task pack 见 `tests/runtime-scenarios/packs/dsh-continuable-parallel-barrier` 与 `dsh-continuable-review-isolation`。静态测试、Profile 配置或执行者总结不能替代这些行为证据。
+静态测试、Profile 配置或执行者总结不能替代对应行为证据。没有实际运行的层次明确标为未验证，不为填满上述维度另造案例。

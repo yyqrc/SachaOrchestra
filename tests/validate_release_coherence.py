@@ -31,9 +31,6 @@ DOCUMENTATION_SCRIPT = (
 )
 
 REQUIRED_ENTRYPOINTS = (
-    PLUGIN / "scripts" / "pi_once.ps1",
-    PLUGIN / "scripts" / "pi_guard.mjs",
-    PLUGIN / "skills" / "setup-project" / "scripts" / "inspect_pi_models.ps1",
     SETUP_PROJECT_SCRIPT,
     SETUP_AGENTS_SCRIPT,
     DOCUMENTATION_SCRIPT,

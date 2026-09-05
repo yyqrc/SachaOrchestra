@@ -19,7 +19,6 @@ export const TOOL_FAMILIES = [
 ] as const
 export type ToolFamily = (typeof TOOL_FAMILIES)[number]
 
-const MAX_SNAPSHOT_TOOLS = 256
 const MAX_DESCRIPTION_CHARS = 240
 const MAX_PARAMETER_DESCRIPTION_CHARS = 160
 const MAX_PARAMETERS = 32
@@ -84,6 +83,7 @@ interface EventLike {
 }
 
 interface MessageLike {
+  readonly id?: string
   readonly source?: { readonly kind?: unknown }
   readonly content?: readonly unknown[]
 }
@@ -208,13 +208,21 @@ function isHumanMessage(value: unknown): value is MessageLike {
 
 /** Conservative deterministic classification. Questions and ambiguous requests stay inspect. */
 export function classifyRootMessage(message: MessageLike | string): ToolSurfaceProfile {
+  return explicitRootProfile(message) ?? 'inspect'
+}
+
+/** 不明确的跟进保留当前选择；首次无任务时由调用方采用 inspect。 */
+function explicitRootProfile(message: MessageLike | string): ToolSurfaceProfile | undefined {
   const text = (typeof message === 'string' ? message : messageText(message)).trim()
-  if (text === '') return 'inspect'
+  if (text === '') return
   const normalized = text.toLowerCase()
 
   const clauses = normalized.match(/[^，。；;！？!?\n]+[！？!?]?/gu) ?? [normalized]
-  const chineseAction = '(?:修改|实现|修复|新增|添加|删除|移除|改成|改为|写入|创建|构建|编译|运行测试|安装|重装|迁移|执行|迭代)'
+  const chineseAction = '(?:修改|实现|修复|新增|添加|删除|移除|改成|改为|写入|创建|同步|构建|编译|运行测试|安装|重装|迁移|执行|迭代)'
   const chineseExecute = new RegExp(`^(?:(?:请|麻烦|帮我|继续|直接|现在|立刻|先|然后|再|并且|并)\\s*)*(?:(?:把|将)\\s*[^，。；;！？!?\\n]{0,80}\\s*)?(?:在\\s*[^，。；;！？!?\\n]{0,60}\\s*)?${chineseAction}`, 'iu')
+  // 对象前置只接受具名源或路径；出现新的真实漏判时再补句式，不扩大为任意行内动词。
+  const chineseSourceSync = /^(?:(?:请|麻烦|帮我|继续|直接|现在|立刻|先|然后|再|并且|并)\s*)*从[^，。；;！？!?\n]{1,120}同步[^，。；;！？!?\n]{0,120}(?:到|至|进|过来)/iu
+  const chinesePathPrefixedExecute = new RegExp(`^(?:[a-z]:[\\\\/]|[.~][\\\\/])[^，。；;！？!?\\n]{1,160}\\s+(?:(?:还是|然后|再|直接)\\s*)?(?:(?:把|将)\\s*[^，。；;！？!?\\n]{0,80}\\s*)?${chineseAction}`, 'iu')
   const chineseFollowupExecute = new RegExp(`(?:并|然后|再|后)\\s*(?:直接\\s*)?${chineseAction}`, 'iu')
   const englishExecute = /^(?:please\s+|can\s+you\s+|could\s+you\s+)*(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu
   const englishFollowupExecute = /\b(?:and|then)\s+(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu
@@ -224,17 +232,25 @@ export function classifyRootMessage(message: MessageLike | string): ToolSurfaceP
   const negativeStart = /^(?:(?:请|务必)\s*)?(?:不要|别|无需|不需要|不得|避免|do\s+not\b|don't\b|must\s+not\b|avoid\b)/iu
   const questionStart = /^(?:如何|怎么|为什么|是否|能否|可否|会不会|应该不会|什么|哪些|哪里|where\b|what\b|why\b|how\b|whether\b)/iu
   let reviewRequested = false
+  let inspectRequested = false
   for (const rawClause of clauses) {
     const clause = rawClause.trim()
-    if (clause === '' || negativeStart.test(clause)) continue
+    if (clause === '') continue
+    if (/^(?:(?:请|帮我)\s*)?(?:(?:查看|看看|汇报|报告)\s*)?(?:当前|现在|任务)?(?:进度|状态)(?:如何|怎么样|到哪了)?[？?！!。]?$/u.test(clause)) continue
+    if (negativeStart.test(clause)) {
+      if (readonlyTask.test(clause)) inspectRequested = true
+      continue
+    }
     const explicitEnglishRequest = /^(?:can|could)\s+you\s+(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu.test(clause)
-    const questionOnly = (questionStart.test(clause) || /[！？!?]$/u.test(clause)) && !explicitEnglishRequest
+    const questionOnly = (questionStart.test(clause) || /[？?]$/u.test(clause)) && !explicitEnglishRequest
     if (questionOnly) continue
     const requestsReview = reviewStart.test(clause) || readonlyReview.test(clause)
     const requestsReadonly = readonlyTask.test(clause) || readonlyReview.test(clause)
+    if (requestsReadonly || /^(?:(?:请|麻烦|帮我|先|现在)\s*)*(?:只读|调查|分析|诊断|查看|看看|inspect\b|investigate\b|analyze\b)/iu.test(clause)) inspectRequested = true
     const requestsFollowupExecution = chineseFollowupExecute.test(clause)
       || englishFollowupExecute.test(clause)
-    const requestsExecution = chineseExecute.test(clause) || requestsFollowupExecution
+    const requestsExecution = chineseExecute.test(clause) || chineseSourceSync.test(clause)
+      || chinesePathPrefixedExecute.test(clause) || requestsFollowupExecution
       || englishExecute.test(clause)
     if (requestsReview) reviewRequested = true
     if (requestsExecution && !(requestsReadonly && !requestsFollowupExecution)) {
@@ -242,7 +258,7 @@ export function classifyRootMessage(message: MessageLike | string): ToolSurfaceP
     }
   }
   if (reviewRequested) return 'review'
-  return 'inspect'
+  return inspectRequested ? 'inspect' : undefined
 }
 
 /** Profile predicate shared by restriction, assembly filtering, guard, and tests. */
@@ -310,7 +326,6 @@ function parameterMetadata(parameters: Record<string, unknown>): {
 export function createToolCatalog(schemas: readonly ToolSchemaLike[]): ToolCatalogSnapshot {
   const unique = new Map<string, ToolCatalogEntry>()
   for (const schema of schemas) {
-    if (unique.size >= MAX_SNAPSHOT_TOOLS) break
     const name = schema.name.trim()
     if (name === '' || name === SACHA_TOOLS_NAME || unique.has(name)) continue
     const parameters = parameterMetadata(schema.parameters)
@@ -341,11 +356,10 @@ export function mergeToolCatalog(
   }
   if (entries.size === catalog.entries.length) return catalog
   const sorted = [...entries.values()].sort((left, right) => left.name.localeCompare(right.name))
-  const bounded = sorted.slice(0, MAX_SNAPSHOT_TOOLS)
   return Object.freeze({
-    entries: Object.freeze(bounded),
+    entries: Object.freeze(sorted),
     sourceCount: Math.max(catalog.sourceCount, entries.size, discovered.sourceCount),
-    truncated: catalog.truncated || discovered.truncated || sorted.length > bounded.length,
+    truncated: catalog.truncated || discovered.truncated,
   })
 }
 
@@ -460,7 +474,7 @@ function committedControlState(data: unknown): { action: string; unlocked: strin
   return
 }
 
-function pendingHumanMessage(events: readonly EventLike[]): MessageLike | undefined {
+function pendingHumanMessages(events: readonly EventLike[]): MessageLike[] {
   const pending: Record<'next-turn' | 'next-step', unknown[]> = { 'next-turn': [], 'next-step': [] }
   for (const event of events) {
     if (event.type !== 'agent/inbox/spliced') continue
@@ -477,7 +491,7 @@ function pendingHumanMessage(events: readonly EventLike[]): MessageLike | undefi
     if (start < 0 || removedCount < 0 || start > list.length || start + removedCount > list.length) continue
     list.splice(start, removedCount, ...inserted)
   }
-  return [...pending['next-step'], ...pending['next-turn']].find(isHumanMessage) as MessageLike | undefined
+  return [...pending['next-step'], ...pending['next-turn']].filter(isHumanMessage)
 }
 
 function controlUnlockNames(
@@ -513,24 +527,34 @@ export function foldToolSurfaceState(
   catalog: ToolCatalogSnapshot,
 ): ToolSurfaceRecovery {
   const warnings: string[] = []
-  const firstHumanEvent = events.find(event => event.type === 'user/message' && isHumanMessage(event.data))
-  const pendingHuman = firstHumanEvent === undefined ? pendingHumanMessage(events) : undefined
-  const profile = firstHumanEvent !== undefined
-    ? classifyRootMessage(firstHumanEvent.data as MessageLike)
-    : pendingHuman !== undefined
-      ? classifyRootMessage(pendingHuman)
-      : 'inspect'
-  let source: ToolSurfaceRecovery['source'] = firstHumanEvent !== undefined
-    ? 'user-message'
-    : pendingHuman !== undefined
-      ? 'pending-inbox'
-      : 'bootstrap'
+  let profile: ToolSurfaceProfile = 'inspect'
+  let source: ToolSurfaceRecovery['source'] = 'bootstrap'
 
   const pendingCalls = new Map<string, Record<string, unknown>>()
   const unlocked = new Set<string>()
+  const pendingHumans = new Set(pendingHumanMessages(events))
+  const applyHuman = (message: MessageLike, origin: 'user-message' | 'pending-inbox'): void => {
+    const selected = explicitRootProfile(message)
+    if (selected === undefined && source !== 'bootstrap') return
+    profile = selected ?? 'inspect'
+    unlocked.clear()
+    // 新指令之前开始的控制调用不能在晚到后恢复旧解锁。
+    pendingCalls.clear()
+    source = origin
+  }
   let advertised: string[] = []
   for (const event of events) {
+    if (event.type === 'user/message' && isHumanMessage(event.data)) {
+      applyHuman(event.data, 'user-message')
+      continue
+    }
     const data = record(event.data)
+    if (event.type === 'agent/inbox/spliced' && Array.isArray(data?.['inserted'])) {
+      for (const message of data['inserted']) {
+        if (isHumanMessage(message) && pendingHumans.has(message)) applyHuman(message, 'pending-inbox')
+      }
+      continue
+    }
     if (event.type === 'request/header') {
       const header = record(data?.['header'])
       const tools = header?.['tools']
@@ -658,6 +682,7 @@ export class RootToolSurfaceController {
   private fallback = false
   private initialized = false
   private catalogState: ToolCatalogSnapshot
+  private lastHumanId: string | undefined
 
   constructor(
     readonly sessionId: string,
@@ -712,11 +737,13 @@ export class RootToolSurfaceController {
     return true
   }
 
-  classifyFirstHuman(message: MessageLike): ToolSurfaceProfile {
-    if (this.source !== 'bootstrap') return this.profile
-    const profile = classifyRootMessage(message)
-    if (profile !== this.profile) this.transition(profile, this.unlocked)
-    this.profile = profile
+  classifyHuman(message: MessageLike): ToolSurfaceProfile {
+    if (message.id !== undefined && message.id === this.lastHumanId) return this.profile
+    const selected = explicitRootProfile(message)
+    if (selected === undefined && this.source !== 'bootstrap') return this.profile
+    const profile = selected ?? 'inspect'
+    this.transition(profile, new Set())
+    this.lastHumanId = message.id
     this.source = 'user-message'
     return profile
   }
@@ -963,7 +990,7 @@ function installForRoot(
     const headerTools = requestHeaderTools(event as EventLike)
     if (headerTools !== undefined) controller.noteRequestHeader(headerTools)
     if (event.type === 'user/message' && isHumanMessage(event.data)) {
-      controller.classifyFirstHuman(event.data)
+      controller.classifyHuman(event.data)
     }
   })
   const stopTools = agent.ctx.on('tools/change', () => {
@@ -1031,7 +1058,7 @@ export function installRootToolSurfacePolicy(
   const stopInbox = ctx.on('agent/inbox/inserted', ({ agent, message }) => {
     if (!isHumanMessage(message)) return
     const runtime = maybeInstall(agent)
-    if (runtime !== undefined) runtime.controller.classifyFirstHuman(message)
+    if (runtime !== undefined) runtime.controller.classifyHuman(message)
   })
   const stopDisposed = ctx.on('agent/disposed', ({ agent }) => {
     suppressedChildren.delete(agent)

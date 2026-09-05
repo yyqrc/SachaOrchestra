@@ -4,7 +4,7 @@
 
 本文与仓库根 `AGENTS.md` 并列，是供插件开发与评审阶段的 AI 和 Human 共同读取的顶层设计权威，保存产品入口、流程骨架、Role/Skill 职责和 Core owner。它不复制 Runtime 细节，不随插件发布，也不是任务执行依赖。
 
-本文使用的开发控制面提炼术语与规则见[项目上下文](docs/CONTEXT.md)；其中被多个发布插件消费者共享的术语以[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)为 Runtime Owner，并与项目上下文中的对应条目强双向同步。项目上下文可以额外拥有仅供插件开发、维护和评审消费的术语，不要求写入发布插件。
+本文使用的开发控制面提炼术语与规则见[项目上下文](docs/CONTEXT.md)；其中被多个发布插件消费者共享的术语以[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)为 Runtime Owner；完整定义只在术语合同维护，项目上下文保存链接、使用方与核验方法。项目上下文可以额外拥有仅供插件开发、维护和评审消费的术语，不要求写入发布插件。
 
 ## 1. Core 与 Runtime Owner
 
@@ -20,7 +20,7 @@
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
 | [DSH Companion](integrations/dsh/sacha-companion) | 单一 DSH Profile bundle：对 live Root 实现 task-aware tool-surface restriction/catalog/unlock/recovery，组合 continuable child surfaces，并提供 Host/Client 状态投影与 Visualizer | Sacha 入口、Role/Gate/readiness、Scope、授权、模型事实、DAG/调度、Review Outcome、完成判断和其他 Runtime |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`scripts/pi_once.ps1` 与 `scripts/pi_guard.mjs` 是保留但未接入当前 Skill/Adapter 的兼容资产，不属于 active Runtime surface；重新接入前必须先修改本文并取得 Human 批准。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH companion package：安装到一个 Profile 后，Root tool-surface policy 对该 Profile 的 live Root Session 生效；它只把首条 Human 任务、已加载 Role Skill 与显式 control 结果映射为 model-visible/executable tool profile，不决定 Sacha 入口、Role、Gate、readiness、授权或完成。同一 package 组合 `sacha_research` / `sacha_worker` / `sacha_review` continuable surface，并投影 DSH Root Session 的 tool-surface 状态、continuable direct-child 与 Adapter 已记录的 Sacha phase/Gate/Manager DAG/delegation/Review/Evidence 事实。Companion 不进入 Agent Plugin 发布 `root`，也不创建第二份 Workflow、DAG、Outcome 或授权。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
+Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH companion package：安装到一个 Profile 后，Root tool-surface policy 对该 Profile 的 live Root Session 生效；它只把最近的明确 Human 任务、已加载 Role Skill 与成功的 control 结果映射为 model-visible/executable tool profile；中性继续和进度询问保持当前选择，明确的新任务指令清空临时解锁，恢复按原生事件顺序重放，不决定 Sacha 入口、Role、Gate、readiness、授权或完成。同一 package 组合 `sacha_research` / `sacha_worker` / `sacha_review` continuable surface，并投影 DSH Root Session 的 tool-surface 状态、continuable direct-child 与 Adapter 已记录的 Sacha phase/Gate/Manager DAG/delegation/Review/Evidence 事实。Companion 不进入 Agent Plugin 发布 `root`，也不创建第二份 Workflow、DAG、Outcome 或授权。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
 
 ## 2. 产品入口
 
@@ -50,7 +50,7 @@ flowchart TD
     PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]
     PLANNER_GATE -->|"是"| PLANNER["Planner：调查并冻结 Scope / 验收"]
     PLANNER --> PLAN_READY{"关键事实与决定足以冻结？"}
-    PLAN_READY -->|"否"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
+    PLAN_READY -->|"仍需持续探索、实质事实或 Human 决定"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
     EXPLORE -->|"仅询问不可自行推出的关键决定"| EXPLORE_HUMAN["Human 澄清决定"]
     EXPLORE_HUMAN --> EXPLORE
     EXPLORE --> EXPLORE_RETURN{"Explore 调用来源"}
@@ -125,9 +125,9 @@ flowchart TD
         MANAGER_GATE -->|"否"| RETURN["返回调用节点，并恢复其原流向"]
         MANAGER_GATE -->|"是"| MANAGER["Manager：识别可独立单元、拆分、依赖、就绪判定"]
         MANAGER --> WAVE{"当前依赖波次"}
-        WAVE -->|"至少两个已就绪，且写入 / 输出隔离"| PARALLEL["执行单层派发"]
-        WAVE -->|"一个已就绪，且适合隔离中间过程"| SINGLE["派发当前单元"]
-        WAVE -->|"一个已就绪但不适合派发，或多个已就绪但不可隔离"| SERIAL["调用节点串行完成本波"]
+        WAVE -->|"多个单元已就绪、输出隔离且并行有实际收益"| PARALLEL["执行单层派发"]
+        WAVE -->|"选择一个就绪单元派发，且隔离有实际收益"| SINGLE["派发当前单元"]
+        WAVE -->|"不适合派发、没有实际收益或输出不可隔离"| SERIAL["调用节点串行完成本波"]
         WAVE -->|"没有已就绪单元"| BLOCKED["阻塞与恢复条件"]
         PARALLEL --> PRODUCTIVE["推进其他不冲突的已就绪工作；仅在依赖屏障 wait"]
         SINGLE --> PRODUCTIVE
@@ -162,7 +162,7 @@ flowchart TD
 - 节点和有向边穷尽顶层产品流转；边文字与节点进入条件定义流转性质。没有边就不能跨节点接管。
 - Manager 是可重入的调用—返回函数：进入和退出保留调用节点，生命周期 owner 不变。Handoff 只在迁移、owner transfer 或有恢复消费者时按需携带，不是节点或终态。
 - 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 需要额外拆分或协调时返回协调请求。迁移完成后，目标任务成为主任务并取得派发权。
-- 主任务能形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元时，打开 Manager Gate 统一拆分和派发；一个单元只为隔离中间过程而使用直接委派 Agent 时不打开 Gate。Manager 已打开但当前波次只有一个合适单元时仍可派发。三种情况的就绪、派发与返回条件由 Coordination Contract 定义，不为增加 Agent 人为拆分局部修改。
+- 主任务能形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元时，打开 Manager Gate 统一拆分和派发；一个单元只为隔离中间过程而使用直接委派 Agent 时不打开 Gate。Manager 已打开但当前波次只有一个合适单元时仍可派发。协调不要求固定派发数量：主任务可以完成部分单元或串行执行，只有输入自足且有实际收益时才派发。就绪、派发与返回条件由 Coordination Contract 定义，不为增加 Agent 人为拆分局部修改。
 - Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
 - Roadmap 完成后的独立 Spec 任务是 Human 发起的新目标，不把 Roadmap 节点延长为生产流程。Roadmap 先明确推荐 Sacha Planner 任务及其影响，Human 确认创建后由 Runtime Adapter 建立新任务；目标任务以显式 Planner 输入从既有入口开始。推荐没有明确 Sacha Planner，或 Human 只泛指新任务时，不得推断接受。
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
@@ -172,9 +172,9 @@ flowchart TD
 
 | Role | 稳定职责 | 局部流程 | 明确不拥有 |
 | --- | --- | --- | --- |
-| Planner | 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收 | 核对入口/Gate → 调查或 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
+| Planner | 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收 | 核对入口/Gate → 自行核对小事实；需持续探索或实质决定时 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
 | Executor | 在明确目标或批准 Scope 内实施、验证并交付真实变更/证据 | 核对 Scope/授权 → 主任务做必要 Manager 协调，或委派 Agent 返回协调请求 → 实施/集成 → 风险对应验证 → Review/收尾 | 冻结新方案、跨单元协调、独立 Review、项目文档 owner |
-| Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 核对 Gate/来源独立性 → 建立 Baseline → 重跑关键验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
+| Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 核对 Gate/来源独立性 → 建立 Baseline → 复用有效证据，仅重跑能改变裁决的验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
 
 Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill 前先判断 delta：
 
@@ -194,7 +194,7 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
 | 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
 | 显式支持/内部收尾 | document-project | 复用项目或内置模板生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，安全新建/更新发布文档和 Roadmap，并可维护 Context | 显式发布文档目标 → path 即本次授权；其他请求 → Project Integration 的 root/策略/授权；随后按文档类型生成或验证正文 → 原子写入 → 验证/报告 | 显式发布文档目标以 preimage 防并发；Roadmap/Context 不绕过 Project Integration；不生成 Roadmap 路线语义，不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
-| 工具/配置 | setup-project | 生成或刷新 Project Integration、Skill loading、Spec/Roadmap/项目文档存储与可选兼容配置 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent；保留 Pi model binding 不代表当前 Adapter 会执行 Pi one-shot |
+| 工具/配置 | setup-project | 生成或刷新 Project Integration、Skill loading、Spec/Roadmap/项目文档存储 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
 
 支持/控制 Skill 的迭代可修改已声明功能内的局部做法。新增功能、入口、外部副作用或跨节点接管，先改本文；不能以“只是补一步”绕过顶层设计。
@@ -206,6 +206,6 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 3. 按第 1 节确定唯一 Core owner：流程连线变化先修改 Workflow Contract；跨节点 Human 可见交互修改 Human Interaction Contract；其他局部判断只修改受影响的 Intake、Assurance、Coordination 或 Artifact owner。
 4. 修改直接消费该判断的 Role/支持 Skill；只在职责内完善 procedure。
 5. 修改受影响 Runtime Adapter、metadata/manifest；长期或 breaking boundary 变化才更新 Evolution。
-6. 用 owner review 核对本文与 Runtime 合同，再运行真实 task-package scenario；执行 Agent 不读取本文，独立 evaluator 才用本文判断 drift。
+6. 核对本文与运行时负责文件及实际使用方；按明确案例和本次交付声明选择所需真实场景，不为覆盖节点、型号或参数展开矩阵。场景执行者不读取本文，独立评估者才用本文判断偏差。
 
 没有顶层变化时，不为“同步”触碰本文；发现下游需要新增图外路线或职责时，停止下游补丁并返回第 1 步。

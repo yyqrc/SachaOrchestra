@@ -480,7 +480,14 @@ def run_setup(
                 expected_identity=expected_identity(agent.definition),
             )
         for agent in changed_agents:
-            os.replace(temp_paths.pop(agent.target), agent.target)
+            # 临近替换复查仍存在时间窗口；跨进程原子比较交换需要文件系统支持。
+            if resolve_target(plan.codex_home, agent.definition.target_relative) != agent.target:
+                raise SetupAgentsError(f"Agent target resolution changed before write: {agent.definition.name}")
+            current_now = agent.target.read_bytes() if agent.target.is_file() else None
+            if current_now != agent.current:
+                raise SetupAgentsError(f"target changed after planning: {agent.definition.name}")
+            os.replace(temp_paths[agent.target], agent.target)
+            del temp_paths[agent.target]
             replaced_agents.append(agent)
             if hook := hooks.get("after_replace"):
                 hook(agent.target)

@@ -89,8 +89,14 @@ export function foldVisualState(events: readonly RecordedVisualEvent[]): VisualS
       case 'gate': gates[value.gate] = value; break
       case 'manager_wave': waves.set(value.waveId, value); break
       case 'delegation': delegations.set(value.unitId, value); break
-      case 'review': review = value; break
-      case 'evidence': evidence[value.layer] = value; break
+    }
+  }
+  // 只把明确关联到当前修订的结果放入当前卡片；原始时间线完整保留。
+  for (const { value } of events) {
+    if ((value.eventType === 'review' || value.eventType === 'evidence')
+      && phase?.scopeRevision !== undefined && value.scopeRevision === phase.scopeRevision) {
+      if (value.eventType === 'review') review = value
+      else evidence[value.layer] = value
     }
   }
   return {

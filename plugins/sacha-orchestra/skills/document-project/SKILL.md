@@ -34,7 +34,7 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
 2. `project-context` 使用最终 Spec、真实证据、Review 和现有 `CONTEXT.md` 复核当前任务候选，不使用模板目录。
 3. `roadmap` 读取并消费 [Roadmap 文档输入](assets/roadmap.json)，校验所选 Roadmap Profile/template、标题、九个必需语义章节、唯一文件名、Roadmap root 包含关系、`create | update` 与 `expected_target_sha256`；Profile 只提供文风和章节组织，正文语义仍由 Roadmap Skill 拥有。
 4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner，正文描述当前项目状态而不叙述任务过程、Review 编舞或 Sacha 路由；每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
-5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。显式发布文档目标输入包含项目相对 `target_path`、`create | update`、update preimage、可选项目相对 template catalog path、Profile 与完整正文。
+5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。预览检查策略、trigger、目标、原像和结构，返回既有目标与摘要字段；本次写入授权及已有 Context 定义覆盖确认只在 `--write` 时检查。显式发布文档目标输入包含项目相对 `target_path`、`create | update`、update preimage、可选项目相对 template catalog path、Profile 与完整正文。
 6. 显式发布文档目标试运行通过后增加 `--write`；`required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；其他显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 变化时重新确认。
 7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式校验当前 manifest、所选 Profile 的类型/版本/template path、选中模板的 SHA-256 与 `generation_policy`。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
 8. 发布文档按明确 mode 原子新建或以 preimage 原位更新；Roadmap 同样按 mode 写入；Context 只写受管区。并发变化时停止写入，写后校验失败时恢复原内容。
@@ -50,7 +50,7 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
 - 显式发布文档目标只写其 project root 内 Markdown path；Roadmap、Project Context 与其他模式只写 Project Documentation root、Project Integration 配置的 Roadmap root 或 Project Context 受管区。任务 Artifact/Handoff 由 [Artifact Protocol](../../core/artifact-protocol.md) 管理。
 - Roadmap 的目标、阶段、依赖、完成信号和 Spec 映射由 Roadmap Skill 拥有；本 Skill 只验证输入与安全持久化，不补写或改写路线语义。
 - “存档”只是本 Skill 的 `human-request` 语义别名；Spec 完成与组合顺序由 `closeout` 和 Artifact Protocol 管理。
-- 正文只使用可发布事实，不包含内部任务/线程 ID、缓存 path 或不可发布证据 reference。
+- 正文只使用可发布事实，不包含私有任务/线程引用或不可发布证据。普通 `spec.md` 文件名、项目 `cache` 目录和业务 UUID 本身不说明内容私有；调用方仍须复核真实来源和正文语义。
 - 所有发布项目文档的文风只读取所选 Profile；Roadmap 的目标、阶段、依赖和 Spec 映射语义仍由 Roadmap Skill 拥有，Profile 不得改变或省略这些内容。
 - 生成器的证据范围为输入、授权、path 与静态结构；Runtime 触发、内容语义和外部副作用分别验证。
 - 安装、Git、发布、外部消息及 root 外写入使用各自授权。

@@ -82,8 +82,8 @@ export type SachaVisualEvent =
       readonly requestedRoute?: string
       readonly effectiveRoute?: string
     }
-  | { readonly eventType: 'review'; readonly summary: string; readonly outcome: ReviewOutcome }
-  | { readonly eventType: 'evidence'; readonly summary: string; readonly layer: EvidenceLayer; readonly status: EvidenceStatus; readonly references: readonly string[] }
+  | { readonly eventType: 'review'; readonly summary: string; readonly outcome: ReviewOutcome; readonly scopeRevision?: string }
+  | { readonly eventType: 'evidence'; readonly summary: string; readonly layer: EvidenceLayer; readonly status: EvidenceStatus; readonly references: readonly string[]; readonly scopeRevision?: string }
 
 export interface RecordedVisualEvent {
   readonly seq: number

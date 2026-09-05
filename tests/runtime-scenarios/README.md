@@ -6,7 +6,7 @@
 
 每个 `packs/<name>/` 包含：
 
-- `task.md`：只交给执行 Agent 的目标、授权、输入和验收；不写期望 Role 路线。
+- `task.md`：定义给执行 Agent 的目标、授权、输入和验收，不写期望 Role 路线。单条任务直接交给执行者；具体案例需要连续 Human 消息时，文件应明确消息边界，运行者逐条发送且不提前暴露后续消息。
 - `fixture/`：复制到本次隔离 root 的真实输入和验证器。
 - `oracle.md`：只交给独立评估者，定义预期流程、允许弹性和偏移条件；执行 Agent 不得预读。
 
@@ -19,39 +19,26 @@
 
 ## 通用运行流程
 
-1. 在工作区 `.temp/runtime-scenarios/<run-id>/<case-id>/` 创建唯一隔离 root，把 `fixture/` 复制进去，把 `task.md` 另存为中性 `instructions.md`，并把 [`assets/workspace-AGENTS.md`](assets/workspace-AGENTS.md) 复制为该 root 的 `AGENTS.md`。不得在包内原地执行，也不得把包名或 `oracle.md` 暴露给执行者。
+1. 在工作区 `.temp/runtime-scenarios/<run-id>/<case-id>/` 创建唯一隔离 root，把 `fixture/` 复制进去，并把 [`assets/workspace-AGENTS.md`](assets/workspace-AGENTS.md) 复制为该 root 的 `AGENTS.md`。单条消息的 `task.md` 另存为中性 `instructions.md`；连续 Human 消息按文件明确的边界逐条发送，不把后续消息提前复制进隔离 root。不得在包内原地执行，也不得把包名或 `oracle.md` 暴露给执行者。
 2. 运行者按任务包验收选择执行上下文：不要求 Manager 派发时，以 `fork_turns="none"` 启动不携带父对话历史的委派 Agent；要求 Manager 派发、Root Session 或 continuable direct-child 身份时，由 Human 明确发起或授权创建全新主任务，不先创建承载整个流程的委派 Agent。两种上下文都只接收中性任务、隔离 root、工作区规则和正式入口 Skill；全新 Runtime 使用发现能力，`source-scenario` 才提供当前源码 `using-sacha/SKILL.md` path。执行者按入口 Skill 读取需要的 Core/Role/Adapter，不得读取仓库 `PLUGIN_DESIGN.md`、本 README、源任务包或 oracle。
 3. 执行者需要 Human 澄清时，运行者只回答该问题，不补发预期 Role、Gate 或步骤。运行者保存 Human 问题/答复、真实工作区 delta、验证器原始输出，以及目标 Runtime 能提供的原生 Agent 创建、parent/depth、route、settlement/终态和工具轨迹；事后总结或 Agent 自报不能替代这些原生记录。
 4. Manager 派发后，运行者必须能证明每个被裁决的 work unit 的首次创建标识和直接 parent。需要验证单层派发时，优先保存机器可读 parent/depth/descendant 证据；不可达时才保留实时树快照，再不可达则对应证据为 `blocked`。
 5. 执行者结束后启动未参与实施的独立评估者；只给它 `oracle.md`、本次目标 Runtime Adapter、上述原始记录、最终工作区和验证器输出。独立评估者按 `pass | drift | blocked` 裁决，并指出第一处偏移与直接证据。
 6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为；安装后的全新发现只有在 Human 已授权安装并从全新任务启动时才能作为 Runtime 证据，其他运行标记为 `source-scenario`。
 
-## 当前基线包
+## 当前 12 个基线包
 
-- `executor-only`：清晰、低风险、单 Owner 的本地写入应直接完成。
 - `using-sacha-semantic-turn`：验证查询/诊断转为修改时重新判断入口，Human 反问入口行为不被当成接受。
 - `using-sacha-spec-intake`：验证完整 Spec 已作为后续实施或验收输入时，在领域调查前形成一次入口候选。
-- `planner-explore-manager-reviewer`：验证 Planner/Explore、多个隔离单元协调和独立复核。
 - `explore-shared-context-loop`：验证 Human 不理解背景时先调查、解释、允许纠正，再进入真正 Human 决定。
-- `explore-handoff-continuation`：验证 Explore 的恢复与返回调用节点。
 - `roadmap-self-contained-document`：验证主流程外 Roadmap 与 document-project。
 - `roadmap-spec-task-handoff`：验证 Roadmap 推荐独立完整 Spec 任务、Human 确认创建及 Codex 目标任务显式 Planner 入口。
 - `closeout-command`：验证明确收口只完成当前唯一 Spec。
 - `project-facing-spec`：验证项目实施规格不混入工作流内部语义。
-- `workflow-language-boundary`：验证产品文本、运行日志、代码标识和 Handoff 边界。
+- `workflow-language-boundary`：验证产品日志不得泄漏内部流程，同时放行项目已定义的代码标识。
 - `reviewer-semantic-chain`：验证 Reviewer 对正式入口、边界和证据范围的真实追踪。
-- `codex-code-mode-readonly-batch`：验证 Codex Code Mode 只读批量路线。
-- `codex-skill-entry-visibility`：验证 `using-sacha` 自动入口、下游 Skill 隐式可见性、显式调用和 Human 可见输出。
-- `codex-agent-skill-loading-routing`：分别验证 Codex v1/v2 从真实 Skill loading 到 child 首次工作单元的 canonical Skill path、无固定模型 Agent、Researcher/Reviewer/Executor 工具面与逐次模型路线。
-- `codex-model-routing-failure-radius`：验证 Codex 模型路线同时依据实施边界与失败影响，边界明确但具备破坏性结果的工作单元不得降为 Luna。
-- `codex-context-isolation-research`：验证 Manager Gate 关闭时，一个高噪声调查可以使用新的直接委派 Agent 并只返回压缩结果。
-- `codex-context-isolation-execution`：验证多个独立实施单元由 Manager 统一派发，实施 Agent 吸收中间过程并返回压缩结果。
-- `dsh-continuable-parallel-barrier`：验证 DSH Root 直接创建多个 continuable child、派发后继续推进 ready work、在 barrier 依赖 settlement 恢复，且部分结果不会导致提前完成。
+- `codex-skill-entry-visibility`：验证把 Sacha 或 `using-sacha` 作为修改对象不等于接受 Sacha 编排。
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
-- `dsh-companion-root-surface-routing`：验证 DSH Profile 的 Root 工具面按任务收窄、隐藏目录可查询、同层工具可在下一 step 解锁、reset/cold resume 可恢复，且 child 不继承 Root policy。
+- `dsh-companion-root-surface-routing`：验证同一 DSH Root 对话从只读要求切换为明确实施要求后，下一步工具面随最新指令更新；需要恢复证据时只续查这一案例。
 
-新增包必须满足“什么时候新增场景”的条件；先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。不得为增加覆盖数量拼接不自然任务。
-
-## 已取代证据
-
-- `codex-code-mode-v1-batch`：只保存既有 v1 批量 Agent 生命周期的历史 source-scenario；当前 Sacha Code Mode 已排除 Agent 生命周期工具，不得作为现行验收。
+新增包必须满足“什么时候新增场景”的条件，来自能够观察失败与成功结果、且现有案例无法覆盖的具体问题。先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。流程变化、角色、参数或状态枚举本身不构成新增理由；不得为了数量或组合完整性拼接任务，也不规定一个案例必须独占一个包。

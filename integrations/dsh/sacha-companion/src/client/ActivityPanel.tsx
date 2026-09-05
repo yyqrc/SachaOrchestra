@@ -111,20 +111,20 @@ function StateBadges({ state }: { readonly state: VisualState }): JSX.Element | 
   )
 }
 
-function Conductor({ snapshot }: { readonly snapshot: SachaActivitySnapshot }): JSX.Element {
+function Conductor({ snapshot, stale }: { readonly snapshot: SachaActivitySnapshot; readonly stale: boolean }): JSX.Element {
   const phase = snapshot.state.phase
-  const running = snapshot.subagents.children.filter(child => child.status === 'running').length
-  const nodeState = phase?.state ?? (running > 0 ? 'entered' : 'waiting')
+  const running = stale ? 0 : snapshot.subagents.children.filter(child => child.status === 'running').length
+  const nodeState = stale ? 'waiting' : phase?.state ?? (running > 0 ? 'entered' : 'waiting')
   return (
     <section className={css.conductor} data-state={nodeState}>
       <CatArt kind={CONDUCTOR_CAT.kind} prop={CONDUCTOR_CAT.prop} size={44} />
       <div className={css.conductorText}>
         <div className={css.rowTitle}>
-          <strong>当前进展</strong>
-          <small>{running > 0 ? `${running} 项工作正在进行` : '跟随任务推进'}</small>
+          <strong>{stale ? '上次进展' : '当前进展'}</strong>
+          <small>{stale ? '等待重新连接' : running > 0 ? `${running} 项工作正在进行` : '跟随任务推进'}</small>
         </div>
         <div className={css.summary}>{phase?.summary ?? (running > 0 ? `${running} 项工作正在进行` : '等待新的任务进展')}</div>
-        <div className={css.meta}>{phase === undefined ? '尚无新的进展' : `${PHASE_LABEL[phase.phase]} · ${PHASE_STATE_LABEL[phase.state]}`}</div>
+        <div className={css.meta}>{stale ? '以下记录来自上次连接' : phase === undefined ? '尚无新的进展' : `${PHASE_LABEL[phase.phase]} · ${PHASE_STATE_LABEL[phase.state]}`}</div>
       </div>
     </section>
   )
@@ -150,22 +150,22 @@ function ToolSurfaceSection({ surface }: { readonly surface?: ToolSurfaceSnapsho
   )
 }
 
-function ChildCard({ child, state }: { readonly child: SubagentSnapshot; readonly state: VisualState }): JSX.Element {
+function ChildCard({ child, state, stale }: { readonly child: SubagentSnapshot; readonly state: VisualState; readonly stale: boolean }): JSX.Element {
   const prop = subagentCatProp(child)
   const delegation = state.delegations.find(value => value.childId === child.id)
   const task = delegation === undefined
     ? undefined
     : state.waves.flatMap(wave => wave.units).find(unit => unit.id === delegation.unitId)
   return (
-    <article className={css.childCard} data-status={child.status}>
-      <div className={css.childAvatar} data-status={child.status}>
+    <article className={css.childCard} data-status={stale ? 'idle' : child.status}>
+      <div className={css.childAvatar} data-status={stale ? 'idle' : child.status}>
         <CatArt kind={MEMBER_CAT.kind} prop={prop ?? MEMBER_CAT.prop} size={40} />
-        <span className={css.statusArt}><MemberStatusArt status={child.status} size={18} /></span>
+        <span className={css.statusArt}><MemberStatusArt status={stale ? 'idle' : child.status} size={18} /></span>
       </div>
       <div className={css.childText}>
         <div className={css.rowTitle}>
           <strong title={task?.label ?? '协作任务'}>{task?.label ?? '协作任务'}</strong>
-          <small>{CHILD_STATUS_LABEL[child.status]}</small>
+          <small>{stale ? `上次：${CHILD_STATUS_LABEL[child.status]}` : CHILD_STATUS_LABEL[child.status]}</small>
         </div>
         {child.hasChildren ? <span className={css.nestingWarning}>发现重复分派，需要处理</span> : null}
       </div>
@@ -230,9 +230,11 @@ function CollapsedBadge({ count, busy, onClick }: {
 
 export function ActivityPanel({ sessionsList }: { readonly sessionsList: ObservableSnapshot<SessionListState> }): JSX.Element | null {
   const current = useSyncExternalStore(sessionsList.subscribe, sessionsList.getSnapshot).current
-  const snapshot = useSachaActivity(current)
-  const active = hasActivity(snapshot)
   const [open, setOpen] = useState(false)
+  const observation = useSachaActivity(current, open)
+  const snapshot = observation?.snapshot
+  const stale = observation?.stale ?? false
+  const active = hasActivity(snapshot)
   const [autoOpenedFor, setAutoOpenedFor] = useState<string>()
   const [dismissedSessions, setDismissedSessions] = useState<Set<string>>(initialDismissedSessions)
   const [layout, setLayout] = useState<PanelLayout>(initialPanelLayout)
@@ -277,7 +279,7 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
   }, [active, geometry.mode, geometry.width, open, snapshot])
 
   if (!active || snapshot === undefined) return null
-  const busy = snapshot.subagents.children.some(child => child.status === 'running')
+  const busy = !stale && snapshot.subagents.children.some(child => child.status === 'running')
   const count = snapshot.events.length + snapshot.subagents.children.length
   if (!open) return <CollapsedBadge count={count} busy={busy} onClick={() => { setOpen(true) }} />
 
@@ -314,10 +316,14 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
         </span>
       </header>
       <div className={css.body}>
-        <Conductor snapshot={snapshot} />
-        <ToolSurfaceSection surface={snapshot.toolSurface} />
-        <StateBadges state={snapshot.state} />
-        <ManagerSection snapshot={snapshot} />
+        {stale ? <p className={css.staleNotice} role="status" title={observation?.error}>连接失败，正在重试。以下是上次快照，当前进展和结果尚未确认。</p> : null}
+        <Conductor snapshot={snapshot} stale={stale} />
+        {!stale ? <ToolSurfaceSection surface={snapshot.toolSurface} /> : null}
+        {!stale ? <StateBadges state={snapshot.state} /> : null}
+        {!stale ? <ManagerSection snapshot={snapshot} /> : null}
+        {snapshot.events.some(({ value }) => (value.eventType === 'review' || value.eventType === 'evidence')
+          && (value.scopeRevision === undefined || value.scopeRevision !== snapshot.state.phase?.scopeRevision))
+          ? <p className={css.emptyHint}>历史结果未确认适用于当前改动，不能作为本次通过的依据。</p> : null}
         <section className={css.section} aria-label="协作任务">
           <div className={css.sectionHead}>
             <h3>协作任务</h3>
@@ -325,7 +331,7 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
           </div>
           {snapshot.subagents.children.length === 0
             ? <p className={css.emptyHint}>当前没有并行处理的工作。</p>
-            : <div className={css.childList}>{snapshot.subagents.children.map(child => <ChildCard key={child.id} child={child} state={snapshot.state} />)}</div>}
+            : <div className={css.childList}>{snapshot.subagents.children.map(child => <ChildCard key={child.id} child={child} state={snapshot.state} stale={stale} />)}</div>}
         </section>
         {snapshot.warnings.length > 0 ? (
           <section className={css.warningBox} aria-label="需要处理的问题">{snapshot.warnings.map(warning => (

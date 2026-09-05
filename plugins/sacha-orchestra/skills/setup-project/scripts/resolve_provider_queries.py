@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -255,11 +256,16 @@ def resolve_project_root(
             candidate = value.strip()
             if not candidate:
                 raise CatalogError(f"{source} roots must be non-empty strings")
-            unique.setdefault(candidate.replace("\\", "/").rstrip("/").casefold(), candidate)
+            unique.setdefault(os.path.normcase(os.path.normpath(candidate)), candidate)
         candidates = [unique[key] for key in sorted(unique)]
         if not candidates:
             continue
-        if len(candidates) == 1:
+        local_absolute = all(
+            Path(candidate).is_absolute()
+            and not (os.name != "nt" and re.match(r"^(?:[A-Za-z]:|\\\\)", candidate))
+            for candidate in candidates
+        )
+        if len(candidates) == 1 and local_absolute:
             return {"status": "resolved", "source": source, "project_root": candidates[0], "candidates": candidates}
         return {"status": "needs_decision", "source": source, "project_root": None, "candidates": candidates}
     return {"status": "needs_decision", "source": None, "project_root": None, "candidates": []}

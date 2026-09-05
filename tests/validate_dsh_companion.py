@@ -67,8 +67,15 @@ def validate_companion(root: Path = PACKAGE) -> dict[str, object]:
     package = json.loads(package_path.read_text(encoding="utf-8"))
     patch = patch_path.read_text(encoding="utf-8")
 
-    require(package.get("name") == "@sacha-orchestra/dsh-companion", "package name 不匹配")
-    require(package.get("version") == "0.1.0", "companion version 必须为 0.1.0")
+    package_name = package.get("name")
+    package_version = package.get("version")
+    require(package_name == "@sacha-orchestra/dsh-companion", "package name 不匹配")
+    require(
+        isinstance(package_version, str)
+        and bool(package_version)
+        and package_version == package_version.strip(),
+        "companion version 必须是非空机器版本",
+    )
     require(package.get("dsh", {}).get("bundle", {}).get("patch") == "./cordis.patch.yml", "缺少 dsh.bundle.patch")
     require(package.get("dsh", {}).get("client", {}).get("platform") == "web", "缺少 Web client 声明")
     require(
@@ -114,6 +121,8 @@ def validate_companion(root: Path = PACKAGE) -> dict[str, object]:
     return {
         "status": "pass",
         "package": str(root),
+        "name": package_name,
+        "version": package_version,
         "rows": sorted(expected_rows),
         "surfaces": ["sacha_research", "sacha_worker", "sacha_review"],
         "research_allow": research_allow,
@@ -145,23 +154,41 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
     return result
 
 
-def packed_paths(stdout: str) -> set[str]:
+def packed_package(stdout: str) -> dict[str, object]:
     payload = json.loads(stdout)
     packages = payload if isinstance(payload, list) else [payload]
+    require(
+        len(packages) == 1 and isinstance(packages[0], dict),
+        "pack dry-run 未返回唯一包元数据",
+    )
+    return packages[0]
+
+
+def packed_paths(package: dict[str, object]) -> set[str]:
     return {
         item["path"].replace("\\", "/")
-        for package in packages
         for item in package.get("files", [])
         if isinstance(item, dict) and isinstance(item.get("path"), str)
     }
 
 
+def validate_packed_identity(
+    package: dict[str, object], expected_name: object, expected_version: object
+) -> None:
+    require(
+        package.get("name") == expected_name
+        and package.get("version") == expected_version,
+        "pack dry-run 的 name/version 与 package.json 不一致",
+    )
+
+
 def main() -> int:
     payload = validate_companion()
     pnpm = pnpm_executable()
-    run(pnpm, "install", "--offline", "--frozen-lockfile")
     run(pnpm, "verify")
-    paths = packed_paths(run(pnpm, "pack", "--dry-run", "--json").stdout)
+    package = packed_package(run(pnpm, "pack", "--dry-run", "--json").stdout)
+    validate_packed_identity(package, payload["name"], payload["version"])
+    paths = packed_paths(package)
     missing = sorted(REQUIRED_PACK_FILES - paths)
     if missing:
         raise RuntimeError(f"pack dry-run 缺少必要文件：{missing}")

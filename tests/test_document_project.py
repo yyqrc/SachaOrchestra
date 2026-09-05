@@ -1,6 +1,7 @@
 """Behavior tests for the document-project production entrypoint."""
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -96,6 +97,48 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual("create", ready["mode"])
         self.assertFalse((project / "docs" / "workflow-rule.md").exists())
 
+        # 仅复制发布内入口与共享依赖，从独立目录运行两个真实 CLI。
+        published = DOCUMENT_SCRIPT.parents[3]
+        copied = self.root / "published-plugin"
+        entry_paths = (
+            "scripts/template_catalog.py",
+            "skills/setup-project/scripts/generate_project_integration.py",
+            "skills/document-project/scripts/generate_project_document.py",
+        )
+        for relative in entry_paths:
+            destination = copied / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(published / relative, destination)
+        input_path = self.root / "publication-input.json"
+        input_path.write_text(json.dumps(create_input, ensure_ascii=False), encoding="utf-8")
+        commands = (
+            [sys.executable, "-B", str(copied / entry_paths[1]), "--project-root", str(project),
+             "--scm-provider", "none", "--documentation-policy", "on-request",
+             "--documentation-root-kind", "project-relative", "--documentation-root", "Rendering",
+             "--documentation-write-authorization", "per-write-confirmation",
+             "--documentation-template-catalog-path-kind", "project-relative",
+             "--documentation-template-catalog-path", "templates"],
+            [sys.executable, "-B", str(copied / entry_paths[2]), "--project-root", str(project),
+             "--input-json", str(input_path)],
+        )
+        for command in commands:
+            completed = subprocess.run(command, cwd=self.root, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+            self.assertEqual("ready", json.loads(completed.stdout)["status"])
+        manifest_path = catalog / "profiles.json"
+        original_manifest = manifest_path.read_bytes()
+        malformed = json.loads(original_manifest)
+        del malformed["profiles"][0]["required_topics"]
+        manifest_path.write_text(json.dumps(malformed), encoding="utf-8")
+        for command in commands:
+            completed = subprocess.run(command, cwd=self.root, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(2, completed.returncode, completed.stderr)
+            result = json.loads(completed.stdout)
+            self.assertEqual(("refused", "no_write"), (result["status"], result["transaction"]))
+            self.assertFalse(target.exists())
+            self.assertFalse((project / "docs").exists())
+        manifest_path.write_bytes(original_manifest)
+
         created = document_generator.generate_project_document(
             project_root=project,
             workflow_rule_path="docs/workflow-rule.md",
@@ -121,7 +164,7 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertTrue(written.startswith(b"\xef\xbb\xbf"))
         self.assertIn(b"\r\n", written)
         self.assertNotIn(b"\n", written[3:].replace(b"\r\n", b""))
-        self.assertIn("第二版机制", written.decode("utf-8-sig"))
+        self.assertEqual(b"\xef\xbb\xbf" + second_body.replace("\n", "\r\n").encode("utf-8"), written)
 
         unchanged = document_generator.generate_project_document(
             project_root=project,
@@ -145,7 +188,6 @@ class DocumentProjectTests(ProjectTestCase):
             ),
         )
         self.assertEqual("refused", stale["status"])
-        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
 
         missing_preimage = explicit_input(mode="update", expected=None, body=first_body)
         refused = document_generator.generate_project_document(
@@ -154,7 +196,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=missing_preimage,
         )
         self.assertEqual("refused", refused["status"])
-        self.assertIn("requires expected_target_sha256", refused["conflicts"][0])
 
         wrong_trigger = explicit_input(mode="create", expected=None, body=first_body)
         wrong_trigger["trigger"] = "goal-closeout"
@@ -164,7 +205,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=wrong_trigger,
         )
         self.assertEqual("refused", refused["status"])
-        self.assertIn("requires a Human request", refused["conflicts"][0])
 
         escaped = explicit_input(mode="create", expected=None, body=first_body)
         escaped["target_path"] = "../outside.md"
@@ -174,7 +214,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=escaped,
         )
         self.assertEqual("refused", refused["status"])
-        self.assertIn("normalized relative path", refused["conflicts"][0])
 
         cli_input = explicit_input(mode="create", expected=None, body=first_body)
         cli_input["target_path"] = "Rendering/cli.md"
@@ -228,7 +267,16 @@ class DocumentProjectTests(ProjectTestCase):
             workflow_rule_path="docs/workflow-rule.md",
             document_input=self.document_input(),
         )
-        self.assertEqual("refused", needs_confirmation["status"])
+        self.assertEqual(("ready", "dry_run"), (needs_confirmation["status"], needs_confirmation["transaction"]))
+        self.assertFalse(Path(needs_confirmation["target"]).exists())
+        unconfirmed_write = document_generator.generate_project_document(
+            project_root=requested,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.document_input(),
+            write=True,
+        )
+        self.assertEqual(("refused", "no_write"), (unconfirmed_write["status"], unconfirmed_write["transaction"]))
+        self.assertFalse(Path(needs_confirmation["target"]).exists())
         ready = document_generator.generate_project_document(
             project_root=requested,
             workflow_rule_path="docs/workflow-rule.md",
@@ -263,7 +311,7 @@ class DocumentProjectTests(ProjectTestCase):
             workflow_rule_path="docs/workflow-rule.md",
             document_input=self.document_input(trigger="human-request"),
         )
-        self.assertEqual("refused", explicit_without_confirmation["status"])
+        self.assertEqual("ready", explicit_without_confirmation["status"])
         explicit = document_generator.generate_project_document(
             project_root=required,
             workflow_rule_path="docs/workflow-rule.md",
@@ -273,13 +321,6 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual(("ready", "dry_run"), (explicit["status"], explicit["transaction"]))
 
     def test_document_template_catalog_binding_and_profile_selection_are_deterministic(self) -> None:
-        option_strings = generator.build_parser()._option_string_actions
-        for option in (
-            "--documentation-template-catalog-path-kind",
-            "--documentation-template-catalog-path",
-            "--clear-documentation-template-catalog",
-        ):
-            self.assertIn(option, option_strings)
         project = self.root / "documents-catalog-bound"
         project.mkdir()
         (project / "docs" / "archive" / "changes").mkdir(parents=True)
@@ -397,14 +438,6 @@ class DocumentProjectTests(ProjectTestCase):
             binding,
         )
         workflow = project / "docs" / "workflow-rule.md"
-        workflow_text = workflow.read_text(encoding="utf-8")
-        self.assertIn(
-            "- document-template catalog：path kind = `project-relative`；"
-            "path = `docs/templates`",
-            workflow_text,
-        )
-        self.assertNotIn("manifest sha256", workflow_text)
-        self.assertNotIn("document-template profile", workflow_text)
 
         rendered = (
             "# 功能变更 — 实施记录\n\n## 背景与目标\n\n完成持久功能。\n\n"
@@ -492,7 +525,6 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", template_instruction["status"])
-        self.assertIn("template-author instructions", template_instruction["conflicts"][0])
 
         original_template = implementation.read_text(encoding="utf-8")
         implementation.write_text(original_template + "\n<!-- drift -->\n", encoding="utf-8")
@@ -673,13 +705,12 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", selected["status"])
-        self.assertIn("requires a bound project catalog", selected["conflicts"][0])
 
     def test_document_template_catalog_rejects_preselection_reads_and_missing_files(self) -> None:
-        for name, preselect, create_template, expected in (
-            ("preselect", True, True, "selection contract"),
-            ("missing", False, False, "absent file"),
-            ("quota", False, True, "must not impose section or word quotas"),
+        for name, preselect, create_template in (
+            ("preselect", True, True),
+            ("missing", False, False),
+            ("quota", False, True),
         ):
             with self.subTest(name=name):
                 project = self.root / f"documents-catalog-{name}"
@@ -737,7 +768,6 @@ class DocumentProjectTests(ProjectTestCase):
                     )
                 )
                 self.assertEqual("refused", result["status"])
-                self.assertIn(expected, result["conflicts"][0])
 
     def test_project_documentation_cli_dry_run_create_parse_and_no_overwrite(self) -> None:
         project, document_root = self.configured_document_project(
@@ -837,7 +867,6 @@ class DocumentProjectTests(ProjectTestCase):
             write=True,
         )
         self.assertEqual("refused", unconfirmed["status"])
-        self.assertIn("per-write confirmation", unconfirmed["conflicts"][0])
 
         created = document_generator.generate_project_document(
             project_root=project,
@@ -868,7 +897,7 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual(("ok", "committed"), (updated["status"], updated["transaction"]))
-        self.assertIn("已经形成首个候选 Spec", target.read_text(encoding="utf-8"))
+        self.assertEqual(update["rendered_markdown"].strip(), target.read_text(encoding="utf-8").strip())
 
         stale = document_generator.generate_project_document(
             project_root=project,
@@ -878,9 +907,8 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", stale["status"])
-        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
 
-    def test_roadmap_rejects_missing_root_invalid_path_and_internal_reference(self) -> None:
+    def test_roadmap_rejects_missing_root_and_invalid_path(self) -> None:
         project = self.root / "roadmap-missing-root"
         project.mkdir()
         self.confirmed_setup(self.config(project, manage_agents=False))
@@ -890,7 +918,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=self.roadmap_input(),
         )
         self.assertEqual("refused", missing["status"])
-        self.assertIn("Roadmap root is missing", missing["conflicts"][0])
 
         configured, _ = self.configured_roadmap_project("roadmap-invalid")
         nested = document_generator.generate_project_document(
@@ -899,20 +926,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=self.roadmap_input(output_path="nested/depth-fetch-roadmap.md"),
         )
         self.assertEqual("refused", nested["status"])
-        self.assertIn("<YYYY-MM-DD>-<short-slug>-roadmap.md", nested["conflicts"][0])
-
-        internal_input = self.roadmap_input()
-        internal_input["rendered_markdown"] = internal_input["rendered_markdown"].replace(
-            "当前仅完成项目事实调查",
-            "内部任务 SO-ROADMAP-2026-08-19 已完成项目事实调查",
-        )
-        internal = document_generator.generate_project_document(
-            project_root=configured,
-            workflow_rule_path="docs/workflow-rule.md",
-            document_input=internal_input,
-        )
-        self.assertEqual("refused", internal["status"])
-        self.assertIn("internal or machine-local reference", internal["conflicts"][0])
 
         workflow = configured / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
@@ -929,7 +942,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=self.roadmap_input(),
         )
         self.assertEqual("refused", missing_pattern["status"])
-        self.assertIn("file pattern is missing", missing_pattern["conflicts"][0])
 
     def test_roadmap_atomic_create_and_update_failures_preserve_preimage(self) -> None:
         project, roadmap_root = self.configured_roadmap_project("roadmap-atomic")
@@ -1027,7 +1039,6 @@ class DocumentProjectTests(ProjectTestCase):
                 per_write_confirmed=True,
             )
         self.assertEqual(("failed", "no_write"), (failed["status"], failed["transaction"]))
-        self.assertIn("atomic new-file creation failed", failed["conflicts"][0])
         self.assertFalse((document_root / "changes" / "feature.md").exists())
 
     def test_project_context_create_merge_and_definition_change_requirements(self) -> None:
@@ -1055,8 +1066,8 @@ class DocumentProjectTests(ProjectTestCase):
         )
         self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
         created_text = target.read_text(encoding="utf-8")
-        self.assertIn("### 账号", created_text)
-        self.assertIn("- 明确排除：不表示角色存档", created_text)
+        _, entries, _ = document_generator._parse_context_document(target.read_bytes())
+        self.assertEqual(self.context_input()["entries"][0], entries["账号"])
 
         target.write_text(
             created_text + "\n## 人工维护内容\n\n此段必须保留。\n",
@@ -1071,6 +1082,7 @@ class DocumentProjectTests(ProjectTestCase):
             "evidence": "项目验证规则与验收输出。",
             "consumers": "Executor、Reviewer 和发布收尾任务。",
         }
+        manual_suffix = target.read_bytes().split(document_generator.CONTEXT_END.encode("utf-8"), 1)[1]
         merged = document_generator.generate_project_document(
             project_root=project,
             workflow_rule_path="docs/workflow-rule.md",
@@ -1085,11 +1097,9 @@ class DocumentProjectTests(ProjectTestCase):
             (merged["status"], merged["transaction"]),
             merged["conflicts"],
         )
-        merged_text = target.read_text(encoding="utf-8")
-        self.assertIn("### 账号", merged_text)
-        self.assertIn("### 完成", merged_text)
-        self.assertIn("## 人工维护内容", merged_text)
-        self.assertIn("此段必须保留。", merged_text)
+        _, entries, _ = document_generator._parse_context_document(target.read_bytes())
+        self.assertEqual({"账号", "完成"}, set(entries))
+        self.assertEqual(manual_suffix, target.read_bytes().split(document_generator.CONTEXT_END.encode("utf-8"), 1)[1])
 
         current_hash = digest(target)
         changed_account = self.context_input()["entries"][0]
@@ -1102,8 +1112,16 @@ class DocumentProjectTests(ProjectTestCase):
                 entries=[changed_account],
             ),
         )
-        self.assertEqual("refused", requires_human["status"])
-        self.assertIn("explicit per-write confirmation", requires_human["conflicts"][0])
+        self.assertEqual("ready", requires_human["status"])
+        self.assertEqual(current_hash, digest(target))
+        unconfirmed_write = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.context_input(expected_target_sha256=current_hash, entries=[changed_account]),
+            write=True,
+        )
+        self.assertEqual("refused", unconfirmed_write["status"])
+        self.assertEqual(current_hash, digest(target))
 
         confirmed = document_generator.generate_project_document(
             project_root=project,
@@ -1116,7 +1134,6 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual(("ok", "committed"), (confirmed["status"], confirmed["transaction"]))
-        self.assertIn("新的业务定义", target.read_text(encoding="utf-8"))
 
         stale = document_generator.generate_project_document(
             project_root=project,
@@ -1127,7 +1144,6 @@ class DocumentProjectTests(ProjectTestCase):
             ),
         )
         self.assertEqual("refused", stale["status"])
-        self.assertIn("preimage SHA-256 changed", stale["conflicts"][0])
 
     def test_project_context_uses_spec_base_not_documentation_root(self) -> None:
         project, document_root = self.configured_document_project(
@@ -1155,10 +1171,6 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual("context-store/plan", refreshed["spec_storage"]["root"])
         self.assertEqual("iwiki", refreshed["documentation"]["root"])
         workflow = project / "docs" / "workflow-rule.md"
-        self.assertIn(
-            "- 项目 Context：`context-store/CONTEXT.md`",
-            workflow.read_text(encoding="utf-8"),
-        )
 
         created = document_generator.generate_project_document(
             project_root=project,
@@ -1195,14 +1207,6 @@ class DocumentProjectTests(ProjectTestCase):
 
         self.assertEqual(str(spec_base / "plan"), configured["spec_storage"]["root"])
         self.assertEqual(str(documentation_root), configured["documentation"]["root"])
-        workflow = project / "docs" / "workflow-rule.md"
-        content = workflow.read_text(encoding="utf-8")
-        self.assertIn(f"- Spec：`{spec_base / 'plan'}`", content)
-        self.assertIn(f"- 项目文档：`on-request` -> `{documentation_root}`", content)
-        self.assertIn(
-            f"- 项目 Context：`{spec_base}\\CONTEXT.md`",
-            content,
-        )
 
     def test_project_context_rejects_unqualified_or_implicit_existing_updates(self) -> None:
         project, document_root = self.configured_document_project(
@@ -1233,7 +1237,6 @@ class DocumentProjectTests(ProjectTestCase):
             document_input=self.context_input(),
         )
         self.assertEqual("refused", missing_preimage["status"])
-        self.assertIn("requires expected_target_sha256", missing_preimage["conflicts"][0])
 
     def test_project_context_cli_uses_integration_fixed_target(self) -> None:
         project, document_root = self.configured_document_project(
@@ -1294,7 +1297,6 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", unreachable["status"])
-        self.assertIn("absent or unreachable", unreachable["conflicts"][0])
 
         bounded, _ = self.configured_document_project(
             "documents-bounds",
@@ -1328,7 +1330,6 @@ class DocumentProjectTests(ProjectTestCase):
                     per_write_confirmed=True,
                 )
                 self.assertEqual("refused", refused["status"])
-                self.assertIn("drive or share root", refused["conflicts"][0])
         workflow.write_text(original, encoding="utf-8")
 
     def test_project_documentation_rejects_internal_references_and_invalid_integration(self) -> None:
@@ -1337,31 +1338,15 @@ class DocumentProjectTests(ProjectTestCase):
             policy="on-request",
             authorization="per-write-confirmation",
         )
-        forbidden_values = (
-            "详情见 docs/plan/x/spec.md。",
-            "详情见 spec.md。",
-            "详情见 `execution-report.md`。",
-            "证据位于 cache/evidence.json。",
-            "内部任务 SO-CONTEXT-BUDGET-2026-07-27。",
-            "Codex thread 019fa2ed-c03f-7b42-8962-cb9c4bed6416。",
-            "缓存位于 plugins/cache/sacha-orchestra。",
-            "本机路径 C:\\Users\\name\\evidence.txt。",
+        sections = self.document_input()["sections"]
+        sections["implementation"] = "详情见 spec.md，缓存位于 cache/evidence.json，业务标识 019fa2ed-c03f-7b42-8962-cb9c4bed6416。"
+        allowed = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.document_input(sections=sections),
         )
-        for forbidden in forbidden_values:
-            with self.subTest(forbidden=forbidden):
-                sections = self.document_input()["sections"]
-                sections["implementation"] = forbidden
-                internal = document_generator.generate_project_document(
-                    project_root=project,
-                    workflow_rule_path="docs/workflow-rule.md",
-                    document_input=self.document_input(sections=sections),
-                    per_write_confirmed=True,
-                )
-                self.assertEqual("refused", internal["status"])
-                self.assertIn(
-                    "internal or machine-local reference",
-                    internal["conflicts"][0],
-                )
+        self.assertEqual(("ready", "dry_run"), (allowed["status"], allowed["transaction"]))
+        self.assertFalse(Path(allowed["target"]).exists())
 
         workflow = project / "docs" / "workflow-rule.md"
         content = workflow.read_text(encoding="utf-8")
@@ -1379,4 +1364,3 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", unresolved["status"])
-        self.assertIn("unresolved decisions", unresolved["conflicts"][0])

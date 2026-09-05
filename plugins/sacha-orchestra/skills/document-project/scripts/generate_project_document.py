@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -95,22 +96,10 @@ SECTIONS = (
 )
 INTERNAL_REFERENCES = (
     re.compile(r"(?<![A-Za-z0-9_.-])\.codex(?:[\\/]|$)", re.IGNORECASE),
-    re.compile(
-        r"(?<![A-Za-z0-9_.-])(?:spec|execution-report|review)\.md\b",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"(?<![A-Za-z0-9_.-])(?:plugins[\\/])?cache(?:[\\/]|$)",
-        re.IGNORECASE,
-    ),
+    re.compile(r"(?<![A-Za-z0-9_.-])(?:execution-report|review)\.md\b", re.IGNORECASE),
     re.compile(r"\b(?:source_thread_id|thread_id)\b", re.IGNORECASE),
     re.compile(r"<codex_delegation\b", re.IGNORECASE),
     re.compile(r"\bSO-[A-Z0-9][A-Z0-9-]{5,}\b"),
-    re.compile(
-        r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
-        r"[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
-        re.IGNORECASE,
-    ),
     re.compile(r"(?:^|[\s`'\"(\[{=:;,])(?:[A-Za-z]:[\\/]|\\\\)", re.IGNORECASE),
 )
 ROADMAP_FORBIDDEN_REFERENCES = tuple(
@@ -122,6 +111,25 @@ ROADMAP_FORBIDDEN_REFERENCES = tuple(
 
 class DocumentError(RuntimeError):
     """A safe refusal that must not create or overwrite a publication document."""
+
+
+def _load_template_catalog(catalog_root: Path):
+    global _template_catalog_module
+    try:
+        if _template_catalog_module is None:
+            module_path = Path(__file__).resolve().parents[3] / "scripts" / "template_catalog.py"
+            spec = importlib.util.spec_from_file_location("sacha_template_catalog", module_path)
+            if spec is None or spec.loader is None:
+                raise OSError("template catalog module cannot be loaded")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            _template_catalog_module = module
+        return _template_catalog_module.load_template_catalog(catalog_root)
+    except (ImportError, OSError, ValueError) as exc:
+        raise DocumentError(str(exc)) from exc
+
+
+_template_catalog_module = None
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -513,7 +521,7 @@ def _resolve_bundled_profile_template(document_type: str, profile: str) -> dict[
 def _resolve_catalog_root(
     project_root: Path,
     documentation: dict[str, Any],
-) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+) -> tuple[Path, dict[str, Any], dict[str, Any], bytes, dict[str, Path]]:
     catalog = documentation.get("template_catalog")
     if not isinstance(catalog, dict):
         raise DocumentError("Project Integration has no bound template catalog")
@@ -540,58 +548,8 @@ def _resolve_catalog_root(
             raise DocumentError("project-local template catalog path must be project-relative")
     else:
         raise DocumentError("template catalog path kind is invalid")
-    try:
-        if not root.is_dir():
-            raise DocumentError("template catalog is absent or not a directory")
-        manifest_data = (root / "profiles.json").read_bytes()
-    except OSError as exc:
-        raise DocumentError("template catalog is unreachable") from exc
-    try:
-        manifest = json.loads(manifest_data.decode("utf-8-sig"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise DocumentError("template catalog manifest must be UTF-8 JSON") from exc
-    selection = manifest.get("selection") if isinstance(manifest, dict) else None
-    generation_policy = manifest.get("generation_policy") if isinstance(manifest, dict) else None
-    manifest_profiles = manifest.get("profiles") if isinstance(manifest, dict) else None
-    if (
-        not isinstance(manifest, dict)
-        or manifest.get("schema_version") != 1
-        or not isinstance(selection, dict)
-        or selection.get("strategy") != "manifest-ranked"
-        or selection.get("read_templates_before_selection") is not False
-        or selection.get("tie_policy") != "ask-human"
-        or selection.get("allow_profile_merge") is not False
-        or selection.get("allow_ad_hoc_profile", False) is not False
-        or not isinstance(generation_policy, dict)
-        or generation_policy.get("minimum_section_count") != 0
-        or generation_policy.get("minimum_word_count") != 0
-        or not isinstance(generation_policy.get("output_gate"), list)
-        or not generation_policy.get("output_gate")
-        or not isinstance(manifest_profiles, list)
-    ):
-        raise DocumentError("template catalog selection contract is invalid")
-    seen_profiles: set[str] = set()
-    for item in manifest_profiles:
-        if not isinstance(item, dict):
-            raise DocumentError("template catalog profile metadata is invalid")
-        profile = item.get("id")
-        document_type = item.get("document_type")
-        file_name = item.get("template")
-        if (
-            not all(isinstance(value, str) for value in (profile, document_type, file_name))
-            or document_type not in {"change-archive", "system-guide", "roadmap"}
-            or TEMPLATE_PROFILE.fullmatch(profile) is None
-            or profile in seen_profiles
-        ):
-            raise DocumentError("template catalog profile metadata is invalid")
-        seen_profiles.add(profile)
-        version_match = re.search(r"-v([1-9][0-9]*)$", profile)
-        if version_match is None:
-            raise DocumentError("template catalog profile version is invalid")
-        pure = _normalized_relative_path(file_name, "template profile file")
-        if pure.suffix.casefold() != ".md":
-            raise DocumentError("template profile file must be a relative Markdown file")
-    return root, catalog, manifest
+    manifest, manifest_data, paths = _load_template_catalog(root)
+    return root, catalog, manifest, manifest_data, paths
 
 
 def _resolve_profile_template(
@@ -603,7 +561,7 @@ def _resolve_profile_template(
 ) -> dict[str, Any]:
     if "template_catalog" not in documentation:
         return _resolve_bundled_profile_template(document_type, profile)
-    root, catalog, manifest = _resolve_catalog_root(project_root, documentation)
+    root, catalog, manifest, manifest_data, paths = _resolve_catalog_root(project_root, documentation)
     manifest_matches = [item for item in manifest["profiles"] if item.get("id") == profile]
     if len(manifest_matches) != 1:
         raise DocumentError("selected template profile metadata is absent or duplicated")
@@ -613,12 +571,7 @@ def _resolve_profile_template(
     version_match = re.search(r"-v([1-9][0-9]*)$", profile)
     if version_match is None:
         raise DocumentError("selected template profile version is invalid")
-    pure = _normalized_relative_path(manifest_profile.get("template"), "template profile file")
-    target = root.joinpath(*pure.parts).resolve(strict=False)
-    try:
-        target.relative_to(root)
-    except ValueError as exc:
-        raise DocumentError("template profile file escapes the catalog") from exc
+    target = paths[profile]
     try:
         if not target.is_file():
             raise DocumentError("selected template profile file is absent")
@@ -638,7 +591,7 @@ def _resolve_profile_template(
     return {
         "document_type": document_type,
         "profile": profile,
-        "file": pure.as_posix(),
+        "file": manifest_profile["template"],
         "version": version_match.group(1),
         "source": "project-catalog",
         "path_kind": catalog["path_kind"],
@@ -646,6 +599,7 @@ def _resolve_profile_template(
         "sha256": actual_hash,
         "text": text,
         "headings": headings,
+        "manifest_sha256": sha256_bytes(manifest_data),
         "generation_policy": manifest["generation_policy"],
         "required_topics": tuple(manifest_profile["required_topics"]),
         "optional_sections": tuple(manifest_profile["optional_sections"]),
@@ -993,6 +947,7 @@ def _authorize(
     document: dict[str, Any],
     *,
     per_write_confirmed: bool,
+    write: bool,
 ) -> None:
     policy = documentation["policy"]
     if policy == "disabled":
@@ -1013,7 +968,7 @@ def _authorize(
         and trigger == "goal-closeout"
         and document["persistent_product_delta"]
     )
-    if not bounded_closeout and not per_write_confirmed:
+    if write and not bounded_closeout and not per_write_confirmed:
         raise DocumentError("this document requires explicit per-write confirmation")
 
 
@@ -1651,7 +1606,10 @@ def generate_project_document(
                 document_type="roadmap",
                 profile=document["template_profile"],
             )
-            if current_template["sha256"] != document_template["sha256"]:
+            if (
+                current_template["sha256"] != document_template["sha256"]
+                or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
+            ):
                 raise DocumentError("roadmap template changed after validation")
             if current == generated:
                 result.update(status="ok", transaction="no_changes")
@@ -1677,6 +1635,7 @@ def generate_project_document(
                 documentation,
                 document,
                 per_write_confirmed=per_write_confirmed,
+                write=write,
             )
         if document["document_type"] == "project-context":
             target = _resolve_context_target(project, documentation)
@@ -1685,7 +1644,7 @@ def generate_project_document(
                 original,
                 document["entries"],
             )
-            if changed_existing and not per_write_confirmed:
+            if write and changed_existing and not per_write_confirmed:
                 raise DocumentError(
                     "updating an existing project context definition requires explicit per-write confirmation"
                 )
@@ -1715,7 +1674,7 @@ def generate_project_document(
                 current,
                 document["entries"],
             )
-            if changed_existing and not per_write_confirmed:
+            if write and changed_existing and not per_write_confirmed:
                 raise DocumentError(
                     "updating an existing project context definition requires explicit per-write confirmation"
                 )
@@ -1827,7 +1786,10 @@ def generate_project_document(
                 else _resolve_canonical_system_guide_template()
             )
         )
-        if current_template["sha256"] != document_template["sha256"]:
+        if (
+            current_template["sha256"] != document_template["sha256"]
+            or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
+        ):
             raise DocumentError(f"{document['document_type']} template changed after validation")
         if explicit_target:
             target = _explicit_target_path(project, document["target_path"])

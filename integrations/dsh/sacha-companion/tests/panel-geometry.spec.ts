@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_PANEL_LAYOUT, dockPanel, floatPanel, movePanel, parsePanelLayout, resizePanel, resolvePanelLayout,
+  DEFAULT_PANEL_LAYOUT, dockPanel, floatPanel, parsePanelLayout, resolvePanelLayout,
 } from '../src/client/panel-geometry.ts'
 
 const bounds = { width: 1440, height: 900, anchorRight: 1440 }
@@ -29,12 +29,11 @@ describe('panel geometry', () => {
     expect(resolvePanelLayout(DEFAULT_PANEL_LAYOUT, narrowed)).toMatchObject({ mode: 'docked', x: 1040 - 18 - 388 })
   })
 
-  it('moves, resizes, floats, and docks inside the host box', () => {
+  it('floats and docks inside the host box', () => {
     const docked = dockPanel(DEFAULT_PANEL_LAYOUT, bounds)
     const floating = floatPanel(docked, bounds)
     expect(floating.mode).toBe('floating')
-    expect(movePanel(floating, -5000, -5000, bounds)).toMatchObject({ x: 12, y: 12 })
-    expect(resizePanel(floating, 'corner', 100, -100, bounds)).toMatchObject({ width: 488, height: 694, heightMode: 'manual' })
+    expect(dockPanel(floating, bounds)).toEqual(docked)
   })
 
   it('uses a safe inset overlay on compact hosts', () => {

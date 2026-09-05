@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -55,10 +56,6 @@ DOCUMENTATION_POLICIES = {"disabled", "on-request", "required-at-closeout"}
 DOCUMENTATION_ROOT_KINDS = {"project-relative", "external-absolute"}
 DOCUMENTATION_WRITE_AUTHORIZATIONS = {"bounded-closeout", "per-write-confirmation"}
 CHANGE_ARCHIVE_TEMPLATE_PATH_KINDS = {"project-relative", "external-absolute"}
-CHANGE_ARCHIVE_TEMPLATE_PROFILE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-CHANGE_ARCHIVE_TEMPLATE_VERSION = re.compile(r"^[1-9][0-9]*$")
-MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES = 64 * 1024
-DOCUMENT_TEMPLATE_TYPES = {"change-archive", "system-guide", "roadmap"}
 SPEC_BASE_KINDS = {"project-relative", "external-absolute"}
 ROADMAP_ROOT_KINDS = {"project-relative", "external-absolute"}
 DEFAULT_SPEC_BASE_KIND = "project-relative"
@@ -69,7 +66,6 @@ ROADMAP_FILE_PATTERN = "<YYYY-MM-DD>-<short-slug>-roadmap.md"
 DECISIONS_FILE_NAME = "decisions.md"
 PROJECT_CONTEXT_FILE_NAME = "CONTEXT.md"
 SKILL_ROOT_DECISIONS = {"authority", "mirror", "independent", "ignore"}
-PI_MODEL_ROUTES = {"standard", "pro", "lite"}
 MAX_DISCOVERY_FILES = 256
 MAX_DISCOVERY_FILE_BYTES = 256 * 1024
 MAX_PROJECT_RULES_BYTES = 128 * 1024
@@ -109,8 +105,6 @@ class SetupConfig:
     skill_root_bindings: tuple[str, ...] = ()
     skill_loadings: tuple[str, ...] = ()
     reconcile_skill_loading: bool = False
-    pi_model_bindings: tuple[str, ...] = ()
-    clear_pi_model_bindings: bool = False
     unavailable_skills: tuple[str, ...] = ()
     assess_project_skills: bool = False
     visible_project_skills: tuple[str, ...] = ()
@@ -122,6 +116,25 @@ class SetupConfig:
     project_rules_sources: tuple[tuple[str, bytes], ...] = ()
     remove_project_rules_skills: tuple[str, ...] = ()
     replace_legacy_project_rules: bool = False
+
+
+def _load_template_catalog(catalog_root: Path):
+    global _template_catalog_module
+    try:
+        if _template_catalog_module is None:
+            module_path = Path(__file__).resolve().parents[3] / "scripts" / "template_catalog.py"
+            spec = importlib.util.spec_from_file_location("sacha_template_catalog", module_path)
+            if spec is None or spec.loader is None:
+                raise OSError("template catalog module cannot be loaded")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            _template_catalog_module = module
+        return _template_catalog_module.load_template_catalog(catalog_root)
+    except (ImportError, OSError, ValueError) as exc:
+        raise SetupError(str(exc)) from exc
+
+
+_template_catalog_module = None
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -320,137 +333,7 @@ def _normalize_documentation_template_catalog(
         label="documentation_template_catalog",
         require_file=False,
     )
-    try:
-        if not target.is_dir():
-            raise SetupError("documentation template catalog path is absent or not a directory")
-        manifest = target / "profiles.json"
-        if not manifest.is_file():
-            raise SetupError("documentation template catalog requires profiles.json")
-        manifest_data = manifest.read_bytes()
-        if len(manifest_data) > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
-            raise SetupError("documentation template catalog manifest exceeds 65536 bytes")
-        manifest_value = json.loads(manifest_data.decode("utf-8-sig"))
-    except OSError as exc:
-        raise SetupError("documentation template catalog is unreachable") from exc
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise SetupError("documentation template catalog manifest must be UTF-8 JSON") from exc
-
-    if not isinstance(manifest_value, dict) or manifest_value.get("schema_version") != 1:
-        raise SetupError("documentation template catalog schema_version must be 1")
-    selection = manifest_value.get("selection")
-    if not isinstance(selection, dict) or (
-        selection.get("strategy") != "manifest-ranked"
-        or selection.get("read_templates_before_selection") is not False
-        or selection.get("tie_policy") != "ask-human"
-        or selection.get("allow_profile_merge") is not False
-        or selection.get("allow_ad_hoc_profile", False) is not False
-    ):
-        raise SetupError("documentation template catalog selection contract is invalid")
-    manifest_profiles = manifest_value.get("profiles")
-    if not isinstance(manifest_profiles, list) or not manifest_profiles:
-        raise SetupError("documentation template catalog contains no profiles")
-    generation_policy = manifest_value.get("generation_policy")
-    required_generation_fields = {
-        "minimum_section_count",
-        "minimum_word_count",
-        "structure_rule",
-        "required_topics_rule",
-        "optional_sections_rule",
-        "section_admission_test",
-        "section_admission_rule",
-        "compression_rule",
-        "navigation_rule",
-        "revision_history_rule",
-        "output_gate",
-    }
-    if not isinstance(generation_policy, dict) or not required_generation_fields.issubset(
-        generation_policy
-    ):
-        raise SetupError("documentation template catalog generation_policy is invalid")
-    if generation_policy["minimum_section_count"] != 0 or generation_policy["minimum_word_count"] != 0:
-        raise SetupError("documentation template catalog must not impose section or word quotas")
-    for label in (
-        "structure_rule",
-        "required_topics_rule",
-        "optional_sections_rule",
-        "section_admission_rule",
-        "compression_rule",
-        "navigation_rule",
-        "revision_history_rule",
-    ):
-        if not isinstance(generation_policy[label], str) or not generation_policy[label].strip():
-            raise SetupError(f"documentation template catalog generation_policy.{label} is invalid")
-    for label in ("section_admission_test", "output_gate"):
-        if (
-            not isinstance(generation_policy[label], list)
-            or not generation_policy[label]
-            or any(not isinstance(value, str) or not value.strip() for value in generation_policy[label])
-        ):
-            raise SetupError(f"documentation template catalog generation_policy.{label} is invalid")
-
-    seen: set[str] = set()
-    required_profile_fields = {
-        "id",
-        "document_type",
-        "primary_purpose",
-        "primary_question",
-        "choose_when",
-        "avoid_when",
-        "required_topics",
-        "optional_sections",
-        "template",
-    }
-    for item in manifest_profiles:
-        if not isinstance(item, dict) or not required_profile_fields.issubset(item):
-            raise SetupError("documentation template profile fields are invalid")
-        profile = item["id"]
-        document_type = item["document_type"]
-        file_name = item["template"]
-        if not isinstance(profile, str) or CHANGE_ARCHIVE_TEMPLATE_PROFILE.fullmatch(profile) is None:
-            raise SetupError("documentation template profile id is invalid")
-        if document_type not in DOCUMENT_TEMPLATE_TYPES:
-            raise SetupError("documentation template document_type is invalid")
-        if profile in seen:
-            raise SetupError("documentation template catalog contains duplicate profiles")
-        seen.add(profile)
-        for label in ("primary_purpose", "primary_question"):
-            if not isinstance(item[label], str) or not item[label].strip():
-                raise SetupError(f"documentation template profile {label} is invalid")
-        for label in ("choose_when", "avoid_when"):
-            if (
-                not isinstance(item[label], list)
-                or not item[label]
-                or any(not isinstance(value, str) or not value.strip() for value in item[label])
-            ):
-                raise SetupError(f"documentation template profile {label} is invalid")
-        for label in ("required_topics", "optional_sections"):
-            if (
-                not isinstance(item[label], list)
-                or not item[label]
-                or any(not isinstance(value, str) or not value.strip() for value in item[label])
-            ):
-                raise SetupError(f"documentation template profile {label} is invalid")
-        version_match = re.search(r"-v([1-9][0-9]*)$", profile)
-        if version_match is None:
-            raise SetupError("documentation template profile must end with -v<positive integer>")
-        if not isinstance(file_name, str):
-            raise SetupError("documentation template profile template is invalid")
-        relative = PurePosixPath(file_name.replace("\\", "/"))
-        if (
-            relative.is_absolute()
-            or any(part in {"", ".", ".."} for part in relative.parts)
-            or relative.suffix.casefold() != ".md"
-        ):
-            raise SetupError("documentation template catalog file must be a relative Markdown file")
-        template_target = target.joinpath(*relative.parts).resolve(strict=False)
-        try:
-            template_target.relative_to(target.resolve(strict=False))
-        except ValueError as exc:
-            raise SetupError("documentation template catalog file escapes the catalog") from exc
-        if not template_target.is_file():
-            raise SetupError("documentation template catalog references an absent file")
-        if template_target.stat().st_size > MAX_CHANGE_ARCHIVE_TEMPLATE_BYTES:
-            raise SetupError("documentation template exceeds 65536 bytes")
+    _load_template_catalog(target)
     return {
         "path_kind": str(path_kind),
         "path": normalized_path,
@@ -697,31 +580,6 @@ def _parse_skill_loadings(values: tuple[str, ...]) -> tuple[dict[str, str], ...]
         if skill in parsed:
             raise SetupError(f"duplicate Skill loading: {skill}")
         parsed[skill] = {"skill": skill, "load_policy": policy}
-    return tuple(parsed[key] for key in sorted(parsed))
-
-
-def _parse_pi_model_bindings(values: tuple[str, ...]) -> tuple[dict[str, str], ...]:
-    parsed: dict[str, dict[str, str]] = {}
-    for value in values:
-        parts = value.split("::")
-        if len(parts) != 2:
-            raise SetupError("pi_model_binding must be <route>::<provider/model>")
-        route = parts[0]
-        model = parts[1]
-        if route != route.strip() or route != route.casefold() or route not in PI_MODEL_ROUTES:
-            raise SetupError(
-                "Pi model route must be standard, pro or lite"
-            )
-        if (
-            model != model.strip()
-            or not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", model)
-        ):
-            raise SetupError(
-                "Pi model must be an exact provider/model without whitespace or control characters"
-            )
-        if route in parsed:
-            raise SetupError(f"duplicate Pi model route: {route}")
-        parsed[route] = {"route": route, "model": model}
     return tuple(parsed[key] for key in sorted(parsed))
 
 
@@ -1102,18 +960,47 @@ def _parse_skill_identity(text: str, relative: str) -> tuple[str, str]:
     frontmatter = re.match(r"\A---\s*\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.DOTALL)
     if frontmatter is None:
         raise SetupError(f"Skill frontmatter is missing: {relative}")
-    name_match = re.search(
-        r"(?m)^name[ \t]*:[ \t]*([^#\r\n]+?)[ \t]*\r?$", frontmatter.group(1)
+    try:
+        import yaml
+    except ImportError as exc:
+        raise SetupError("Skill YAML parsing requires PyYAML") from exc
+
+    class UniqueSafeLoader(yaml.SafeLoader):
+        pass
+
+    def unique_mapping(loader, node):
+        mapping = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node, deep=True)
+            if not isinstance(key, str) or key in mapping:
+                raise SetupError(f"Skill YAML keys must be unique strings: {relative}")
+            mapping[key] = loader.construct_object(value_node, deep=True)
+        return mapping
+
+    UniqueSafeLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping
     )
-    if name_match is None:
-        raise SetupError(f"Skill name is missing: {relative}")
-    name = name_match.group(1).strip().strip("\"'")
-    if not name:
-        raise SetupError(f"Skill name is empty: {relative}")
-    description_match = re.search(
-        r"(?m)^description[ \t]*:[ \t]*([^#\r\n]+?)[ \t]*\r?$", frontmatter.group(1)
-    )
-    description = "" if description_match is None else description_match.group(1).strip().strip("\"'")
+    try:
+        metadata = yaml.load(frontmatter.group(1), Loader=UniqueSafeLoader)
+        def validate_value(value):
+            if isinstance(value, dict):
+                for child in value.values():
+                    validate_value(child)
+            elif isinstance(value, list):
+                for child in value:
+                    validate_value(child)
+            elif value is not None and type(value) not in (str, int, float, bool):
+                raise SetupError(f"Skill YAML contains an unsupported value: {relative}")
+        validate_value(metadata)
+    except (yaml.YAMLError, ValueError, TypeError, RecursionError) as exc:
+        raise SetupError(f"Skill frontmatter is invalid YAML: {relative}") from exc
+    if not isinstance(metadata, dict):
+        raise SetupError(f"Skill frontmatter must be a mapping: {relative}")
+    name, description = metadata.get("name"), metadata.get("description")
+    if not isinstance(name, str) or not name.strip():
+        raise SetupError(f"Skill name must be a non-empty string: {relative}")
+    if not isinstance(description, str) or not description.strip():
+        raise SetupError(f"Skill description must be a non-empty string: {relative}")
     return name, description
 
 
@@ -1241,7 +1128,7 @@ def _parse_existing_project_values(
             for line in loading_section.group(1).splitlines():
                 if not line.strip() or line.strip() == "- 无":
                     continue
-                policy_match = re.fullmatch(r"- `([^`]+)`", line.strip())
+                policy_match = re.fullmatch(r"- `([^`]+)`", line)
                 if policy_match:
                     current_policy = policy_match.group(1)
                     continue
@@ -1283,21 +1170,6 @@ def _parse_existing_project_values(
                     "skill": match.group(2),
                     "load_policy": match.group(3),
                 })
-    pi_model_bindings = []
-    pi_model_section = re.search(
-        r"(?ms)^### Pi one-shot model routing\s*\n(.*?)(?=^### |^## |\Z)",
-        text,
-    )
-    if pi_model_section:
-        for line in pi_model_section.group(1).splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("仅供本项目 Runtime 使用；"):
-                continue
-            match = re.fullmatch(r"- `([^`]+)` -> `([^`]+)`", stripped)
-            if match is None:
-                raise SetupError("managed Pi model routing is malformed")
-            route, model = match.groups()
-            pi_model_bindings.append({"route": route, "model": model})
     documentation: dict[str, object] = {}
     documentation_section = re.search(
         r"(?ms)^### Project documentation\s*\n(.*?)(?=^### |^## |\Z)",
@@ -1380,7 +1252,6 @@ def _parse_existing_project_values(
         "skill_root_bindings": tuple(skill_root_bindings),
         "skill_loadings": tuple(skill_loadings),
         "skill_loading_dirty": tuple(skill_loading_dirty),
-        "pi_model_bindings": tuple(pi_model_bindings),
         "documentation": documentation,
         "spec_storage": spec_storage,
         "roadmap_storage": roadmap_storage,
@@ -1775,7 +1646,6 @@ def render_workflow_rule(
     human_guide: str | None,
     discovery: Mapping[str, object],
     skill_loadings: tuple[dict[str, str], ...],
-    pi_model_bindings: tuple[dict[str, str], ...],
     documentation: Mapping[str, object],
 ) -> bytes:
     scm = discovery["scm"]
@@ -1838,16 +1708,6 @@ def render_workflow_rule(
         sections.append("### Skill roots\n\n" + "\n".join(skill_lines))
     if skill_loading_blocks:
         sections.append("### Skill loading\n\n" + "\n\n".join(skill_loading_blocks))
-    if pi_model_bindings:
-        pi_model_lines = [
-            f"- `{item['route']}` -> `{item['model']}`"
-            for item in pi_model_bindings
-        ]
-        sections.append(
-            "### Pi one-shot model routing\n\n"
-            + "\n".join(pi_model_lines)
-            + "\n\n仅供本项目 Runtime 使用；由 `setup-project` 从本机 Pi 可用模型确认，不复制到 plugin 源码。"
-        )
     storage_lines = [
         f"- Spec：`{spec_storage['root']}`",
         f"- 任务目录：`{spec_storage['directory_pattern']}`",
@@ -2360,19 +2220,6 @@ def run_setup(
                 for item in existing_values.get("skill_root_bindings", ())
             ))
         skill_loadings = _parse_skill_loadings(config.skill_loadings)
-        if config.pi_model_bindings and config.clear_pi_model_bindings:
-            raise SetupError(
-                "pi_model_bindings and clear_pi_model_bindings are mutually exclusive"
-            )
-        if config.clear_pi_model_bindings:
-            pi_model_bindings: tuple[dict[str, str], ...] = ()
-        elif config.pi_model_bindings:
-            pi_model_bindings = _parse_pi_model_bindings(config.pi_model_bindings)
-        else:
-            pi_model_bindings = _parse_pi_model_bindings(tuple(
-                f"{item['route']}::{item['model']}"
-                for item in existing_values.get("pi_model_bindings", ())
-            ))
         unavailable_skills = _normalize_unavailable_skills(config.unavailable_skills)
         existing_skill_loadings = tuple(existing_values.get("skill_loadings", ()))
         skill_loading_dirty = tuple(
@@ -2406,7 +2253,6 @@ def run_setup(
     result["warnings"].extend(documentation_warnings)
     result["spec_storage"] = spec_storage
     result["roadmap_storage"] = roadmap_storage
-    result["pi_model_bindings"] = list(pi_model_bindings)
     result["warnings"].extend(spec_warnings)
     result["warnings"].extend(roadmap_warnings)
     selected_project_roots = {
@@ -2490,7 +2336,6 @@ def run_setup(
             human_guide,
             discovery,
             effective_skill_loadings,
-            pi_model_bindings,
             documentation,
         )
         workflow_action = "unchanged" if workflow_preimage == workflow_generated else ("update" if workflow_existed else "create")
@@ -2878,8 +2723,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skill-root-binding", action="append", default=[])
     parser.add_argument("--skill-loading", action="append", default=[])
     parser.add_argument("--reconcile-skill-loading", action="store_true")
-    parser.add_argument("--pi-model-binding", action="append", default=[])
-    parser.add_argument("--clear-pi-model-bindings", action="store_true")
     parser.add_argument("--unavailable-skill", action="append", default=[])
     parser.add_argument("--assess-project-skills", action="store_true")
     parser.add_argument("--visible-project-skill", action="append", default=[])
@@ -2941,8 +2784,6 @@ def main() -> int:
         skill_root_bindings=tuple(args.skill_root_binding),
         skill_loadings=tuple(args.skill_loading),
         reconcile_skill_loading=args.reconcile_skill_loading,
-        pi_model_bindings=tuple(args.pi_model_binding),
-        clear_pi_model_bindings=args.clear_pi_model_bindings,
         unavailable_skills=tuple(args.unavailable_skill),
         assess_project_skills=args.assess_project_skills,
         visible_project_skills=tuple(args.visible_project_skill),

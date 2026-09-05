@@ -13,20 +13,19 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 
 1. 接收 Human 显式 project base；未提供时由[解析器](scripts/resolve_provider_queries.py)从 Project Integration、AGENTS 和 SCM 定位唯一 project root。多候选保持 `unresolved`。
 2. Runtime catalog 提供规范 Skill（canonical Skill）的 `name`、`description` 和 `path`；Provider catalog 可补充公开 Skill 与副作用上界。Setup 展示 canonical `description`，Human 按 [Workflow Contract](../../core/workflow-contract.md) 为每个 Skill 确认一次加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的 Skill。
-3. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
+2. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
 
 ## 动作顺序
 
-1. [生成器](scripts/generate_project_integration.py)核对正文证据、SHA-256、path 和可见性。一个 Skill 可包含多个目标单元，但 Project Integration 只保存一项 canonical Skill 身份与加载策略，不保存 capability id、正文摘要或 unit mapping。缺失、歧义、冲突或策略未确认时停止写入。
-2. 需要 Pi 时由[巡检器](scripts/inspect_pi_models.ps1)执行 `--list-models`，按 `glm-5.2 | kimi k3 | deepseek | gpt-5.6 luna` 筛选；使用 `--pi-model-binding <route>::<provider/model>` 保存 Human 选择，使用 `--clear-pi-model-bindings` 清空。
-3. 配置文档位置：
+1. 本地 Skill 的 frontmatter 使用 PyYAML 安全解析，拒绝重复键和无效身份；缺少 PyYAML 时返回受控错误并保留文件，不自动安装依赖。[生成器](scripts/generate_project_integration.py)核对正文证据、SHA-256、path 和可见性。一个 Skill 可包含多个目标单元，但 Project Integration 只保存一项 canonical Skill 身份与加载策略，不保存 capability id、正文摘要或 unit mapping。缺失、歧义、冲突或策略未确认时停止写入。
+2. 配置文档位置：
    - 首次 Spec storage root 默认 `docs/plan`。
    - Human 分别提供 Spec base、可选 Roadmap root 与 Project Documentation root；Setup 派生 `<spec-base>/plan` 和 `<spec-base>/CONTEXT.md`，原样保存 Roadmap root，并生成 `<YYYY-MM-DD>-<short-slug>-roadmap.md` 文件模式。
    - 外部 path 标记 `non-portable`；文件系统根无效。
-4. 项目可选绑定一个模板目录 root（template catalog root）。Setup 校验固定名 `profiles.json`、`manifest-ranked`/`tie-ask-Human`/`no-merge`/`no-ad-hoc` 选择合同、`generation_policy`，以及各 Profile 的 `required_topics`、`optional_sections`、类型、意图、template 的相对 path 和版本；Integration 只保存目录的 path kind/path。
-5. 读取受管块，按规范 Skill 标记的归属规则：保留适用项、刷新同源 asset 完整内容、合并新源。无来源旧段需要 Human 显式指定并核对 asset；旧 `SOURCE SHA-256` 行在本次确认刷新时删除。
-6. 试运行（`dry-run`）返回 `reconciliation`、冲突、`warning`、完整 `delta` 和 `planned_delta_sha256`。显式配置/刷新已授权且无待决策略、范围或高影响变化时，在同一流程把当前值传给 `--confirmed-planned-delta-sha256` 后写入。
-7. 目标、变更或关键决定变化时重新试运行，只就变化请求 Human 确认。
+3. 项目可选绑定一个模板目录 root（template catalog root）。Setup 校验固定名 `profiles.json`、`manifest-ranked`/`tie-ask-Human`/`no-merge`/`no-ad-hoc` 选择合同、`generation_policy`，以及各 Profile 的 `required_topics`、`optional_sections`、类型、意图、template 的相对 path 和版本；Integration 只保存目录的 path kind/path。
+4. 读取受管块，按规范 Skill 标记的归属规则：保留适用项、刷新同源 asset 完整内容、合并新源。无来源旧段需要 Human 显式指定并核对 asset；旧 `SOURCE SHA-256` 行在本次确认刷新时删除。
+5. 试运行（`dry-run`）返回 `reconciliation`、冲突、`warning`、完整 `delta` 和 `planned_delta_sha256`。显式配置/刷新已授权且无待决策略、范围或高影响变化时，在同一流程把当前值传给 `--confirmed-planned-delta-sha256` 后写入。
+6. 目标、变更或关键决定变化时重新试运行，只就变化请求 Human 确认。
 
 ## 输出
 

@@ -93,6 +93,15 @@
   padding: 12px;
 }
 
+.staleNotice {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  color: var(--dsw-alias-text-secondary, #6b7280);
+  font-size: 12px;
+}
+
 .conductor,
 .childCard,
 .waveCard,

@@ -1,3 +1,3 @@
 # Fixture
 
-本场景不修改工作区文件。执行者在该空白工作区运行 `task.md`，直接证据来自 DSH Profile identity、Root/child Session export、live state route 与浏览器截图；不得用本文件内容代替 Runtime 记录。
+第一条只读消息不得修改本文件。第二条明确实施消息只要求修改本文件标题；直接证据来自同一 DSH Root 的两次原生 request header、`sacha_tools status` 返回、文件差异与验证输出，不得用本段说明代替 Runtime 记录。
