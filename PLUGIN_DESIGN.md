@@ -41,7 +41,7 @@ flowchart TD
     ENTRY -->|"默认评估或显式 using-sacha"| INTAKE{"using-sacha Intake"}
     INTAKE -->|"无入口候选，或 Human 拒绝同一入口候选"| DIRECT["当前任务直接完成"]
     DIRECT -->|"出现改变执行方式的新事实"| INTAKE
-    DIRECT --> CLOSE["结束 / 合法根终态"]
+    DIRECT --> CLOSE["结束 / 合法根终态<br/>正常实施：全部阻塞验收满足后自动收口本次 Spec"]
 
     INTAKE -->|"明确要求用 Sacha 编排 / Human 选择接受：已接受"| PLANNER_GATE{"Planner Gate？"}
     INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
@@ -98,7 +98,7 @@ flowchart TD
     EXEC_AUTH -->|"批准，或继续已授权安全子集"| EXECUTOR
     EXEC_AUTH -->|"要求调整 Scope / 方案 / 验收"| PLANNER
     EXEC_AUTH -->|"取消或无法继续"| CLOSE
-    EXECUTOR --> REVIEW_GATE{"Reviewer Gate？"}
+    EXECUTOR -->|"先完成可完成的必需验证；证据冲突等仍按 Gate 判断"| REVIEW_GATE{"Reviewer Gate？"}
     REVIEW_GATE -->|"否"| DOC_CANDIDATE{"项目文档候选成立？"}
     REVIEW_GATE -->|"是"| REVIEWER["独立 Reviewer：核对来源独立性 / Baseline / Evidence"]
     REVIEWER -->|"Accepted / Accepted with follow-up"| DOC_CANDIDATE
@@ -176,10 +176,7 @@ flowchart TD
 | Executor | 在明确目标或批准 Scope 内实施、验证并交付真实变更/证据 | 核对 Scope/授权 → 主任务做必要 Manager 协调，或委派 Agent 返回协调请求 → 实施/集成 → 风险对应验证 → Review/收尾 | 冻结新方案、跨单元协调、独立 Review、项目文档 owner |
 | Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 核对 Gate/来源独立性 → 建立 Baseline → 复用有效证据，仅重跑能改变裁决的验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
 
-Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill 前先判断 delta：
-
-- 只改变职责内 procedure、证据读取方式或表达，可直接修改该 Skill 及唯一 Core/Adapter owner。
-- 新增职责、输出类型、跨节点路线、Human 决定点或接管其他 owner，属于顶层设计变化；先改本文并取得需要的 Human 批准，再改 Runtime 合同和 Skill。
+角色技能必须自包含本表声明的职责、局部流程和边界。维护时按[项目开发规则](AGENTS.md#开发改动与决定)区分职责内调整与高层设计变化。
 
 ## 5. 支持、控制与工具 Skill 能力设计
 
@@ -197,15 +194,10 @@ Role Skill 必须自包含本行职责、局部流程和边界。修改 Skill �
 | 工具/配置 | setup-project | 生成或刷新 Project Integration、Skill loading、Spec/Roadmap/项目文档存储 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent |
 | 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
 
-支持/控制 Skill 的迭代可修改已声明功能内的局部做法。新增功能、入口、外部副作用或跨节点接管，先改本文；不能以“只是补一步”绕过顶层设计。
+支持与控制技能只实现本表声明的功能；新增功能、入口、外部副作用或跨节点接管按[项目开发规则](AGENTS.md#开发改动与决定)处理。
 
-## 6. 自上而下的变更顺序
+## 6. 开发维护入口
 
-1. 写清需求不变量、真实 failure mode、授权和验收；判断是否改变顶层设计。
-2. 若改变入口、节点、连线、Role/Skill 职责或特殊流程，先修改本文并取得适用的 Human 批准。
-3. 按第 1 节确定唯一 Core owner：流程连线变化先修改 Workflow Contract；跨节点 Human 可见交互修改 Human Interaction Contract；其他局部判断只修改受影响的 Intake、Assurance、Coordination 或 Artifact owner。
-4. 修改直接消费该判断的 Role/支持 Skill；只在职责内完善 procedure。
-5. 修改受影响 Runtime Adapter、metadata/manifest；长期或 breaking boundary 变化才更新 Evolution。
-6. 核对本文与运行时负责文件及实际使用方；按明确案例和本次交付声明选择所需真实场景，不为覆盖节点、型号或参数展开矩阵。场景执行者不读取本文，独立评估者才用本文判断偏差。
+变更批准和修改顺序按[开发改动与决定](AGENTS.md#开发改动与决定)处理，验证选择按[工具与验证](AGENTS.md#工具与验证)处理。本文的第 1 节提供负责位置，第 2～5 节定义现行产品范围和流程；只有这些内容变化时才修改相应设计。
 
-没有顶层变化时，不为“同步”触碰本文；发现下游需要新增图外路线或职责时，停止下游补丁并返回第 1 步。
+真实场景的执行者不读取本文；独立评估者可用本文核对产品范围和流程偏差。场景输入与证据隔离以[场景说明](tests/runtime-scenarios/README.md)为准。

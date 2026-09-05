@@ -1,0 +1,107 @@
+{
+  "status": "passed",
+  "changed_files": [
+    {
+      "path": "C:\\Users\\shifengzhou\\.codex\\AGENTS.md",
+      "matches_approved_patch": false,
+      "added": 38,
+      "removed": 46,
+      "bom_preserved": true,
+      "unchanged_line_endings_preserved": true,
+      "before_eol": {
+        "CRLF": 0,
+        "LF": 55
+      },
+      "after_eol": {
+        "CRLF": 0,
+        "LF": 47
+      }
+    },
+    {
+      "path": "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\SKILL.md",
+      "matches_approved_patch": true,
+      "added": 11,
+      "removed": 18,
+      "bom_preserved": true,
+      "unchanged_line_endings_preserved": true,
+      "before_eol": {
+        "CRLF": 29,
+        "LF": 0
+      },
+      "after_eol": {
+        "CRLF": 22,
+        "LF": 0
+      }
+    },
+    {
+      "path": "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-placement.md",
+      "matches_approved_patch": true,
+      "added": 12,
+      "removed": 23,
+      "bom_preserved": true,
+      "unchanged_line_endings_preserved": true,
+      "before_eol": {
+        "CRLF": 0,
+        "LF": 27
+      },
+      "after_eol": {
+        "CRLF": 0,
+        "LF": 16
+      }
+    },
+    {
+      "path": "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-migration.md",
+      "matches_approved_patch": true,
+      "added": 10,
+      "removed": 18,
+      "bom_preserved": true,
+      "unchanged_line_endings_preserved": true,
+      "before_eol": {
+        "CRLF": 0,
+        "LF": 24
+      },
+      "after_eol": {
+        "CRLF": 0,
+        "LF": 16
+      }
+    },
+    {
+      "path": "C:\\Users\\shifengzhou\\.codex\\skills\\caveman\\SKILL.md",
+      "matches_approved_patch": true,
+      "added": 1,
+      "removed": 1,
+      "bom_preserved": true,
+      "unchanged_line_endings_preserved": true,
+      "before_eol": {
+        "CRLF": 1,
+        "LF": 41
+      },
+      "after_eol": {
+        "CRLF": 1,
+        "LF": 41
+      }
+    }
+  ],
+  "official_files_unchanged": 13,
+  "frontmatter_unchanged": true,
+  "reference_targets": [
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-placement.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-migration.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\semantic-fidelity-regressions.md"
+  ],
+  "errors": 0,
+  "warnings": 0,
+  "verification_scope": "approved patch content, original line-ending conventions, metadata, local references; not runtime behavior",
+  "correction": "Global clarification condition includes necessary task information that cannot be independently confirmed; other approved content is unchanged.",
+  "final_patch": "stage-1-actual.patch",
+  "metadata_parse": "agent-rule-maintenance and caveman YAML parsed successfully",
+  "matches_final_patch": true,
+  "final_patch_checked_files": [
+    "C:\\Users\\shifengzhou\\.codex\\AGENTS.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\SKILL.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-placement.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\agent-rule-maintenance\\references\\rule-migration.md",
+    "C:\\Users\\shifengzhou\\.codex\\skills\\caveman\\SKILL.md"
+  ],
+  "whitespace_errors": 0
+}

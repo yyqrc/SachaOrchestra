@@ -21,7 +21,7 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 1. Spec Artifact 沿用[术语合同](../../core/terminology-contract.md)；当前上下文可恢复时使用内联 Plan，方案需 Human 批准、属于破坏性变更或需要跨上下文恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
 2. 仅在冻结条件满足且命中持久化条件后，才把完整方案写入 `spec.md` 并回读，再向 Human 交付。
    持久化优先使用已确认的 Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需将 `decisions.md` 写入同一目录。
-3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告、工作流输出、运行时传输及 Sacha 规则只用于各自消费者，不进入起草来源。
+3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告和工作流输出仅作索引；按 Artifact Protocol 区分目标产品的规范与当前任务编排信息，前者可以作为项目来源，后者不进入 Spec。
 4. 只使用上一步确认的项目来源，按 Artifact Protocol 的唯一内容格式生成面向目标项目的实施规格；项目已有格式只有在完整承载该格式语义时才沿用。
 5. 回读并核对 Spec 中所有保留英文的既有项目标识，以及所有拟新增的实现标识和项目概念名称。既有标识逐个与已确认项目来源精确匹配；项目来源未定义简称或别名时，必须改回完整项目名称。拟新增标识和概念名称逐个核对目标位置、相邻 Owner、直接消费者与项目当前命名习惯，命名依据和含义必须由项目来源或 Human 项目决定支持。
 6. 逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。

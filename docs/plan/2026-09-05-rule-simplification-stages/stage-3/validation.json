@@ -1,0 +1,319 @@
+{
+  "cprobe_command": [
+    "cprobe",
+    "summary",
+    "plugins/sacha-orchestra",
+    "PLUGIN_DESIGN.md",
+    "tests/test_setup_project.py",
+    "tests/test_document_project.py",
+    "tests/runtime-scenarios/README.md",
+    "tests/runtime-scenarios/packs/implementation-completion",
+    "--json"
+  ],
+  "exit_code": 0,
+  "cprobe": {
+    "schema_version": 1,
+    "command": "summary",
+    "vcs": "git",
+    "root": "C:/Users/shifengzhou/Documents/SachaOrchestra",
+    "scope": [
+      "plugins/sacha-orchestra",
+      "PLUGIN_DESIGN.md",
+      "tests/test_setup_project.py",
+      "tests/test_document_project.py",
+      "tests/runtime-scenarios/README.md",
+      "tests/runtime-scenarios/packs/implementation-completion"
+    ],
+    "source": "all",
+    "summary": {
+      "tracked_changed": 17,
+      "working": 17,
+      "staged": 0,
+      "untracked": 4,
+      "conflicted": 0,
+      "renamed": 0,
+      "binary": 0,
+      "insertions": {
+        "working": 441,
+        "staged": 0
+      },
+      "deletions": {
+        "working": 46,
+        "staged": 0
+      }
+    },
+    "files": [
+      {
+        "path": "PLUGIN_DESIGN.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            7,
+            15
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/artifact-protocol.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            5,
+            5
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/assurance-contract.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            3,
+            3
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/coordination-contract.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            4,
+            0
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/human-interaction-contract.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            2,
+            2
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/intake-contract.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/core/workflow-contract.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            9,
+            5
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/closeout/SKILL.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            2,
+            2
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/document-project/SKILL.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            2,
+            2
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/document-project/scripts/generate_project_document.py",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            6,
+            4
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/executor/SKILL.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/explore/SKILL.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/planner/SKILL.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "path": "plugins/sacha-orchestra/skills/setup-project/scripts/generate_project_integration.py",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            3,
+            3
+          ]
+        }
+      },
+      {
+        "path": "tests/runtime-scenarios/README.md",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            2,
+            1
+          ]
+        }
+      },
+      {
+        "path": "tests/test_document_project.py",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            213,
+            0
+          ]
+        }
+      },
+      {
+        "path": "tests/test_setup_project.py",
+        "worktree": "modified",
+        "lines": {
+          "working": [
+            179,
+            0
+          ]
+        }
+      },
+      {
+        "path": "tests/runtime-scenarios/packs/implementation-completion/fixture/app.py",
+        "flags": [
+          "untracked"
+        ]
+      },
+      {
+        "path": "tests/runtime-scenarios/packs/implementation-completion/fixture/verify.py",
+        "flags": [
+          "untracked"
+        ]
+      },
+      {
+        "path": "tests/runtime-scenarios/packs/implementation-completion/oracle.md",
+        "flags": [
+          "untracked"
+        ]
+      },
+      {
+        "path": "tests/runtime-scenarios/packs/implementation-completion/task.md",
+        "flags": [
+          "untracked"
+        ]
+      }
+    ],
+    "whitespace": {
+      "errors": 0
+    },
+    "budget": {
+      "complete": true,
+      "truncated": false
+    },
+    "next_probe": [
+      {
+        "kind": "patch",
+        "argv": [
+          "cprobe",
+          "patch",
+          "--source",
+          "working",
+          "--json",
+          "--",
+          "PLUGIN_DESIGN.md"
+        ],
+        "path": "PLUGIN_DESIGN.md"
+      },
+      {
+        "kind": "patch",
+        "argv": [
+          "cprobe",
+          "patch",
+          "--source",
+          "working",
+          "--json",
+          "--",
+          "plugins/sacha-orchestra/core/artifact-protocol.md"
+        ],
+        "path": "plugins/sacha-orchestra/core/artifact-protocol.md"
+      },
+      {
+        "kind": "patch",
+        "argv": [
+          "cprobe",
+          "patch",
+          "--source",
+          "working",
+          "--json",
+          "--",
+          "plugins/sacha-orchestra/core/assurance-contract.md"
+        ],
+        "path": "plugins/sacha-orchestra/core/assurance-contract.md"
+      },
+      {
+        "kind": "patch",
+        "argv": [
+          "cprobe",
+          "patch",
+          "--source",
+          "working",
+          "--json",
+          "--",
+          "plugins/sacha-orchestra/core/coordination-contract.md"
+        ],
+        "path": "plugins/sacha-orchestra/core/coordination-contract.md"
+      },
+      {
+        "kind": "patch",
+        "argv": [
+          "cprobe",
+          "patch",
+          "--source",
+          "working",
+          "--json",
+          "--",
+          "plugins/sacha-orchestra/core/human-interaction-contract.md"
+        ],
+        "path": "plugins/sacha-orchestra/core/human-interaction-contract.md"
+      }
+    ]
+  },
+  "stderr": "",
+  "local_links_checked": 96,
+  "missing_links": []
+}

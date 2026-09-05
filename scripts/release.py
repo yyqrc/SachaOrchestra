@@ -561,7 +561,7 @@ def parser() -> argparse.ArgumentParser:
     prepare_parser.add_argument("--candidate-path", action="append", required=True)
     publish_parser = commands.add_parser("publish")
     publish_parser.add_argument("--version", required=True)
-    publish_parser.add_argument("--review", choices=("reused", "accepted"), required=True)
+    publish_parser.add_argument("--review", choices=("reused", "accepted", "not-required"), required=True)
     publish_parser.add_argument("--message", required=True)
     publish_parser.add_argument("--remote", default="origin")
     publish_parser.add_argument("--candidate-path", action="append", required=True)

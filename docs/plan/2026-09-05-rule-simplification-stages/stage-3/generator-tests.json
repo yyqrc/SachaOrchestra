@@ -1,0 +1,14 @@
+{
+  "command": [
+    "python",
+    "-B",
+    "-m",
+    "unittest",
+    "tests.test_setup_project",
+    "tests.test_document_project"
+  ],
+  "exit_code": 0,
+  "wall_seconds": 8.699,
+  "stdout": "",
+  "stderr": "............................................\n----------------------------------------------------------------------\nRan 44 tests in 8.481s\n\nOK\n"
+}

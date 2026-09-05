@@ -604,6 +604,219 @@ class DocumentProjectTests(ProjectTestCase):
         )
         self.assertNotIn("template_catalog", cleared["documentation"])
 
+    def test_project_catalog_recheck_between_resolution_and_write(self) -> None:
+        mutation_cases = (
+            ("unrelated_profile", True),
+            ("json_format", True),
+            ("selected_profile", False),
+            ("generation_policy", False),
+            ("template", False),
+        )
+
+        def prepare_project(kind: str, mutation: str):
+            project = self.root / f"documents-catalog-recheck-{kind}-{mutation}"
+            project.mkdir()
+            (project / "docs" / "archive" / "changes").mkdir(parents=True)
+            (project / "docs" / "roadmap").mkdir(parents=True)
+            catalog = project / "templates"
+            catalog.mkdir()
+
+            if kind == "publication":
+                selected_profile = {
+                    "id": "record-v1",
+                    "document_type": "change-archive",
+                    "primary_purpose": "record",
+                    "primary_question": "这次改了什么",
+                    "choose_when": ["存在持久改动"],
+                    "avoid_when": ["纯问答"],
+                    "required_topics": ["结果"],
+                    "optional_sections": ["背景"],
+                    "template": "record-v1.md",
+                    "reference_samples": [],
+                }
+                unrelated_profile = {
+                    "id": "guide-v1",
+                    "document_type": "system-guide",
+                    "primary_purpose": "explain",
+                    "primary_question": "系统如何工作",
+                    "choose_when": ["需要说明系统"],
+                    "avoid_when": ["只记录一次变更"],
+                    "required_topics": ["用途"],
+                    "optional_sections": ["历史"],
+                    "template": "guide-v1.md",
+                    "reference_samples": [],
+                }
+                selected_template = catalog / selected_profile["template"]
+                selected_template.write_text(
+                    "# {变更标题}\n\n## 结果\n\n{结果}\n",
+                    encoding="utf-8",
+                )
+                (catalog / unrelated_profile["template"]).write_text(
+                    "# {系统名称}\n\n## 用途\n\n{用途}\n",
+                    encoding="utf-8",
+                )
+                selected_id = selected_profile["id"]
+                document = self.document_input(output_path="changes/feature.md")
+                document.pop("sections")
+                document.update(
+                    template_profile=selected_id,
+                    rendered_markdown="# 功能变更存档\n\n## 结果\n\n已经完成。\n",
+                )
+                target = project / "docs" / "archive" / "changes" / "feature.md"
+            else:
+                selected_profile = {
+                    "id": "roadmap-v1",
+                    "document_type": "roadmap",
+                    "primary_purpose": "plan",
+                    "primary_question": "长期目标如何分阶段",
+                    "choose_when": ["需要跨阶段路线"],
+                    "avoid_when": ["只需要单个 Spec"],
+                    "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+                    "optional_sections": ["阅读导航"],
+                    "template": "roadmap-v1.md",
+                    "reference_samples": [],
+                }
+                unrelated_profile = {
+                    "id": "other-roadmap-v1",
+                    "document_type": "roadmap",
+                    "primary_purpose": "plan",
+                    "primary_question": "另一条路线",
+                    "choose_when": ["需要另一条路线"],
+                    "avoid_when": ["不需要路线"],
+                    "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+                    "optional_sections": ["阅读导航"],
+                    "template": "other-roadmap-v1.md",
+                    "reference_samples": [],
+                }
+                selected_template = catalog / selected_profile["template"]
+                selected_template.write_text(
+                    document_generator.CANONICAL_ROADMAP_TEMPLATE.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+                (catalog / unrelated_profile["template"]).write_text(
+                    document_generator.CANONICAL_ROADMAP_TEMPLATE.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+                selected_id = selected_profile["id"]
+                document = self.roadmap_input(template_profile=selected_id)
+                target = project / "docs" / "roadmap" / document["output_path"]
+
+            manifest = catalog / "profiles.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "selection": {
+                            "strategy": "manifest-ranked",
+                            "read_templates_before_selection": False,
+                            "tie_policy": "ask-human",
+                            "allow_profile_merge": False,
+                            "fallback_profile": selected_id,
+                        },
+                        "generation_policy": self.documentation_generation_policy(),
+                        "profiles": [selected_profile, unrelated_profile],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            setup_values = {
+                "manage_agents": False,
+                "documentation_policy": "on-request",
+                "documentation_root_kind": "project-relative",
+                "documentation_root": "docs/archive",
+                "documentation_write_authorization": "per-write-confirmation",
+                "documentation_template_catalog_path_kind": "project-relative",
+                "documentation_template_catalog_path": "templates",
+            }
+            if kind == "roadmap":
+                setup_values.update(
+                    roadmap_root_kind="project-relative",
+                    roadmap_root="docs/roadmap",
+                )
+            self.confirmed_setup(self.config(project, **setup_values))
+            return project, catalog, manifest, selected_template, document, target
+
+        for kind in ("publication", "roadmap"):
+            for mutation, should_commit in mutation_cases:
+                with self.subTest(kind=kind, mutation=mutation):
+                    (
+                        project,
+                        catalog,
+                        manifest,
+                        selected_template,
+                        document,
+                        target,
+                    ) = prepare_project(kind, mutation)
+                    manifest_before = manifest.read_bytes()
+                    template_before = selected_template.read_bytes()
+                    target_before = None if not target.exists() else target.read_bytes()
+
+                    def mutate_catalog_or_template() -> None:
+                        if mutation == "template":
+                            selected_template.write_bytes(
+                                template_before + b"\n<!-- template drift -->\n"
+                            )
+                            return
+                        value = json.loads(manifest_before.decode("utf-8"))
+                        if mutation == "unrelated_profile":
+                            value["profiles"][1]["primary_question"] += "（更新）"
+                        elif mutation == "selected_profile":
+                            value["profiles"][0]["primary_question"] += "（更新）"
+                        elif mutation == "generation_policy":
+                            value["generation_policy"]["structure_rule"] += "（更新）"
+                        elif mutation == "json_format":
+                            manifest.write_text(
+                                json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+                                encoding="utf-8",
+                            )
+                            return
+                        else:
+                            raise AssertionError(f"unknown catalog mutation: {mutation}")
+                        manifest.write_text(
+                            json.dumps(value, ensure_ascii=False),
+                            encoding="utf-8",
+                        )
+
+                    real_resolve = document_generator._resolve_profile_template
+                    resolve_calls = 0
+
+                    def resolve_with_mid_write_mutation(*args, **kwargs):
+                        nonlocal resolve_calls
+                        resolve_calls += 1
+                        if resolve_calls == 2:
+                            mutate_catalog_or_template()
+                        return real_resolve(*args, **kwargs)
+
+                    with mock.patch.object(
+                        document_generator,
+                        "_resolve_profile_template",
+                        side_effect=resolve_with_mid_write_mutation,
+                    ):
+                        result = document_generator.generate_project_document(
+                            project_root=project,
+                            workflow_rule_path="docs/workflow-rule.md",
+                            document_input=document,
+                            write=True,
+                            per_write_confirmed=True,
+                        )
+
+                    self.assertEqual(2, resolve_calls)
+                    if mutation == "template":
+                        self.assertNotEqual(template_before, selected_template.read_bytes())
+                    else:
+                        self.assertNotEqual(manifest_before, manifest.read_bytes())
+                    if should_commit:
+                        self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
+                        self.assertTrue(target.is_file())
+                        self.assertEqual(document["rendered_markdown"].encode("utf-8"), target.read_bytes())
+                        self.assertEqual(result["sha256"], digest(target))
+                    else:
+                        self.assertEqual(("failed", "no_write"), (result["status"], result["transaction"]))
+                        self.assertTrue(result["conflicts"])
+                        self.assertEqual(target_before, None if not target.exists() else target.read_bytes())
+                        self.assertFalse(target.exists())
+
     def test_change_archive_canonical_fallback_ignores_document_root_style_samples(self) -> None:
         project, document_root = self.configured_document_project(
             "documents-canonical-template",

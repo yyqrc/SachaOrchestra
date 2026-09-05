@@ -49,13 +49,13 @@ Planner → 改写项目约束、验收或失败保护 → 保留项目来源中
 
 Planner → 确定 Spec 事实 → 只接受项目规则、源码、配置、正式项目文档或已确认项目决定 → 其他来源不得单独定义项目约束或项目术语。
 
-Execution Report、Review Artifact、Handoff、其他工作流输出、运行时传输、Sacha Core 合同、Skill、Runtime Adapter 和 Planner 内部推理 → 只提供证据、流程状态或行为规则 → 不得原样或通过翻译、改写、概括、同义替换进入 Spec。输入同时包含项目事实和流程动作时，Planner 只写有独立项目来源的事实。
+按内容在当前任务中的用途判断来源：Execution Report、Review Artifact、Handoff、自报和内部推理只提供线索或证据索引，不能单独定义项目事实。Sacha Core 合同、Skill 或 Runtime Adapter 本身是目标项目的现行产品源码或规范时，可用于描述该产品的接口、约束和拟修改行为；当前任务如何被编排、派发和传输仍不进入 Spec。混合输入只提取有项目来源支持的内容。
 
-Planner → 遇到工作流角色、路由、协调、验证责任分类、迁移、裁决或运行时传输信息 → 分别交给 [Workflow Contract](workflow-contract.md)、[Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md)、Review Artifact、Handoff 或 Runtime Adapter → 不写入 Spec。
+Planner → 遇到用于编排当前任务的角色、路由、协调、验证责任分类、迁移、裁决或运行时传输信息 → 分别交给 [Workflow Contract](workflow-contract.md)、[Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md)、Review Artifact、Handoff 或 Runtime Adapter → 不写入 Spec。
 
-项目运行所需环境和数据前提进入“实施前提与依赖”；授权、任务迁移、单写入者和恢复路由由主任务按 [Intake Contract](intake-contract.md)、[Workflow Contract](workflow-contract.md) 与 [Coordination Contract](coordination-contract.md) 判断，并在存在恢复消费者时通过 Handoff 交付，不写入 Spec。
+项目运行所需环境和数据前提进入“实施前提与依赖”；当前任务的授权、任务迁移、单写入者和恢复路由由主任务按 [Intake Contract](intake-contract.md)、[Workflow Contract](workflow-contract.md) 与 [Coordination Contract](coordination-contract.md) 判断，并在存在恢复消费者时通过 Handoff 交付，不写入 Spec。
 
-批准后的 Spec 是唯一实施与评审基线。实施事实证明其中的范围、技术决定或验收失效时，Executor 只报告项目事实和证据，由 Workflow Contract 决定下一路由；Spec 不保存返回某个 Role、重新规划、进入评审或其他同义流程指令。
+批准后的 Spec 是唯一实施与评审基线。实施事实证明其中的范围、技术决定或验收失效时，Executor 只报告项目事实和证据，由 Workflow Contract 决定下一路由；Spec 不保存指挥当前任务返回某个 Role、重新规划、进入评审或其他同义流程指令。
 
 ### 2.2 生成与消费
 
@@ -75,7 +75,7 @@ Execution Report 在恢复、证据索引或正式 Review 存在消费者时随�
 - 主任务 → 收到 Workflow Contract 路由的 Spec 完成动作 → 从当前任务、批准 Spec reference 或 Human 明确 path 取得当前 Spec → 不得扫描 Spec storage root 按时间或名称猜测当前任务。
 - 当前 Spec 缺失、存在多个候选、不是可达的单一 `spec.md`、未批准或头部状态行不唯一 → 失败关闭且不写入。
 - 当前任务尚未进入 `goal_complete`，或必需验证与适用 Review 尚未满足 → 保持 Spec 原状态并报告未满足条件 → `goal_partial`、`goal_cancelled`、`goal_superseded` 和其他非完成终态不得标记为已完成。
-- 当前上下文可写且本次 Spec 状态写入已有明确 Human 授权 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
+- 当前上下文可写，且本次 Spec 状态写入由实施批准或显式收口请求覆盖 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
 - Spec 已是“已完成” → 返回 `no_op`；状态行变化、只读上下文或局部编辑失败 → 不盲目重试、不移动文件、不创建替代 Artifact，报告原始缺口与恢复条件。
 - Spec 完成只消费任务终态，不生成项目文档；项目文档继续由 `document-project` 按独立策略和授权处理。
 

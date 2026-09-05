@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+from unittest import mock
 
 if __package__:
     from .project_test_support import ProjectTestCase, SETUP_SCRIPT, digest, generator
@@ -218,6 +219,184 @@ class SetupProjectTests(ProjectTestCase):
             write=True,
         )
         self.assertEqual("no_changes", repeated["transaction"])
+
+    def test_existing_agents_without_expected_allows_no_changes(self) -> None:
+        project = self.root / "unchanged-agents"
+        project.mkdir()
+
+        committed = self.confirmed_setup(self.config(project))
+        self.assertEqual("committed", committed["transaction"])
+        before = {
+            path.relative_to(project).as_posix(): path.read_bytes()
+            for path in project.rglob("*")
+            if path.is_file()
+        }
+
+        rerun = generator.run_setup(self.config(project), write=True)
+
+        self.assertEqual(("ok", "no_changes"), (rerun["status"], rerun["transaction"]))
+        self.assertEqual("unchanged", rerun["agents_block"]["action"])
+        self.assertEqual(
+            before,
+            {
+                path.relative_to(project).as_posix(): path.read_bytes()
+                for path in project.rglob("*")
+                if path.is_file()
+            },
+        )
+
+    def test_existing_agents_without_expected_allows_workflow_and_state_changes(self) -> None:
+        project = self.root / "workflow-state-only"
+        project.mkdir()
+        (project / "TEAM.md").write_text("# Team rules\n", encoding="utf-8")
+
+        initial_config = self.config(project, ignored_rule_candidates=("TEAM.md",))
+        initial = self.confirmed_setup(initial_config)
+        self.assertEqual("committed", initial["transaction"])
+        agents = project / "AGENTS.md"
+        workflow = project / "docs" / "workflow-rule.md"
+        state = project / "docs" / "workflow-rule.state.json"
+        agents_before = agents.read_bytes()
+        workflow_before = workflow.read_bytes()
+        state_before = state.read_bytes()
+        (project / "PROJECT.md").write_text("# Project rules\n", encoding="utf-8")
+
+        changed_config = self.config(
+            project,
+            spec_base="plans",
+            ignored_rule_candidates=("TEAM.md", "PROJECT.md"),
+            expected_workflow_sha256=digest(workflow),
+        )
+        dry_run = generator.run_setup(changed_config)
+        self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
+        self.assertEqual("update", dry_run["workflow_rule"]["action"])
+        self.assertEqual("update", dry_run["workflow_state"]["action"])
+        self.assertEqual("unchanged", dry_run["agents_block"]["action"])
+        self.assertEqual(
+            ["docs/workflow-rule.md", "docs/workflow-rule.state.json"],
+            dry_run["changed_files"],
+        )
+
+        committed = generator.run_setup(
+            changed_config,
+            write=True,
+            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+        )
+
+        self.assertEqual(("ok", "committed"), (committed["status"], committed["transaction"]))
+        self.assertEqual(agents_before, agents.read_bytes())
+        self.assertNotEqual(workflow_before, workflow.read_bytes())
+        self.assertNotEqual(state_before, state.read_bytes())
+
+    def test_agents_update_without_expected_refuses_without_writing(self) -> None:
+        project = self.root / "agents-update-missing-expected"
+        project.mkdir()
+
+        initial = self.confirmed_setup(self.config(project))
+        self.assertEqual("committed", initial["transaction"])
+        before = {
+            path.relative_to(project).as_posix(): path.read_bytes()
+            for path in project.rglob("*")
+            if path.is_file()
+        }
+        changed_config = self.config(
+            project,
+            project_rules_sources=(
+                ("cgame-unity:project-rules", b"# Updated rules\n- keep this"),
+            ),
+        )
+        dry_run = generator.run_setup(changed_config)
+        self.assertEqual("update", dry_run["agents_block"]["action"])
+
+        refused = generator.run_setup(
+            changed_config,
+            write=True,
+            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
+                "planned_delta_sha256"
+            ],
+        )
+
+        self.assertEqual(("refused", "no_write"), (refused["status"], refused["transaction"]))
+        self.assertIn(
+            "existing Project AGENTS requires expected SHA-256 for write",
+            refused["conflicts"],
+        )
+        self.assertEqual(
+            before,
+            {
+                path.relative_to(project).as_posix(): path.read_bytes()
+                for path in project.rglob("*")
+                if path.is_file()
+            },
+        )
+
+    def test_stale_agents_expected_refuses_even_when_unchanged(self) -> None:
+        project = self.root / "stale-unchanged-agents"
+        project.mkdir()
+
+        initial = self.confirmed_setup(self.config(project))
+        self.assertEqual("committed", initial["transaction"])
+        baseline = generator.run_setup(self.config(project))
+        self.assertEqual("unchanged", baseline["agents_block"]["action"])
+        before = {
+            path.relative_to(project).as_posix(): path.read_bytes()
+            for path in project.rglob("*")
+            if path.is_file()
+        }
+
+        refused = generator.run_setup(
+            self.config(project, expected_agents_sha256="0" * 64),
+            write=True,
+        )
+
+        self.assertEqual(("refused", "no_write"), (refused["status"], refused["transaction"]))
+        self.assertIn("Project AGENTS expected SHA-256 is stale", refused["conflicts"])
+        self.assertEqual(
+            before,
+            {
+                path.relative_to(project).as_posix(): path.read_bytes()
+                for path in project.rglob("*")
+                if path.is_file()
+            },
+        )
+
+    def test_prepare_temp_writes_and_returns_exact_bytes(self) -> None:
+        target = self.root / "prepared" / "target.bin"
+        target.parent.mkdir()
+        data = b"\x00\xff\x80raw bytes\r\n"
+
+        temp_path = generator._prepare_temp(target, data)
+        try:
+            self.assertTrue(temp_path.is_file())
+            self.assertEqual(data, temp_path.read_bytes())
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def test_prepare_temp_cleans_file_when_readback_differs(self) -> None:
+        target = self.root / "mismatch" / "target.bin"
+        target.parent.mkdir()
+
+        with mock.patch.object(generator.Path, "read_bytes", return_value=b"different"):
+            with self.assertRaisesRegex(OSError, "temporary file validation failed"):
+                generator._prepare_temp(target, b"expected")
+
+        self.assertEqual([], list(target.parent.glob(".sacha-setup-*.tmp")))
+
+    def test_prepare_temp_cleans_file_when_readback_raises(self) -> None:
+        target = self.root / "readback-error" / "target.bin"
+        target.parent.mkdir()
+
+        with mock.patch.object(
+            generator.Path,
+            "read_bytes",
+            side_effect=OSError("injected readback failure"),
+        ):
+            with self.assertRaisesRegex(OSError, "injected readback failure"):
+                generator._prepare_temp(target, b"expected")
+
+        self.assertEqual([], list(target.parent.glob(".sacha-setup-*.tmp")))
 
     def test_setup_cli_requires_exact_planned_delta_confirmation(self) -> None:
         project = self.root / "confirmation-cli"

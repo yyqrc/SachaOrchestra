@@ -1,0 +1,789 @@
+--- a/plugins/sacha-orchestra/core/intake-contract.md
++++ b/plugins/sacha-orchestra/core/intake-contract.md
+@@ -23,7 +23,7 @@
+   - 已有 Planner Gate 事实时，目标、Scope、Acceptance、Owner 或路径存在实质不确定性；实施前需要关键 Human 澄清、需要起草/冻结供后续实施或验收使用的完整可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。是否已经出现“持久化”或“落盘”字样不改变这个判断。
+ 
+ - Planner、Executor、Reviewer 接受 Human 直接调用。
+-- Explore 接受 Human 显式窄授权，或由活跃 Planner 路由。
++- Explore 接受 Human 显式窄授权，或由活跃 Planner / Roadmap 路由。
+ - Roadmap 只接受 Human 显式调用；该调用不接受 Sacha 或进入生产 Role。
+ - document-project 接受 Human 显式文档请求，或由 Workflow 收尾候选路由。
+ - Feedback 接受 Human 在另一个真实任务手动提交的流程问题、使用反馈、插件开发建议或能力想法。
+--- a/plugins/sacha-orchestra/skills/explore/SKILL.md
++++ b/plugins/sacha-orchestra/skills/explore/SKILL.md
+@@ -18,7 +18,7 @@
+ 
+ ## 动作顺序
+ 
+-1. Human 显式要求对齐、解释、调查或讨论，或其当前表达尚不足以支撑取舍时，先进入 `brainstorm` 或 `research`；是否具备选择条件按第 5 步引用的 Human Interaction Contract 判断。
++1. 按当前缺口选择下列工作意图，不规定固定起始顺序：目标模糊时澄清，事实不清时调查，已有方案时可直接检验前提和反例。Human 表达不足以支撑取舍时先解释或调查；是否具备选择条件按第 5 步引用的 Human Interaction Contract 判断。
+ 2. 根据当前输入组合以下工作意图：
+    - `brainstorm`：想法还模糊时，先同步目标结果、Non-goals 和主要约束；存在实质不同的候选时，先解释差异与未知，再在具备选择条件后比较取舍并给出推荐。
+    - `research`：方向已有但现状、内部先例、外部能力或成熟方案不清时，先按当前决定边界把陌生领域拆成可核实问题，用代码、项目资料、可用 Skill 和必要的一手资料形成可比较事实并解释因果，再判断是否仍有 Human 取舍；可在当前上下文完成或按第 6 步委派。
+--- a/plugins/sacha-orchestra/core/human-interaction-contract.md
++++ b/plugins/sacha-orchestra/core/human-interaction-contract.md
+@@ -14,7 +14,7 @@
+ - 进度只报告新事实、风险、阻塞或计划变化。
+ - 当前节点向 Human 报告时，必须使用当前任务的对象和动作说明实际进展、影响与下一步；需要说明 Skill 使用时，只在首次改变当前任务动作时用一句话保留 Skill 名称、实际动作和对 Human 的直接影响。宿主要求披露 Skill 使用不构成重复播报合同读取、Gate、Role、能力选择、职责路由、协作调度、治理检查、记录或传输状态的理由；这些内容只有成为当前调查对象，或直接影响 Human 决定、授权、恢复和下一步时才展示。
+ - 当前任务调查或修改工作流、工具或运行时自身实现时，进度仍只用当前产品目标、代码事实、实际修改、风险和验证表达；除非 Human 明确要求诊断当前任务的执行过程，否则不得把目标源码中的内部结构投影为当前任务状态。
+-- Human 需要判断修复、方案或调整时，先列文件数量与 path、逐文件改动、增改删的规则或代码块及可确定行数、验证范围、是否需回应；不确定项标明估算与收敛条件。
++- Human 需要判断修复、方案或调整时，说明受影响 path、实际行为变化、验证范围和待决定项；需要核对具体修改时提供有上下文的差异。文件数、行数和逐文件明细只在已确定且有助审查时提供，不确定项说明收敛条件。
+ - 输出必须明确标记授权影响、安全或数据风险、失败、未验证、Scope 偏离、恢复条件，以及消费者必需的 reference、Entry Condition 和参数结构（schema）。
+ 
+ ## 3. Human 决定与对话同步
+@@ -31,5 +31,5 @@
+ 
+ ## 4. 收口
+ 
+-- 一次回复包含多个问题、建议、取舍或异议点时，正文后用稳定编号汇总结论、关键影响、待决定事项及是否需要 Human 回应；单一结论、进度或纯事实不强制编号。
++- 多个独立待决定项或后续需要逐项引用时使用稳定编号；正文已清楚呈现结论、关键影响及是否需要回应时，不再追加重复清单。
+ - 授权、Artifact 和流程状态只由各自 Owner 更新；Human 输出的排版和摘要不改变这些状态。
+--- a/plugins/sacha-orchestra/core/artifact-protocol.md
++++ b/plugins/sacha-orchestra/core/artifact-protocol.md
+@@ -49,13 +49,13 @@
+ 
+ Planner → 确定 Spec 事实 → 只接受项目规则、源码、配置、正式项目文档或已确认项目决定 → 其他来源不得单独定义项目约束或项目术语。
+ 
+-Execution Report、Review Artifact、Handoff、其他工作流输出、运行时传输、Sacha Core 合同、Skill、Runtime Adapter 和 Planner 内部推理 → 只提供证据、流程状态或行为规则 → 不得原样或通过翻译、改写、概括、同义替换进入 Spec。输入同时包含项目事实和流程动作时，Planner 只写有独立项目来源的事实。
++按内容在当前任务中的用途判断来源：Execution Report、Review Artifact、Handoff、自报和内部推理只提供线索或证据索引，不能单独定义项目事实。Sacha Core 合同、Skill 或 Runtime Adapter 本身是目标项目的现行产品源码或规范时，可用于描述该产品的接口、约束和拟修改行为；当前任务如何被编排、派发和传输仍不进入 Spec。混合输入只提取有项目来源支持的内容。
+ 
+-Planner → 遇到工作流角色、路由、协调、验证责任分类、迁移、裁决或运行时传输信息 → 分别交给 [Workflow Contract](workflow-contract.md)、[Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md)、Review Artifact、Handoff 或 Runtime Adapter → 不写入 Spec。
++Planner → 遇到用于编排当前任务的角色、路由、协调、验证责任分类、迁移、裁决或运行时传输信息 → 分别交给 [Workflow Contract](workflow-contract.md)、[Assurance Contract](assurance-contract.md)、[Coordination Contract](coordination-contract.md)、Review Artifact、Handoff 或 Runtime Adapter → 不写入 Spec。
+ 
+-项目运行所需环境和数据前提进入“实施前提与依赖”；授权、任务迁移、单写入者和恢复路由由主任务按 [Intake Contract](intake-contract.md)、[Workflow Contract](workflow-contract.md) 与 [Coordination Contract](coordination-contract.md) 判断，并在存在恢复消费者时通过 Handoff 交付，不写入 Spec。
++项目运行所需环境和数据前提进入“实施前提与依赖”；当前任务的授权、任务迁移、单写入者和恢复路由由主任务按 [Intake Contract](intake-contract.md)、[Workflow Contract](workflow-contract.md) 与 [Coordination Contract](coordination-contract.md) 判断，并在存在恢复消费者时通过 Handoff 交付，不写入 Spec。
+ 
+-批准后的 Spec 是唯一实施与评审基线。实施事实证明其中的范围、技术决定或验收失效时，Executor 只报告项目事实和证据，由 Workflow Contract 决定下一路由；Spec 不保存返回某个 Role、重新规划、进入评审或其他同义流程指令。
++批准后的 Spec 是唯一实施与评审基线。实施事实证明其中的范围、技术决定或验收失效时，Executor 只报告项目事实和证据，由 Workflow Contract 决定下一路由；Spec 不保存指挥当前任务返回某个 Role、重新规划、进入评审或其他同义流程指令。
+ 
+ ### 2.2 生成与消费
+ 
+@@ -75,7 +75,7 @@
+ - 主任务 → 收到 Workflow Contract 路由的 Spec 完成动作 → 从当前任务、批准 Spec reference 或 Human 明确 path 取得当前 Spec → 不得扫描 Spec storage root 按时间或名称猜测当前任务。
+ - 当前 Spec 缺失、存在多个候选、不是可达的单一 `spec.md`、未批准或头部状态行不唯一 → 失败关闭且不写入。
+ - 当前任务尚未进入 `goal_complete`，或必需验证与适用 Review 尚未满足 → 保持 Spec 原状态并报告未满足条件 → `goal_partial`、`goal_cancelled`、`goal_superseded` 和其他非完成终态不得标记为已完成。
+-- 当前上下文可写且本次 Spec 状态写入已有明确 Human 授权 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
++- 当前上下文可写，且本次 Spec 状态写入由实施批准或显式收口请求覆盖 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
+ - Spec 已是“已完成” → 返回 `no_op`；状态行变化、只读上下文或局部编辑失败 → 不盲目重试、不移动文件、不创建替代 Artifact，报告原始缺口与恢复条件。
+ - Spec 完成只消费任务终态，不生成项目文档；项目文档继续由 `document-project` 按独立策略和授权处理。
+ 
+--- a/plugins/sacha-orchestra/skills/planner/SKILL.md
++++ b/plugins/sacha-orchestra/skills/planner/SKILL.md
+@@ -21,7 +21,7 @@
+ 1. Spec Artifact 沿用[术语合同](../../core/terminology-contract.md)；当前上下文可恢复时使用内联 Plan，方案需 Human 批准、属于破坏性变更或需要跨上下文恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
+ 2. 仅在冻结条件满足且命中持久化条件后，才把完整方案写入 `spec.md` 并回读，再向 Human 交付。
+    持久化优先使用已确认的 Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需将 `decisions.md` 写入同一目录。
+-3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告、工作流输出、运行时传输及 Sacha 规则只用于各自消费者，不进入起草来源。
++3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告和工作流输出仅作索引；按 Artifact Protocol 区分目标产品的规范与当前任务编排信息，前者可以作为项目来源，后者不进入 Spec。
+ 4. 只使用上一步确认的项目来源，按 Artifact Protocol 的唯一内容格式生成面向目标项目的实施规格；项目已有格式只有在完整承载该格式语义时才沿用。
+ 5. 回读并核对 Spec 中所有保留英文的既有项目标识，以及所有拟新增的实现标识和项目概念名称。既有标识逐个与已确认项目来源精确匹配；项目来源未定义简称或别名时，必须改回完整项目名称。拟新增标识和概念名称逐个核对目标位置、相邻 Owner、直接消费者与项目当前命名习惯，命名依据和含义必须由项目来源或 Human 项目决定支持。
+ 6. 逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。
+--- a/plugins/sacha-orchestra/skills/executor/SKILL.md
++++ b/plugins/sacha-orchestra/skills/executor/SKILL.md
+@@ -17,7 +17,7 @@
+ 
+ ## 动作顺序
+ 
+-1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；工作流角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取，不从 Spec 推导。
++1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；用于编排当前任务的角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取；Spec 中的目标产品行为不构成当前任务的路由或额外授权。
+ 2. 实施事实证明批准 Spec 的范围、技术决定或验收失效时，返回具体项目事实和原始证据供主任务路由；产品代码、日志、异常、注释、界面、弹窗或其他项目输出只表达目标项目语义，不复制 Artifact Protocol 排除出 Spec 的信息。
+ 3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求。实施前先按 [Workflow Contract](../../core/workflow-contract.md) 判断能否形成至少两个独立工作单元；成立时调用 Manager 统一协调，由 Coordination 按就绪、安全和实际收益选择串行或派发。只有一个 `execution-ready` 单元且符合 [Coordination Contract](../../core/coordination-contract.md) 的上下文隔离条件时，主任务只在派发有实际收益时直接派发；局部动作留在当前上下文。Executor 委派 Agent 只返回结果或协调请求，共享输出由集成 Owner 串行处理。
+ 4. 按受影响的直接消费者、真实生产入口和交付层选择最窄充分验证，并读取退出状态、错误、警告和失败计数。聚焦测试、覆盖范围、构建、生成物、Runtime 和 Human 验收分别只证明其直接范围；动态加载、进程、设备或外部 Provider 行为必须由对应入口证明，输入、目标、配置和产物未变化时复用仍有效的证据。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
+--- a/plugins/sacha-orchestra/core/workflow-contract.md
++++ b/plugins/sacha-orchestra/core/workflow-contract.md
+@@ -63,8 +63,10 @@
+ | Gate | 打开事实 | 不构成事实 |
+ | --- | --- | --- |
+ | Planner | 目标、验收/Owner 不清；实施前需关键 Human 澄清；需冻结/持久化 Spec；实质方案或难回退的跨 Owner 决策 | 复杂、文件多、耗时、多平台、无分歧修改 |
+-| Reviewer | 安全/权限/持久数据、破坏性变更、困难回退、关键验证缺失/证据冲突或 Human 要求 | 文档标签、版本封装、可回退且完整验证的局部修改 |
++| Reviewer | 安全/权限/持久数据、破坏性变更、困难回退、证据冲突、无法判断关键证据缺口的阻塞性、安全补证路径耗尽后需要正式裁决或 Human 要求 | 文档标签、版本封装、可回退且完整验证的局部修改；当前 Executor 仍可按既定验收完成的补证 |
+ | Manager | 至少两个输入自足、输出可隔离且可独立检查的工作单元；多个候选、依赖图、安全并发、正式恢复或多环境需要协调 Owner | 无法形成独立完成检查的局部动作；困难、耗时、多文件或只想增加 Agent；一个单元仅需隔离中间过程 |
++
++Executor 先在既有职责与授权内完成可完成的必需验证和补证，不为已明确且可处理的缺口先做一次 Review。其他 Reviewer Gate 事实、证据冲突或缺口阻塞性不明时仍进入独立 Review；未完成的必需验证不得记为完成。
+ 
+ Gate 绑定 Scope、验收、Owner、交付、安全/权限和依赖事实。Direct 或活跃工作流出现表中新的打开事实时必须重评估。
+ 名称或新上下文不证明 Reviewer 独立；参与当前方案/实现者不能作独立 Reviewer。
+@@ -77,9 +79,9 @@
+ 
+ 本节沿用术语合同定义的普通批准、明确迁移批准、可靠迁移信号和执行任务迁移前提；本合同只规定这些判断产生的流程路由。
+ 
+-主任务 → Human 审阅 Spec 前 → 只依据可核实事实判断可靠迁移信号，并按 Human Interaction Contract 给出普通批准、明确迁移批准和要求调整 → 信号成立时将明确迁移批准置首，否则将普通批准置首。
++主任务 → Human 审阅 Spec 前 → 只依据可核实事实判断可靠迁移信号，并按 Human Interaction Contract 给出普通批准、明确迁移批准和要求调整 → 信号成立时将明确迁移批准置首，否则将普通批准置首。首次具备既有审阅和迁移推荐条件时及时交付，不为继续积累历史而延后；已明确选择在当前任务继续且相关事实未变时直接消费，不重复提问。
+ 
+-Human → 选择普通批准 → 主任务进入 Executor。
++Human → 选择普通批准 → 主任务进入 Executor。批准实施同时覆盖本次唯一已批准 Spec 在满足完成条件后的原位状态收口；不授权项目文档、任务迁移、安装、Git、发布或其他外部动作。明确迁移批准沿用这一状态收口授权。用户另有状态保留要求时服从该要求。
+ 
+ Human → 选择明确迁移批准 → 主任务停止实施和写入派发并核对执行任务迁移前提 → 全部满足时由 Adapter 查询、复用或创建唯一目标任务；标识/去重、单写入者与 Owner 转移归 Coordination。
+ 
+@@ -89,7 +91,7 @@
+ 
+ 主任务 → 明确迁移批准不满足执行任务迁移前提 → 报告缺口与恢复条件并停止迁移 → 条件恢复后重新核对；只有 Human 改为普通批准才进入 Executor。
+ 
+-目标任务唯一确定并取得最小 Handoff 后，任务迁移才把工作流 Owner、剩余生命周期与派发权交给目标任务；来源主任务交付目标任务 reference 后结束，不等待返回。目标任务成为主任务并继续同一生命周期与独立 Review，迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
++目标任务唯一确定并取得最小 Handoff 后，任务迁移才把工作流 Owner、剩余生命周期与派发权交给目标任务；来源主任务交付目标任务 reference 后结束，不等待返回。目标任务成为主任务并继续同一生命周期，Reviewer Gate 打开时执行独立 Review；迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
+ 
+ Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Explore、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
+ 
+@@ -104,7 +106,9 @@
+ 
+ closeout 当前动作为 Spec 完成时，主任务只在当前任务已是 `goal_complete`、必需验证与适用 Review 已满足后，按 Artifact Protocol 原位完成当前唯一已批准 Spec；任何条件不足都失败关闭，且不把 Human 请求当作完成证据。
+ 
+-closeout 当前动作为组合动作时，主任务先核对两个动作的目标与授权。Spec 状态写入需要明确 Human 授权；项目文档仍服从 Project Integration，`per-write-confirmation` 不被组合请求替代。两个动作预检完成前不写；通过后先完成 Spec，再以 `human-request` 进入 `document-project`。文档动作后续失败时保留合法的 Spec 完成结果，并报告部分完成与文档恢复入口。
++closeout 当前动作为组合动作时，主任务先核对两个动作的目标与授权。Spec 状态写入沿用实施批准或显式收口授权；项目文档仍服从 Project Integration。`per-write-confirmation` 核对本次具体目标、正文与写入范围是否已获确认；已明确覆盖的同一次请求直接消费，缺少具体写入确认时才提问。两个动作预检完成前不写；通过后先完成 Spec，再以 `human-request` 进入 `document-project`。文档动作后续失败时保留合法的 Spec 完成结果，并报告部分完成与文档恢复入口。
++
++正常实施的项目文档候选处理结束，且本次全部阻塞验收、必需验证与适用 Review 已满足并进入 `goal_complete` 后，主任务消费实施批准中的状态收口授权，按 Artifact Protocol 原位完成本次唯一已批准 Spec；无 Spec 或用户要求保留状态时跳过状态写入。阻塞性文档尚未完成时不提前收口；非阻塞文档失败不阻止已满足条件的状态收口。状态编辑失败保留实现完成证据并报告恢复条件，不把文档生成当作补偿。
+ 
+ ## 6. 项目文档
+ 
+--- a/plugins/sacha-orchestra/skills/closeout/SKILL.md
++++ b/plugins/sacha-orchestra/skills/closeout/SKILL.md
+@@ -18,8 +18,8 @@
+ 
+ ## 动作顺序
+ 
+-1. “收口”本身只构成本次 Spec 状态写入授权；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
+-2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 仍须对项目文档单独确认；未满足前两个动作都不写。
++1. “收口”本身构成本次 Spec 状态写入授权；已有实施批准覆盖正常完成后的同一状态写入时，不要求再调用本 Skill；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
++2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 按 Workflow Contract 核对本次具体文档写入是否已获确认，已有确认直接消费；未满足前两个动作都不写。
+ 3. 预检通过后先原位完成 Spec，再把“存档”以 `human-request` 路由给 `$sacha-orchestra:document-project`。文档写入失败不回滚已合法完成的 Spec；报告部分完成、失败证据和文档恢复入口。
+ 
+ ## 输出
+--- a/plugins/sacha-orchestra/skills/document-project/SKILL.md
++++ b/plugins/sacha-orchestra/skills/document-project/SKILL.md
+@@ -35,8 +35,8 @@
+ 3. `roadmap` 读取并消费 [Roadmap 文档输入](assets/roadmap.json)，校验所选 Roadmap Profile/template、标题、九个必需语义章节、唯一文件名、Roadmap root 包含关系、`create | update` 与 `expected_target_sha256`；Profile 只提供文风和章节组织，正文语义仍由 Roadmap Skill 拥有。
+ 4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner，正文描述当前项目状态而不叙述任务过程、Review 编舞或 Sacha 路由；每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
+ 5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。预览检查策略、trigger、目标、原像和结构，返回既有目标与摘要字段；本次写入授权及已有 Context 定义覆盖确认只在 `--write` 时检查。显式发布文档目标输入包含项目相对 `target_path`、`create | update`、update preimage、可选项目相对 template catalog path、Profile 与完整正文。
+-6. 显式发布文档目标试运行通过后增加 `--write`；`required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；其他显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 变化时重新确认。
+-7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式校验当前 manifest、所选 Profile 的类型/版本/template path、选中模板的 SHA-256 与 `generation_policy`。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
++6. 显式发布文档目标试运行通过后增加 `--write`；`required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；其他显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 超出已确认写入范围时重新确认；当前请求已明确覆盖同一次具体写入时直接消费，不因参数名再次提问。
++7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式再次完整校验当前 manifest，并比较所选 Profile 的完整结构、选中模板的 SHA-256 与 `generation_policy`；其他 Profile 的合法变化或 JSON 排版变化不构成选中模板冲突。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
+ 8. 发布文档按明确 mode 原子新建或以 preimage 原位更新；Roadmap 同样按 mode 写入；Context 只写受管区。并发变化时停止写入，写后校验失败时恢复原内容。
+ 
+ ## 输出
+--- a/plugins/sacha-orchestra/core/assurance-contract.md
++++ b/plugins/sacha-orchestra/core/assurance-contract.md
+@@ -10,20 +10,20 @@
+ ## 2. Baseline 与证据
+ 
+ 正式 Review 维护一个实现 Baseline。Git 使用可解析的 commit/range/diff/文件集；其他状态才补 manifest/hash。
+-Baseline/`acceptance_revision` 变化使旧裁决失效；仅证据变更只复核 `changed_check_ids`，Review 记录只追加。
++Baseline/`acceptance_revision` 变化后需对当前交付形成裁决；复核新增差异、直接影响及因此失效的证据，仍有效的检查可复用。仅证据变更只复核 `changed_check_ids`，Review 记录只追加。
+ 
+ 验收矩阵使用稳定的 `check_id`。摘要保留 Scope/修订号、必需/已尝试状态、结果、reference、风险、恢复入口、人工状态与计数。
+ 人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、过期、不可达或计数不一致时保持未验证；Provider、报告和自报不拥有裁决权。
+ 
+ Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。自动化无法证明的检查给出具体 Human/外部路线，并按证据状态选择 Outcome。
+ 
+-存在批准 Spec 时，本文从其中的项目验收标准建立验收矩阵；没有 Spec 时，使用明确目标、Scope、Human 决定和项目验收输入。验收再按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。A/B/C 是验收执行分类，不写回面向项目的 Spec。B 类等待期间保持同一工作流的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。发布阻塞的 B/C 类检查未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
++存在批准 Spec 时，本文从其中的项目验收标准建立验收矩阵；没有 Spec 时，使用明确目标、Scope、Human 决定和项目验收输入。验收再按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。A/B/C 是验收执行分类，不写回面向项目的 Spec。B 类等待期间保持同一工作流的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。本次交付阻塞的 B/C 类检查未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
+ 
+ ## 3. Outcome 与路由
+ 
+ | Outcome | 使用边界 |
+ | --- | --- |
+-| `Accepted` | Scope 与全部发布阻塞检查满足 |
++| `Accepted` | Scope 与全部本次交付阻塞检查满足 |
+ | `Accepted with follow-up` | 仅剩非阻塞人工、环境或证据后续 |
+ | `Needs Evidence` | 必需证据不足 |
+ | `Needs Fix` | 已知缺陷、真实失败或不可接受风险 |
+--- a/PLUGIN_DESIGN.md
++++ b/PLUGIN_DESIGN.md
+@@ -41,7 +41,7 @@
+     ENTRY -->|"默认评估或显式 using-sacha"| INTAKE{"using-sacha Intake"}
+     INTAKE -->|"无入口候选，或 Human 拒绝同一入口候选"| DIRECT["当前任务直接完成"]
+     DIRECT -->|"出现改变执行方式的新事实"| INTAKE
+-    DIRECT --> CLOSE["结束 / 合法根终态"]
++    DIRECT --> CLOSE["结束 / 合法根终态<br/>正常实施：全部阻塞验收满足后自动收口本次 Spec"]
+ 
+     INTAKE -->|"明确要求用 Sacha 编排 / Human 选择接受：已接受"| PLANNER_GATE{"Planner Gate？"}
+     INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
+@@ -98,7 +98,7 @@
+     EXEC_AUTH -->|"批准，或继续已授权安全子集"| EXECUTOR
+     EXEC_AUTH -->|"要求调整 Scope / 方案 / 验收"| PLANNER
+     EXEC_AUTH -->|"取消或无法继续"| CLOSE
+-    EXECUTOR --> REVIEW_GATE{"Reviewer Gate？"}
++    EXECUTOR -->|"先完成可完成的必需验证；证据冲突等仍按 Gate 判断"| REVIEW_GATE{"Reviewer Gate？"}
+     REVIEW_GATE -->|"否"| DOC_CANDIDATE{"项目文档候选成立？"}
+     REVIEW_GATE -->|"是"| REVIEWER["独立 Reviewer：核对来源独立性 / Baseline / Evidence"]
+     REVIEWER -->|"Accepted / Accepted with follow-up"| DOC_CANDIDATE
+--- a/plugins/sacha-orchestra/skills/setup-project/scripts/generate_project_integration.py
++++ b/plugins/sacha-orchestra/skills/setup-project/scripts/generate_project_integration.py
+@@ -2000,7 +2000,7 @@
+             stream.write(data)
+             stream.flush()
+             os.fsync(stream.fileno())
+-        if sha256_bytes(temp_path.read_bytes()) != sha256_bytes(data):
++        if temp_path.read_bytes() != data:
+             raise OSError("temporary file validation failed")
+         return temp_path
+     except Exception:
+@@ -2420,8 +2420,6 @@
+                 "existed": agents_existed,
+                 "preimage_sha256": agents_hash,
+             }
+-            if agents_existed and write and expected_agents is None:
+-                raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
+             if expected_agents is not None and expected_agents != agents_hash:
+                 raise SetupError("Project AGENTS expected SHA-256 is stale")
+             existing_project_rules = _extract_project_rules(
+@@ -2456,6 +2454,8 @@
+             }
+             result["targets"][agents_rel] = _target_record(agents_rel, agents_existed, agents_hash)
+             if agents_action != "unchanged":
++                if agents_existed and write and expected_agents is None:
++                    raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
+                 targets.append({
+                     "path": agents_path,
+                     "relative": agents_rel,
+--- a/plugins/sacha-orchestra/skills/document-project/scripts/generate_project_document.py
++++ b/plugins/sacha-orchestra/skills/document-project/scripts/generate_project_document.py
+@@ -561,7 +561,7 @@
+ ) -> dict[str, Any]:
+     if "template_catalog" not in documentation:
+         return _resolve_bundled_profile_template(document_type, profile)
+-    root, catalog, manifest, manifest_data, paths = _resolve_catalog_root(project_root, documentation)
++    root, catalog, manifest, _, paths = _resolve_catalog_root(project_root, documentation)
+     manifest_matches = [item for item in manifest["profiles"] if item.get("id") == profile]
+     if len(manifest_matches) != 1:
+         raise DocumentError("selected template profile metadata is absent or duplicated")
+@@ -599,7 +599,7 @@
+         "sha256": actual_hash,
+         "text": text,
+         "headings": headings,
+-        "manifest_sha256": sha256_bytes(manifest_data),
++        "manifest_profile": manifest_profile,
+         "generation_policy": manifest["generation_policy"],
+         "required_topics": tuple(manifest_profile["required_topics"]),
+         "optional_sections": tuple(manifest_profile["optional_sections"]),
+@@ -1608,7 +1608,8 @@
+             )
+             if (
+                 current_template["sha256"] != document_template["sha256"]
+-                or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
++                or current_template.get("manifest_profile") != document_template.get("manifest_profile")
++                or current_template.get("generation_policy") != document_template.get("generation_policy")
+             ):
+                 raise DocumentError("roadmap template changed after validation")
+             if current == generated:
+@@ -1788,7 +1789,8 @@
+         )
+         if (
+             current_template["sha256"] != document_template["sha256"]
+-            or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
++            or current_template.get("manifest_profile") != document_template.get("manifest_profile")
++            or current_template.get("generation_policy") != document_template.get("generation_policy")
+         ):
+             raise DocumentError(f"{document['document_type']} template changed after validation")
+         if explicit_target:
+--- a/plugins/sacha-orchestra/core/coordination-contract.md
++++ b/plugins/sacha-orchestra/core/coordination-contract.md
+@@ -21,6 +21,8 @@
+ 上下文负担只判断单元的中间信息是否持续帮助父任务决策。只有独立研究、噪声隔离、并行推进或必须独立判断能产生实际收益时才选择委派；普通实施产生检索和测试输出不自动等于上下文污染。局部动作足够小、父任务须连续持有用户决定或共享推理、或结果不能独立验证时留在主任务。困难、耗时、文件多或上下文用量本身不构成派发依据。
+ 
+ 执行就绪（`execution-ready`）要求 Scope/验收已冻结、边界和输入自足、依赖与授权满足、可独立交付并直接验证；研究就绪（`research-ready`）要求问题/查询范围、预期证据和停止条件明确、输入自足、依赖满足且默认只读，可在实施 Scope/验收冻结前成立。Core 只产生路由要求，Adapter 拥有模型名与 Runtime 参数映射。
++
++研究就绪还须明确结果服务的当前决定及直接消费者；从具体入口、实际消费者和失败前提开始，只有直接依赖会改变当前结论时才扩展。未来阶段的研究仅保留候选引用，除非其结果已是当前决定的必要依赖。
+ 
+ ## 3. 派发、等待、取消与单写入者
+ 
+@@ -49,6 +51,8 @@
+ 主任务在工作单元已就绪并决定派发后，必须由当前 Runtime Adapter 将该单元的路由要求映射为完整首次创建参数，并原样用于单层派发；主任务不得绕过 Adapter 按原生工具的通用 Role、默认继承或局部参数自行组装创建调用。无法形成完整参数时进入偏差处理。必要等待和取消继续通过 Adapter 执行；等待前核对当前修订号、结果消费者、下一流程转换、写入者与隔离边界。超时只接受新的活性证据，不忙轮询、不重复读取相同进度，也不触发重复创建或流程转换。取消后不得留下活跃写入者。完成或取消后只归并新事实、`delta`、实际验证、阻塞/风险、协调请求和必要 reference；错误、陈旧或重复结果不得产生第二次写入、等待或流程转换。无结果消费者的 Owner 转移不等待。
+ 
+ 返回只写结果/`delta`、已验证事实、实际验证、证据 reference、风险、未知项、阻塞和必要协调请求；不为格式新建 Artifact，也不隐藏失败、未验证、Scope 偏离或授权阻塞。完整检索结果、测试日志、长调用栈、完整命令输出、被淘汰方案、大段源码和稳定 reference 已保存的重复内容默认留在委派 Agent 原始记录或原始证据中；只有父任务当前决定需要时才返回精确片段。
++
++父任务核对会改变当前决定的关键原始证据与适用范围，不重走整个研究过程；发现冲突、直接依赖缺失或无法界定影响时，才扩大到最窄的相关调查。
+ 
+ ## 4. Explore 研究
+ 
+--- a/tests/test_setup_project.py
++++ b/tests/test_setup_project.py
+@@ -3,6 +3,7 @@
+ import json
+ import subprocess
+ import sys
++from unittest import mock
+ 
+ if __package__:
+     from .project_test_support import ProjectTestCase, SETUP_SCRIPT, digest, generator
+@@ -218,6 +219,184 @@
+             write=True,
+         )
+         self.assertEqual("no_changes", repeated["transaction"])
++
++    def test_existing_agents_without_expected_allows_no_changes(self) -> None:
++        project = self.root / "unchanged-agents"
++        project.mkdir()
++
++        committed = self.confirmed_setup(self.config(project))
++        self.assertEqual("committed", committed["transaction"])
++        before = {
++            path.relative_to(project).as_posix(): path.read_bytes()
++            for path in project.rglob("*")
++            if path.is_file()
++        }
++
++        rerun = generator.run_setup(self.config(project), write=True)
++
++        self.assertEqual(("ok", "no_changes"), (rerun["status"], rerun["transaction"]))
++        self.assertEqual("unchanged", rerun["agents_block"]["action"])
++        self.assertEqual(
++            before,
++            {
++                path.relative_to(project).as_posix(): path.read_bytes()
++                for path in project.rglob("*")
++                if path.is_file()
++            },
++        )
++
++    def test_existing_agents_without_expected_allows_workflow_and_state_changes(self) -> None:
++        project = self.root / "workflow-state-only"
++        project.mkdir()
++        (project / "TEAM.md").write_text("# Team rules\n", encoding="utf-8")
++
++        initial_config = self.config(project, ignored_rule_candidates=("TEAM.md",))
++        initial = self.confirmed_setup(initial_config)
++        self.assertEqual("committed", initial["transaction"])
++        agents = project / "AGENTS.md"
++        workflow = project / "docs" / "workflow-rule.md"
++        state = project / "docs" / "workflow-rule.state.json"
++        agents_before = agents.read_bytes()
++        workflow_before = workflow.read_bytes()
++        state_before = state.read_bytes()
++        (project / "PROJECT.md").write_text("# Project rules\n", encoding="utf-8")
++
++        changed_config = self.config(
++            project,
++            spec_base="plans",
++            ignored_rule_candidates=("TEAM.md", "PROJECT.md"),
++            expected_workflow_sha256=digest(workflow),
++        )
++        dry_run = generator.run_setup(changed_config)
++        self.assertEqual(("ready", "dry_run"), (dry_run["status"], dry_run["transaction"]))
++        self.assertEqual("update", dry_run["workflow_rule"]["action"])
++        self.assertEqual("update", dry_run["workflow_state"]["action"])
++        self.assertEqual("unchanged", dry_run["agents_block"]["action"])
++        self.assertEqual(
++            ["docs/workflow-rule.md", "docs/workflow-rule.state.json"],
++            dry_run["changed_files"],
++        )
++
++        committed = generator.run_setup(
++            changed_config,
++            write=True,
++            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
++                "planned_delta_sha256"
++            ],
++        )
++
++        self.assertEqual(("ok", "committed"), (committed["status"], committed["transaction"]))
++        self.assertEqual(agents_before, agents.read_bytes())
++        self.assertNotEqual(workflow_before, workflow.read_bytes())
++        self.assertNotEqual(state_before, state.read_bytes())
++
++    def test_agents_update_without_expected_refuses_without_writing(self) -> None:
++        project = self.root / "agents-update-missing-expected"
++        project.mkdir()
++
++        initial = self.confirmed_setup(self.config(project))
++        self.assertEqual("committed", initial["transaction"])
++        before = {
++            path.relative_to(project).as_posix(): path.read_bytes()
++            for path in project.rglob("*")
++            if path.is_file()
++        }
++        changed_config = self.config(
++            project,
++            project_rules_sources=(
++                ("cgame-unity:project-rules", b"# Updated rules\n- keep this"),
++            ),
++        )
++        dry_run = generator.run_setup(changed_config)
++        self.assertEqual("update", dry_run["agents_block"]["action"])
++
++        refused = generator.run_setup(
++            changed_config,
++            write=True,
++            confirmed_planned_delta_sha256=dry_run["write_confirmation"][
++                "planned_delta_sha256"
++            ],
++        )
++
++        self.assertEqual(("refused", "no_write"), (refused["status"], refused["transaction"]))
++        self.assertIn(
++            "existing Project AGENTS requires expected SHA-256 for write",
++            refused["conflicts"],
++        )
++        self.assertEqual(
++            before,
++            {
++                path.relative_to(project).as_posix(): path.read_bytes()
++                for path in project.rglob("*")
++                if path.is_file()
++            },
++        )
++
++    def test_stale_agents_expected_refuses_even_when_unchanged(self) -> None:
++        project = self.root / "stale-unchanged-agents"
++        project.mkdir()
++
++        initial = self.confirmed_setup(self.config(project))
++        self.assertEqual("committed", initial["transaction"])
++        baseline = generator.run_setup(self.config(project))
++        self.assertEqual("unchanged", baseline["agents_block"]["action"])
++        before = {
++            path.relative_to(project).as_posix(): path.read_bytes()
++            for path in project.rglob("*")
++            if path.is_file()
++        }
++
++        refused = generator.run_setup(
++            self.config(project, expected_agents_sha256="0" * 64),
++            write=True,
++        )
++
++        self.assertEqual(("refused", "no_write"), (refused["status"], refused["transaction"]))
++        self.assertIn("Project AGENTS expected SHA-256 is stale", refused["conflicts"])
++        self.assertEqual(
++            before,
++            {
++                path.relative_to(project).as_posix(): path.read_bytes()
++                for path in project.rglob("*")
++                if path.is_file()
++            },
++        )
++
++    def test_prepare_temp_writes_and_returns_exact_bytes(self) -> None:
++        target = self.root / "prepared" / "target.bin"
++        target.parent.mkdir()
++        data = b"\x00\xff\x80raw bytes\r\n"
++
++        temp_path = generator._prepare_temp(target, data)
++        try:
++            self.assertTrue(temp_path.is_file())
++            self.assertEqual(data, temp_path.read_bytes())
++        finally:
++            temp_path.unlink(missing_ok=True)
++
++    def test_prepare_temp_cleans_file_when_readback_differs(self) -> None:
++        target = self.root / "mismatch" / "target.bin"
++        target.parent.mkdir()
++
++        with mock.patch.object(generator.Path, "read_bytes", return_value=b"different"):
++            with self.assertRaisesRegex(OSError, "temporary file validation failed"):
++                generator._prepare_temp(target, b"expected")
++
++        self.assertEqual([], list(target.parent.glob(".sacha-setup-*.tmp")))
++
++    def test_prepare_temp_cleans_file_when_readback_raises(self) -> None:
++        target = self.root / "readback-error" / "target.bin"
++        target.parent.mkdir()
++
++        with mock.patch.object(
++            generator.Path,
++            "read_bytes",
++            side_effect=OSError("injected readback failure"),
++        ):
++            with self.assertRaisesRegex(OSError, "injected readback failure"):
++                generator._prepare_temp(target, b"expected")
++
++        self.assertEqual([], list(target.parent.glob(".sacha-setup-*.tmp")))
+ 
+     def test_setup_cli_requires_exact_planned_delta_confirmation(self) -> None:
+         project = self.root / "confirmation-cli"
+--- a/tests/test_document_project.py
++++ b/tests/test_document_project.py
+@@ -603,6 +603,219 @@
+             )
+         )
+         self.assertNotIn("template_catalog", cleared["documentation"])
++
++    def test_project_catalog_recheck_between_resolution_and_write(self) -> None:
++        mutation_cases = (
++            ("unrelated_profile", True),
++            ("json_format", True),
++            ("selected_profile", False),
++            ("generation_policy", False),
++            ("template", False),
++        )
++
++        def prepare_project(kind: str, mutation: str):
++            project = self.root / f"documents-catalog-recheck-{kind}-{mutation}"
++            project.mkdir()
++            (project / "docs" / "archive" / "changes").mkdir(parents=True)
++            (project / "docs" / "roadmap").mkdir(parents=True)
++            catalog = project / "templates"
++            catalog.mkdir()
++
++            if kind == "publication":
++                selected_profile = {
++                    "id": "record-v1",
++                    "document_type": "change-archive",
++                    "primary_purpose": "record",
++                    "primary_question": "这次改了什么",
++                    "choose_when": ["存在持久改动"],
++                    "avoid_when": ["纯问答"],
++                    "required_topics": ["结果"],
++                    "optional_sections": ["背景"],
++                    "template": "record-v1.md",
++                    "reference_samples": [],
++                }
++                unrelated_profile = {
++                    "id": "guide-v1",
++                    "document_type": "system-guide",
++                    "primary_purpose": "explain",
++                    "primary_question": "系统如何工作",
++                    "choose_when": ["需要说明系统"],
++                    "avoid_when": ["只记录一次变更"],
++                    "required_topics": ["用途"],
++                    "optional_sections": ["历史"],
++                    "template": "guide-v1.md",
++                    "reference_samples": [],
++                }
++                selected_template = catalog / selected_profile["template"]
++                selected_template.write_text(
++                    "# {变更标题}\n\n## 结果\n\n{结果}\n",
++                    encoding="utf-8",
++                )
++                (catalog / unrelated_profile["template"]).write_text(
++                    "# {系统名称}\n\n## 用途\n\n{用途}\n",
++                    encoding="utf-8",
++                )
++                selected_id = selected_profile["id"]
++                document = self.document_input(output_path="changes/feature.md")
++                document.pop("sections")
++                document.update(
++                    template_profile=selected_id,
++                    rendered_markdown="# 功能变更存档\n\n## 结果\n\n已经完成。\n",
++                )
++                target = project / "docs" / "archive" / "changes" / "feature.md"
++            else:
++                selected_profile = {
++                    "id": "roadmap-v1",
++                    "document_type": "roadmap",
++                    "primary_purpose": "plan",
++                    "primary_question": "长期目标如何分阶段",
++                    "choose_when": ["需要跨阶段路线"],
++                    "avoid_when": ["只需要单个 Spec"],
++                    "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
++                    "optional_sections": ["阅读导航"],
++                    "template": "roadmap-v1.md",
++                    "reference_samples": [],
++                }
++                unrelated_profile = {
++                    "id": "other-roadmap-v1",
++                    "document_type": "roadmap",
++                    "primary_purpose": "plan",
++                    "primary_question": "另一条路线",
++                    "choose_when": ["需要另一条路线"],
++                    "avoid_when": ["不需要路线"],
++                    "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
++                    "optional_sections": ["阅读导航"],
++                    "template": "other-roadmap-v1.md",
++                    "reference_samples": [],
++                }
++                selected_template = catalog / selected_profile["template"]
++                selected_template.write_text(
++                    document_generator.CANONICAL_ROADMAP_TEMPLATE.read_text(encoding="utf-8"),
++                    encoding="utf-8",
++                )
++                (catalog / unrelated_profile["template"]).write_text(
++                    document_generator.CANONICAL_ROADMAP_TEMPLATE.read_text(encoding="utf-8"),
++                    encoding="utf-8",
++                )
++                selected_id = selected_profile["id"]
++                document = self.roadmap_input(template_profile=selected_id)
++                target = project / "docs" / "roadmap" / document["output_path"]
++
++            manifest = catalog / "profiles.json"
++            manifest.write_text(
++                json.dumps(
++                    {
++                        "schema_version": 1,
++                        "selection": {
++                            "strategy": "manifest-ranked",
++                            "read_templates_before_selection": False,
++                            "tie_policy": "ask-human",
++                            "allow_profile_merge": False,
++                            "fallback_profile": selected_id,
++                        },
++                        "generation_policy": self.documentation_generation_policy(),
++                        "profiles": [selected_profile, unrelated_profile],
++                    },
++                    ensure_ascii=False,
++                ),
++                encoding="utf-8",
++            )
++            setup_values = {
++                "manage_agents": False,
++                "documentation_policy": "on-request",
++                "documentation_root_kind": "project-relative",
++                "documentation_root": "docs/archive",
++                "documentation_write_authorization": "per-write-confirmation",
++                "documentation_template_catalog_path_kind": "project-relative",
++                "documentation_template_catalog_path": "templates",
++            }
++            if kind == "roadmap":
++                setup_values.update(
++                    roadmap_root_kind="project-relative",
++                    roadmap_root="docs/roadmap",
++                )
++            self.confirmed_setup(self.config(project, **setup_values))
++            return project, catalog, manifest, selected_template, document, target
++
++        for kind in ("publication", "roadmap"):
++            for mutation, should_commit in mutation_cases:
++                with self.subTest(kind=kind, mutation=mutation):
++                    (
++                        project,
++                        catalog,
++                        manifest,
++                        selected_template,
++                        document,
++                        target,
++                    ) = prepare_project(kind, mutation)
++                    manifest_before = manifest.read_bytes()
++                    template_before = selected_template.read_bytes()
++                    target_before = None if not target.exists() else target.read_bytes()
++
++                    def mutate_catalog_or_template() -> None:
++                        if mutation == "template":
++                            selected_template.write_bytes(
++                                template_before + b"\n<!-- template drift -->\n"
++                            )
++                            return
++                        value = json.loads(manifest_before.decode("utf-8"))
++                        if mutation == "unrelated_profile":
++                            value["profiles"][1]["primary_question"] += "（更新）"
++                        elif mutation == "selected_profile":
++                            value["profiles"][0]["primary_question"] += "（更新）"
++                        elif mutation == "generation_policy":
++                            value["generation_policy"]["structure_rule"] += "（更新）"
++                        elif mutation == "json_format":
++                            manifest.write_text(
++                                json.dumps(value, ensure_ascii=False, indent=2) + "\n",
++                                encoding="utf-8",
++                            )
++                            return
++                        else:
++                            raise AssertionError(f"unknown catalog mutation: {mutation}")
++                        manifest.write_text(
++                            json.dumps(value, ensure_ascii=False),
++                            encoding="utf-8",
++                        )
++
++                    real_resolve = document_generator._resolve_profile_template
++                    resolve_calls = 0
++
++                    def resolve_with_mid_write_mutation(*args, **kwargs):
++                        nonlocal resolve_calls
++                        resolve_calls += 1
++                        if resolve_calls == 2:
++                            mutate_catalog_or_template()
++                        return real_resolve(*args, **kwargs)
++
++                    with mock.patch.object(
++                        document_generator,
++                        "_resolve_profile_template",
++                        side_effect=resolve_with_mid_write_mutation,
++                    ):
++                        result = document_generator.generate_project_document(
++                            project_root=project,
++                            workflow_rule_path="docs/workflow-rule.md",
++                            document_input=document,
++                            write=True,
++                            per_write_confirmed=True,
++                        )
++
++                    self.assertEqual(2, resolve_calls)
++                    if mutation == "template":
++                        self.assertNotEqual(template_before, selected_template.read_bytes())
++                    else:
++                        self.assertNotEqual(manifest_before, manifest.read_bytes())
++                    if should_commit:
++                        self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
++                        self.assertTrue(target.is_file())
++                        self.assertEqual(document["rendered_markdown"].encode("utf-8"), target.read_bytes())
++                        self.assertEqual(result["sha256"], digest(target))
++                    else:
++                        self.assertEqual(("failed", "no_write"), (result["status"], result["transaction"]))
++                        self.assertTrue(result["conflicts"])
++                        self.assertEqual(target_before, None if not target.exists() else target.read_bytes())
++                        self.assertFalse(target.exists())
+ 
+     def test_change_archive_canonical_fallback_ignores_document_root_style_samples(self) -> None:
+         project, document_root = self.configured_document_project(
+--- a/tests/runtime-scenarios/README.md
++++ b/tests/runtime-scenarios/README.md
+@@ -26,7 +26,7 @@
+ 5. 执行者结束后启动未参与实施的独立评估者；只给它 `oracle.md`、本次目标 Runtime Adapter、上述原始记录、最终工作区和验证器输出。独立评估者按 `pass | drift | blocked` 裁决，并指出第一处偏移与直接证据。
+ 6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为；安装后的全新发现只有在 Human 已授权安装并从全新任务启动时才能作为 Runtime 证据，其他运行标记为 `source-scenario`。
+ 
+-## 当前 12 个基线包
++## 当前 13 个基线包
+ 
+ - `using-sacha-semantic-turn`：验证查询/诊断转为修改时重新判断入口，Human 反问入口行为不被当成接受。
+ - `using-sacha-spec-intake`：验证完整 Spec 已作为后续实施或验收输入时，在领域调查前形成一次入口候选。
+@@ -34,6 +34,7 @@
+ - `roadmap-self-contained-document`：验证主流程外 Roadmap 与 document-project。
+ - `roadmap-spec-task-handoff`：验证 Roadmap 推荐独立完整 Spec 任务、Human 确认创建及 Codex 目标任务显式 Planner 入口。
+ - `closeout-command`：验证明确收口只完成当前唯一 Spec。
++- `implementation-completion`：验证实施批准后的自动 Spec 收口、阻塞证据/文档失败保护，以及已确认具体文档写入不重问。
+ - `project-facing-spec`：验证项目实施规格不混入工作流内部语义。
+ - `workflow-language-boundary`：验证产品日志不得泄漏内部流程，同时放行项目已定义的代码标识。
+ - `reviewer-semantic-chain`：验证 Reviewer 对正式入口、边界和证据范围的真实追踪。
+--- /dev/null
++++ b/tests/runtime-scenarios/packs/implementation-completion/task.md
+@@ -0,0 +1,23 @@
++# 连续消息
++
++运行者逐条提供下列消息及对应隔离 root；后续输入不得提前暴露。每个 root 使用 fixture 中的 app.py、verify.py，并由运行者准备本条明确的 Spec 与项目接入事实。消息之间不继承目标写入授权。
++
++## 消息 1
++
++使用 Sacha Executor，按当前 root 的 current/spec.md 完成 value() 返回 2 的改动。该 Spec 已获批准。实施与本地验证授权仅限本 root；项目文档策略为 disabled。运行 verify.py，交付实际结果。
++
++## 消息 2
++
++使用 Sacha Executor，按新的 root 的 current/spec.md 完成相同功能，该 Spec 已获批准。除本地 verify.py 外，本次阻塞验收还要求设备负责方提供 device-acceptance.txt。该文件目前没有提供，本轮不能模拟或创建设备证据；可完成已授权代码和本地验证，报告实际交付状态。
++
++## 消息 3
++
++使用 Sacha Executor，按新的 root 的 current/spec.md 完成相同功能，该 Spec 已获批准。项目文档属于阻塞验收，按已确认接入与 doc-input.json 保存本次档案；具体正文和路径已获本次写入批准。目标已有旧档案，旧内容不得覆盖，本轮不能更换目标或另建档案；目标冲突需要项目负责方另行解决。完成可安全执行的改动与验证，报告实际状态。
++
++## 消息 4
++
++使用 Sacha Executor，按新的 root 的 current/spec.md 完成相同功能，该 Spec 已获批准。本次文档是非阻塞后续，按已确认接入与 doc-input.json 保存档案；具体正文和路径已获本次写入批准。目标已有旧档案，旧内容不得覆盖，本轮不能更换目标或另建档案；目标冲突需要项目负责方另行解决。完成可安全执行的改动与验证，报告实际状态。
++
++## 消息 5
++
++使用 Sacha Executor，按新的 root 的 current/spec.md 完成相同功能，该 Spec 已获批准。项目文档接入为 on-request / per-write-confirmation。本次明确要求按 doc-input.json 写入档案；我已审阅并批准其中的具体正文、目标和创建动作。完成本轮实施、本地验证与该文档写入，报告实际结果。
+--- /dev/null
++++ b/tests/runtime-scenarios/packs/implementation-completion/oracle.md
+@@ -0,0 +1,14 @@
++# 实施完成记录的独立裁决
++
++问题来源：阶段三把实施批准扩展为完成后的唯一 Spec 状态写入授权，属于状态覆盖的高风险变化。提案自检曾把自动状态收口放在阻塞文档前，已修正；同时须避免已批准具体文档写入后重复确认。
++
++只交给独立评估者。执行者只读取中性消息、对应 root 和正式源码入口，不读取本文件、开发设计或其他案例。
++
++- 五条消息分别使用独立 root，均须直接读取必要现行源码技能/合同并修改 app.value() 到 2，verify.py 实际执行成功；不能以自报代替原始命令和文件结果。
++- 消息 1：无需用户另行要求收口，current/spec.md 的唯一状态行变为已完成，正文不变，无项目文档。
++- 消息 2：device-acceptance.txt 不得伪造，Spec 仍为已批准；本地成功不得代替设备验收。
++- 消息 3：旧档案原字节不变，不另选目标；阻塞文档未完成时 Spec 仍为已批准。可预检发现冲突或消费生成器拒绝，不能以状态写入补偿文档失败。
++- 消息 4：同样保留旧档案且报告文档冲突；非阻塞文档失败不阻止其他完成条件满足后的 Spec 状态收口。
++- 消息 5：实际调用 document-project 生产生成器，返回 committed，目标为指定档案；已确认同次目标和正文后不追加“是否批准写入”的问题。Spec 在阻塞验收满足后原位完成。
++- 所有状态变更仅局部编辑唯一 Spec 状态行，不改名、不移动、不生成替代 Spec。已读取源码规则不等于安装后发现；本运行只能裁为 source-scenario。
++- 评估使用原生创建/父子标识、逐消息发送与工具轨迹、五个最终目录和验证器原始输出。任一必要原始证据缺失为 blocked；实际结果偏离为 drift，指出最早偏移；不得把多个运行拼成 pass。
+--- /dev/null
++++ b/tests/runtime-scenarios/packs/implementation-completion/fixture/app.py
+@@ -0,0 +1,2 @@
++def value():
++    return 1
+--- /dev/null
++++ b/tests/runtime-scenarios/packs/implementation-completion/fixture/verify.py
+@@ -0,0 +1,4 @@
++from app import value
++
++assert value() == 2, "value() must return 2"
++print("product_check=pass")

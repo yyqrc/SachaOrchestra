@@ -2000,7 +2000,7 @@ def _prepare_temp(target: Path, data: bytes) -> Path:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        if sha256_bytes(temp_path.read_bytes()) != sha256_bytes(data):
+        if temp_path.read_bytes() != data:
             raise OSError("temporary file validation failed")
         return temp_path
     except Exception:
@@ -2420,8 +2420,6 @@ def run_setup(
                 "existed": agents_existed,
                 "preimage_sha256": agents_hash,
             }
-            if agents_existed and write and expected_agents is None:
-                raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
             if expected_agents is not None and expected_agents != agents_hash:
                 raise SetupError("Project AGENTS expected SHA-256 is stale")
             existing_project_rules = _extract_project_rules(
@@ -2456,6 +2454,8 @@ def run_setup(
             }
             result["targets"][agents_rel] = _target_record(agents_rel, agents_existed, agents_hash)
             if agents_action != "unchanged":
+                if agents_existed and write and expected_agents is None:
+                    raise SetupError("existing Project AGENTS requires expected SHA-256 for write")
                 targets.append({
                     "path": agents_path,
                     "relative": agents_rel,

@@ -485,6 +485,30 @@ class ReleaseScriptTests(unittest.TestCase):
             remote_tag = self.git(root, "ls-remote", "origin", "refs/tags/v0.1.0^{}").stdout.split()[0]
             self.assertEqual((head, tag, remote_head, remote_tag), (head, head, head, head))
 
+    def test_publish_cli_records_review_not_required(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir, tempfile.TemporaryDirectory() as remote_dir:
+            root = Path(root_dir)
+            remote = Path(remote_dir)
+            self.init_release_repo(root, remote)
+            entry = root / "scripts" / "release.py"
+            entry.parent.mkdir()
+            entry.write_bytes(SCRIPT.read_bytes())
+            result = subprocess.run(
+                [release.current_python(), "-B", str(entry), "publish",
+                 "--version", "0.1.0", "--review", "not-required",
+                 "--message", "release", "--candidate-path", "candidate.txt"],
+                cwd=root, check=True, capture_output=True, text=True, encoding="utf-8",
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["review"], "not-required")
+            self.assertIs(payload["remote_verified"], True)
+            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            tag = self.git(root, "rev-parse", "v0.1.0^{}").stdout.strip()
+            remote_head = self.git(root, "ls-remote", "origin", "refs/heads/main").stdout.split()[0]
+            remote_tag = self.git(root, "ls-remote", "origin", "refs/tags/v0.1.0^{}").stdout.split()[0]
+            self.assertEqual((payload["commit"], tag, remote_head, remote_tag), (head, head, head, head))
+
     def test_publish_preserves_unrelated_working_change(self) -> None:
         with tempfile.TemporaryDirectory() as root_dir, tempfile.TemporaryDirectory() as remote_dir:
             root = Path(root_dir)

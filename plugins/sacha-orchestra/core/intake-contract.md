@@ -23,7 +23,7 @@ Runtime 常驻默认入口只需要 `using-sacha` 元数据；元数据匹配到
   - 已有 Planner Gate 事实时，目标、Scope、Acceptance、Owner 或路径存在实质不确定性；实施前需要关键 Human 澄清、需要起草/冻结供后续实施或验收使用的完整可执行 Spec，或存在实质方案、难回退的跨 Owner 决策、破坏性迁移。是否已经出现“持久化”或“落盘”字样不改变这个判断。
 
 - Planner、Executor、Reviewer 接受 Human 直接调用。
-- Explore 接受 Human 显式窄授权，或由活跃 Planner 路由。
+- Explore 接受 Human 显式窄授权，或由活跃 Planner / Roadmap 路由。
 - Roadmap 只接受 Human 显式调用；该调用不接受 Sacha 或进入生产 Role。
 - document-project 接受 Human 显式文档请求，或由 Workflow 收尾候选路由。
 - Feedback 接受 Human 在另一个真实任务手动提交的流程问题、使用反馈、插件开发建议或能力想法。

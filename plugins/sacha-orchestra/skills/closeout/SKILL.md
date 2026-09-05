@@ -18,8 +18,8 @@ description: Human 用“收口”原位完成当前唯一 Spec、用“存档�
 
 ## 动作顺序
 
-1. “收口”本身只构成本次 Spec 状态写入授权；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
-2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 仍须对项目文档单独确认；未满足前两个动作都不写。
+1. “收口”本身构成本次 Spec 状态写入授权；已有实施批准覆盖正常完成后的同一状态写入时，不要求再调用本 Skill；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
+2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 按 Workflow Contract 核对本次具体文档写入是否已获确认，已有确认直接消费；未满足前两个动作都不写。
 3. 预检通过后先原位完成 Spec，再把“存档”以 `human-request` 路由给 `$sacha-orchestra:document-project`。文档写入失败不回滚已合法完成的 Spec；报告部分完成、失败证据和文档恢复入口。
 
 ## 输出

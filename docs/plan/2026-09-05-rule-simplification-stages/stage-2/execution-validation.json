@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "matches_approved_patch": true,
+      "added": 48,
+      "removed": 110,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": "docs/AGENTS.md",
+      "matches_approved_patch": true,
+      "added": 10,
+      "removed": 18,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": ".agents/skills/sacha-doc-governance/SKILL.md",
+      "matches_approved_patch": true,
+      "added": 12,
+      "removed": 29,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": ".agents/skills/sacha-plugin-review/SKILL.md",
+      "matches_approved_patch": true,
+      "added": 14,
+      "removed": 23,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": ".agents/skills/sacha-simplification-audit/SKILL.md",
+      "matches_approved_patch": true,
+      "added": 9,
+      "removed": 24,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": ".agents/skills/sacha-runtime-scenario/SKILL.md",
+      "matches_approved_patch": true,
+      "added": 10,
+      "removed": 25,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": "PLUGIN_DESIGN.md",
+      "matches_approved_patch": true,
+      "added": 8,
+      "removed": 16,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": "docs/release.md",
+      "matches_approved_patch": true,
+      "added": 29,
+      "removed": 46,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": "scripts/release.py",
+      "matches_approved_patch": true,
+      "added": 1,
+      "removed": 1,
+      "original_encoding_and_line_conventions_preserved": true
+    },
+    {
+      "path": "tests/test_release.py",
+      "matches_approved_patch": true,
+      "added": 24,
+      "removed": 0,
+      "original_encoding_and_line_conventions_preserved": true
+    }
+  ],
+  "skill_frontmatter_unchanged": true,
+  "product_diagram_and_tables_unchanged": true,
+  "python_syntax": "passed",
+  "errors": 0,
+  "scope": "approved file changes, metadata, references, and release script local integration tests; not live publication or runtime performance",
+  "actual_patch": "actual.patch",
+  "checked_local_links": 28,
+  "missing_links": 0,
+  "skill_metadata_parse": "passed",
+  "tests": {
+    "command": "python -B -m unittest tests.test_release",
+    "returncode": 0,
+    "tests": 32,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "raw_output": "release-tests.json"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "source_matches": true,
+      "added": 48,
+      "removed": 110
+    },
+    {
+      "path": "docs/AGENTS.md",
+      "source_matches": true,
+      "added": 10,
+      "removed": 18
+    },
+    {
+      "path": ".agents/skills/sacha-doc-governance/SKILL.md",
+      "source_matches": true,
+      "added": 12,
+      "removed": 29
+    },
+    {
+      "path": ".agents/skills/sacha-plugin-review/SKILL.md",
+      "source_matches": true,
+      "added": 14,
+      "removed": 23
+    },
+    {
+      "path": ".agents/skills/sacha-simplification-audit/SKILL.md",
+      "source_matches": true,
+      "added": 9,
+      "removed": 24
+    },
+    {
+      "path": ".agents/skills/sacha-runtime-scenario/SKILL.md",
+      "source_matches": true,
+      "added": 10,
+      "removed": 25
+    },
+    {
+      "path": "PLUGIN_DESIGN.md",
+      "source_matches": true,
+      "added": 8,
+      "removed": 16
+    },
+    {
+      "path": "docs/release.md",
+      "source_matches": true,
+      "added": 29,
+      "removed": 46
+    },
+    {
+      "path": "scripts/release.py",
+      "source_matches": true,
+      "added": 1,
+      "removed": 1
+    },
+    {
+      "path": "tests/test_release.py",
+      "source_matches": true,
+      "added": 24,
+      "removed": 0
+    }
+  ],
+  "added": 165,
+  "removed": 292,
+  "checked_local_links": 28,
+  "missing_links": [],
+  "skill_metadata_unchanged": true,
+  "product_diagram_and_tables_unchanged": true,
+  "python_draft_syntax": "passed",
+  "errors": 0,
+  "scope": "proposal only; no target files written and no release/test commands run"
+}

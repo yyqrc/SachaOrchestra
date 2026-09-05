@@ -561,7 +561,7 @@ def _resolve_profile_template(
 ) -> dict[str, Any]:
     if "template_catalog" not in documentation:
         return _resolve_bundled_profile_template(document_type, profile)
-    root, catalog, manifest, manifest_data, paths = _resolve_catalog_root(project_root, documentation)
+    root, catalog, manifest, _, paths = _resolve_catalog_root(project_root, documentation)
     manifest_matches = [item for item in manifest["profiles"] if item.get("id") == profile]
     if len(manifest_matches) != 1:
         raise DocumentError("selected template profile metadata is absent or duplicated")
@@ -599,7 +599,7 @@ def _resolve_profile_template(
         "sha256": actual_hash,
         "text": text,
         "headings": headings,
-        "manifest_sha256": sha256_bytes(manifest_data),
+        "manifest_profile": manifest_profile,
         "generation_policy": manifest["generation_policy"],
         "required_topics": tuple(manifest_profile["required_topics"]),
         "optional_sections": tuple(manifest_profile["optional_sections"]),
@@ -1608,7 +1608,8 @@ def generate_project_document(
             )
             if (
                 current_template["sha256"] != document_template["sha256"]
-                or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
+                or current_template.get("manifest_profile") != document_template.get("manifest_profile")
+                or current_template.get("generation_policy") != document_template.get("generation_policy")
             ):
                 raise DocumentError("roadmap template changed after validation")
             if current == generated:
@@ -1788,7 +1789,8 @@ def generate_project_document(
         )
         if (
             current_template["sha256"] != document_template["sha256"]
-            or current_template.get("manifest_sha256") != document_template.get("manifest_sha256")
+            or current_template.get("manifest_profile") != document_template.get("manifest_profile")
+            or current_template.get("generation_policy") != document_template.get("generation_policy")
         ):
             raise DocumentError(f"{document['document_type']} template changed after validation")
         if explicit_target:

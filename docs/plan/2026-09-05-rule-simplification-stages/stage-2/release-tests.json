@@ -1,0 +1,13 @@
+{
+  "command": [
+    "C:\\Python314\\python.exe",
+    "-B",
+    "-m",
+    "unittest",
+    "tests.test_release"
+  ],
+  "returncode": 0,
+  "duration_seconds": 12.537,
+  "stdout": "",
+  "stderr": "................................\n----------------------------------------------------------------------\nRan 32 tests in 12.363s\n\nOK\n"
+}
