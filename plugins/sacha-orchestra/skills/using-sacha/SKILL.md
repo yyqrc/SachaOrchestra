@@ -1,6 +1,6 @@
 ---
 name: using-sacha
-description: Human 明确要求由本工作流编排当前目标、选择接受或直接调用规范 Role，或关键 Human 决定、供后续实施/验收使用的完整 Spec、跨上下文恢复、正式协调或独立验收会改变执行方式时使用；目标、范围、授权与验收清晰且当前上下文可安全完成时不用。
+description: Human 明确要求编排当前目标、选择接受或直接调用规范 Role 时使用；也在当前目标或 Agent 准备推进的下一步涉及关键 Human 决定、供后续实施/验收使用的完整 Spec、跨上下文恢复、正式协调或独立验收，且会改变执行方式时主动使用，无需 Human 先提及 Sacha。目标、范围、授权与验收清晰且当前上下文可安全完成时不用。
 ---
 
 # Using Sacha（智能入口）
@@ -17,7 +17,7 @@ description: Human 明确要求由本工作流编排当前目标、选择接受�
 ## 动作与输出
 
 1. 复杂、耗时、多文件、多平台或持续验证保持 Direct；执行方式会改变时才建议 Sacha。
-2. 入口判断为直接处理时，主任务使用当前任务语言继续；形成入口候选并需要 Human 选择时，在继续领域调查、加载实施或规划 Domain Skill、形成方案、实施或持久化前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐；同一入口候选只询问一次。
+2. 入口判断为直接处理时，主任务使用当前任务语言继续；形成入口候选且 Human 尚未接受或拒绝时，读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，说明收益、成本和推荐，并询问是否进入 Sacha。推荐与询问按 Intake Contract 第 4 节一起完成；同一入口候选只询问一次。按该合同暂停依赖选择的动作并继续已授权的独立事实调查。
 3. Human 对入口行为的反问、调查或纠正按 Human Interaction Contract 解释并更新当前问题；入口候选仍成立且选择条件具备时再询问。
 4. Human 明确要求用 Sacha 编排当前目标、选择接受或直接调用规范 Role（canonical Role）时记录接受。接受后按 [Workflow Contract](../../core/workflow-contract.md) 第 2.2 节的正式入口读取目标 Skill；传输、恢复、外部状态或当前 Runtime 已暴露的 Sacha 观测能力需要映射时读取目标 Adapter。观测记录失败不改变入口结果。
 5. 显式 document-project 由 Intake Contract 直接路由到当前文档目标，不视为接受 Sacha，也不得为满足其前置条件补走生产 Role。
@@ -25,6 +25,6 @@ description: Human 明确要求由本工作流编排当前目标、选择接受�
 
 ## 停止与禁止边界
 
-- 入口判断只供主任务路由；直接处理时不单独向 Human 报告入口结果，入口候选按 Human Interaction Contract 形成当前选择。候选已经成立时不得先完成领域调查再询问；拆分、派发、实施和验收由下游 Owner 处理。
+- 入口判断只供主任务路由；直接处理时不单独向 Human 报告入口结果，入口候选按 Human Interaction Contract 形成当前选择。不得借独立事实调查绕过入口决定或推迟已具备条件的提问；拆分、派发、实施和验收由下游 Owner 处理。
 - 接受后的 Role、Gate、Explore、Manager、迁移与收尾路线由 Workflow Contract 处理。
 - Artifact 与 Handoff 沿用[术语合同](../../core/terminology-contract.md)；Goal、写入、安装、Git、发布、远程资源和高影响动作使用各自 Owner 与授权。

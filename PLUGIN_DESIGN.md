@@ -24,7 +24,7 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。完整 Spec 已明确作为后续实施或验收输入时，入口候选必须在领域调查前完成判断。
+- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。入口候选由主任务根据当前目标及准备推进的工作主动识别，不以 Human 提及 Sacha 为前提；成立且选择条件具备时及时提出推荐与是否进入的选择，不把自己建议的前置工作排到入口决定之前。完整 Spec 已明确作为后续实施或验收输入时形成入口候选；依赖入口选择的规划、派发、实施和持久化须等待决定，已授权且与该选择无关的有界事实调查继续，具体边界由 Intake Contract 定义。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
 - `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须把它明确推荐为 Sacha Planner 任务；Human 确认创建后，新任务从既有显式 Planner 入口开始，不继承 Roadmap 的写入或实施授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 同时构成本次写入授权，可绕过 Project Integration 按模板原子新建或更新；其他请求仍服从 Project Integration。
@@ -184,7 +184,7 @@ flowchart TD
 
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
-| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct，或在领域调查前完成一次入口候选提议 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
+| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct，或提出一次入口候选选择并继续独立事实调查 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
 | 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 按 Artifact Protocol 写入必要的探索决定记录 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；目标项目源码、配置、资源与外部状态保持只读，可写探索决定记录，不冻结 Scope |
 | 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 → 按需明确推荐独立 Sacha Planner 任务 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root；新任务须由 Human 确认创建 |
 | 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |

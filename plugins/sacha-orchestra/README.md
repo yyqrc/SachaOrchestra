@@ -6,7 +6,7 @@
 
 ## 默认入口
 
-Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。候选成立后必须在继续领域调查前询问，同一入口候选只询问一次。
+Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。入口提问与等待期间的独立调查按 [Intake Contract](core/intake-contract.md) 第 4 节处理，同一入口候选只询问一次。
 
 ## 显式入口
 

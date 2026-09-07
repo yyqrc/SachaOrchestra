@@ -26,10 +26,11 @@
 5. 执行者结束后启动未参与实施的独立评估者；只给它 `oracle.md`、本次目标 Runtime Adapter、上述原始记录、最终工作区和验证器输出。独立评估者按 `pass | drift | blocked` 裁决，并指出第一处偏移与直接证据。
 6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为；安装后的全新发现只有在 Human 已授权安装并从全新任务启动时才能作为 Runtime 证据，其他运行标记为 `source-scenario`。
 
-## 当前 13 个基线包
+## 当前 14 个基线包
 
 - `using-sacha-semantic-turn`：验证查询/诊断转为修改时重新判断入口，Human 反问入口行为不被当成接受。
 - `using-sacha-spec-intake`：验证完整 Spec 已作为后续实施或验收输入时，在领域调查前形成一次入口候选。
+- `using-sacha-method-consultation`：验证未提 Sacha 时主动识别原型方案的入口候选，以及反问、拒绝后进度、独立可行性咨询和术语解释边界。
 - `explore-shared-context-loop`：验证 Human 不理解背景时先调查、解释、允许纠正，再进入真正 Human 决定。
 - `roadmap-self-contained-document`：验证主流程外 Roadmap 与 document-project。
 - `roadmap-spec-task-handoff`：验证 Roadmap 推荐独立完整 Spec 任务、Human 确认创建及 Codex 目标任务显式 Planner 入口。
