@@ -123,7 +123,7 @@ asset 在创建 Promise 前校验调用数、单元标识、投影、输出上�
 
 ### A. 判断所需事实
 
-- 用户或已批准范围有精确型号/强度要求时优先消费；不支持时停止，不能自动换档。
+- 先核对精确型号/强度要求是否明确适用于当前阶段，再优先消费；不支持时停止，不能自动换档。规划阶段的 Astra high/xhigh 即使写入批准范围，也不延续到实施或验收；只有用户针对该阶段另行明确指定时才走 human_exact，否则重新采用自动路线。
 - 只读研究、获授权实施和正式独立复核分别需要对应能力类型。角色不等于型号，正式复核的独立性不能由更强模型替代。
 - `bounded` 表示输入、边界、完成检查自足；其负荷区分 `light / nontrivial`。`broad` 表示需要跨负责位置综合、集成或仍有重要边界推理，区分 `standard / critical`。
 - 同时检查实施边界和失败影响：破坏性删除/覆盖、跨消费者持久身份或数据解释变化，以及依赖并发、兼容和跨系统生命周期的正确性，至少按 broad；困难回退、跨系统耦合或关键冲突为 critical。普通可重建文件输出本身不自动升级。
@@ -136,14 +136,15 @@ asset 在创建 Promise 前校验调用数、单元标识、投影、输出上�
 
 | route_id | 判断 | 请求字段 |
 | --- | --- | --- |
-| `human_exact` | 用户或批准范围精确指定 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
-| `astra_high` | broad + critical，包括有对应事实的独立复核 | `model="gpt-6-astra"`, `reasoning_effort="high"` |
-| `astra_medium` | 非 critical，但需要联合持有较大有效上下文，包括相应复核 | `model="gpt-6-astra"`, `reasoning_effort="medium"` |
-| `sol_medium` | 其余 broad + standard 或普通正式独立复核 | `model="gpt-5.6-sol"`, `reasoning_effort="medium"` |
+| `human_exact` | 用户或批准范围明确对当前阶段精确指定，且满足 A 节阶段适用性 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
+| `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-5.6-sol"`, `reasoning_effort="medium"` |
 | `luna_max` | bounded + nontrivial | `model="gpt-5.6-luna"`, `reasoning_effort="max"` |
 | `luna_xhigh` | bounded + light | `model="gpt-5.6-luna"`, `reasoning_effort="xhigh"` |
+| `astra_low` | 其余 broad 单元，包括 critical、跨模块综合、复杂集成、动态诊断、较大有效上下文及相应独立复核 | `model="gpt-6-astra"`, `reasoning_effort="low"` |
 
-Astra 最高自动档为 high；用户以后精确指定且工具支持的其他强度仍走 human_exact。长上下文需求不自动要求最高档。计费和窗口不写成模型无关规则，采用宿主已确认的配置与证据，不预置窗口或压缩比例。
+自动路线中 Astra 只用 low、Sol 只用 medium；有界实施、重复处理和固定验证按 Luna 路线，不因工作量或共享环境的串行使用升级。Astra high/xhigh 只供用户在需求对齐、方案比较与制定 Spec 时手动选择，不自动沿用到 Spec 冻结后的实施或验收。当前主任务的型号/强度仍由宿主与用户控制，Adapter 不声称已切换；用户新的精确要求按 human_exact 消费。
+
+执行中发现冻结前提不成立时，返回受影响的方案问题，不以困难、失败或反复尝试自动提高强度。成本比较使用同范围任务的实际输入、缓存、输出、耗时与返工，并核对宿主计费口径；不以每 Token 单价或未经实测的智能排名推断任务总成本，不要求每次派发重新跑基准。
 
 ### C. 组合首次创建参数
 

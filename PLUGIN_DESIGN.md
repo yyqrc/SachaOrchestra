@@ -24,7 +24,7 @@ Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力�
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口；清晰且授权完整的任务保持 Direct，接受条件由 Intake Contract 定义。入口候选由主任务根据当前目标及准备推进的工作主动识别，不以 Human 提及 Sacha 为前提；成立且选择条件具备时及时提出推荐与是否进入的选择，不把自己建议的前置工作排到入口决定之前。完整 Spec 已明确作为后续实施或验收输入时形成入口候选；依赖入口选择的规划、派发、实施和持久化须等待决定，已授权且与该选择无关的有界事实调查继续，具体边界由 Intake Contract 定义。
+- `using-sacha` 是唯一默认入口；目标、关键决定、授权与验收明确且可在当前上下文完成时保持 Direct，接受条件由 Intake Contract 定义。主任务按未决方案、实际 Spec 消费者或必要交接识别入口候选；跨文件、跨插件或行为变化本身不构成候选，也不因自行提议写 Spec 而制造入口前提。候选成立且选择条件具备时及时提出一次选择；依赖该选择的工作等待决定，已授权且独立的事实调查继续。具体判断、局部澄清与语义转折由 Intake Contract 定义。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
 - `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须把它明确推荐为 Sacha Planner 任务；Human 确认创建后，新任务从既有显式 Planner 入口开始，不继承 Roadmap 的写入或实施授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 同时构成本次写入授权，可绕过 Project Integration 按模板原子新建或更新；其他请求仍服从 Project Integration。
