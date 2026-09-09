@@ -1,0 +1,5 @@
+[
+  {"id": "b", "unit_price": "10.005", "quantity": 3, "rebate_cents": 2},
+  {"id": "a", "unit_price": "20.00", "quantity": 1},
+  {"id": "c", "unit_price": "1.00", "quantity": 1, "rebate_cents": 150}
+]

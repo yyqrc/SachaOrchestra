@@ -100,3 +100,4 @@ Execution Report 在恢复、证据索引或正式 Review 存在消费者时随�
 - 返修/重规划保持 Task ID，除非 Human 建立新 Scope。
 - Target 核对可用路由标识、Scope、Artifact/Evidence 和 Entry Condition；不满足时暂停或报告部分完成。
 - 恢复继续使用 Spec、Execution Report 和 Review 作为权威状态。
+- 上下文即将切换或确有后续接手者，且现有传输不足以继续时，在已有恢复载体中保留下一步需要的接口结论、适用条件、精确来源、已完成部分与剩余缺口；不只记录进度或文件列表。失效结论及时更新，不复制大段源码或另建台账。恢复后从有效结论继续，仍为修改和验证读取必要原文，不要求零重读或每步写记录。

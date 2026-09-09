@@ -26,7 +26,7 @@
 5. 执行者结束后启动未参与实施的独立评估者；只给它 `oracle.md`、本次目标 Runtime Adapter、上述原始记录、最终工作区和验证器输出。独立评估者按 `pass | drift | blocked` 裁决，并指出第一处偏移与直接证据。
 6. `pass` 必须同时满足任务验收和 oracle。源码阅读、Skill/Plugin validator、配置文件或执行者自报不能替代真实 Runtime 行为；安装后的全新发现只有在 Human 已授权安装并从全新任务启动时才能作为 Runtime 证据，其他运行标记为 `source-scenario`。
 
-## 当前 15 个基线包
+## 当前 16 个场景包
 
 - `using-sacha-semantic-turn`：验证查询/诊断转为修改时重新判断入口，Human 反问入口行为不被当成接受。
 - `using-sacha-spec-intake`：验证完整 Spec 已作为后续实施或验收输入时，在领域调查前形成一次入口候选。
@@ -41,6 +41,7 @@
 - `reviewer-semantic-chain`：验证 Reviewer 对正式入口、边界和证据范围的真实追踪。
 - `codex-skill-entry-visibility`：验证把 Sacha 或 `using-sacha` 作为修改对象不等于接受 Sacha 编排。
 - `shared-compilation-input`：验证并行写入未完成时延后共享编译、实施者交回待验证项，以及稳定输入失败后的责任交接和补验；使用小型 Python 工程，不替代 Unity 运行验证。
+- `delegation-context-cost`：验证共同接口未定时的工作块安排、同级事实与控制动作边界，以及连续/独立后续工作的复用判断和恢复信息；需要全新主任务，未运行不算基线通过。
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
 - `dsh-companion-root-surface-routing`：验证同一 DSH Root 对话从只读要求切换为明确实施要求后，下一步工具面随最新指令更新；需要恢复证据时只续查这一案例。
 
