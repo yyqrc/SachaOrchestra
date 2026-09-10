@@ -3,7 +3,8 @@
 import {
   useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type CSSProperties,
 } from 'react'
-import type { ObservableSnapshot, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { useSachaActivity } from './activity-monitor.ts'
 import { CONDUCTOR_CAT, MEMBER_CAT, subagentCatProp } from './artwork.ts'
 import { CatArt } from './cats.tsx'
@@ -51,8 +52,8 @@ const WAVE_STATE_LABEL: Record<VisualState['waves'][number]['state'], string> = 
 const UNIT_STATE_LABEL: Record<VisualState['waves'][number]['units'][number]['state'], string> = {
   ready: '可开始', running: '进行中', waiting: '等待中', completed: '已完成', blocked: '遇到问题',
 }
-const TOOL_SURFACE_LABEL: Record<ToolSurfaceSnapshot['profile'], string> = {
-  inspect: '已收窄为查看工具', execute: '已开放处理工具', review: '已收窄为确认工具',
+const TOOL_SURFACE_LABEL: Record<ToolSurfaceSnapshot['phase'], string> = {
+  bootstrap: '起步：仅查看工具', resident: '已开放工作工具',
 }
 
 function initialPanelLayout(): PanelLayout {
@@ -139,7 +140,7 @@ function ToolSurfaceSection({ surface }: { readonly surface?: ToolSurfaceSnapsho
         <small>{surface.visibleCount} 个可用</small>
       </div>
       <article className={css.toolSurface} data-fallback={surface.fallback || undefined}>
-        <span className={css.summary}>{TOOL_SURFACE_LABEL[surface.profile]}</span>
+        <span className={css.summary}>{TOOL_SURFACE_LABEL[surface.phase]}</span>
         <span className={css.meta}>
           {surface.hiddenCount > 0 ? `${surface.hiddenCount} 个暂时收起` : '没有暂时收起的工具'}
           {surface.unlocked.length > 0 ? ` · 已按需增加 ${surface.unlocked.length} 个` : ' · 需要时可按需增加'}

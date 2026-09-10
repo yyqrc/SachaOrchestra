@@ -109,14 +109,14 @@ export interface SubagentSnapshot {
 
 export interface ToolSurfaceSnapshot {
   readonly sessionId: string
-  readonly profile: 'inspect' | 'execute' | 'review'
+  readonly phase: 'bootstrap' | 'resident'
   readonly visibleCount: number
   readonly hiddenCount: number
   readonly visible: readonly string[]
   readonly hidden: readonly string[]
   readonly advertised: readonly string[]
   readonly unlocked: readonly string[]
-  readonly source: 'control' | 'user-message' | 'pending-inbox' | 'bootstrap'
+  readonly source: 'control' | 'runtime' | 'bootstrap'
   readonly fallback: boolean
   readonly warnings: readonly string[]
 }

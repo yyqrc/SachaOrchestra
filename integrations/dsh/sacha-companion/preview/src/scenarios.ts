@@ -30,11 +30,9 @@ function makeSnapshot(
   children: readonly SubagentSnapshot[] = [],
   warnings: readonly string[] = [],
 ): SachaActivitySnapshot {
-  const profile = state.phase?.phase === 'reviewer'
-    ? 'review' as const
-    : state.phase?.phase === 'executor'
-      ? 'execute' as const
-      : 'inspect' as const
+  // Preview mirrors the real surface: a session that has begun work is resident.
+  const working = state.phase?.phase === 'executor' || state.phase?.phase === 'reviewer'
+  const phase = working ? 'resident' as const : 'bootstrap' as const
   return {
     available: true,
     sessionId: `preview-${id}`,
@@ -43,14 +41,14 @@ function makeSnapshot(
     subagents: { available: true, children },
     toolSurface: {
       sessionId: `preview-${id}`,
-      profile,
-      visibleCount: profile === 'execute' ? 14 : 9,
-      hiddenCount: profile === 'execute' ? 37 : 42,
+      phase,
+      visibleCount: working ? 14 : 6,
+      hiddenCount: working ? 37 : 45,
       visible: ['read', 'grep', 'sacha_tools'],
       hidden: ['mcp_unity'],
       advertised: ['read', 'grep', 'sacha_tools'],
       unlocked: [],
-      source: 'user-message',
+      source: 'runtime',
       fallback: false,
       warnings: [],
     },

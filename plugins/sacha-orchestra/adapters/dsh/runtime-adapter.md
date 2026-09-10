@@ -33,9 +33,9 @@
 
 `sacha_visual_event` 是可选观测能力。它存在时，主任务按第 7 节记录已经提交的 Sacha 转换；缺失、失败或不可达只形成观测缺口，不打开或关闭 Gate，不撤销已提交动作，也不阻塞能够独立验证的工作流。
 
-目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，Companion 对 live Root 提供 `inspect | execute | review` 工具 profile 与 `sacha_tools` 查询/解锁。首次消息不明确时采用 inspect；后续明确实施、只读或评审指令重新选择基础 profile，并清空临时解锁，中性继续或进度询问保持当前选择。冷恢复按原生事件顺序处理指令及成功配对的控制调用，新指令之前发起的旧控制调用不能用晚到结果重新解锁。新增工具仍须在下一次 `request/header.tools` 出现后才能执行；切换失败不提交成功状态，也不宣称此前运行的工具已停止。
+目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，Companion 对 live Root 提供 `bootstrap | resident` 两阶段工具面与 `sacha_tools` 查询、切档和解锁。阶段由耐久会话事件推导，不解析人类消息措辞：首个 `tool/call` 或 `assistant/message`（先到者生效）即从只读起步面晋升到工作集；Companion 自身的 `sacha_tools` 控制调用不构成晋升信号。模型可用 `sacha_tools` 的 `phase` 动作显式切换阶段，这是措辞分类之外的恢复路径，显式切换后自动晋升不再覆盖该选择。上下文压缩只遮蔽消息视图而保留原始事件，因此压缩后阶段与工具面不回退。冷恢复按原生事件顺序重放阶段及成功配对的控制调用，显式切档之前发起的旧控制调用不能用晚到结果重新解锁。新增工具仍须在下一次 `request/header.tools` 出现后才能执行；切换失败不提交成功状态，也不宣称此前运行的工具已停止。
 
-该分类只控制 DSH 的可见与可执行工具，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功控制记录和恢复结果；隐藏工具需要当前工作单元且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
+该阶段只控制 DSH 的可见与可执行工具，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功控制记录和恢复结果；隐藏工具需要当前工作单元且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
 
 ## 3. 主任务、Role 与 child 映射
 
@@ -135,8 +135,9 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 源码与文档检查只证明本映射存在。根据实际修改、交付声明和明确案例，从下列维度选择所需证据；这不是每次必跑矩阵。声明某项实际行为时，必须取得目标 DSH 版本的真实运行证据：
 
 - Agent Plugin fresh discovery；
-- Companion Root `inspect | execute | review` 的首个 `request/header.tools`、same-scope schema/section/guard 对齐和隐藏工具负例；
-- `sacha_tools` status/catalog/help/unlock/reset、同 response 拒绝、下一 step 放行和 cold resume；
+- Companion Root `bootstrap | resident` 两阶段的首个 `request/header.tools`、same-scope schema/section/guard 对齐和隐藏工具负例；
+- `sacha_tools` status/catalog/help/phase/unlock/reset、同 response 拒绝、下一 step 放行和 cold resume；
+- 首个耐久信号后的晋升、压缩后阶段不回退、以及多词 catalog 检索能返回被隐藏的 surface；
 - 具名 `sacha_research` / `sacha_worker` / `sacha_review` 或等价 continuable surface discovery；
 - fresh child、逐 child route、toolFilter、maxDepth 与 sandbox 实际值；
 - research/review 的最终工具目录不含本地写入、MCP/App/外部系统、Agent Teams、Sacha sibling 或长尾控制能力；Reviewer 只按任务需要保留 shell；
@@ -149,7 +150,7 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 - independent Reviewer 的输入来源与实际参与历史；
 - Sacha surface 只使用 continuable 路线；显式 foreground/one-shot 与 surface failure 不回退 standard subagent 或 Agent Teams；
 - `list_agents` 同名工具的实际 schema、被 Profile 覆盖时的恢复能力缺口；
-- subagent/teammate 不安装 Root policy，Root profile 不改变 child toolFilter；
+- subagent/teammate 不安装 Root policy，Root 阶段不改变 child toolFilter；
 - visualizer 对 Manager dependency、unit↔child mapping、continuable child Host/Client snapshot 与 Session 回放。
 
 静态测试、Profile 配置或执行者总结不能替代对应行为证据。没有实际运行的层次明确标为未验证，不为填满上述维度另造案例。

@@ -9,13 +9,13 @@ import {
   NewFirstPolicySlot,
   RootToolSurfaceController,
   captureToolScope,
-  classifyRootMessage,
   createToolCatalog,
   filterPromptAssembly,
   foldToolSurfaceState,
   isLiveRootAgent,
   mergeToolCatalog,
-  profileAllowsTool,
+  phaseAllowsTool,
+  phaseFromEvents,
   searchToolCatalog,
   suppressInheritedControlTool,
   toolHelp,
@@ -96,8 +96,8 @@ function header(seq: number, names: string[]) {
 
 function recovery(overrides: Partial<ToolSurfaceRecovery> = {}): ToolSurfaceRecovery {
   return {
-    profile: 'inspect', unlocked: [], advertised: ['read', 'grep', 'sacha_research', 'sacha_tools'],
-    source: 'user-message', warnings: [], ...overrides,
+    phase: 'bootstrap', unlocked: [], advertised: ['read', 'grep', 'sacha_research', 'sacha_tools'],
+    source: 'bootstrap', explicitPhase: false, warnings: [], ...overrides,
   }
 }
 
@@ -120,46 +120,65 @@ function controllerWithLog(
   return { controller, log, slot }
 }
 
-describe('Root task classification and profile allow lists', () => {
-  it('classifies explicit execution and review while keeping questions conservative', () => {
-    expect(classifyRootMessage('修复构建脚本并运行测试')).toBe('execute')
-    expect(classifyRootMessage('修复构建脚本！')).toBe('execute')
-    expect(classifyRootMessage('修复构建脚本，不要修改 Core；交付前完成独立复核。')).toBe('execute')
-    expect(classifyRootMessage('先显式加载 using-sacha，再迭代 DSH 适配层；交付前需要独立复核。')).toBe('execute')
-    expect(classifyRootMessage('先只读调查，然后修复构建脚本')).toBe('execute')
-    expect(classifyRootMessage('严格执行只读验证后写入结果')).toBe('execute')
-    expect(classifyRootMessage('请复核这次改动')).toBe('review')
-    expect(classifyRootMessage('只读审查这些改动，给出修改建议')).toBe('review')
-    expect(classifyRootMessage('执行一次只读复核')).toBe('review')
-    expect(classifyRootMessage('应该不会修改到 core 的规则？')).toBe('inspect')
-    expect(classifyRootMessage('如何修复构建脚本？')).toBe('inspect')
-    expect(classifyRootMessage('安装步骤是什么？')).toBe('inspect')
-    expect(classifyRootMessage('Can you fix this?')).toBe('execute')
-    expect(classifyRootMessage('严格执行该只读任务')).toBe('inspect')
-    expect(classifyRootMessage('请执行这个只读调查，不要修改文件')).toBe('inspect')
-    expect(classifyRootMessage('Human 目标是迭代 DSH 适配层；第一阶段保持只读，确认后再实施。')).toBe('inspect')
-    expect(classifyRootMessage('看看为什么构建失败')).toBe('inspect')
-    expect(classifyRootMessage('ambiguous request')).toBe('inspect')
+describe('durable phase derivation and phase allow lists', () => {
+  it('derives promotion from Runtime signals and never from human wording', () => {
+    // Human wording alone never promotes: an unrecognised or ambiguous task
+    // must not be able to strand the session, and it must not promote either.
+    expect(phaseFromEvents([user(1, '修复构建脚本并运行测试')])).toBe('bootstrap')
+    expect(phaseFromEvents([user(1, '继续')])).toBe('bootstrap')
+    expect(phaseFromEvents([user(1, '读一下上下文 然后继续')])).toBe('bootstrap')
+    // The Runtime's own first durable signal promotes, whichever arrives first.
+    expect(phaseFromEvents([{ type: 'assistant/message' }])).toBe('resident')
+    expect(phaseFromEvents([{ type: 'tool/call' }])).toBe('resident')
+    expect(phaseFromEvents([{ type: 'step/start' }, { type: 'assistant/message' }])).toBe('resident')
+    // Once promoted, the phase never falls back on later events.
+    expect(phaseFromEvents([{ type: 'assistant/message' }, { type: 'step/end' }])).toBe('resident')
   })
 
-  it('classifies explicit Chinese synchronization and path-prefixed edits as execution', () => {
-    expect(classifyRootMessage('从.codex的Agents.md 同步规则过来.dsh下的Agents.md')).toBe('execute')
-    expect(classifyRootMessage('同步文件')).toBe('execute')
-    expect(classifyRootMessage('把规则同步到 .dsh')).toBe('execute')
-    expect(classifyRootMessage('C:\\Users\\shifengzhou\\.dsh\\agent-plugins.yml 还是把cgame-unity改成Client 和 LookDevProject两个工作区开启 不全局开启了')).toBe('execute')
-    expect(classifyRootMessage('如何同步这些规则？')).toBe('inspect')
+  it('never promotes on this companion\'s own control calls', () => {
+    // `sacha_tools` is always visible, so a bare status query or a single-tool
+    // unlock must not be mistaken for the model starting real work.
+    const control = (seq: number, id: string, args: object) => ({
+      type: 'tool/call', seq, time: seq,
+      data: { callId: id, name: 'sacha_tools', arguments: JSON.stringify(args), turn: 1, step: 1 },
+    })
+    expect(phaseFromEvents([control(1, 'c1', { action: 'status' })])).toBe('bootstrap')
+    expect(phaseFromEvents([control(1, 'c1', { action: 'unlock', tools: ['mcp_unity'] })])).toBe('bootstrap')
+    expect(phaseFromEvents([control(1, 'c1', { action: 'phase', phase: 'bootstrap' })])).toBe('bootstrap')
+    // Any other tool call is real work and does promote.
+    expect(phaseFromEvents([{
+      type: 'tool/call', seq: 1, time: 1, data: { name: 'read', callId: 'r1', arguments: '{}' },
+    }])).toBe('resident')
   })
 
-  it('keeps MCP, Agent Teams, ordinary subagent/workflow, and writes hidden by default', () => {
-    expect(profileAllowsTool('inspect', 'read')).toBe(true)
-    expect(profileAllowsTool('inspect', 'sacha_research')).toBe(true)
-    expect(profileAllowsTool('inspect', 'write')).toBe(false)
-    expect(profileAllowsTool('execute', 'write')).toBe(true)
-    expect(profileAllowsTool('execute', 'job_output')).toBe(true)
-    expect(profileAllowsTool('review', 'pwsh')).toBe(true)
-    expect(profileAllowsTool('review', 'write')).toBe(false)
+  it('keeps a promoted session promoted across context compaction', () => {
+    // Compaction appends a shadowing user/message but keeps the original
+    // events in the durable log, so promotion survives it.
+    const events = [
+      { type: 'assistant/message' },
+      { type: 'compaction/start' },
+      { type: 'compaction/summary' },
+      { type: 'compaction/end' },
+      user(9, '继续'),
+    ]
+    expect(phaseFromEvents(events)).toBe('resident')
+  })
+
+  it('keeps MCP, Agent Teams, ordinary subagent/workflow hidden in both phases', () => {
+    expect(phaseAllowsTool('bootstrap', 'read')).toBe(true)
+    expect(phaseAllowsTool('bootstrap', 'grep')).toBe(true)
+    // The bootstrap phase is deliberately read-only.
+    expect(phaseAllowsTool('bootstrap', 'write')).toBe(false)
+    expect(phaseAllowsTool('bootstrap', 'pwsh')).toBe(false)
+    expect(phaseAllowsTool('bootstrap', 'sacha_research')).toBe(false)
+    // The resident phase exposes the working set including all three surfaces.
+    expect(phaseAllowsTool('resident', 'write')).toBe(true)
+    expect(phaseAllowsTool('resident', 'pwsh')).toBe(true)
+    expect(phaseAllowsTool('resident', 'sacha_research')).toBe(true)
+    expect(phaseAllowsTool('resident', 'sacha_worker')).toBe(true)
+    expect(phaseAllowsTool('resident', 'sacha_review')).toBe(true)
     for (const name of ['mcp_unity', 'spawn_teammate', 'subagent', 'workflow']) {
-      expect(profileAllowsTool('execute', name)).toBe(false)
+      expect(phaseAllowsTool('resident', name)).toBe(false)
     }
   })
 
@@ -169,6 +188,25 @@ describe('Root task classification and profile allow lists', () => {
     expect(isLiveRootAgent(root, [root])).toBe(true)
     expect(isLiveRootAgent(impostor, [root])).toBe(false)
     expect(isLiveRootAgent(root, [root], [{ type: 'subagent/descriptor' }])).toBe(false)
+  })
+})
+
+describe('hidden catalog discovery', () => {
+  it('matches any term of a natural multi-word query', () => {
+    // The old whole-string match returned nothing for these, which is how a
+    // session failed to discover the delegation surfaces.
+    const hidden = createToolCatalog([
+      schema('sacha_worker', 'Scoped implementation subagent for one work unit.'),
+      schema('mcp_unity', 'Unity editor bridge and console access.'),
+      schema('job_output', 'Read output from a background job.'),
+    ])
+    expect(searchToolCatalog(hidden, 'unity editor bridge').items.map(item => item.name)).toEqual(['mcp_unity'])
+    expect(searchToolCatalog(hidden, 'worker subagent').items.map(item => item.name)).toEqual(['sacha_worker'])
+    expect(searchToolCatalog(hidden, 'background job').items.map(item => item.name)).toEqual(['job_output'])
+    // A single term keeps the original substring behaviour.
+    expect(searchToolCatalog(hidden, 'sacha').items.map(item => item.name)).toEqual(['sacha_worker'])
+    // An unmatched query still returns nothing.
+    expect(searchToolCatalog(hidden, 'nonexistent thing').items).toEqual([])
   })
 })
 
@@ -252,19 +290,29 @@ describe('catalog metadata bounds', () => {
 })
 
 describe('durable recovery fold', () => {
-  it('replays task changes in event order and ignores old controls that finish later', () => {
+  it('promotes from durable signals and ignores old controls that finish later', () => {
     const events = [
       user(0, '只读调查'),
       call(1, 'old', { action: 'unlock', tools: ['mcp_unity'] }),
       user(2, '实现当前功能'),
-      result(3, 'old', false, { action: 'unlock', unlocked: ['mcp_unity'] }),
-      user(4, '继续'),
+      { type: 'assistant/message', seq: 3, time: 3, data: {} },
+      result(4, 'old', false, { action: 'unlock', unlocked: ['mcp_unity'] }),
+      user(5, '继续'),
     ]
-    expect(foldToolSurfaceState(events, catalog)).toMatchObject({ profile: 'execute', unlocked: [], source: 'user-message' })
-    events.push(call(5, 'current', { action: 'unlock', tools: ['mcp_unity'] }), result(6, 'current'))
-    expect(foldToolSurfaceState(events, catalog)).toMatchObject({ profile: 'execute', unlocked: ['mcp_unity'] })
-    events.push(user(7, '请复核改动'))
-    expect(foldToolSurfaceState(events, catalog)).toMatchObject({ profile: 'review', unlocked: [] })
+    // Promotion comes from the durable signal; the human turns contribute nothing.
+    // `source` reports the last state-affecting control, which here is the unlock.
+    expect(foldToolSurfaceState(events, catalog)).toMatchObject({ phase: 'resident', source: 'control' })
+    events.push(call(6, 'current', { action: 'unlock', tools: ['mcp_unity'] }), result(7, 'current'))
+    expect(foldToolSurfaceState(events, catalog)).toMatchObject({ phase: 'resident', unlocked: ['mcp_unity'] })
+  })
+
+  it('replays an explicit phase control and stops automatic promotion afterwards', () => {
+    const narrowed = foldToolSurfaceState([
+      { type: 'assistant/message', seq: 0, time: 0, data: {} },
+      call(1, 'phase', { action: 'phase', phase: 'bootstrap' }),
+      result(2, 'phase', false, { action: 'phase', phase: 'bootstrap', unlocked: [] }),
+    ], catalog)
+    expect(narrowed).toMatchObject({ phase: 'bootstrap', explicitPhase: true, source: 'control' })
   })
 
   it('applies only successful paired controls, then audits the latest request header', () => {
@@ -277,12 +325,12 @@ describe('durable recovery fold', () => {
       header(9, ['read', 'pwsh', 'sacha_tools']),
     ], catalog)
     expect(folded).toMatchObject({
-      profile: 'execute', source: 'control', unlocked: [],
+      source: 'control', unlocked: [],
       advertised: ['read', 'pwsh', 'sacha_tools'],
     })
   })
 
-  it('falls back from first human transcript to pending human inbox to bootstrap', () => {
+  it('starts in bootstrap for an empty or human-only log', () => {
     const pending = {
       type: 'agent/inbox/spliced', seq: 0, time: 0,
       data: {
@@ -290,13 +338,27 @@ describe('durable recovery fold', () => {
         inserted: [{ id: 'u', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '请复核改动' }] }],
       },
     }
-    expect(foldToolSurfaceState([pending], catalog)).toMatchObject({ profile: 'review', source: 'pending-inbox' })
-    expect(foldToolSurfaceState([], catalog)).toMatchObject({ profile: 'inspect', source: 'bootstrap' })
+    // Human messages never select a phase, so these stay in bootstrap.
+    expect(foldToolSurfaceState([pending], catalog)).toMatchObject({ phase: 'bootstrap', source: 'bootstrap' })
+    expect(foldToolSurfaceState([], catalog)).toMatchObject({ phase: 'bootstrap', source: 'bootstrap' })
+    // Human turns no longer reset unlocks, so two successful unlocks both hold.
     expect(foldToolSurfaceState([
       user(-2, '只读调查'), call(-1, 'old', { action: 'unlock', tools: ['mcp_unity'] }),
       pending, result(1, 'old', false, { action: 'unlock', unlocked: ['mcp_unity'] }),
       call(2, 'new', { action: 'unlock', tools: ['write'] }), result(3, 'new'),
-    ], catalog)).toMatchObject({ profile: 'review', source: 'control', unlocked: ['write'] })
+    ], catalog)).toMatchObject({ phase: 'bootstrap', source: 'control', unlocked: ['mcp_unity', 'write'] })
+  })
+
+  it('discards an unlock that was started before an explicit phase control', () => {
+    // An explicit phase control is the boundary that still resets the surface,
+    // so a control call started earlier may not re-unlock when it lands later.
+    const folded = foldToolSurfaceState([
+      call(1, 'stale', { action: 'unlock', tools: ['mcp_unity'] }),
+      call(2, 'phase', { action: 'phase', phase: 'resident' }),
+      result(3, 'phase', false, { action: 'phase', phase: 'resident', unlocked: [] }),
+      result(4, 'stale', false, { action: 'unlock', unlocked: ['mcp_unity'] }),
+    ], catalog)
+    expect(folded).toMatchObject({ phase: 'resident', explicitPhase: true, unlocked: [] })
   })
 
   it('recovers committed exact family members without unlocking later same-family tools', () => {
@@ -331,39 +393,49 @@ describe('controller transitions and same-response guard', () => {
     expect(controller.guardReason('sacha_tools')).toBeUndefined()
   })
 
-  it('resets temporary unlocks to the classified base profile', () => {
+  it('resets temporary unlocks to the current phase', () => {
     const { controller } = controllerWithLog()
     controller.unlock(['write', 'mcp_unity'])
     expect(controller.snapshot().unlocked).toEqual(['mcp_unity', 'write'])
-    expect(controller.reset()).toMatchObject({ profile: 'inspect', unlocked: [] })
+    expect(controller.reset()).toMatchObject({ phase: 'bootstrap', unlocked: [] })
     expect(controller.guardReason('write')).toBeDefined()
   })
 
-  it('updates explicit tasks, clears unlocks, and preserves neutral continuation', () => {
-    const bootstrap = controllerWithLog(recovery({ source: 'bootstrap', advertised: [] })).controller
-    expect(bootstrap.classifyHuman(user(0, '只读调查').data)).toBe('inspect')
-    bootstrap.unlock(['mcp_unity'])
-    expect(bootstrap.classifyHuman(user(1, '实现这个功能').data)).toBe('execute')
-    expect(bootstrap.snapshot().unlocked).toEqual([])
-    expect(bootstrap.guardReason('write')).toBeDefined()
-    bootstrap.noteRequestHeader([{ name: 'write' }])
-    expect(bootstrap.guardReason('write')).toBeUndefined()
-    bootstrap.unlock(['mcp_unity'])
-    expect(bootstrap.classifyHuman(user(2, '继续').data)).toBe('execute')
-    expect(bootstrap.classifyHuman(user(3, '进度怎么样？').data)).toBe('execute')
-    expect(bootstrap.classifyHuman(user(30, '查看当前进度').data)).toBe('execute')
-    expect(bootstrap.snapshot().unlocked).toEqual(['mcp_unity'])
-    expect(bootstrap.classifyHuman(user(4, '请复核改动').data)).toBe('review')
-    expect(bootstrap.snapshot().unlocked).toEqual([])
-    bootstrap.unlock(['write'])
-    expect(bootstrap.reset()).toMatchObject({ profile: 'review', unlocked: [] })
-    expect(bootstrap.classifyHuman(user(5, '先只读调查').data)).toBe('inspect')
+  it('promotes on the first durable signal and keeps unlocks across it', () => {
+    const controller = controllerWithLog(recovery({ advertised: [] })).controller
+    expect(controller.snapshot().phase).toBe('bootstrap')
+    controller.unlock(['mcp_unity'])
+    // A human turn alone never promotes.
+    expect(controller.snapshot().phase).toBe('bootstrap')
+    // The Runtime's own first tool call does.
+    controller.noteDurableEvent({ type: 'tool/call' })
+    expect(controller.snapshot().phase).toBe('resident')
+    expect(controller.snapshot().source).toBe('runtime')
+    expect(controller.snapshot().unlocked).toEqual(['mcp_unity'])
+    expect(controller.guardReason('write')).toBeDefined()
+    controller.noteRequestHeader([{ name: 'write' }])
+    expect(controller.guardReason('write')).toBeUndefined()
   })
 
-  it('does not commit a task change when the native policy installation fails', () => {
+  it('lets the model switch phase explicitly and stops automatic promotion afterwards', () => {
+    const controller = controllerWithLog(recovery({ advertised: [] })).controller
+    controller.noteDurableEvent({ type: 'assistant/message' })
+    expect(controller.snapshot().phase).toBe('resident')
+    controller.unlock(['mcp_unity'])
+    // Narrowing back to bootstrap clears temporary unlocks.
+    expect(controller.setPhase('bootstrap')).toMatchObject({ phase: 'bootstrap', unlocked: [] })
+    expect(controller.guardReason('write')).toBeDefined()
+    // A later durable signal must not silently undo the model's choice.
+    controller.noteDurableEvent({ type: 'tool/call' })
+    expect(controller.snapshot().phase).toBe('bootstrap')
+    // The model can also open the resident set without waiting for a signal.
+    expect(controller.setPhase('resident')).toMatchObject({ phase: 'resident' })
+  })
+
+  it('does not commit a phase change when the native policy installation fails', () => {
     const controller = new RootToolSurfaceController('root', catalog, recovery(), () => { throw new Error('install failed') })
     const before = controller.snapshot()
-    expect(() => controller.classifyHuman(user(1, '实现功能').data)).toThrow()
+    expect(() => controller.setPhase('resident')).toThrow()
     expect(controller.snapshot()).toEqual(before)
   })
 })

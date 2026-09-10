@@ -206,7 +206,7 @@ export function apply(ctx: Context): void {
           json(res, 404, { error: 'session is not live' })
           return
         }
-        const folded = recordedVisualEvents(session.events)
+        const folded = recordedVisualEvents(session.snapshotEvents())
         const observed = await readSubagents(ctx, sessionId)
         const snapshot: SachaActivitySnapshot = {
           available: true,

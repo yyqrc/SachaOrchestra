@@ -3,11 +3,18 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import type { InferValue, JsonValue, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+import type { InferValue, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
 export const SACHA_TOOLS_NAME = 'sacha_tools'
-export const TOOL_SURFACE_PROFILES = ['inspect', 'execute', 'review'] as const
-export type ToolSurfaceProfile = (typeof TOOL_SURFACE_PROFILES)[number]
+/**
+ * Two-phase Root surface. A session's first request sees only the bootstrap
+ * pair, and the first durable signal — a `tool/call` or an `assistant/message`,
+ * whichever comes first — opens the resident working set. Phase is derived from
+ * durable session events, so resume, reload and context compaction keep it.
+ */
+export const TOOL_SURFACE_PHASES = ['bootstrap', 'resident'] as const
+export type ToolSurfacePhase = (typeof TOOL_SURFACE_PHASES)[number]
 
 export const TOOL_FAMILIES = [
   'filesystem-read',
@@ -26,7 +33,27 @@ const MAX_CATALOG_RESULTS = 24
 const DEFAULT_CATALOG_RESULTS = 12
 const MAX_QUERY_CHARS = 96
 
-const INSPECT_TOOLS = new Set([
+/**
+ * First-request surface. Deliberately read-only: it is the smallest set that
+ * still lets the model look at the task before its first reply. Promotion
+ * opens the resident set on the very next step, so this is a one-step cost
+ * rather than a capability ceiling.
+ */
+const BOOTSTRAP_TOOLS = new Set([
+  'read',
+  'read_image',
+  'glob',
+  'grep',
+  'sacha_visual_event',
+])
+
+/**
+ * Working set exposed after the first durable promotion signal or an explicit
+ * model phase switch. The three Sacha delegation surfaces live here so a Root
+ * session can actually delegate instead of implementing everything itself.
+ * Longer-tail tools stay one `sacha_tools` catalog query away.
+ */
+const RESIDENT_TOOLS = new Set([
   'read',
   'read_image',
   'glob',
@@ -34,29 +61,15 @@ const INSPECT_TOOLS = new Set([
   'skill',
   'web_search',
   'ask_user_question',
-  'sacha_research',
-  'sacha_visual_event',
-])
-
-const REVIEW_TOOLS = new Set([
-  'read',
-  'read_image',
-  'glob',
-  'grep',
-  'skill',
-  'bash',
-  'pwsh',
-  'sacha_review',
-  'sacha_visual_event',
-])
-
-const EXECUTE_EXTRA_TOOLS = new Set([
   'write',
   'edit',
   'bash',
   'pwsh',
   'todo_write',
+  'sacha_research',
   'sacha_worker',
+  'sacha_review',
+  'sacha_visual_event',
 ])
 
 const DEFAULT_GUIDANCE_OWNERS: Readonly<Record<string, readonly string[]>> = {
@@ -130,17 +143,22 @@ export interface ToolHelpResult {
 }
 
 export interface ToolSurfaceRecovery {
-  readonly profile: ToolSurfaceProfile
+  readonly phase: ToolSurfacePhase
   readonly unlocked: readonly string[]
   readonly advertised: readonly string[]
-  readonly source: 'control' | 'user-message' | 'pending-inbox' | 'bootstrap'
+  readonly source: 'control' | 'runtime' | 'bootstrap'
+  /**
+   * Whether an explicit model phase control was replayed. When true, automatic
+   * promotion must not override the model's deliberate choice.
+   */
+  readonly explicitPhase: boolean
   readonly warnings: readonly string[]
 }
 
 /** Serializable state consumed by the Host status route and the Web projection. */
 export interface RootToolSurfaceSnapshot {
   readonly sessionId: string
-  readonly profile: ToolSurfaceProfile
+  readonly phase: ToolSurfacePhase
   readonly visibleCount: number
   readonly hiddenCount: number
   readonly visible: readonly string[]
@@ -192,80 +210,39 @@ function boundedText(value: unknown, maxChars: number): string {
   return normalized.length <= maxChars ? normalized : `${normalized.slice(0, maxChars - 1)}…`
 }
 
-function messageText(message: MessageLike): string {
-  if (!Array.isArray(message.content)) return ''
-  return message.content.flatMap((block) => {
-    const value = record(block)
-    return value?.['type'] === 'text' && typeof value['text'] === 'string' ? [value['text']] : []
-  }).join('\n').trim()
-}
+/**
+ * Durable session events that promote a session out of the bootstrap phase.
+ * `tool/call` and `assistant/message` are both written by the Runtime itself,
+ * so promotion never depends on interpreting human wording.
+ */
+const PROMOTION_EVENT_TYPES = new Set(['tool/call', 'assistant/message'])
 
-function isHumanMessage(value: unknown): value is MessageLike {
-  const message = record(value)
-  const source = record(message?.['source'])
-  return source?.['kind'] === 'user'
-}
-
-/** Conservative deterministic classification. Questions and ambiguous requests stay inspect. */
-export function classifyRootMessage(message: MessageLike | string): ToolSurfaceProfile {
-  return explicitRootProfile(message) ?? 'inspect'
-}
-
-/** 不明确的跟进保留当前选择；首次无任务时由调用方采用 inspect。 */
-function explicitRootProfile(message: MessageLike | string): ToolSurfaceProfile | undefined {
-  const text = (typeof message === 'string' ? message : messageText(message)).trim()
-  if (text === '') return
-  const normalized = text.toLowerCase()
-
-  const clauses = normalized.match(/[^，。；;！？!?\n]+[！？!?]?/gu) ?? [normalized]
-  const chineseAction = '(?:修改|实现|修复|新增|添加|删除|移除|改成|改为|写入|创建|同步|构建|编译|运行测试|安装|重装|迁移|执行|迭代)'
-  const chineseExecute = new RegExp(`^(?:(?:请|麻烦|帮我|继续|直接|现在|立刻|先|然后|再|并且|并)\\s*)*(?:(?:把|将)\\s*[^，。；;！？!?\\n]{0,80}\\s*)?(?:在\\s*[^，。；;！？!?\\n]{0,60}\\s*)?${chineseAction}`, 'iu')
-  // 对象前置只接受具名源或路径；出现新的真实漏判时再补句式，不扩大为任意行内动词。
-  const chineseSourceSync = /^(?:(?:请|麻烦|帮我|继续|直接|现在|立刻|先|然后|再|并且|并)\s*)*从[^，。；;！？!?\n]{1,120}同步[^，。；;！？!?\n]{0,120}(?:到|至|进|过来)/iu
-  const chinesePathPrefixedExecute = new RegExp(`^(?:[a-z]:[\\\\/]|[.~][\\\\/])[^，。；;！？!?\\n]{1,160}\\s+(?:(?:还是|然后|再|直接)\\s*)?(?:(?:把|将)\\s*[^，。；;！？!?\\n]{0,80}\\s*)?${chineseAction}`, 'iu')
-  const chineseFollowupExecute = new RegExp(`(?:并|然后|再|后)\\s*(?:直接\\s*)?${chineseAction}`, 'iu')
-  const englishExecute = /^(?:please\s+|can\s+you\s+|could\s+you\s+)*(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu
-  const englishFollowupExecute = /\b(?:and|then)\s+(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu
-  const reviewStart = /^(?:(?:请|麻烦|帮我|先|现在)\s*)*(?:审查|评审|复核|代码审阅|检查(?:这次|这些|当前|上述)?(?:改动|差异|提交|代码)|review\b|audit\b)/iu
-  const readonlyTask = /(?:只读(?:的)?(?:任务|调查|检查|分析|诊断|定位|操作|工作|场景|验证|冒烟|要求)|(?:任务|调查|检查|分析|诊断|定位|操作|工作|场景|验证|冒烟)(?:是|为)?只读|(?:第一阶段|当前|先|仅|只|全程)\s*(?:保持)?只读|确认后再实施|不要实施|不得实施|暂不实施|不修改(?:任何)?文件|(?:禁止|不得|不要)\s*写入|read[- ]only\s+(?:task|check|inspection|investigation|first|phase)|do not implement yet)/iu
-  const readonlyReview = /(?:只读(?:的)?(?:审查|评审|复核|代码审阅)|(?:审查|评审|复核|代码审阅)[^，。；;！？!?\n]{0,24}只读)/iu
-  const negativeStart = /^(?:(?:请|务必)\s*)?(?:不要|别|无需|不需要|不得|避免|do\s+not\b|don't\b|must\s+not\b|avoid\b)/iu
-  const questionStart = /^(?:如何|怎么|为什么|是否|能否|可否|会不会|应该不会|什么|哪些|哪里|where\b|what\b|why\b|how\b|whether\b)/iu
-  let reviewRequested = false
-  let inspectRequested = false
-  for (const rawClause of clauses) {
-    const clause = rawClause.trim()
-    if (clause === '') continue
-    if (/^(?:(?:请|帮我)\s*)?(?:(?:查看|看看|汇报|报告)\s*)?(?:当前|现在|任务)?(?:进度|状态)(?:如何|怎么样|到哪了)?[？?！!。]?$/u.test(clause)) continue
-    if (negativeStart.test(clause)) {
-      if (readonlyTask.test(clause)) inspectRequested = true
-      continue
+/**
+ * Derive the phase from durable session events only. The first promotion
+ * signal wins; later events never demote. Context compaction appends a
+ * shadowing `user/message` but keeps every original event in the log, so a
+ * promoted session stays promoted across compaction.
+ *
+ * This companion's own control calls are excluded: `sacha_tools` is always
+ * visible, so counting it would let a bare `status` query — or the very
+ * `phase: 'bootstrap'` narrowing itself — open the working set, and it would
+ * turn an explicit single-tool `unlock` into a full promotion.
+ */
+export function phaseFromEvents(events: readonly EventLike[]): ToolSurfacePhase {
+  for (const event of events) {
+    if (!PROMOTION_EVENT_TYPES.has(event.type)) continue
+    if (event.type === 'tool/call') {
+      const data = record(event.data)
+      if (data?.['name'] === SACHA_TOOLS_NAME) continue
     }
-    const explicitEnglishRequest = /^(?:can|could)\s+you\s+(?:implement|fix|modify|edit|add|remove|delete|write|create|build|compile|install|reinstall|migrate|run\s+(?:the\s+)?tests?|iterate)\b/iu.test(clause)
-    const questionOnly = (questionStart.test(clause) || /[？?]$/u.test(clause)) && !explicitEnglishRequest
-    if (questionOnly) continue
-    const requestsReview = reviewStart.test(clause) || readonlyReview.test(clause)
-    const requestsReadonly = readonlyTask.test(clause) || readonlyReview.test(clause)
-    if (requestsReadonly || /^(?:(?:请|麻烦|帮我|先|现在)\s*)*(?:只读|调查|分析|诊断|查看|看看|inspect\b|investigate\b|analyze\b)/iu.test(clause)) inspectRequested = true
-    const requestsFollowupExecution = chineseFollowupExecute.test(clause)
-      || englishFollowupExecute.test(clause)
-    const requestsExecution = chineseExecute.test(clause) || chineseSourceSync.test(clause)
-      || chinesePathPrefixedExecute.test(clause) || requestsFollowupExecution
-      || englishExecute.test(clause)
-    if (requestsReview) reviewRequested = true
-    if (requestsExecution && !(requestsReadonly && !requestsFollowupExecution)) {
-      return 'execute'
-    }
+    return 'resident'
   }
-  if (reviewRequested) return 'review'
-  return inspectRequested ? 'inspect' : undefined
+  return 'bootstrap'
 }
 
-/** Profile predicate shared by restriction, assembly filtering, guard, and tests. */
-export function profileAllowsTool(profile: ToolSurfaceProfile, name: string): boolean {
-  if (profile === 'review') return REVIEW_TOOLS.has(name)
-  if (INSPECT_TOOLS.has(name)) return true
-  return profile === 'execute' && (EXECUTE_EXTRA_TOOLS.has(name) || name.startsWith('job_'))
+/** Phase predicate shared by restriction, assembly filtering, guard, and tests. */
+export function phaseAllowsTool(phase: ToolSurfacePhase, name: string): boolean {
+  return phase === 'bootstrap' ? BOOTSTRAP_TOOLS.has(name) : RESIDENT_TOOLS.has(name)
 }
 
 /**
@@ -392,6 +369,12 @@ export function suppressInheritedControlTool(agent: Agent): (() => void) | undef
   return agent.ctx.tools.restrict({ deny: [SACHA_TOOLS_NAME] })
 }
 
+/**
+ * Match a query against the hidden catalog. Terms are split on whitespace and
+ * any term may match, so a natural multi-word query such as "unity editor
+ * bridge" still returns the tools it names. A single term keeps the original
+ * substring behaviour.
+ */
 export function searchToolCatalog(
   catalog: ToolCatalogSnapshot,
   query = '',
@@ -402,11 +385,15 @@ export function searchToolCatalog(
     throw new Error(`catalog query must be at most ${MAX_QUERY_CHARS} characters`)
   }
   const limit = Math.max(1, Math.min(MAX_CATALOG_RESULTS, Math.trunc(requestedLimit)))
+  const terms = normalizedQuery === '' ? [] : normalizedQuery.split(/\s+/).filter(term => term !== '')
   const matches = catalog.entries.filter((entry) => {
-    if (normalizedQuery === '') return true
-    return entry.name.toLowerCase().includes(normalizedQuery)
-      || entry.description.toLowerCase().includes(normalizedQuery)
-      || entry.families.some(family => family.includes(normalizedQuery))
+    if (terms.length === 0) return true
+    const haystacks = [
+      entry.name.toLowerCase(),
+      entry.description.toLowerCase(),
+      entry.families.join(' ').toLowerCase(),
+    ]
+    return terms.some(term => haystacks.some(haystack => haystack.includes(term)))
   })
   const items = matches.slice(0, limit).map(entry => ({
     name: entry.name,
@@ -447,7 +434,11 @@ function successfulToolResult(data: unknown, callId: string): boolean {
   })
 }
 
-function committedControlState(data: unknown): { action: string; unlocked: string[] } | undefined {
+function committedControlState(data: unknown): {
+  action: string
+  unlocked: string[]
+  phase?: ToolSurfacePhase
+} | undefined {
   const result = record(data)
   const message = record(result?.['message'])
   const content = message?.['content']
@@ -462,9 +453,16 @@ function committedControlState(data: unknown): { action: string; unlocked: strin
         const payload = record(JSON.parse(text['text']))
         const action = payload?.['action']
         const unlocked = payload?.['unlocked']
+        const phase = payload?.['phase']
         if (typeof action === 'string' && Array.isArray(unlocked)
           && unlocked.every((name): name is string => typeof name === 'string')) {
-          return { action, unlocked: [...new Set(unlocked)] }
+          return {
+            action,
+            unlocked: [...new Set(unlocked)],
+            ...(typeof phase === 'string' && (TOOL_SURFACE_PHASES as readonly string[]).includes(phase)
+              ? { phase: phase as ToolSurfacePhase }
+              : {}),
+          }
         }
       } catch {
         continue
@@ -472,26 +470,6 @@ function committedControlState(data: unknown): { action: string; unlocked: strin
     }
   }
   return
-}
-
-function pendingHumanMessages(events: readonly EventLike[]): MessageLike[] {
-  const pending: Record<'next-turn' | 'next-step', unknown[]> = { 'next-turn': [], 'next-step': [] }
-  for (const event of events) {
-    if (event.type !== 'agent/inbox/spliced') continue
-    const splice = record(event.data)
-    const target = splice?.['target']
-    const start = splice?.['start']
-    const removedCount = splice?.['removedCount'] ?? 0
-    const inserted = splice?.['inserted']
-    if ((target !== 'next-turn' && target !== 'next-step')
-      || typeof start !== 'number' || !Number.isSafeInteger(start)
-      || typeof removedCount !== 'number' || !Number.isSafeInteger(removedCount)
-      || !Array.isArray(inserted)) continue
-    const list = pending[target]
-    if (start < 0 || removedCount < 0 || start > list.length || start + removedCount > list.length) continue
-    list.splice(start, removedCount, ...inserted)
-  }
-  return [...pending['next-step'], ...pending['next-turn']].filter(isHumanMessage)
 }
 
 function controlUnlockNames(
@@ -521,40 +499,29 @@ function controlUnlockNames(
   return [...result]
 }
 
-/** Rebuild profile, temporary unlocks, and last advertised header without custom Session events. */
+/**
+ * Rebuild phase, temporary unlocks, and the last advertised header from durable
+ * session events. Phase never depends on human wording: it comes from the
+ * Runtime's own promotion events, plus any explicit model phase control. Both
+ * survive resume, reload and compaction because the underlying events stay in
+ * the log.
+ */
 export function foldToolSurfaceState(
   events: readonly EventLike[],
   catalog: ToolCatalogSnapshot,
 ): ToolSurfaceRecovery {
   const warnings: string[] = []
-  let profile: ToolSurfaceProfile = 'inspect'
+  // Automatic promotion is derived from the whole durable log first; an
+  // explicit phase control replayed below can still narrow it deliberately.
+  let phase: ToolSurfacePhase = phaseFromEvents(events)
+  let explicitPhase = false
   let source: ToolSurfaceRecovery['source'] = 'bootstrap'
 
   const pendingCalls = new Map<string, Record<string, unknown>>()
   const unlocked = new Set<string>()
-  const pendingHumans = new Set(pendingHumanMessages(events))
-  const applyHuman = (message: MessageLike, origin: 'user-message' | 'pending-inbox'): void => {
-    const selected = explicitRootProfile(message)
-    if (selected === undefined && source !== 'bootstrap') return
-    profile = selected ?? 'inspect'
-    unlocked.clear()
-    // 新指令之前开始的控制调用不能在晚到后恢复旧解锁。
-    pendingCalls.clear()
-    source = origin
-  }
   let advertised: string[] = []
   for (const event of events) {
-    if (event.type === 'user/message' && isHumanMessage(event.data)) {
-      applyHuman(event.data, 'user-message')
-      continue
-    }
     const data = record(event.data)
-    if (event.type === 'agent/inbox/spliced' && Array.isArray(data?.['inserted'])) {
-      for (const message of data['inserted']) {
-        if (isHumanMessage(message) && pendingHumans.has(message)) applyHuman(message, 'pending-inbox')
-      }
-      continue
-    }
     if (event.type === 'request/header') {
       const header = record(data?.['header'])
       const tools = header?.['tools']
@@ -593,6 +560,17 @@ export function foldToolSurfaceState(
     if (!successfulToolResult(event.data, callId)) continue
     try {
       const committed = committedControlState(event.data)
+      if (args['action'] === 'phase' && committed?.action === 'phase' && committed.phase !== undefined) {
+        phase = committed.phase
+        explicitPhase = true
+        // Mirror the live controller: an explicit phase control resets the
+        // surface, so temporary unlocks are dropped and any control call that
+        // started earlier may not re-unlock when its result arrives late.
+        unlocked.clear()
+        pendingCalls.clear()
+        source = 'control'
+        continue
+      }
       if ((args['action'] === 'unlock' || args['action'] === 'reset')
         && committed?.action === args['action']) {
         unlocked.clear()
@@ -606,7 +584,7 @@ export function foldToolSurfaceState(
           continue
         }
         for (const name of controlUnlockNames(args, catalog)) {
-          if (!profileAllowsTool(profile, name)) unlocked.add(name)
+          if (!phaseAllowsTool(phase, name)) unlocked.add(name)
         }
         source = 'control'
       } else if (args['action'] === 'reset') {
@@ -619,10 +597,11 @@ export function foldToolSurfaceState(
   }
   if (catalog.truncated) warnings.push(`tool snapshot truncated at ${catalog.entries.length} entries`)
   return {
-    profile,
+    phase,
     unlocked: [...unlocked].sort(),
     advertised: [...new Set(advertised)],
     source,
+    explicitPhase,
     warnings,
   }
 }
@@ -674,7 +653,7 @@ export class NewFirstPolicySlot {
 
 /** Pure state controller; the Host supplies the paired Runtime registration installer. */
 export class RootToolSurfaceController {
-  private profile: ToolSurfaceProfile
+  private phase: ToolSurfacePhase
   private unlocked: Set<string>
   private advertised: Set<string>
   private readonly warnings: string[]
@@ -682,7 +661,13 @@ export class RootToolSurfaceController {
   private fallback = false
   private initialized = false
   private catalogState: ToolCatalogSnapshot
-  private lastHumanId: string | undefined
+  /**
+   * Once the model commits an explicit phase control, automatic promotion stops
+   * for this session. Without this flag the live path would re-promote after a
+   * deliberate narrowing while the replay path would not, so a resume would
+   * disagree with the running session.
+   */
+  private explicitPhase: boolean
 
   constructor(
     readonly sessionId: string,
@@ -691,11 +676,12 @@ export class RootToolSurfaceController {
     private readonly installPolicy: SurfacePolicyInstaller,
   ) {
     this.catalogState = catalog
-    this.profile = recovery.profile
+    this.phase = recovery.phase
     this.unlocked = new Set(recovery.unlocked)
     this.advertised = new Set(recovery.advertised)
     this.warnings = [...recovery.warnings]
     this.source = recovery.source
+    this.explicitPhase = recovery.explicitPhase
   }
 
   get catalog(): ToolCatalogSnapshot {
@@ -721,15 +707,16 @@ export class RootToolSurfaceController {
     const previousCatalog = this.catalogState
     this.catalogState = catalog
     try {
-      this.installPolicy(this.effectiveAllow(recovery.profile, new Set(recovery.unlocked)))
+      this.installPolicy(this.effectiveAllow(recovery.phase, new Set(recovery.unlocked)))
     } catch (error: unknown) {
       this.catalogState = previousCatalog
       throw error
     }
-    this.profile = recovery.profile
+    this.phase = recovery.phase
     this.unlocked = new Set(recovery.unlocked)
     this.advertised = new Set(recovery.advertised)
     this.source = recovery.source
+    this.explicitPhase = recovery.explicitPhase
     for (const warning of recovery.warnings) {
       if (!this.warnings.includes(warning)) this.warnings.push(warning)
     }
@@ -737,15 +724,31 @@ export class RootToolSurfaceController {
     return true
   }
 
-  classifyHuman(message: MessageLike): ToolSurfaceProfile {
-    if (message.id !== undefined && message.id === this.lastHumanId) return this.profile
-    const selected = explicitRootProfile(message)
-    if (selected === undefined && this.source !== 'bootstrap') return this.profile
-    const profile = selected ?? 'inspect'
-    this.transition(profile, new Set())
-    this.lastHumanId = message.id
-    this.source = 'user-message'
-    return profile
+  /**
+   * Promote on the first durable Runtime signal. The model's own first tool call
+   * or first reply is proof that it understood the task, so the surface opens
+   * without anyone having to read the human's wording. This companion's own
+   * control calls are excluded, matching {@link phaseFromEvents}.
+   */
+  noteDurableEvent(event: { readonly type: string; readonly data?: unknown }): void {
+    if (this.explicitPhase || this.phase === 'resident') return
+    if (!PROMOTION_EVENT_TYPES.has(event.type)) return
+    if (event.type === 'tool/call' && record(event.data)?.['name'] === SACHA_TOOLS_NAME) return
+    this.transition('resident', this.unlocked)
+    this.source = 'runtime'
+  }
+
+  /**
+   * Explicit model phase control. This is the self-rescue path: the model may
+   * narrow back to the bootstrap pair or open the resident set immediately
+   * without waiting for a promotion signal. Temporary unlocks are cleared so a
+   * deliberate narrowing is not silently defeated by an earlier unlock.
+   */
+  setPhase(phase: ToolSurfacePhase): RootToolSurfaceSnapshot {
+    this.transition(phase, new Set())
+    this.explicitPhase = true
+    this.source = 'control'
+    return this.snapshot()
   }
 
   noteRequestHeader(tools: readonly { readonly name: string }[]): void {
@@ -777,15 +780,15 @@ export class RootToolSurfaceController {
     const requested = controlUnlockNames({ tools: names, ...(family === undefined ? {} : { family }) }, this.catalog)
     const next = new Set(this.unlocked)
     for (const name of requested) {
-      if (!profileAllowsTool(this.profile, name)) next.add(name)
+      if (!phaseAllowsTool(this.phase, name)) next.add(name)
     }
-    if (!sameSet(next, this.unlocked)) this.transition(this.profile, next)
+    if (!sameSet(next, this.unlocked)) this.transition(this.phase, next)
     this.source = 'control'
     return this.snapshot()
   }
 
   reset(): RootToolSurfaceSnapshot {
-    if (this.unlocked.size > 0) this.transition(this.profile, new Set())
+    if (this.unlocked.size > 0) this.transition(this.phase, new Set())
     this.source = 'control'
     return this.snapshot()
   }
@@ -796,7 +799,7 @@ export class RootToolSurfaceController {
     const hidden = this.catalog.entries.filter(entry => !effective.has(entry.name)).map(entry => entry.name)
     return {
       sessionId: this.sessionId,
-      profile: this.profile,
+      phase: this.phase,
       visibleCount: visible.length + 1,
       hiddenCount: hidden.length,
       visible: [...visible, SACHA_TOOLS_NAME].sort(),
@@ -810,18 +813,18 @@ export class RootToolSurfaceController {
   }
 
   effectiveAllow(
-    profile: ToolSurfaceProfile = this.profile,
+    phase: ToolSurfacePhase = this.phase,
     unlocked: ReadonlySet<string> = this.unlocked,
   ): ReadonlySet<string> {
     return new Set(this.catalog.entries
-      .filter(entry => profileAllowsTool(profile, entry.name) || unlocked.has(entry.name))
+      .filter(entry => phaseAllowsTool(phase, entry.name) || unlocked.has(entry.name))
       .map(entry => entry.name))
   }
 
-  private transition(profile: ToolSurfaceProfile, unlocked: ReadonlySet<string>): void {
-    const allowed = this.effectiveAllow(profile, unlocked)
+  private transition(phase: ToolSurfacePhase, unlocked: ReadonlySet<string>): void {
+    const allowed = this.effectiveAllow(phase, unlocked)
     this.installPolicy(allowed)
-    this.profile = profile
+    this.phase = phase
     this.unlocked = new Set(unlocked)
     this.fallback = false
   }
@@ -846,10 +849,10 @@ const TOOL_RESULT_SCHEMA = {
   additionalProperties: false,
   properties: {
     action: { type: 'string', required: true },
-    profile: { type: 'string', required: true, enum: [...TOOL_SURFACE_PROFILES] },
+    phase: { type: 'string', required: true, enum: [...TOOL_SURFACE_PHASES] },
     visible_count: { type: 'integer', required: true },
     hidden_count: { type: 'integer', required: true },
-    source: { type: 'string', required: true, enum: ['control', 'user-message', 'pending-inbox', 'bootstrap'] },
+    source: { type: 'string', required: true, enum: ['control', 'runtime', 'bootstrap'] },
     unlocked: { type: 'array', required: true, items: { type: 'string' } },
     fallback: { type: 'boolean', required: true },
     warnings: { type: 'array', required: true, items: { type: 'string' } },
@@ -872,7 +875,7 @@ function toolResult(
 ): ControlToolValue {
   return {
     action,
-    profile: snapshot.profile,
+    phase: snapshot.phase,
     visible_count: snapshot.visibleCount,
     hidden_count: snapshot.hiddenCount,
     source: snapshot.source,
@@ -883,14 +886,17 @@ function toolResult(
   }
 }
 
+const CONTROL_ACTIONS = ['status', 'catalog', 'help', 'phase', 'unlock', 'reset'] as const
+
 function createControlTool(controller: RootToolSurfaceController) {
   return defineTool({
     name: SACHA_TOOLS_NAME,
-    description: 'Inspect the current Root tool surface, search bounded hidden-tool metadata, unlock known tools for the next model step, or reset to the task profile. This changes visibility only and grants no authority.',
+    description: 'Inspect the current Root tool surface, search bounded hidden-tool metadata, choose the working phase, unlock known tools for the next model step, or reset temporary unlocks. This changes visibility only and grants no authority.',
     parameters: {
-      action: { type: 'string', required: true, enum: ['status', 'catalog', 'help', 'unlock', 'reset'] },
-      query: { type: 'string', description: 'Catalog search text; used only with catalog.' },
+      action: { type: 'string', required: true, enum: [...CONTROL_ACTIONS] },
+      query: { type: 'string', description: 'Catalog search terms; used only with catalog. Multiple words match any word across a tool name, description, or family.' },
       name: { type: 'string', description: 'Exact tool name; required with help.' },
+      phase: { type: 'string', enum: [...TOOL_SURFACE_PHASES], description: 'Working phase to adopt: bootstrap keeps the minimal read-only pair, resident opens the standard working set. Used only with phase.' },
       tools: { type: 'array', items: { type: 'string' }, description: 'Exact snapshot tool names to unlock.' },
       family: { type: 'string', enum: [...TOOL_FAMILIES], description: 'Defined tool family to unlock.' },
       limit: { type: 'integer', description: `Catalog result limit, clamped to 1-${MAX_CATALOG_RESULTS}.` },
@@ -905,6 +911,12 @@ function createControlTool(controller: RootToolSurfaceController) {
       if (args.action === 'help') {
         if (args.name === undefined) throw new Error('help requires name')
         return Promise.resolve(toolResult('help', controller.snapshot(), { help: jsonValue(controller.help(args.name)) }))
+      }
+      if (args.action === 'phase') {
+        if (args.phase === undefined) throw new Error('phase requires phase')
+        return Promise.resolve(toolResult('phase', controller.setPhase(args.phase), {
+          notice: 'The chosen phase applies from the next model step, once a later request header advertises it.',
+        }))
       }
       if (args.action === 'unlock') {
         return Promise.resolve(toolResult('unlock', controller.unlock(args.tools ?? [], args.family), {
@@ -951,7 +963,7 @@ function installForRoot(
   const scope = captureToolScope(agent)
   const catalog = scope.catalog
   const inheritedNames = new Set(scope.inheritedNames)
-  const recovery = foldToolSurfaceState(agent.session.events as readonly EventLike[], catalog)
+  const recovery = foldToolSurfaceState(agent.session.snapshotEvents() as readonly EventLike[], catalog)
   const slot = new NewFirstPolicySlot()
   let controller: RootToolSurfaceController
   const installer: SurfacePolicyInstaller = (allowed) => {
@@ -989,9 +1001,8 @@ function installForRoot(
   const stopSession = agent.ctx.on('session/event', (_session, event) => {
     const headerTools = requestHeaderTools(event as EventLike)
     if (headerTools !== undefined) controller.noteRequestHeader(headerTools)
-    if (event.type === 'user/message' && isHumanMessage(event.data)) {
-      controller.classifyHuman(event.data)
-    }
+    // Promotion reads the Runtime's own durable signals, never human wording.
+    controller.noteDurableEvent(event as EventLike)
   })
   const stopTools = agent.ctx.on('tools/change', () => {
     const globalSchemas = agent.ctx.tools.schemas() as ToolSchemaLike[]
@@ -1001,7 +1012,7 @@ function installForRoot(
     try {
       controller.refreshCatalog(
         merged,
-        foldToolSurfaceState(agent.session.events as readonly EventLike[], merged),
+        foldToolSurfaceState(agent.session.snapshotEvents() as readonly EventLike[], merged),
       )
     } catch (error: unknown) {
       controller.markFallback(`late tool-catalog refresh failed closed: ${String(error)}`)
@@ -1030,7 +1041,7 @@ export function installRootToolSurfacePolicy(
   const isRoot = (agent: Agent): boolean => isLiveRootAgent(
     agent,
     ctx.agents.roots(),
-    agent.session.events as readonly EventLike[],
+    agent.session.snapshotEvents() as readonly EventLike[],
   )
 
   const maybeInstall = (agent: Agent): ReturnType<typeof installForRoot> | undefined => {
@@ -1055,10 +1066,10 @@ export function installRootToolSurfacePolicy(
     if (isRoot(agent)) maybeInstall(agent)
     else maybeSuppressChild(agent)
   })
-  const stopInbox = ctx.on('agent/inbox/inserted', ({ agent, message }) => {
-    if (!isHumanMessage(message)) return
-    const runtime = maybeInstall(agent)
-    if (runtime !== undefined) runtime.controller.classifyHuman(message)
+  const stopInbox = ctx.on('agent/inbox/inserted', ({ agent }) => {
+    // A new human turn installs the policy for a not-yet-seen Root, but it no
+    // longer selects a phase: the phase follows durable Runtime signals.
+    maybeInstall(agent)
   })
   const stopDisposed = ctx.on('agent/disposed', ({ agent }) => {
     suppressedChildren.delete(agent)

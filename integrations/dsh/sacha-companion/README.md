@@ -12,15 +12,21 @@
 
 ## Root 最小充分工具面
 
-Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation 也会进入 `AgentRegistry.roots()`，因此 Root 还必须没有原生 `subagent/descriptor`；subagent、teammate 与其他非 Root Agent 不安装 Root policy，并在自己的 scope 移除从 Root 继承的 `sacha_tools`，其他 child toolFilter 不变。Root 在 `agent/session-start` 先安装失败关闭保护，保证冷恢复时也不会先以完整工具集运行；用户消息进入 Root inbox 后，按明确任务选择基础 profile。启动期晚注册的 global tools 由 `tools/change` 加入同一个目录快照；替换时先成功安装新策略，再移除旧策略：
+Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation 也会进入 `AgentRegistry.roots()`，因此 Root 还必须没有原生 `subagent/descriptor`；subagent、teammate 与其他非 Root Agent 不安装 Root policy，并在自己的 scope 移除从 Root 继承的 `sacha_tools`，其他 child toolFilter 不变。Root 在 `agent/session-start` 先安装失败关闭保护，保证冷恢复时也不会先以完整工具集运行。启动期晚注册的 global tools 由 `tools/change` 加入同一个目录快照；替换时先成功安装新策略，再移除旧策略：
 
-| Profile | 默认用途 | 初始工具面 |
+| Phase | 进入条件 | 工具面 |
 | --- | --- | --- |
-| `inspect` | 调查、解释、规划、未知任务 | read/read_image/glob/grep/skill/web_search/ask_user_question、`sacha_research`、`sacha_visual_event` |
-| `execute` | 明确实施、修改、修复、构建 | inspect 基础上增加 write/edit、当前平台 shell、todo/job、`sacha_worker` |
-| `review` | 明确复核、审查、验收 | read/read_image/glob/grep/skill、当前平台 shell、`sacha_review`、`sacha_visual_event` |
+| `bootstrap` | 会话首个请求 | read/read_image/glob/grep、`sacha_visual_event`（只读，最小起步面） |
+| `resident` | 首个耐久晋升信号，或模型显式切换 | 增加 write/edit、当前平台 shell、todo、web、skill、ask_user_question 与 `sacha_research`/`sacha_worker`/`sacha_review` |
 
-首次消息不明确时使用 `inspect`。后续明确实施、只读或评审指令重新选择基础 profile，并清空先前临时解锁；“继续”、进度询问或补充路径等中性跟进保持当前选择。MCP/App、Agent Teams、普通 subagent/workflow、调试器、部署和其他长尾工具默认隐藏。工具收窄不改变底层 sandbox/权限，也不能给已隐藏工具之外的操作授权。切换只提交已成功应用的状态，不宣称已停止此前运行的工具或进程。
+阶段由**耐久会话事件**推导，不解析人类消息措辞：
+
+- 晋升信号是 Runtime 自己写入的首个 `tool/call` **或** `assistant/message`，两者先到者生效。模型发出第一个工具调用或第一条回复，就证明它已经理解任务，工具面随即打开，不需要任何人去读用户那句话想表达什么。
+- 本包自身的控制调用不参与晋升。`sacha_tools` 始终可见，若把它计入，一次 `status` 查询、一次单工具 `unlock`，甚至模型主动收窄到 `bootstrap` 本身，都会被误判为"开始干活"。
+- 上下文压缩只追加一条遮蔽用的 `user/message`，原始事件仍留在耐久日志中，因此**压缩后阶段与工具面保持不变**，模型不会在任务中途突然失去 write/shell/委派能力。恢复路径与运行路径都从同一份事件推导，两者不会分歧。
+- 模型可随时用 `sacha_tools` 的 `phase` 动作显式切换阶段（见下），这是分类之外的**自救路径**；一旦显式切换，自动晋升不再覆盖该选择。
+
+MCP/App、Agent Teams、普通 subagent/workflow、调试器、部署和其他长尾工具在两个阶段都默认隐藏，需要时通过 `catalog` 查询与 `unlock` 取得。工具收窄不改变底层 sandbox/权限，也不能给已隐藏工具之外的操作授权。切换只提交已成功应用的状态，不宣称已停止此前运行的工具或进程。
 
 正确性由三层共同保证：
 
@@ -36,17 +42,20 @@ Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation �
 
 | action | 结果 |
 | --- | --- |
-| `status` | 当前 profile、可见/隐藏数量、临时解锁和 recovery 来源 |
-| `catalog` | 按 query 有界列出已采样目录中的隐藏工具信息 |
+| `status` | 当前 phase、可见/隐藏数量、临时解锁和 recovery 来源 |
+| `catalog` | 按 query 有界列出已采样目录中的隐藏工具信息；多个词按任意词匹配名称、描述与 family |
 | `help` | 返回一个具名工具的描述与参数 schema |
+| `phase` | 显式切换 `bootstrap`/`resident`；切换后自动晋升不再覆盖该选择 |
 | `unlock` | 把具名工具或已定义 family 加入下一 step 的可见/可执行 surface |
-| `reset` | 清除临时解锁并恢复当前任务的基础 profile |
+| `reset` | 清除临时解锁并恢复当前 phase |
 
-`unlock` 成功后，同一 assistant response 中紧随的未广告工具仍被拒绝；只有下一 step 的 `request/header.tools` 已出现该工具后才能执行。这样模型不能在没有见过 schema 的同一批调用里获得新能力。
+`unlock` 与 `phase` 成功后，同一 assistant response 中紧随的未广告工具仍被拒绝；只有下一 step 的 `request/header.tools` 已出现该工具后才能执行。这样模型不能在没有见过 schema 的同一批调用里获得新能力。
+
+`catalog` 的检索按词切分并做任意词匹配，因此 `unity editor bridge` 这类自然多词查询能返回它所指的工具；整串匹配会让这类查询恒返回空，使被隐藏的 `sacha_worker`/`sacha_review` 无法被发现。
 
 工具目录保存当前 Root 初始采样和启动期追加的信息，不再按 256 项截断名称；查询返回数量及每项描述、参数大小仍有界限。同名工具更新、删除和上级作用域的动态变化未实现完整同步，执行仍以当前原生工具和 guard 结果为准。
 
-Root policy 不新增自定义 Session event。冷恢复按原生事件顺序处理明确用户指令和成功配对的 `sacha_tools` tool/call+tool/result；新指令之前发起的旧控制调用，即使结果晚到也不能重新解锁。失败或未配对的结果不改变恢复状态。`reset` 回到最近明确指令的基础 profile；每个 `request/header` 是实际工具暴露的审计证据。
+Root policy 不新增自定义 Session event。冷恢复按原生事件顺序重放阶段与成功配对的 `sacha_tools` tool/call+tool/result；显式 `phase` 控制之前的旧控制调用，即使结果晚到也不能重新解锁。失败或未配对的结果不改变恢复状态。每个 `request/header` 是实际工具暴露的审计证据。
 
 ## Continuable child surfaces
 
@@ -85,7 +94,7 @@ Host state 由三类事实组成：
 
 - 成功配对的 `sacha_visual_event` tool/call+tool/result：phase、gate、manager_wave、delegation、review、evidence；
 - `ctx.subagents.listChildren(rootSessionId)` 与 live Agent registry：continuable direct child 与状态；
-- Companion Root policy：当前工具 profile、可见/隐藏数量、临时解锁和恢复诊断。
+- Companion Root policy：当前工具 phase、可见/隐藏数量、临时解锁和恢复诊断。
 
 默认面板只显示读者会据此行动的信息：当前进展、工作依赖、协作任务、工具已收窄/临时开放与需要处理的 fallback。完整工具名、schema、Session id 与内部 route 留在 state JSON 或诊断详情。
 
@@ -130,9 +139,9 @@ dsh --profile web --dump-config
 
 执行前保存 Profile package/lock/patch 与进程身份；任一 remove/add 拟升级无关依赖或产生部分失败时停止，不手改 Profile manifest/lock 绕过。安装后重启目标 DSH Profile，并从 fresh Root Session 验证：
 
-1. 首个 inspect/execute/review `request/header.tools` 与分类一致；
-2. `sacha_tools` catalog/help/unlock/reset、same-response guard 与 next-step unlock；
-3. DSH restart/cold resume 后 exposure 恢复；
+1. 首个 `request/header.tools` 为 bootstrap 面，首个耐久信号后的 header 为 resident 面；
+2. `sacha_tools` status/catalog/help/phase/unlock/reset、same-response guard 与 next-step unlock；
+3. DSH restart/cold resume 后 exposure 恢复，且压缩后 phase 不回退；
 4. 三个 Sacha continuable surface、depth、settlement、Reviewer isolation；
 5. state route 与真实 Manager/delegation/child/tool-surface 对齐；
 6. Web Client 实际加载 `/plugins/@sacha-orchestra/dsh-companion/client.js`，面板几何、中文、状态与 reduced-motion 通过。
