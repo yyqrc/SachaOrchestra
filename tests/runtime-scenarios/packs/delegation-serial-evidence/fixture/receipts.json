@@ -1,0 +1,9 @@
+{
+  "schema": "Each row has sku (nonempty string), quantity (nonnegative integer, not boolean), status (received or cancelled). Sum received rows only; omit cancelled-only SKUs. Invalid rows must fail without writing output.",
+  "rows": [
+    {"sku": "A", "quantity": 12, "status": "received"},
+    {"sku": "A", "quantity": 3, "status": "received"},
+    {"sku": "B", "quantity": 7, "status": "received"},
+    {"sku": "C", "quantity": 9, "status": "cancelled"}
+  ]
+}

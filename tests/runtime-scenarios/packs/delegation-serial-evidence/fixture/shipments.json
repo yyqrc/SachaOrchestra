@@ -1,0 +1,8 @@
+{
+  "schema": "Each row has sku (nonempty string), quantity (nonnegative integer, not boolean), status (shipped or returned). Sum shipped quantities minus returned quantities per SKU; negative totals are valid. Invalid rows must fail without writing output.",
+  "rows": [
+    {"sku": "A", "quantity": 5, "status": "shipped"},
+    {"sku": "A", "quantity": 2, "status": "returned"},
+    {"sku": "B", "quantity": 1, "status": "returned"}
+  ]
+}
