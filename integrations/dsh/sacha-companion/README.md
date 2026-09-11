@@ -36,6 +36,17 @@ MCP/App、Agent Teams、普通 subagent/workflow、调试器、部署和其他�
 
 只存在其中一层不算成功：same-scope Agent Teams 等工具不受自身 restriction 过滤，独立 guidance 也不会随 schema 自动消失。
 
+### PTC（`mode: 'ptc'`）下的阶段收窄
+
+PTC 下 wire schema 只有保留的 `run_code`，其余工具经**生成的 SDK 段**到达模型；SDK 与程序内绑定都从同一个 `view(scope).visible` 生成。因此阶段收窄依然成立，但 `run_code` 必须当作**传输层**而非能力处理：
+
+- `phaseAllowsTool('run_code')` 在两个阶段恒为 true —— 它是 PTC 下抵达任何其他工具的唯一通道，按阶段关闭等于关闭整个工具面；
+- `createToolCatalog` 排除 `run_code` —— 它不应作为"可解锁的隐藏能力"出现在 `catalog`/`unlock` 或能力面板里；
+- `filterPromptAssembly` 无条件保留 `run_code` 与 `tools:sdk` / `tools:ptc-only` 段 —— 否则 assembly 的工具表为空，或模型读到 `run_code` 却没有可调用的 SDK 声明；
+- `guardReason` 放行 `run_code`，并对**传输子派发**（`exec.parent !== undefined`，即程序内的 `tools.x(...)`）跳过 `advertised` 检查。`advertised` 记录的是最新 `request/header.tools`，PTC 下它只含 `run_code`；用它校验子派发会拒绝程序能合法绑定的每一个工具。子派发只受 `allowed` 约束，而 `allowed` 正是 SDK 段的渲染来源，因此与模型被承诺的面完全一致。
+
+`nested` 只放宽广告检查，**不放宽能力闸门**：阶段不允许的 write/shell/委派在程序内同样被拒。
+
 ## `sacha_tools`
 
 `sacha_tools` 是每个 Root exact scope 中唯一的工具面控制入口，始终可见；它不执行被管理工具，也不授予权限。
@@ -70,7 +81,9 @@ Root policy 不新增自定义 Session event。冷恢复按原生事件顺序重
 ### `sacha_worker`
 
 - 保留实施与验证工具；
-- deny standard `workflow/subagent/subagent_fork`；
+- deny 只写 `subagent_fork`：`tools.restrict()` 按 `restrictableNames` 校验，该集合只含 scope **继承**的名字，因此 scope 自身注册的工具虽可见、也计入 known，却不可 restrict；`subagent` 即属此类（实测 child scope 可见它，但 `restrict({ deny: ['subagent'] })` 在该 scope 抛错）；
+- `workflow` 在 PTC preset 下 disabled，同样不可移植；
+- `restrict()` 对第一个不可限制的名字就**整体抛错**，所以多写一个这样的名字不是收窄能力，而是让整个 surface 无法创建；
 - sibling Sacha tool 不写入 deny-list，避免未知名字产生装配顺序耦合；`maxDepth: 1` 负责强制单层派发。
 
 ### `sacha_review`

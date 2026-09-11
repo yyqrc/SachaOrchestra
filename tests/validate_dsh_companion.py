@@ -79,8 +79,8 @@ def validate_companion(root: Path = PACKAGE) -> dict[str, object]:
     require(package.get("dsh", {}).get("bundle", {}).get("patch") == "./cordis.patch.yml", "缺少 dsh.bundle.patch")
     require(package.get("dsh", {}).get("client", {}).get("platform") == "web", "缺少 Web client 声明")
     require(
-        package.get("peerDependencies", {}).get("@deepseek-ai/dsh-tool-subagent") == "^0.1.1-rc.2",
-        "dsh-tool-subagent peer version 必须匹配 0.1.1-rc.2 版本线",
+        package.get("peerDependencies", {}).get("@deepseek-ai/dsh-tool-subagent") == "^0.1.2-rc.1",
+        "dsh-tool-subagent peer version 必须匹配 0.1.2-rc.1 版本线",
     )
     require("agent-team" not in patch.lower() and "spawn_teammate" not in patch, "companion 不得重新引入 Agent Teams")
 
@@ -110,7 +110,7 @@ def validate_companion(root: Path = PACKAGE) -> dict[str, object]:
     }
     require(filter_items(blocks["sacha-research-posix"], "allow") == research_allow, "POSIX research allow-list 不匹配")
     require(filter_items(blocks["sacha-research-windows"], "allow") == research_allow, "Windows research allow-list 不匹配")
-    require(filter_items(blocks["sacha-worker"], "deny") == ["workflow", "subagent", "subagent_fork"], "worker deny-list 不匹配")
+    require(filter_items(blocks["sacha-worker"], "deny") == ["subagent_fork"], "worker deny-list 不匹配")
     require(filter_items(blocks["sacha-review-posix"], "allow") == review_allow["posix"], "POSIX review allow-list 不匹配")
     require(filter_items(blocks["sacha-review-windows"], "allow") == review_allow["windows"], "Windows review allow-list 不匹配")
     require("process.platform === 'win32'" in blocks["sacha-research-posix"], "POSIX research 缺少平台条件")

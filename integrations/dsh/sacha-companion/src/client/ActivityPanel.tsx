@@ -1,7 +1,7 @@
 /** Sacha workflow, Manager DAG, and continuable-subagent observability panel. */
 
 import {
-  useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type CSSProperties,
+  useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties,
 } from 'react'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -15,7 +15,9 @@ import {
   panelMaximumHeight, panelUsesAutoHeight, parsePanelLayout, resolvePanelLayout,
   type PanelBounds, type PanelLayout,
 } from './panel-geometry.ts'
+import { placePopover, type AnchorRect, type PopoverPlacement } from './popover-position.ts'
 import { PANEL_DISMISSED_KEY, dismissSession, parseDismissedSessions } from './panel-visibility.ts'
+import { groupTools, phaseSummary, type ToolFamilyView, type ToolView } from './tool-surface-view.ts'
 import type {
   SachaActivitySnapshot, SachaGate, SachaPhase, SubagentSnapshot, ToolSurfaceSnapshot, VisualState,
 } from '../types.ts'
@@ -51,9 +53,6 @@ const WAVE_STATE_LABEL: Record<VisualState['waves'][number]['state'], string> = 
 }
 const UNIT_STATE_LABEL: Record<VisualState['waves'][number]['units'][number]['state'], string> = {
   ready: '可开始', running: '进行中', waiting: '等待中', completed: '已完成', blocked: '遇到问题',
-}
-const TOOL_SURFACE_LABEL: Record<ToolSurfaceSnapshot['phase'], string> = {
-  bootstrap: '起步：仅查看工具', resident: '已开放工作工具',
 }
 
 function initialPanelLayout(): PanelLayout {
@@ -131,23 +130,126 @@ function Conductor({ snapshot, stale }: { readonly snapshot: SachaActivitySnapsh
   )
 }
 
-function ToolSurfaceSection({ surface }: { readonly surface?: ToolSurfaceSnapshot }): JSX.Element | null {
-  if (surface === undefined) return null
+function ToolChip({ tool }: { readonly tool: ToolView }): JSX.Element {
   return (
-    <section className={css.section} aria-label="当前可用能力">
-      <div className={css.sectionHead}>
-        <h3>当前可用能力</h3>
-        <small>{surface.visibleCount} 个可用</small>
+    <span className={css.toolChip} data-unlocked={tool.unlocked || undefined}>
+      {tool.label ?? tool.name}
+      {tool.label === undefined ? null : <code className={css.toolChipName}>{tool.name}</code>}
+    </span>
+  )
+}
+
+function ToolFamilyList({ families, empty }: {
+  readonly families: readonly ToolFamilyView[]
+  readonly empty: string
+}): JSX.Element {
+  if (families.length === 0) return <span className={css.meta}>{empty}</span>
+  return (
+    <div className={css.toolFamilies}>
+      {families.map(family => (
+        <div key={family.key} className={css.toolFamily}>
+          <span className={css.toolFamilyLabel}>{family.label}<small>{family.tools.length}</small></span>
+          <div className={css.toolChips}>
+            {family.tools.map(tool => <ToolChip key={tool.name} tool={tool} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The full tool lists, revealed on hover rather than always shown: the panel's
+ * job is to report progress, and a 90-entry catalogue would dominate it.
+ *
+ * Rendered as a sibling of the scrolling `.body`, not inside it, because that
+ * body clips its overflow. Positioned in viewport coordinates and translated
+ * into the panel's own frame (the panel is the containing block: it carries the
+ * transform that places it).
+ */
+function ToolSurfacePopover({ surface, anchor, panel, onEnter, onLeave }: {
+  readonly surface: ToolSurfaceSnapshot
+  readonly anchor: AnchorRect
+  readonly panel: DOMRect
+  readonly onEnter: () => void
+  readonly onLeave: () => void
+}): JSX.Element {
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [placement, setPlacement] = useState<PopoverPlacement>(() => placePopover(anchor, 0, {
+    width: window.innerWidth, height: window.innerHeight,
+  }))
+  useLayoutEffect(() => {
+    const measure = (): void => {
+      const height = contentRef.current?.getBoundingClientRect().height ?? 0
+      setPlacement(placePopover(anchor, height, { width: window.innerWidth, height: window.innerHeight }))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => { window.removeEventListener('resize', measure) }
+  }, [anchor])
+
+  const visibleFamilies = groupTools(surface, surface.visible)
+  const hiddenFamilies = groupTools(surface, surface.hidden)
+  return (
+    <div ref={contentRef} className={css.popover} role="tooltip"
+      onMouseEnter={onEnter} onMouseLeave={onLeave}
+      style={{
+        left: placement.left - panel.left,
+        top: placement.top - panel.top,
+        width: placement.width,
+        maxHeight: placement.maxHeight,
+      }}>
+      <div className={css.popoverHead}>
+        <strong>当前可用能力</strong>
+        <small>{phaseSummary(surface)}</small>
       </div>
-      <article className={css.toolSurface} data-fallback={surface.fallback || undefined}>
-        <span className={css.summary}>{TOOL_SURFACE_LABEL[surface.phase]}</span>
-        <span className={css.meta}>
-          {surface.hiddenCount > 0 ? `${surface.hiddenCount} 个暂时收起` : '没有暂时收起的工具'}
-          {surface.unlocked.length > 0 ? ` · 已按需增加 ${surface.unlocked.length} 个` : ' · 需要时可按需增加'}
-        </span>
+      <div className={css.popoverBody}>
+        <span className={css.popoverGroupTitle}>模型现在能用的 {surface.visibleCount} 个</span>
+        <ToolFamilyList families={visibleFamilies} empty="当前没有可用工具" />
+        {surface.unlocked.length > 0 ? (
+          <span className={css.meta}>虚线框的 {surface.unlocked.length} 个是本轮按需增加的</span>
+        ) : null}
+        {surface.hiddenCount > 0 ? (
+          <>
+            <span className={css.popoverGroupTitle}>被隐藏的 {surface.hiddenCount} 个</span>
+            <p className={css.emptyHint}>模型当前看不到这些；需要时它会自己按需启用。</p>
+            <ToolFamilyList families={hiddenFamilies} empty="没有被隐藏的工具" />
+          </>
+        ) : null}
         {surface.fallback ? <span className={css.toolSurfaceWarning}>能力收窄出现异常，请查看日志。</span> : null}
-      </article>
-    </section>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Header chip: the surface's current size, sitting beside the panel title so the
+ * panel's content area stays for progress. Hovering (or focusing) opens the
+ * detail popover; the chip alone carries only what fits in a title row.
+ */
+function ToolSurfaceChip({ surface, onOpen, onClose }: {
+  readonly surface?: ToolSurfaceSnapshot
+  readonly onOpen: (anchor: AnchorRect, panel: DOMRect) => void
+  readonly onClose: () => void
+}): JSX.Element | null {
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  if (surface === undefined) return null
+
+  const open = (): void => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    const panel = triggerRef.current?.closest('[data-sacha-visualizer]')?.getBoundingClientRect()
+    if (rect === undefined || panel === undefined || panel === null) return
+    onOpen({ left: rect.left, top: rect.top, bottom: rect.bottom }, panel)
+  }
+
+  return (
+    <button ref={triggerRef} type="button" className={css.surfaceChip}
+      data-fallback={surface.fallback || undefined}
+      onMouseEnter={open} onMouseLeave={onClose} onFocus={open} onBlur={onClose}
+      aria-label={`当前可用能力：${surface.visibleCount} 个可用；悬停查看明细`}>
+      <span className={css.surfaceChipCount}>{surface.visibleCount}</span>
+      <span className={css.surfaceChipUnit}>个可用</span>
+    </button>
   )
 }
 
@@ -237,6 +339,31 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
   const stale = observation?.stale ?? false
   const active = hasActivity(snapshot)
   const [autoOpenedFor, setAutoOpenedFor] = useState<string>()
+  // Kept here rather than inside the section: the popover must render as a
+  // sibling of the scrolling body, and a closed timer keeps a short grace period
+  // so the pointer can travel from the trigger into the popover.
+  const [surfaceAnchor, setSurfaceAnchor] = useState<{ readonly rect: AnchorRect; readonly panel: DOMRect } | null>(null)
+  const surfaceCloseTimer = useRef<number | undefined>(undefined)
+  const cancelSurfaceClose = (): void => {
+    if (surfaceCloseTimer.current === undefined) return
+    window.clearTimeout(surfaceCloseTimer.current)
+    surfaceCloseTimer.current = undefined
+  }
+  const scheduleSurfaceClose = (): void => {
+    cancelSurfaceClose()
+    surfaceCloseTimer.current = window.setTimeout(() => { setSurfaceAnchor(null) }, 120)
+  }
+  const closeSurfaceNow = (): void => {
+    cancelSurfaceClose()
+    setSurfaceAnchor(null)
+  }
+  useEffect(() => () => { cancelSurfaceClose() }, [])
+  useEffect(() => {
+    if (surfaceAnchor === null) return
+    const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') closeSurfaceNow() }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey) }
+  }, [surfaceAnchor])
   const [dismissedSessions, setDismissedSessions] = useState<Set<string>>(initialDismissedSessions)
   const [layout, setLayout] = useState<PanelLayout>(initialPanelLayout)
   const [bounds, setBounds] = useState<PanelBounds>(initialBounds)
@@ -303,6 +430,11 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
       data-sacha-visualizer data-mode={geometry.mode} data-compact={compact || undefined}>
       <header className={css.panelHead}>
         <span className={css.panelTitle}>任务进展 <span className={css.panelDot} data-busy={busy || undefined} /></span>
+        {!stale ? (
+          <ToolSurfaceChip surface={snapshot.toolSurface}
+            onOpen={(rect, panel) => { cancelSurfaceClose(); setSurfaceAnchor({ rect, panel }) }}
+            onClose={scheduleSurfaceClose} />
+        ) : null}
         <span className={css.panelControls}>
           {!compact ? <button type="button" onClick={toggleDock}>{geometry.mode === 'docked' ? '浮动' : '停靠'}</button> : null}
           <button type="button" onClick={() => {
@@ -319,7 +451,6 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
       <div className={css.body}>
         {stale ? <p className={css.staleNotice} role="status" title={observation?.error}>连接失败，正在重试。以下是上次快照，当前进展和结果尚未确认。</p> : null}
         <Conductor snapshot={snapshot} stale={stale} />
-        {!stale ? <ToolSurfaceSection surface={snapshot.toolSurface} /> : null}
         {!stale ? <StateBadges state={snapshot.state} /> : null}
         {!stale ? <ManagerSection snapshot={snapshot} /> : null}
         {snapshot.events.some(({ value }) => (value.eventType === 'review' || value.eventType === 'evidence')
@@ -340,6 +471,10 @@ export function ActivityPanel({ sessionsList }: { readonly sessionsList: Observa
           ))}</section>
         ) : null}
       </div>
+      {surfaceAnchor === null || snapshot.toolSurface === undefined ? null : (
+        <ToolSurfacePopover surface={snapshot.toolSurface} anchor={surfaceAnchor.rect} panel={surfaceAnchor.panel}
+          onEnter={cancelSurfaceClose} onLeave={scheduleSurfaceClose} />
+      )}
     </aside>
   )
 }

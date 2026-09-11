@@ -500,3 +500,83 @@ describe('paired presentation and replacement invariants', () => {
     expect(log).toEqual(['install:new', 'dispose:old', 'install:failed', 'dispose:new'])
   })
 })
+
+/**
+ * Under `mode: 'ptc'` the registry publishes ONLY `run_code` on the wire and reaches
+ * every other tool through a generated SDK, so the three policy seams below each see
+ * a different world than in native mode. Each assertion here pins one seam that
+ * previously made a PTC Root unable to delegate at all.
+ */
+describe('ptc presentation compatibility', () => {
+  it('permits the run_code transport in both phases', () => {
+    // Gating it by phase would gate the only route to every other tool.
+    expect(phaseAllowsTool('bootstrap', 'run_code')).toBe(true)
+    expect(phaseAllowsTool('resident', 'run_code')).toBe(true)
+  })
+
+  it('keeps run_code out of the narrowable catalog', () => {
+    // It is transport, not a capability: it must not appear as a hidden tool that a
+    // model could unlock, and it must not inflate the surface the panel reports.
+    const withTransport = createToolCatalog([schema('read'), schema('run_code'), schema('write')])
+    expect(withTransport.entries.map(entry => entry.name)).toEqual(['read', 'write'])
+  })
+
+  it('keeps run_code in the assembly even when no capability is allowed', () => {
+    // This is the empty-assembly failure: filtering the transport by the capability
+    // allow-set left the model a tool list with nothing in it.
+    const assembly = {
+      sections: [{ name: 'harness:identity', text: 'identity' }],
+      contexts: [],
+      tools: [schema('run_code'), schema('read'), schema('write'), schema('sacha_tools')],
+      variables: {},
+    }
+    const filtered = filterPromptAssembly(assembly, new Set())
+    expect(filtered.tools.map(tool => tool.name)).toEqual(['run_code', 'sacha_tools'])
+  })
+
+  it('allows a transport sub-dispatch that the wire header never advertised', () => {
+    const { controller } = controllerWithLog(recovery({ advertised: ['run_code'] }))
+    controller.setPhase('resident')
+    // A model-direct native call is still refused: under ptc it collapses upstream.
+    expect(controller.guardReason('read')).toBeDefined()
+    // A program's sub-dispatch is gated by the capability allow-set, not by the wire
+    // header — under ptc that header only ever contains `run_code`.
+    expect(controller.guardReason('read', undefined, true)).toBeUndefined()
+    expect(controller.guardReason('sacha_worker', undefined, true)).toBeUndefined()
+  })
+
+  it('still hides a capability the phase does not allow, even for a sub-dispatch', () => {
+    // `nested` must relax only the advertisement check, never the capability gate:
+    // this is what keeps phase narrowing meaningful under ptc.
+    const { controller } = controllerWithLog(recovery({ advertised: ['run_code'] }))
+    controller.setPhase('bootstrap')
+    expect(controller.guardReason('write', undefined, true)).toBeDefined()
+    expect(controller.guardReason('sacha_worker', undefined, true)).toBeDefined()
+    expect(controller.guardReason('read', undefined, true)).toBeUndefined()
+  })
+
+  it('keeps the ptc SDK and collapse sections, which no tool name owns', () => {
+    // `guidanceOwners` only claims `tool:`-prefixed sections, so the transport's own
+    // `tools:sdk` / `tools:ptc-only` sections must survive every allow-set. Dropping
+    // them would leave `run_code` declared with no SDK to call through — the model
+    // would then emit a native call and read the result as an inconsistent deployment.
+    const assembly = {
+      sections: [
+        { name: 'tools:ptc-only', text: 'only run_code is callable' },
+        { name: 'tools:sdk', text: 'declare function read(...)' },
+        { name: 'tool:write', text: 'write guidance' },
+      ],
+      contexts: [],
+      tools: [schema('run_code'), schema('sacha_tools')],
+      variables: {},
+    }
+    const filtered = filterPromptAssembly(assembly, new Set())
+    expect(filtered.sections.map(section => section.name)).toEqual(['tools:ptc-only', 'tools:sdk'])
+  })
+
+  it('never denies the transport itself', () => {
+    const { controller } = controllerWithLog(recovery({ advertised: ['run_code'] }))
+    controller.setPhase('bootstrap')
+    expect(controller.guardReason('run_code')).toBeUndefined()
+  })
+})

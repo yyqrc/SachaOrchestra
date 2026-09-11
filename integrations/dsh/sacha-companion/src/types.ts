@@ -116,6 +116,8 @@ export interface ToolSurfaceSnapshot {
   readonly hidden: readonly string[]
   readonly advertised: readonly string[]
   readonly unlocked: readonly string[]
+  /** Family key per tool name, so a reader-facing surface can be grouped. */
+  readonly toolFamilies?: Readonly<Record<string, string>>
   readonly source: 'control' | 'runtime' | 'bootstrap'
   readonly fallback: boolean
   readonly warnings: readonly string[]

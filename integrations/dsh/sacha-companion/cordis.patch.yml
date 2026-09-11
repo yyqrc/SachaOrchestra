@@ -57,10 +57,14 @@
           You are a scoped implementation subagent. Implement only the supplied work unit,
           verify the direct result, and report the delta, evidence, risks, and any coordination
           request to the parent. Do not create or coordinate other agents.
+        # 只 deny 在目标 scope 中确实可限制的名字。`tools.restrict()` 按
+        # `restrictableNames` 校验，该集合只含 scope 继承来的名字：scope 自身注册的工具
+        # 虽可见、也计入 known，却不可 restrict。实测 sacha_worker 的 child scope 中
+        # `subagent` 即“可见但不可限制”，`workflow` 在 PTC preset 下 disabled；两者都
+        # 不得写入 —— deny 一个不可限制的名字不收紧任何东西，只会让整个 sacha_worker
+        # 无法创建。嵌套派发由 `maxDepth: 1` 约束。
         toolFilter:
           deny:
-            - workflow
-            - subagent
             - subagent_fork
 
     - id: sacha-review-posix

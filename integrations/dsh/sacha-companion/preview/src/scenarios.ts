@@ -33,6 +33,17 @@ function makeSnapshot(
   // Preview mirrors the real surface: a session that has begun work is resident.
   const working = state.phase?.phase === 'executor' || state.phase?.phase === 'reviewer'
   const phase = working ? 'resident' as const : 'bootstrap' as const
+  const visible = working
+    ? ['read', 'read_image', 'glob', 'grep', 'write', 'edit', 'pwsh', 'skill', 'web_search', 'ask_user_question', 'todo_write', 'sacha_research', 'sacha_worker', 'sacha_review', 'sacha_visual_event', 'sacha_tools']
+    : ['read', 'read_image', 'glob', 'grep', 'sacha_visual_event', 'sacha_tools']
+  const hidden = ['mcp_unity', 'workflow', 'subagent', 'subagent_fork', 'ralph', 'job_list', 'job_output', 'job_kill', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode', 'web_fetch']
+  const toolFamilies: Record<string, string> = {
+    read: 'filesystem-read', read_image: 'filesystem-read', glob: 'filesystem-read', grep: 'filesystem-read',
+    write: 'filesystem-write', edit: 'filesystem-write', pwsh: 'shell',
+    sacha_research: 'sacha-delegation', sacha_worker: 'sacha-delegation', sacha_review: 'sacha-delegation',
+    web_search: 'web', web_fetch: 'web',
+    job_list: 'jobs', job_output: 'jobs', job_kill: 'jobs',
+  }
   return {
     available: true,
     sessionId: `preview-${id}`,
@@ -42,12 +53,13 @@ function makeSnapshot(
     toolSurface: {
       sessionId: `preview-${id}`,
       phase,
-      visibleCount: working ? 14 : 6,
-      hiddenCount: working ? 37 : 45,
-      visible: ['read', 'grep', 'sacha_tools'],
-      hidden: ['mcp_unity'],
+      visibleCount: visible.length,
+      hiddenCount: hidden.length,
+      visible,
+      hidden,
       advertised: ['read', 'grep', 'sacha_tools'],
-      unlocked: [],
+      unlocked: working ? [] : ['pwsh'],
+      toolFamilies,
       source: 'runtime',
       fallback: false,
       warnings: [],

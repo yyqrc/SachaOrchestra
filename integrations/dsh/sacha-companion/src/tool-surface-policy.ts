@@ -165,6 +165,8 @@ export interface RootToolSurfaceSnapshot {
   readonly hidden: readonly string[]
   readonly advertised: readonly string[]
   readonly unlocked: readonly string[]
+  /** Family key per tool name, so a reader-facing surface can be grouped. */
+  readonly toolFamilies: Readonly<Record<string, string>>
   readonly source: ToolSurfaceRecovery['source']
   readonly fallback: boolean
   readonly warnings: readonly string[]
@@ -240,8 +242,21 @@ export function phaseFromEvents(events: readonly EventLike[]): ToolSurfacePhase 
   return 'bootstrap'
 }
 
+/**
+ * The reserved `ptc` presentation transport. It is the only tool name a
+ * model-direct call may use in that mode, and the registry appends it to every
+ * PTC scope's visible set AFTER restrictions resolve, so it can never be
+ * restricted away and `tools.restrict()` rejects it as a filter name outright.
+ * Phase policy therefore has to treat it as transport rather than capability:
+ * it is always permitted, and never part of the catalog a phase narrows.
+ */
+const RUN_CODE_NAME = 'run_code'
+
 /** Phase predicate shared by restriction, assembly filtering, guard, and tests. */
 export function phaseAllowsTool(phase: ToolSurfacePhase, name: string): boolean {
+  // `run_code` is transport, not a capability: in `ptc` it is the only way any
+  // other tool is reached, so gating it by phase would gate the entire surface.
+  if (name === RUN_CODE_NAME) return true
   return phase === 'bootstrap' ? BOOTSTRAP_TOOLS.has(name) : RESIDENT_TOOLS.has(name)
 }
 
@@ -304,7 +319,9 @@ export function createToolCatalog(schemas: readonly ToolSchemaLike[]): ToolCatal
   const unique = new Map<string, ToolCatalogEntry>()
   for (const schema of schemas) {
     const name = schema.name.trim()
-    if (name === '' || name === SACHA_TOOLS_NAME || unique.has(name)) continue
+    // `sacha_tools` is the control entry and `run_code` the PTC transport; neither
+    // is a capability a phase can narrow, so neither belongs in the catalog.
+    if (name === '' || name === SACHA_TOOLS_NAME || name === RUN_CODE_NAME || unique.has(name)) continue
     const parameters = parameterMetadata(schema.parameters)
     unique.set(name, Object.freeze({
       name,
@@ -621,7 +638,12 @@ export function filterPromptAssembly<T extends PromptAssemblyLike>(
   allowed: ReadonlySet<string>,
   configuredGuidanceOwners: Readonly<Record<string, readonly string[]>> = {},
 ): T {
-  const isAllowed = (name: string): boolean => name === SACHA_TOOLS_NAME || allowed.has(name)
+  // `run_code` is kept unconditionally: under `ptc` it is the assembly's ONLY tool,
+  // so filtering it by the capability allow-set would leave the model an empty tool
+  // list and no way to reach anything. `allowed` gates what a program may call, and
+  // the guard enforces exactly that on each nested sub-dispatch.
+  const isAllowed = (name: string): boolean =>
+    name === SACHA_TOOLS_NAME || name === RUN_CODE_NAME || allowed.has(name)
   const sections = assembly.sections.filter((section) => {
     const owners = guidanceOwners(section.name, configuredGuidanceOwners)
     return owners === undefined || owners.some(isAllowed)
@@ -755,10 +777,24 @@ export class RootToolSurfaceController {
     this.advertised = new Set(tools.map(tool => tool.name))
   }
 
-  guardReason(name: string, allowed = this.effectiveAllow()): string | undefined {
+  /**
+   * Denial reason for one pending call, or `undefined` to allow it.
+   *
+   * `nested` marks a `ptc` transport sub-dispatch — a call made from inside a
+   * `run_code` program, which the registry tags with a `parent` token. It changes
+   * which evidence applies: `advertised` records the latest request header's wire
+   * schemas, and under `ptc` those are ONLY `run_code`, because every other tool is
+   * reached through the generated SDK instead. Checking a sub-dispatch against that
+   * set would reject every tool a program can legitimately bind, so a sub-dispatch
+   * is gated by `allowed` alone — which is also what the SDK section is rendered
+   * from, so it is exactly the surface the model was promised.
+   */
+  guardReason(name: string, allowed = this.effectiveAllow(), nested = false): string | undefined {
     if (name === SACHA_TOOLS_NAME) return
+    // The transport itself is never a capability, so no phase hides it.
+    if (name === RUN_CODE_NAME) return
     if (!allowed.has(name)) return `tool "${name}" is hidden by the active Sacha Root tool surface`
-    if (!this.advertised.has(name)) {
+    if (!nested && !this.advertised.has(name)) {
       return `tool "${name}" was not advertised in the latest request header; retry only after the next model step exposes it`
     }
     return
@@ -797,6 +833,14 @@ export class RootToolSurfaceController {
     const effective = this.effectiveAllow()
     const visible = this.catalog.entries.filter(entry => effective.has(entry.name)).map(entry => entry.name)
     const hidden = this.catalog.entries.filter(entry => !effective.has(entry.name)).map(entry => entry.name)
+    // Family per name lets the panel group the surface for a reader instead of
+    // printing one flat list. `sacha_tools` is the always-visible control entry
+    // and is not in the catalog, so it is labelled explicitly.
+    const toolFamilies: Record<string, string> = {}
+    for (const entry of this.catalog.entries) {
+      toolFamilies[entry.name] = entry.families[0] ?? 'other'
+    }
+    toolFamilies[SACHA_TOOLS_NAME] = 'other'
     return {
       sessionId: this.sessionId,
       phase: this.phase,
@@ -806,6 +850,7 @@ export class RootToolSurfaceController {
       hidden,
       advertised: [...this.advertised].sort(),
       unlocked: [...this.unlocked].sort(),
+      toolFamilies,
       source: this.source,
       fallback: this.fallback,
       warnings: [...this.warnings],
@@ -975,7 +1020,7 @@ function installForRoot(
         const assembled = await next()
         return filterPromptAssembly(assembled, allowedSnapshot, options.guidanceOwners)
       }),
-      () => agent.ctx.tools.guard(exec => controller.guardReason(exec.name, allowedSnapshot)),
+      () => agent.ctx.tools.guard(exec => controller.guardReason(exec.name, allowedSnapshot, exec.parent !== undefined)),
     ])
     const registration: SurfacePolicyRegistration = { allowed: allowedSnapshot, dispose }
     slot.replace(() => registration)
@@ -993,7 +1038,7 @@ function installForRoot(
         const assembled = await next()
         return filterPromptAssembly(assembled, allowed, options.guidanceOwners)
       }),
-      () => agent.ctx.tools.guard(exec => controller.guardReason(exec.name, allowed)),
+      () => agent.ctx.tools.guard(exec => controller.guardReason(exec.name, allowed, exec.parent !== undefined)),
     ])
     slot.replace(() => ({ allowed, dispose: fallback }))
   }
