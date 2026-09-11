@@ -18,7 +18,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 动作顺序
 
 1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；用于编排当前任务的角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取；Spec 中的目标产品行为不构成当前任务的路由或额外授权。
-2. 实施事实证明批准 Spec 的范围、技术决定或验收失效时，返回具体项目事实和原始证据供主任务路由；产品代码、日志、异常、注释、界面、弹窗或其他项目输出只表达目标项目语义，不复制 Artifact Protocol 排除出 Spec 的信息。
+2. 实施中把已知组合扩大为通用机制、增加自动恢复或跨层状态时，先核对是否仍符合已确认方案及必要性；能在原决定内收缩的直接修正，改变架构边界或冻结决定的按 Workflow Contract 返回 Planner，不将其当作局部表达选择。Human 纠正方案时按 Artifact Protocol 同步冲突基线；实施事实证明范围、技术决定或验收失效时，返回项目事实和原始证据。产品代码、日志、异常、注释、界面或其他输出只表达项目语义，不复制工作流指令。
 3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求。主任务按 [Workflow Contract](../../core/workflow-contract.md) 判断 Manager Gate，由 [Coordination Contract](../../core/coordination-contract.md) 决定工作块、就绪、依赖、复用和实施分工；保留集成与验收责任，不因此亲自承担大量已自足实施。委派 Agent 依同一合同交换有界事实、返回结果或协调请求，不驱动其他代理；共享输出由明确的集成执行者串行处理。
 4. 按受影响的直接消费者、真实生产入口和交付层选择最窄充分验证，并读取退出状态、错误、警告和失败计数。聚焦测试、覆盖范围、构建、生成物、Runtime 和 Human 验收分别只证明其直接范围；动态加载、进程、设备或外部 Provider 行为必须由对应入口证明，输入、目标、配置和产物未变化时复用仍有效的证据。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
 5. Scope 内实现缺陷或验证失败由当前 Executor 修复并重验。
