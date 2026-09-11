@@ -13,7 +13,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 接受事实、Scope、授权、Entry Condition；存在 Spec 时须已批准且无修订。迁移任务从规则、Spec、必要 reference 自足恢复，确认是唯一写入者，不复制旧对话。显式调用与接受事实皆无时不执行。
 2. 读取项目规则和真实状态。Project Integration 有目标 Skill 的已确认加载条目时，按 [Workflow Contract](../../core/workflow-contract.md) 的技能加载策略决定是否加载；加载后完整读取正文并另行核对前置、副作用、Scope 和授权。策略不允许或缺少条目、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项。
-3. 保护用户改动并确认单写入者；依赖、Scope 或基线不足时停止受影响写入。
+3. 存在 Spec 时，按 [Artifact Protocol](../../core/artifact-protocol.md#21-spec-artifact) 核对其中需求边界与必要理由，将本次修改和验证对应到受影响的要求；没有 Spec 时直接消费当前明确目标和决定，不为此强制生成 Spec。保护用户改动并确认单写入者；依赖、Scope 或基线不足时停止受影响写入。
 
 ## 动作顺序
 

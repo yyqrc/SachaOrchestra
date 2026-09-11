@@ -6,9 +6,11 @@
 
 尺寸决定：ObjectMesh 正值覆盖白名单上限，`0` 沿用白名单值，非法结果回退 `512`；普通材质继续使用 `normalTextureSize`。导出和缓存必须调用 `ResolveExportSize`。
 
-材质决定：使用 `MaterialExportScope` 先收集完整 Batch 的 RawMat GUID、目标路径和消费者；不同 GUID 命中同一路径时，在创建资产或修改引用前失败。同一 GUID 的所有消费者使用 `MaterialExportRegistry` 返回的同一材质资产。
+材质决定：使用 `MaterialExportScope` 先收集完整 Batch 的 RawMat GUID、目标路径和消费者；不同 GUID 命中同一路径时，在创建资产或修改引用前失败。复用开启时，同一 GUID 的所有消费者使用 `MaterialExportRegistry` 返回的同一材质资产。
 
 配置决定：在 `MaterialExportSettings` 新增一个 bool 字段控制是否复用同一 RawMat GUID 的 TOD 材质，默认开启；字段名称尚未确认，必须沿用项目 bool 字段命名习惯，并说明 Inspector 与材质导出器两个直接消费者。
+
+开关关闭时必须保持旧版按消费者分别导出材质的行为；尺寸配置仍然生效。已排除“关闭时仍共用材质，只跳过查询”和“冲突后临时关闭复用、下一批自动恢复”：前者会让改动一个材质影响其他消费者，后者会使相同配置下的导出结果取决于此前批次的失败。开关由配置决定，不由导出异常自动改写。这些决定已确认，设计时需据此选择数据流与失败处理。
 
 验收：通过源码与目标程序集编译检查非 CODM 分支不引用新增字段；运行导出并读回缓存键，确认修改尺寸后缓存失效；连续运行两次不创建重复材质且 GUID 不变；不同 GUID 同路径在任何持久写入前失败；由实际使用者观察并确认项目 UI 标签能被理解。不要求 Editor Bake。
 

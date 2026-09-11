@@ -9,6 +9,8 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 
 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收，并把结果交回[术语合同](../../core/terminology-contract.md)定义的主任务。
 
+设计方案前，从当前请求、已确认决定与项目事实中明确预期改变、必须保留的行为和明确排除的做法，并用这些边界筛选方案、安排实现与验收。不得把必须保留的行为改成可选兼容项，或因实现方便重新引入已排除的做法。边界已明确时直接消费；缺失或冲突会改变方案时，按下文核对事实或调用 Explore，不重复要求 Human 确认既有决定。
+
 ## 输入与首查
 
 1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 确认 Planner Gate；两者皆无时不接管。
@@ -25,7 +27,7 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 4. 只使用上一步确认的项目来源，按 Artifact Protocol 的唯一内容格式生成面向目标项目的实施规格；项目已有格式只有在完整承载该格式语义时才沿用。
 5. 回读并核对 Spec 中所有保留英文的既有项目标识，以及所有拟新增的实现标识和项目概念名称。既有标识逐个与已确认项目来源精确匹配；项目来源未定义简称或别名时，必须改回完整项目名称。拟新增标识和概念名称逐个核对目标位置、相邻 Owner、直接消费者与项目当前命名习惯，命名依据和含义必须由项目来源或 Human 项目决定支持。
 6. 逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。
-7. 只提供项目规则、项目事实和 Spec，核对不了解 Sacha 的 Executor 与 Reviewer 能否直接实施与评审。
+7. 按 Artifact Protocol 将设计时采用的需求边界和影响后续选择的理由落入 Spec。回对已确认决定：适用条件是否仍准确，实施方案是否遵守这些条件，已给出的关键保留或排除理由是否写明，验收是否能发现违反这些要求的实现。只提供项目规则、项目事实和 Spec，核对不了解 Sacha、看不到原对话的 Executor 与 Reviewer 能否据此继续；只写“禁止”而丢失影响取舍的原因、仅在聊天中确认或只列改动文件均不算完成。
 8. 向 Human 交付前必须完成格式、来源和项目语境核对；任一项不满足时由当前 Planner 原位修订，复查受影响内容及直接使用方；已确认且未变化的检查不机械重做，不以回读轮数证明质量。全部满足前不得交付 Spec、请求批准、进入 Executor 或依赖 Reviewer 发现问题。
 9. 工作流返回、协调和验证责任由主任务分别按 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 与 [Assurance Contract](../../core/assurance-contract.md) 处理，不写回 Spec。主任务能形成至少两个独立调查单元，或出现多个候选、依赖或恢复协调时，调用 Manager 并消费其分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
 
