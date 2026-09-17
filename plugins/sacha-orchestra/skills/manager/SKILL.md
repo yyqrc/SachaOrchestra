@@ -17,7 +17,7 @@ description: 主任务已接受 Sacha 或显式 Explore 且 Manager Gate 打开�
 ## 动作顺序
 
 1. 调用 Coordination Contract，先按 Owner、输入、输出和验证入口识别可独立单元，再完成拆分、依赖、就绪判定、路由要求、单层派发、等待、取消、归并、去重和返回；不能独立完成或验证的局部动作留给调用节点。
-2. 同一普通任务、迁移目标任务与 Explore 共用同一算法；当前波次存在应派发的已就绪单元时，Manager 必须按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得逐单元完整首次创建参数并原样派发；一个单元因上下文隔离而派发时也继续由 Manager 管理剩余依赖。未取得参数时按 Coordination Contract 返回偏差。当前 Adapter 映射了观测能力时，只在波次状态已经提交后记录，记录失败不改变调度结论。
+2. 当前波次存在应派发的已就绪单元时，按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得完整首次创建参数并原样派发；Manager 已打开后，当前波次只有一个可派发单元也继续管理剩余依赖，不因此结束协调。Gate 关闭的单代理路线不进入本 Skill。未取得参数时返回偏差。当前 Adapter 映射了观测能力时，只在波次状态已经提交后记录，记录失败不改变调度结论。
 
 ## 输出
 

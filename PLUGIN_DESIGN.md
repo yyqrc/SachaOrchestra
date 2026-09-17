@@ -169,6 +169,72 @@ flowchart TD
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
 - 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向 Human 说明真实失败、通用流程为何不足和影响，并取得明确批准。
 
+### 协调闭环细化
+
+下图展开总图中的协调过程，也适用于 Gate 关闭时由主任务直接管理的单个单元；不增加生产节点。就绪、复用、消息与返回条件由 [Coordination Contract 第 1–3、6 节](plugins/sacha-orchestra/core/coordination-contract.md) 定义，活性查询与停止证明由当前 Adapter 映射。
+
+```mermaid
+flowchart TD
+    C_START["当前目标、授权与完成条件"] --> C_PACKAGE["形成工作包：结果、输入、归属、完成检查与依赖"]
+    C_PACKAGE --> C_READY{"执行或研究就绪？"}
+    C_READY -->|否| C_CONVERGE["最小调查、收敛接口或合并耦合部分"]
+    C_CONVERGE -->|可补齐| C_PACKAGE
+    C_CONVERGE -->|当前无法推进| C_BLOCKED["返回具体阻塞与恢复条件"]
+    C_READY -->|是| C_VALUE{"委派有收益？"}
+    C_VALUE -->|否| C_LOCAL["主任务执行"]
+    C_VALUE -->|是| C_REUSE{"同一连续子任务且旧上下文收益成立？"}
+    C_REUSE -->|是| C_OLD["复用原代理"]
+    C_REUSE -->|否| C_NEW["新建代理"]
+    C_OLD --> C_DISPATCH["经 Adapter 派发自足输入、范围、证据、检查与停止条件"]
+    C_NEW --> C_DISPATCH
+    C_DISPATCH --> C_WORK["代理执行；主任务推进其他不冲突工作"]
+    C_WORK --> C_EVENT{"当前可行动事实？"}
+    C_EVENT -->|结果已返回| C_CONSUME["消费结果与原始证据：差异、失败、待验项"]
+    C_EVENT -->|依赖、冲突或失败改变下一步| C_COORD["协调接口、归属与工作包"]
+    C_COORD --> C_PACKAGE
+    C_EVENT -->|依赖结果且无其他就绪工作| C_WAIT["等待完成回传；到活性核对点仍缺结果时有界查询"]
+    C_WAIT -->|取得新事实| C_EVENT
+    C_WAIT -->|仍有有效进展| C_WAIT
+    C_WAIT -->|状态不明或无进展| C_RECOVER["核对活动，按证据与停止条件补问、恢复或取消"]
+    C_RECOVER -->|可继续| C_WORK
+    C_RECOVER -->|无法继续| C_BLOCKED
+    C_LOCAL --> C_CONSUME
+    C_CONSUME --> C_VERIFY["按需安排共享验证：固定并确认相关输入稳定"]
+    C_VERIFY --> C_REMAIN{"剩余依赖或返修？"}
+    C_REMAIN -->|有| C_PACKAGE
+    C_REMAIN -->|无| C_RETURN["返回调用节点；根任务按整体完成条件继续流转"]
+```
+
+全程保持单写入者、有效证据复用和结果去重；取消或接管前取得旧写入者停止证明。状态问答沿 [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) 回答并继续原目标，不退出本闭环。
+
+### 任务转移细化
+
+下图展开总图中的执行迁移和 Feedback 单向转移；两者保留各自的授权与目标匹配条件，详见 [Coordination Contract 第 5–6 节](plugins/sacha-orchestra/core/coordination-contract.md)。
+
+```mermaid
+flowchart TD
+    T_EXEC["明确执行迁移批准"] --> T_PRE{"执行任务迁移前提满足？"}
+    T_PRE -->|否| T_HOLD["来源保留 Owner，停止实施及写入派发；报告恢复条件"]
+    T_PRE -->|是| T_STOP["来源停止实施及写入派发"]
+    T_STOP --> T_RESOLVE["按对应标识查询唯一目标"]
+    T_FEEDBACK["Human 在另一真实任务显式调用 Feedback"] --> T_RESEARCH["有界只读调查并确定反馈标识"]
+    T_RESEARCH --> T_RESOLVE
+    T_RESOLVE -->|标识或唯一性不明| T_HOLD
+    T_RESOLVE -->|匹配可继续目标| T_DELIVER["复用目标，交付规则、输入、证据与最小 Handoff"]
+    T_RESOLVE -->|符合对应创建条件| T_CREATE["创建唯一目标"]
+    T_CREATE -->|成功| T_DELIVER
+    T_CREATE -->|失败| T_HOLD
+    T_RESOLVE -->|已转移的重复输入或已终止反馈精确重复| T_NOOP["返回既有 reference；不重复转移"]
+    T_DELIVER --> T_OK{"交付并完成 Owner 转移？"}
+    T_OK -->|否| T_HOLD
+    T_OK -->|是| T_TARGET["目标接管；来源交付原生 reference 后结束，不等待最终结果"]
+    T_TARGET -->|执行迁移| T_CONTINUE["目标继续 Execute、Review / 返修与收尾"]
+    T_TARGET -->|Feedback| T_INTAKE["目标重新进入 Intake，另行核对写入及外部动作授权"]
+    T_HOLD -->|恢复对应前提或完成消歧| T_RESOLVE
+    T_HOLD -->|执行迁移改为普通批准| T_ORDINARY["来源恢复普通执行"]
+    T_HOLD -->|取消或无法继续| T_END["交付未完成范围与恢复条件后结束"]
+```
+
 ## 4. Role 职责设计
 
 | Role | 稳定职责 | 局部流程 | 明确不拥有 |
