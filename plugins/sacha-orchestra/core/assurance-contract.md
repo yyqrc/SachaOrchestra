@@ -15,7 +15,7 @@ Baseline/`acceptance_revision` 变化后需对当前交付形成裁决；复核�
 验收矩阵使用稳定的 `check_id`。摘要保留 Scope/修订号、必需/已尝试状态、结果、reference、风险、恢复入口、人工状态与计数。
 人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、过期、不可达或计数不一致时保持未验证；Provider、报告和自报不拥有裁决权。
 
-Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。自动化无法证明的检查给出具体 Human/外部路线，并按证据状态选择 Outcome。
+Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。证据按目标结果与具体风险判定；Reviewer 必须核对每块改动的必要性，无依据且扩大维护或回退成本的扩展必须返回修正，纯表达偏好不阻塞交付。自动化无法证明的检查给出具体 Human/外部路线，并按证据状态选择 Outcome。
 
 存在批准 Spec 时，本文从其中的项目验收标准建立验收矩阵；没有 Spec 时，使用明确目标、Scope、Human 决定和项目验收输入。验收再按实际执行者路由：A 类由 Agent 准备、执行并判断；B 类由 Human 提供设备、场景、账号或其他前置，Agent 在恢复后执行并判断；C 类由 Human 观察或判断，必须给出准备条件、操作、预期结果和回传证据。A/B/C 是验收执行分类，不写回面向项目的 Spec。B 类等待期间保持同一工作流的恢复入口，条件满足后自动续跑；C 类结果写入现有人工状态。本次交付阻塞的 B/C 类检查未完成时使用 `Needs Evidence` 或 `Blocked`，非阻塞项使用 `Accepted with follow-up`。
 
