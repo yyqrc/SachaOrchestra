@@ -13,7 +13,8 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 
 - 默认仅使用 Executor；Gate 无事实依据时关闭。同一文件或共享可变输出只有一个活跃写入者；隔离补丁/候选实现由集成 Owner 串行应用。
 - Human 保留目标、Scope、高影响动作和工作区外状态授权。
-- 设计与实施选择满足当前目标、影响范围最小且可回退的方案。新增机制必须有当前需求或已确认可达的失败依据，并说明现有实现或局部修改为何不足；通用化必须有明确的复用需求。依据不足的扩展必须删除或收缩。数据兼容风险按项目与领域规则核对；迁移未获决定时，先说明影响并询问是否处理，不默认建设迁移或恢复机制。
+- 设计与实施必须以解决当前问题的最小改动形成方案；优先复用现有实现，迁移时只适配必要差异。Spec 的设计完整性与说明精度由 [Artifact Protocol](artifact-protocol.md#21-spec-artifact)统一规定。新增机制必须有当前需求或已确认可达的失败依据，并说明现有实现或局部修改为何不足；通用化必须有明确的复用需求，依据不足的扩展必须删除或收缩。
+- 不得主动穷举边界、异常、兼容、恢复和回退；只有 Human 明确要求，或已有证据表明本次修改会造成具体错误时，才补充必要处理。必要设计与修改说明已足以落实当前目标时，必须停止扩展设计；交付 Spec 必须同时达到 Artifact Protocol 的标准。不得为了形式完整、自包含或便于验收而新增机制、抽象或配套设施。项目与领域的既有必要约束继续适用；发现需由 Human 决定的数据迁移时，说明具体影响，不默认建设迁移或恢复机制。
 - 原始文件、外部状态和命令结果决定事实；Artifact/报告/自报只索引。
 - 主任务推进到根终态并独占 Manager 与派发；委派 Agent 的完成结果和协调请求只是中间结果。
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
@@ -58,7 +59,7 @@ Human 显式调用上述 Skill 或 `setup-project`、`setup-agents` 时，Runtim
 | Role | 唯一责任 | 禁止 |
 | --- | --- | --- |
 | [Planner](../skills/planner/SKILL.md) | 调查事实、比较实质方案、冻结 Scope/决策/验收 | 把规划当授权；实施生产修改 |
-| [Executor](../skills/executor/SKILL.md) | 在批准 Scope/明确目标内自主选择局部实现、实施、验证并记录证据 | 静默改变用户可见 Scope/冻结决策；虚报验证 |
+| [Executor](../skills/executor/SKILL.md) | 有 Spec 时按精确规格实施、核对与验证；无 Spec 时在明确目标内自主实施；记录证据 | 自行补充或替换 Spec 的必要设计；静默改变 Scope/冻结决策；虚报验证 |
 | [Reviewer](../skills/reviewer/SKILL.md) | 以独立来源对照 Scope、真实状态和原始证据裁决 | 改合同求通过；默认修复 |
 
 | Gate | 打开事实 | 不构成事实 |
@@ -97,7 +98,7 @@ Human → 取消或不再继续 → 主任务结束。
 Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Explore、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
 
 动态路由：出现 Planner Gate 新事实 → Planner；Planner 先核对小事实；仍需持续探索、实质事实或 Human 决定 → Explore；Explore 返回后按剩余问题继续核对或探索，足够后才冻结 Spec；Roadmap 事实不足 → Explore → Roadmap，正文就绪 → document-project → Roadmap 结束；Roadmap 明确推荐独立 Sacha Planner 任务且 Human 确认创建 → 新任务从显式 Planner 入口开始；新增高影响授权 → Human；Reviewer 路由按 Assurance；委派/返回失败按 Coordination。
-Scope 内局部实现判断由 Executor 自主完成；环境不可用先耗尽同 Scope 安全替代。
+有 Spec 时，执行自主权与问题交回条件遵循 [Artifact Protocol 的 Spec 标准](artifact-protocol.md#21-spec-artifact)：主任务收到设计问题后分析事实，按 Planner 路由补齐或修订规格；只有需要 Human 的实质决定或新增授权时才提问。没有 Spec 时，Executor 继续在明确目标与授权内自主实施，不为此强制生成 Spec。环境不可用先耗尽同 Scope 安全替代。
 
 主任务直接推进 Role 完成结果、已批准方案向 Executor 的转换、同 Scope 返修/补证据/复验、唯一 Owner 路由和已授权收尾。Direct Scope 由用户目标与明确约束界定；只有 Human 或 Spec 明确指定时，预计文件列表才成为硬性允许列表。
 

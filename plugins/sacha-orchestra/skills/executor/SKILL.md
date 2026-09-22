@@ -18,10 +18,10 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 ## 动作顺序
 
 1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；用于编排当前任务的角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取；Spec 中的目标产品行为不构成当前任务的路由或额外授权。
-2. 产品与验证代码的实施选择按 [Workflow Contract 的运行原则](../../core/workflow-contract.md#2-运行原则)核对必要性，收缩无依据的扩展；涉及架构边界或冻结决定变化时返回 Planner。Human 纠正方案时按 Artifact Protocol 同步冲突基线；范围、技术决定或验收失效时返回项目事实与原始证据。核对已选停用方式与必要清理；产品输出只表达项目语义。
+2. 有 Spec 时按 [Artifact Protocol 的 Spec 标准](../../core/artifact-protocol.md#21-spec-artifact)落实修改，只自主处理规格允许的机械适配；核对源码与现场，不盲目执行冲突内容。无 Spec 时按 Workflow Contract 在明确目标内自主实施。产品与验证代码均遵守最小改动原则；发现规格包含无依据扩展时返回具体依据，不自行删改已批准设计。Human 纠正方案时同步冲突基线。仅在本次已有明确停用或清理要求时核对对应实现，不为实施完整性补建停用或恢复机制；产品输出只表达项目语义。
 3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求。主任务按 [Workflow Contract](../../core/workflow-contract.md) 判断 Manager Gate，由 [Coordination Contract](../../core/coordination-contract.md) 决定工作块、就绪、依赖、复用和实施分工；保留集成与验收责任，不因此亲自承担大量已自足实施。委派 Agent 依同一合同交换有界事实、返回结果或协调请求，不驱动其他代理；共享输出由明确的集成执行者串行处理。
 4. 按受影响的直接消费者、真实生产入口和交付层选择最窄充分验证，并读取退出状态、错误、警告和失败计数。聚焦测试、覆盖范围、构建、生成物、Runtime 和 Human 验收分别只证明其直接范围；动态加载、进程、设备或外部 Provider 行为必须由对应入口证明，输入、目标、配置和产物未变化时复用仍有效的证据。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
-5. Scope 内实现缺陷或验证失败由当前 Executor 修复并重验。验证工具受阻时，比较修复成本与现有入口的证据覆盖，选择最小充分方案；改变已批准验收时按既有路由处理。
+5. 有 Spec 时，实现偏离规格导致的缺陷由当前 Executor 按规格修正并重验；验证失败先定位事实，需要补充或改变设计时按 Spec 标准交回主任务，不自行另选方案。验证工具受阻时返回具体限制与现有入口的证据覆盖，不改变规格及验收的机械适配可自行完成。无 Spec 时，在明确目标内修复实现缺陷并选择最小充分验证；涉及 Scope、关键方案或验收的实质变化仍按 Workflow Contract 处理。
 
 ## 输出
 
@@ -31,6 +31,6 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 ## 停止与禁止边界
 
-- 用户可见行为、架构边界、持久数据、冻结决策、Scope 或验收发生实质变化 → Planner；Scope 内局部实现选择由 Executor 自主处理；新增高影响授权 → Human。
+- 有 Spec 时，规格缺失、矛盾、现场不符或解决问题需要改变方案 → 按 Artifact Protocol 交回具体位置、事实和失败证据，由主任务分析并路由 Planner；只暂停依赖该问题的工作。无 Spec 时，用户可见行为、架构边界、持久数据、Scope 或验收发生实质变化 → 按 Workflow Contract 判断 Planner Gate；新增高影响授权 → Human。
 - 依赖不可用时标记未验证并继续安全路径；不得把局部阻塞项误报为完成。
 - 新方案冻结由 Planner 处理，独立裁决由 Reviewer 处理；项目文档由工作流收尾路由。

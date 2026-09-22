@@ -165,7 +165,7 @@ asset 在创建 Promise 前校验调用数、单元标识、投影、输出上�
 
 当前 v2 必须实际暴露 `agent_type`、`model`、`reasoning_effort` 与 `fork_turns` 的组合，并发现所选能力类型；不能把某一 Desktop 的字段推广到 Work 或其他会话。缺失类型或必需字段时停止，不省略能力类型改用普通代理。
 
-调用 `collaboration.spawn_agent`，默认 `fork_turns="none"`；当前 schema 提供 task_name 时使用稳定短名，必填字段不得省略。只有未落盘用户决定确需携带时才使用最小正整数轮数，不复制完整父历史。message 自包含目标、范围、输入、能力/副作用、完成检查、停止及协调请求返回条件。
+调用 `collaboration.spawn_agent`，默认 `fork_turns="none"`；当前 schema 提供 task_name 时使用稳定短名，必填字段不得省略。只有未落盘用户决定确需携带时才使用最小正整数轮数，不复制完整父历史。message 自包含目标、范围、输入、能力/副作用、完成检查、停止及协调请求返回条件。有 Spec 的实施单元同时提供当前 Artifact Protocol 的 Spec 标准及相关实施内容的可读绝对路径与精确定位，要求 child 在实施前读取，不依赖自动 Skill instructions 或继承历史。
 
 能力类型不固定 model 或 reasoning effort，自动路线显式传 B 节字段。固定模型类型只供与其固定设置一致的精确请求，不能覆盖不可改写的模型，也不能作自动回退。显式字段、类型默认值和父任务继承的优先级只在当前工具允许该组合时取证；参数被接受不等于实际模型、权限或工具面已经验证。
 
