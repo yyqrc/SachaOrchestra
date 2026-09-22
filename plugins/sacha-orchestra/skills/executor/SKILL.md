@@ -5,32 +5,18 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 # Executor（执行）
 
-## 职责
+## 职责与输入
 
-在明确目标或批准 Scope 内实施、验证并交付真实变更（`delta`）、证据、风险和恢复入口；同 Scope 的实现缺陷由当前 Executor 继续修复。
+在明确目标或批准 Spec 内实施、验证并交付结果。沿用 [Workflow Contract](../../core/workflow-contract.md) 已确定的入口、范围、授权与领域技能加载规则，读取实施需要的项目规则和真实状态；有 Spec 时取得当前批准版本及明确引用，无 Spec 时直接消费目标与验收，不强制生成规格。
 
-## 输入与首查
+## 工作与交付
 
-1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 接受事实、Scope、授权、Entry Condition；存在 Spec 时须已批准且无修订。迁移任务从规则、Spec、必要 reference 自足恢复，确认是唯一写入者，不复制旧对话。显式调用与接受事实皆无时不执行。
-2. 读取项目规则和真实状态。Project Integration 有目标 Skill 的已确认加载条目时，按 [Workflow Contract](../../core/workflow-contract.md) 的技能加载策略决定是否加载；加载后完整读取正文并另行核对前置、副作用、Scope 和授权。策略不允许或缺少条目、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项。
-3. 存在 Spec 时，按 [Artifact Protocol](../../core/artifact-protocol.md#21-spec-artifact) 核对其中需求边界与必要理由，将本次修改和验证对应到受影响的要求；没有 Spec 时直接消费当前明确目标和决定，不为此强制生成 Spec。保护用户改动并确认单写入者；依赖、Scope 或基线不足时停止受影响写入。
+按既定目标做最小修改，写入前确认归属并保护用户改动。有 Spec 时，实施自主权和设计问题交回遵循 [Artifact Protocol](../../core/artifact-protocol.md#21-spec-artifact)；发现无依据扩展也返回具体事实，不自行删改批准方案。
 
-## 动作顺序
+完成覆盖本次改变及受影响保留行为的最小充分验证，检查直接结果与失败信息，复用仍有效的证据。同 Scope 的实现偏差由当前 Executor 修复并重验；验证受阻按 Workflow 的替代与停止条件处理。需要 Human 前置或判断时读取 [Assurance 的验收分类](../../core/assurance-contract.md#2-baseline-与证据)，按 [Human Interaction Contract](../../core/human-interaction-contract.md) 请求具体输入。
 
-1. 存在批准 Spec 时以其为实施基线；没有 Spec 时沿用明确目标、Scope、Human 决定和项目验收输入。随后按 [Workflow Contract](../../core/workflow-contract.md) 在 Scope 内做最小修改；用于编排当前任务的角色、路由、协调、验证责任、迁移和恢复信息只从对应 Core 合同、Handoff 或运行时传输读取；Spec 中的目标产品行为不构成当前任务的路由或额外授权。
-2. 有 Spec 时按 [Artifact Protocol 的 Spec 标准](../../core/artifact-protocol.md#21-spec-artifact)落实修改，只自主处理规格允许的机械适配；核对源码与现场，不盲目执行冲突内容。无 Spec 时按 Workflow Contract 在明确目标内自主实施。产品与验证代码均遵守最小改动原则；发现规格包含无依据扩展时返回具体依据，不自行删改已批准设计。Human 纠正方案时同步冲突基线。仅在本次已有明确停用或清理要求时核对对应实现，不为实施完整性补建停用或恢复机制；产品输出只表达项目语义。
-3. 沿用[术语合同](../../core/terminology-contract.md)的主任务、委派 Agent 与协调请求。主任务按 [Workflow Contract](../../core/workflow-contract.md) 判断 Manager Gate，由 [Coordination Contract](../../core/coordination-contract.md) 决定工作块、就绪、依赖、复用和实施分工；保留集成与验收责任，不因此亲自承担大量已自足实施。委派 Agent 依同一合同交换有界事实、返回结果或协调请求，不驱动其他代理；共享输出由明确的集成执行者串行处理。
-4. 按受影响的直接消费者、真实生产入口和交付层选择最窄充分验证，并读取退出状态、错误、警告和失败计数。聚焦测试、覆盖范围、构建、生成物、Runtime 和 Human 验收分别只证明其直接范围；动态加载、进程、设备或外部 Provider 行为必须由对应入口证明，输入、目标、配置和产物未变化时复用仍有效的证据。A 类自行完成；B 类请求 Human 准备前置后在同一任务续跑；C 类给出人工检查与回传证据。
-5. 有 Spec 时，实现偏离规格导致的缺陷由当前 Executor 按规格修正并重验；验证失败先定位事实，需要补充或改变设计时按 Spec 标准交回主任务，不自行另选方案。验证工具受阻时返回具体限制与现有入口的证据覆盖，不改变规格及验收的机械适配可自行完成。无 Spec 时，在明确目标内修复实现缺陷并选择最小充分验证；涉及 Scope、关键方案或验收的实质变化仍按 Workflow Contract 处理。
+向主任务或当前结果消费者交付实际修改、验证证据、偏差及未完成部分；需要持久记录或恢复时按 Artifact Protocol 保存。实际协作由主任务按 [Coordination Contract](../../core/coordination-contract.md) 安排，主任务保留集成、必要共享验证和最终交付责任。
 
-## 输出
+## 边界
 
-1. 只返回消费者需要的 `delta`、验证、偏离、风险、未验证项和恢复入口。
-2. 向 Human 请求 B/C 类证据、报告进度或交付结果前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-3. 需要持久记录或正式恢复时读取 [Artifact Protocol](../../core/artifact-protocol.md)，再按当前 Runtime Adapter 返回主任务。
-
-## 停止与禁止边界
-
-- 有 Spec 时，规格缺失、矛盾、现场不符或解决问题需要改变方案 → 按 Artifact Protocol 交回具体位置、事实和失败证据，由主任务分析并路由 Planner；只暂停依赖该问题的工作。无 Spec 时，用户可见行为、架构边界、持久数据、Scope 或验收发生实质变化 → 按 Workflow Contract 判断 Planner Gate；新增高影响授权 → Human。
-- 依赖不可用时标记未验证并继续安全路径；不得把局部阻塞项误报为完成。
-- 新方案冻结由 Planner 处理，独立裁决由 Reviewer 处理；项目文档由工作流收尾路由。
+设计、Scope 或验收需改变时交主任务按 Workflow 路由；新增高影响动作须取得授权。仅停止依赖问题的工作，不把未验证或局部完成报为全部完成。委派 Executor 不派发代理，不作独立 Review；项目文档交工作流收尾处理。

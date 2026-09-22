@@ -18,7 +18,6 @@ MANIFEST = PLUGIN / ".codex-plugin" / "plugin.json"
 CLAUDE_MANIFEST = PLUGIN / ".claude-plugin" / "plugin.json"
 AGENT_PLUGIN_MANIFEST = PLUGIN / "plugin.json"
 MARKETPLACE = ROOT / ".agents" / "plugins" / "marketplace.json"
-CURSOR_MARKETPLACE = ROOT / ".cursor-plugin" / "marketplace.json"
 
 SETUP_PROJECT_SCRIPT = (
     PLUGIN / "skills" / "setup-project" / "scripts" / "generate_project_integration.py"
@@ -69,7 +68,6 @@ def main() -> int:
     claude_manifest = load_json(CLAUDE_MANIFEST)
     agent_plugin_manifest = load_json(AGENT_PLUGIN_MANIFEST)
     marketplace = load_json(MARKETPLACE)
-    cursor_marketplace = load_json(CURSOR_MARKETPLACE)
 
     check(
         isinstance(manifest, dict)
@@ -98,21 +96,6 @@ def main() -> int:
         and marketplace_plugins[0].get("source")
         == {"source": "local", "path": "./plugins/sacha-orchestra"},
         "Marketplace identity or local plugin source is invalid",
-    )
-    cursor_plugins = (
-        cursor_marketplace.get("plugins", [])
-        if isinstance(cursor_marketplace, dict)
-        else []
-    )
-    check(
-        isinstance(cursor_marketplace, dict)
-        and cursor_marketplace.get("name") == "sacha"
-        and cursor_marketplace.get("metadata", {}).get("version") == version
-        and len(cursor_plugins) == 1
-        and cursor_plugins[0].get("name") == "sacha-orchestra"
-        and cursor_plugins[0].get("source") == "plugins/sacha-orchestra"
-        and cursor_plugins[0].get("version") == version,
-        "Cursor marketplace identity, version, or plugin source is invalid",
     )
 
     for entrypoint in REQUIRED_ENTRYPOINTS:

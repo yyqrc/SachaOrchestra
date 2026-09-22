@@ -4,7 +4,7 @@
 
 ## 工作区与发布边界
 
-- 本仓库只发布 `plugins/sacha-orchestra`，三个部署清单均以它为发布 `root`。独立构建、安装的 DSH 配套包在 `integrations/dsh/sacha-companion`，不进入三个市场或主插件发布范围。
+- 本仓库只发布 `plugins/sacha-orchestra`，三个部署清单均以它为发布 `root`。独立构建、安装的 DSH 配套包在 `integrations/dsh/sacha-companion`，不进入插件市场或主插件发布范围。
 - 根 AGENTS.md、README.md、PLUGIN_DESIGN.md、EVOLUTION.md、.agents/skills/**、docs/** 与 tests/** 仅供开发维护使用；发布插件的运行语义与本地引用必须在发布 root 内完整可达。开发决定需要安装后使用时，写入插件内相应负责文件，不能以开发文档链接替代。
 - 当前源码版本、发布版本、破坏性边界、成熟度和长期方向读取 EVOLUTION.md；部署清单记录源码身份，Git 标签标记已发布版本。EVOLUTION.md 不定义当前流程、不授权实施、不保存版本流水账。
 - 全局授权、安全、用户改动保护和证据底线持续生效。以 GPT-6 Astra 为主要开发使用对象，按实际风险选择方法，避免重复确认、提前停止和无收益机制；不据模型能力放宽产品边界。
@@ -18,8 +18,8 @@
 | `docs/CONTEXT.md` | 开发文档侧提炼术语与规则的统一入口，并负责开发专用术语；保存插件内共享术语的定义链接、使用方和核验方法，也可以保存只供插件开发、维护和评审使用的术语；`PLUGIN_DESIGN.md` 引用它，发布插件不读取它 |
 | `docs/release.md` | 用户明确要求快速发版、普通发版或安装时读取的开发期操作指南；机械执行仍由 `scripts/release.py` 负责 |
 | `EVOLUTION.md` | 当前发布版本、待发布源码版本、破坏性变更边界、成熟度和尚未实施的长期方向；不复制现行架构或流程，也不保存版本流水账 |
-| 三个部署清单 | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准，供 Cursor 等兼容运行环境加载 |
-| `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | 各运行环境的仓库本地市场入口；只保存部署路径，不定义流程语义 |
+| 三个部署清单 | 当前源码版本与部署接口元数据；根 `plugin.json` 使用 Agent Plugins 开放标准，供 DSH 加载 |
+| `.agents/plugins/marketplace.json`、`.claude-plugin/marketplace.json` | 各运行环境的仓库本地市场入口；只保存部署路径，不定义流程语义 |
 | `plugins/sacha-orchestra/core/intake-contract.md` | 入口判断、接受或拒绝、重复抑制和授权边界的规范性合同 |
 | `plugins/sacha-orchestra/core/terminology-contract.md` | 负责定义多个发布插件使用、且不属于单一运行环境的共享术语；完整定义只在此维护，`docs/CONTEXT.md` 保留对应引用 |
 | `PLUGIN_DESIGN.md` | 与本文件并列的插件开发和评审顶层设计：完整流程骨架、角色和技能职责、核心合同归属及自上而下的修改顺序；不随插件发布，也不是安装后的依赖 |
