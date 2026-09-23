@@ -4,8 +4,8 @@
 
 ## 1. 范围
 
-本文是 Reviewer Gate 打开后的 Baseline、验收矩阵、Outcome 与重新 Review 权威。Role/Gate 与 Runtime 路由由 [Workflow Contract](workflow-contract.md) 定义；Outcome 只能返回 Executor、Planner、证据/恢复 Owner 或收尾，不另建流程旁路。
-Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)，生成与恢复规则见 [Artifact Protocol](artifact-protocol.md)。Reviewer Gate 关闭时不加载本文。
+本文定义验收执行分类，以及正式 Review 的 Baseline、验收矩阵、Outcome 与重新 Review。Executor 需要分配 Agent/Human 验证责任时读取第 2 节的 A/B/C 定义，不因此建立正式 Review 矩阵或作独立裁决。Reviewer 按正式路由读取本文；Role/Gate 由 [Workflow Contract](workflow-contract.md) 定义。
+Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)，生成与恢复规则见 [Artifact Protocol](artifact-protocol.md)。
 
 ## 2. Baseline 与证据
 

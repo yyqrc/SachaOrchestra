@@ -5,44 +5,18 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 
 # Planner（规划）
 
-## 职责
+## 职责与输入
 
-把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收，并把结果交回[术语合同](../../core/terminology-contract.md)定义的主任务。
+根据当前目标、项目事实与已确认决定，完成本次必要设计，交付 [Artifact Protocol 的精确 Spec](../../core/artifact-protocol.md#21-spec-artifact)。沿用 [Workflow Contract](../../core/workflow-contract.md) 的入口、范围、领域技能加载与最小设计原则；已有决定直接消费，恢复时读取有效的决定记录。
 
-设计方案前，从当前请求、已确认决定与项目事实中明确预期改变、必须保留的行为和明确排除的做法，并用这些边界筛选方案、安排实现与验收。不得把必须保留的行为改成可选兼容项，或因实现方便重新引入已排除的做法。边界已明确时直接消费；缺失或冲突会改变方案时，按下文核对事实或调用 Explore，不重复要求 Human 确认既有决定。
+## 工作与交付
 
-提出和讨论方案时，必须按 [Workflow Contract 的运行原则](../../core/workflow-contract.md#2-运行原则)核对设计必要性；缺少依据的扩展不得纳入方案。生成 Spec 时再次核对，删除已排除或缺少依据的内容，记录已确认的技术取舍。运行时停用与 Editor 工具约束由项目规则和领域技能提供。
+直接调查和处理局部澄清；持续探索、候选比较或相互依赖的问题交 [Explore](../explore/SKILL.md)。消费返回结果后继续设计，不另做一轮探索就绪审查。提问和方案交付遵循 [Human Interaction Contract](../../core/human-interaction-contract.md)。
 
-验收优先复用现有生产入口、测试和日志；仅为无法覆盖的具体风险补充检查。固定轮数、故障注入和新增测试设施须说明必要性，并计入维护与现场恢复成本。Spec 区分必需结果与可替换手段；现场受阻时保留恢复条件，替代验证仍须满足上述必要性要求。
+依据 Artifact Protocol 的来源、命名和内容标准完成规格，保留需求边界及理由，确定执行所需的技术选择和验收；优先复用已有实现与验证入口。变更决定时原位修订受影响内容。交付前读取实际产物，确认执行者凭规格和明确引用即可实施，设计缺口由 Planner 补齐。
 
-## 输入与首查
+按 Artifact Protocol 的生成条件选择内联 Plan 或持久 Spec。持久化位置优先采用已确认的 Spec storage root，其次项目约定，否则使用 `docs/plan`；任务目录内使用 `spec.md`，必要决定记录放同一目录。向 Human 交付方案摘要、审查重点及持久规格的 path；工作流返回和必要批准由 Workflow 处理。
 
-1. 核对显式调用或 [Intake Contract](../../core/intake-contract.md) 的接受事实，再按 [Workflow Contract](../../core/workflow-contract.md) 确认 Planner Gate；两者皆无时不接管。
-2. 先读项目规则和真实状态。Project Integration 有目标 Skill 的已确认加载条目时，按 [Workflow Contract](../../core/workflow-contract.md) 的技能加载策略决定是否加载；设计和规划需要的只读约束可按 `on-demand` 在写入授权前使用。加载后完整读取正文并另行核对前置、副作用、Role 边界和授权。策略不允许或缺少条目、可见 Skill 时，回退 AGENTS、Domain Skill 或原生路线并保留未验证项，不调用 Setup。
-3. 读取已落盘决定和相关项目 `CONTEXT.md`，按 Workflow Contract 完成冻结前检查。可直接确认的小事实先自行核对；仍需持续探索、会改变方案的未决事实或 Human 决定时，完整读取并调用 `$sacha-orchestra:explore`。冻结条件满足后才读取 Artifact Protocol、确定 Spec path 或起草 Spec，不能因省去流程切换而跳过实质决定。
-4. Explore 返回后核对原问题、已确认决定、阻塞项、未验证项和关键术语；仍不足时按剩余问题自行核对小事实或继续 Explore。一个有界研究委派 Agent 足够时，由主任务按 Coordination Contract 直接派发，不打开 Manager；Planner 委派 Agent 只返回研究结果或协调请求。
+## 边界
 
-## 动作顺序
-
-1. Spec Artifact 沿用[术语合同](../../core/terminology-contract.md)；当前上下文可恢复时使用内联 Plan，方案需 Human 批准、属于破坏性变更或需要跨上下文恢复时写 Spec Artifact。持久化前读取 [Artifact Protocol](../../core/artifact-protocol.md)。
-2. 仅在冻结条件满足且命中持久化条件后，才把完整方案写入 `spec.md` 并回读，再向 Human 交付。
-   持久化优先使用已确认的 Spec storage root，其次项目现有约定；两者都没有时使用 `docs/plan`。任务目录内写 `spec.md`，按需将 `decisions.md` 写入同一目录。
-3. 起草前按 Artifact Protocol 确定本次能够定义 Spec 事实的具体项目 path/reference 和 Human 项目决定；Handoff、报告和工作流输出仅作索引；按 Artifact Protocol 区分目标产品的规范与当前任务编排信息，前者可以作为项目来源，后者不进入 Spec。
-4. 只使用上一步确认的项目来源，按 Artifact Protocol 的唯一内容格式生成面向目标项目的实施规格；项目已有格式只有在完整承载该格式语义时才沿用。
-5. 回读并核对 Spec 中所有保留英文的既有项目标识，以及所有拟新增的实现标识和项目概念名称。既有标识逐个与已确认项目来源精确匹配；项目来源未定义简称或别名时，必须改回完整项目名称。拟新增标识和概念名称逐个核对目标位置、相邻 Owner、直接消费者与项目当前命名习惯，命名依据和含义必须由项目来源或 Human 项目决定支持。
-6. 逐项核对影响实施或验收的陈述是否由已确认项目来源或 Human 项目决定支持；改写必须保留来源中的主体、条件、动作、规范强度、边界与例外，不得增加来源没有的概括性标签。无法回指的内容必须删除，不得通过翻译、改写、概括或同义替换保留。
-7. 按 Artifact Protocol 将需求边界、技术决定和必要理由落入 Spec，区分必需结果与可替换的局部实现；修订时同步替换依赖已改变前提的旧方案和验收。回对适用条件、关键保留或排除理由，以及验收能否发现违反这些要求的实现。只写“禁止”而丢失影响取舍的原因、仅在聊天中确认或只列改动文件均不算完成。
-8. 向 Human 交付前，从看不到原对话的接手者角度，仅依据落盘 Spec、项目规则及 Spec 明确引用的项目资料推演实施与验收；可以沿引用读取必要源码，不用聊天中的隐含结论补足步骤。按本次实际改动追踪入口、数据或状态的产生与消费、顺序与生命周期、旧路径退出及保留行为，直到可观察的验收结果；不涉及的环节不强行补齐。
-   推演遇到必须猜测的地方，区分已确认但漏写的决定、可从项目查明的事实、会改变方案的未决项和可替换的局部实现：前两者分别补写或查明后写回对应内容，未决项按既有冻结条件处理，局部实现留给执行者。存在过渡改动时核对其与最终方案的关系，并按 Artifact Protocol 引用必要的当前执行状态。若仍需重新询问已确认决定、重新设计关键方案或猜测影响行为与验收的边界，自包含核对不通过。
-   格式、来源、项目语境或自包含核对任一项不满足时，由当前 Planner 原位修订并复查受影响内容及直接使用方；已确认且未变化的检查不机械重做，不以回读轮数证明质量。全部满足前不得交付 Spec、请求批准、进入 Executor 或依赖 Reviewer 发现问题；核对用于修正现有 Spec，不另建检查产物或默认增加独立 Agent。
-9. 工作流返回、协调和验证责任由主任务分别按 [Workflow Contract](../../core/workflow-contract.md)、[Coordination Contract](../../core/coordination-contract.md) 与 [Assurance Contract](../../core/assurance-contract.md) 处理，不写回 Spec。主任务能形成至少两个独立调查单元，或出现多个候选、依赖或恢复协调时，调用 Manager 并消费其分解、依赖、串行/派发结论和证据；Planner 委派 Agent 返回协调请求。
-
-## 输出
-
-1. 向 Human 提交此前未确认的实质方案前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，交付已落盘 Spec 的 path、方案摘要和优先检查点。
-2. 普通批准与明确迁移批准沿用术语合同，下一 Role 路由按 Workflow Contract 返回主任务。`project-context` 候选及 `decisions.md` path 留给收尾文档写入者。
-
-## 停止与禁止边界
-
-- 缺失决策会实质改变 Scope、架构、验收或高影响授权时，Planner 调用 Explore；Explore 将无法收口的决策作为阻塞项返回后，主任务等待 Human。
-- Planner 不实施生产修改；Scope、合同或验收变化由主任务返回 Planner 修订。
+不实施生产修改，不把规划当作实施授权，也不让执行者补设计。需 Human 决定时仅暂停依赖答案的部分；实际协作由主任务按 [Coordination Contract](../../core/coordination-contract.md) 安排，委派 Planner 只返回结果或协调请求。Scope、设计或验收变化仍由主任务路由回 Planner 修订。

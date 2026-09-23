@@ -6,6 +6,19 @@
 
 本文使用的开发控制面提炼术语与规则见[项目上下文](docs/CONTEXT.md)；其中被多个发布插件消费者共享的术语以[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)为 Runtime Owner；完整定义只在术语合同维护，项目上下文保存链接、使用方与核验方法。项目上下文可以额外拥有仅供插件开发、维护和评审消费的术语，不要求写入发布插件。
 
+## 根本准则
+
+以下准则约束本设计及其细化规则，用于开发和评审时判断规则是否必要、职责是否一致。运行时判断仍由第 1 节的负责文件定义；发现不一致时修正对应规则，不由执行者据此另造流程或跳过既有条件。
+
+编排负责角色路由、工作依赖、派发与结果接收。Gate 只决定是否进入规划、协调或独立评审；角色在职责内直接推进，检查随派发、写入和交付等实际动作发生。已确认的接受、范围、授权和方案沿流程消费，只有相关事实变化或恢复材料不足时才补查，不逐层重审。
+
+1. **授权与责任明确。** 任务沿已确认的目标、范围和授权推进；每项工作及其交接必须有明确负责方。角色调用、工具可用或上下文转移不扩大授权。
+2. **探索充分，方案精确，执行按方案。** 探索与澄清允许围绕当前问题提出假设、比较候选和检验反例，讨论不等于采纳。形成 Spec 时，Planner 必须完成实施所需的设计，明确修改位置及行号与稳定锚点、新增或修改的函数与接口、数据和调用关系、实施步骤及可观察验收；具体完整性标准由 Artifact Protocol 定义。执行者凭持久化 Spec 及其明确引用即可实施，无需自行补充设计或重新作方案选择；允许机械适配，遇到设计缺口或事实冲突则将受影响工作交回主任务思考、调整。精度服务于已确认范围，不扩张范围。
+3. **每项判断只有一个负责位置。** Core 定义共同判断，Skill 实现职责内做法，Adapter 映射宿主能力与参数。使用方引用权威定义并保留自身必要映射；角色自包含所需的职责、局部流程和边界可以保留，不重复建立另一套判断。
+4. **复杂度必须有当前依据。** 优先通过现有实现的局部修改满足目标；新增抽象、防御、兼容、回退或流程机制，必须说明当前需求或真实失败为何无法由现有做法满足。必要设计足以落实目标后停止扩展，不为假想边界补机制。Gate 按规定条件判断，委派按独立性和实际收益选择；成本判断不替代 Gate，也不为派发人为拆分工作。
+5. **读取与记录服务于实际消费者。** 按当前节点及其必要依赖加载规则，只持久化后续决定、实施、验收或恢复实际需要的内容；同一事实完整定义一次，使用处引用。必要节点入口和真实消费者依赖的格式必须保留，不能仅以精简为由省略。
+6. **结论有证据，阻塞有边界。** 结论只覆盖直接证据能够证明的范围，复用仍有效的验证。缺少条件时停止受影响部分，并继续独立且已授权的工作；同时保持独立评审、单一写入者以及取消或接管前的停止要求。
+
 ## 1. Core 与 Runtime Owner
 
 | Owner | 负责 | 不负责 |
@@ -17,7 +30,7 @@
 | [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |
 | [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
 | [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
-| [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [Cursor Adapter](plugins/sacha-orchestra/adapters/cursor/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
+| [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
 | [DSH Companion](integrations/dsh/sacha-companion) | 单一 DSH Profile bundle：对 live Root 实现 task-aware tool-surface restriction/catalog/unlock/recovery，组合 continuable child surfaces，并提供 Host/Client 状态投影与 Visualizer | Sacha 入口、Role/Gate/readiness、Scope、授权、模型事实、DAG/调度、Review Outcome、完成判断和其他 Runtime |
 
 Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH companion package：安装到一个 Profile 后，Root tool-surface policy 对该 Profile 的 live Root Session 生效；它只把最近的明确 Human 任务、已加载 Role Skill 与成功的 control 结果映射为 model-visible/executable tool profile；中性继续和进度询问保持当前选择，明确的新任务指令清空临时解锁，恢复按原生事件顺序重放，不决定 Sacha 入口、Role、Gate、readiness、授权或完成。同一 package 组合 `sacha_research` / `sacha_worker` / `sacha_review` continuable surface，并投影 DSH Root Session 的 tool-surface 状态、continuable direct-child 与 Adapter 已记录的 Sacha phase/Gate/Manager DAG/delegation/Review/Evidence 事实。Companion 不进入 Agent Plugin 发布 `root`，也不创建第二份 Workflow、DAG、Outcome 或授权。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
@@ -48,9 +61,8 @@ flowchart TD
     INTAKE_HUMAN -->|"接受"| PLANNER_GATE
     INTAKE_HUMAN -->|"拒绝"| DIRECT
     PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]
-    PLANNER_GATE -->|"是"| PLANNER["Planner：调查并冻结 Scope / 验收"]
-    PLANNER --> PLAN_READY{"关键事实与决定足以冻结？"}
-    PLAN_READY -->|"仍需持续探索、实质事实或 Human 决定"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
+    PLANNER_GATE -->|"是"| PLANNER["Planner：调查、局部澄清、设计并确认精确 Spec"]
+    PLANNER -->|"需要持续探索、候选比较或处理相互依赖的问题"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
     EXPLORE -->|"仅询问不可自行推出的关键决定"| EXPLORE_HUMAN["Human 澄清决定"]
     EXPLORE_HUMAN --> EXPLORE
     EXPLORE --> EXPLORE_RETURN{"Explore 调用来源"}
@@ -58,11 +70,9 @@ flowchart TD
     EXPLORE_RETURN -->|"活跃 Roadmap"| ROADMAP
     EXPLORE_RETURN -->|"显式窄 Scope 已完成"| CLOSE
     EXPLORE_RETURN -->|"出现新的开发目标或写入需求"| INTAKE
-    PLAN_READY -->|"是"| NEED_APPROVAL{"存在未确认的实质方案？"}
+    PLANNER -->|"必要设计完成，Spec 达到 Artifact 标准"| NEED_APPROVAL{"存在未确认的实质方案？"}
     NEED_APPROVAL -->|"否"| EXECUTOR
-    NEED_APPROVAL -->|"是"| MIGRATION_SIGNAL{"可靠迁移信号？"}
-    MIGRATION_SIGNAL -->|"是：明确迁移批准置首"| HUMAN_APPROVAL["Human 审阅 Spec"]
-    MIGRATION_SIGNAL -->|"否：普通批准置首"| HUMAN_APPROVAL
+    NEED_APPROVAL -->|"是"| HUMAN_APPROVAL["Human 审阅 Spec<br/>有可靠迁移信号时推荐迁移，否则推荐当前任务继续"]
     HUMAN_APPROVAL -->|"要求调整"| PLANNER
     HUMAN_APPROVAL -->|"取消或不再继续"| CLOSE
     HUMAN_APPROVAL -->|"普通批准"| EXECUTOR
@@ -123,24 +133,13 @@ flowchart TD
     subgraph COORDINATION["Manager 是主任务内的协调闭环，不是第四个生产 Role"]
         INVOKER["主任务中的 Planner / Explore / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
         MANAGER_GATE -->|"否"| RETURN["返回调用节点，并恢复其原流向"]
-        MANAGER_GATE -->|"是"| MANAGER["Manager：识别可独立单元、拆分、依赖、就绪判定"]
-        MANAGER --> WAVE{"当前依赖波次"}
-        WAVE -->|"多个单元已就绪、输出隔离且并行有实际收益"| PARALLEL["执行单层派发"]
-        WAVE -->|"选择一个就绪单元派发，且隔离有实际收益"| SINGLE["派发当前单元"]
-        WAVE -->|"不适合派发、没有实际收益或输出不可隔离"| SERIAL["调用节点串行完成本波"]
-        WAVE -->|"没有已就绪单元"| BLOCKED["阻塞与恢复条件"]
-        PARALLEL --> PRODUCTIVE["推进其他不冲突的已就绪工作；仅在依赖屏障 wait"]
-        SINGLE --> PRODUCTIVE
-        PRODUCTIVE --> AGGREGATE["聚合结果并重算剩余依赖图"]
-        SERIAL --> AGGREGATE
-        AGGREGATE -->|"未耗尽"| MANAGER
-        AGGREGATE -->|"耗尽"| RETURN
-        BLOCKED --> RETURN
+        MANAGER_GATE -->|"是"| MANAGER["Manager：安排实际工作并消费结果<br/>本地执行或单层派发；闭环见协调细图"]
+        MANAGER -->|"工作完成或返回具体阻塞"| RETURN
     end
 
-    PLANNER -->|"多个候选或可独立单元、依赖或恢复协调"| INVOKER
-    EXPLORE -->|"多个候选研究单元、依赖或恢复协调"| INVOKER
-    EXECUTOR -->|"多个可独立实施单元、依赖、并发安全或恢复协调"| INVOKER
+    PLANNER -->|"实际工作单元需要统一安排或协调归属"| INVOKER
+    EXPLORE -->|"实际研究单元需要统一安排或协调归属"| INVOKER
+    EXECUTOR -->|"实际实施单元需要统一安排或协调归属"| INVOKER
 
     subgraph FEEDBACK_FLOW["Feedback：独立 Human 手动入口"]
         FEEDBACK_HUMAN["Human 在另一真实任务显式调用 Feedback<br/>流程问题 / 使用反馈 / 插件开发想法"] --> FEEDBACK["Feedback 来源任务：有界只读调查"]
@@ -163,7 +162,7 @@ flowchart TD
 - Manager 是可重入的调用—返回函数：进入和退出保留调用节点，生命周期 owner 不变。Handoff 只在迁移、owner transfer 或有恢复消费者时按需携带，不是节点或终态。
 - 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 可按该合同交换有界事实，需要改变依赖约定、拆分或调度时返回协调请求，不驱动其他代理。迁移完成后，目标任务成为主任务并取得派发权。
 - 主任务以方案、跨单元协调、授权与冲突裁决、结果验收为主；可独立交付的实施、机械集成和验证由合适的委派 Agent 承担。主任务保留集成责任，直接处理委派成本更高的短小局部动作；工作块、复用与剩余成本由 Coordination 判断，模型映射由 Adapter 决定。
-- 主任务能形成至少两个输入自足、输出可隔离且有独立完成检查的工作单元时，打开 Manager Gate 统一拆分和派发；一个单元只为隔离中间过程而使用直接委派 Agent 时不打开 Gate。Manager 已打开但当前波次只有一个合适单元时仍可派发。协调不要求固定派发数量：主任务可以完成部分单元或串行执行，只有输入自足且有实际收益时才派发。就绪、派发与返回条件由 Coordination Contract 定义，不为增加 Agent 人为拆分局部修改。
+- 当前工作已有需要统一安排依赖、并发写入或负责归属的工作单元时，打开 Manager Gate；多个想法、普通顺序步骤或理论上可以拆分不构成协调需要，不要求每次实施或探索前尝试拆分。单个有界委派由主任务直接管理。Manager 可按实际需要串行、本地执行或派发，具体就绪、复用与派发条件由 Coordination Contract 定义。
 - Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
 - Roadmap 完成后的独立 Spec 任务是 Human 发起的新目标，不把 Roadmap 节点延长为生产流程。Roadmap 先明确推荐 Sacha Planner 任务及其影响，Human 确认创建后由 Runtime Adapter 建立新任务；目标任务以显式 Planner 输入从既有入口开始。推荐没有明确 Sacha Planner，或 Human 只泛指新任务时，不得推断接受。
 - 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
@@ -171,27 +170,22 @@ flowchart TD
 
 ### 协调闭环细化
 
-下图展开总图中的协调过程，也适用于 Gate 关闭时由主任务直接管理的单个单元；不增加生产节点。就绪、复用、消息与返回条件由 [Coordination Contract 第 1–3、6 节](plugins/sacha-orchestra/core/coordination-contract.md) 定义，活性查询与停止证明由当前 Adapter 映射。
+下图展开总图中的协调过程，也适用于主任务直接管理的单个委派单元。本地执行、派发和结果消费按实际工作衔接，不要求先完成一套独立预检；就绪、复用、消息与返回条件由 [Coordination Contract 第 1–3、6 节](plugins/sacha-orchestra/core/coordination-contract.md) 定义，活性查询与停止证明由当前 Adapter 映射。
 
 ```mermaid
 flowchart TD
-    C_START["当前目标、授权与完成条件"] --> C_PACKAGE["形成工作包：结果、输入、归属、完成检查与依赖"]
-    C_PACKAGE --> C_READY{"执行或研究就绪？"}
-    C_READY -->|否| C_CONVERGE["最小调查、收敛接口或合并耦合部分"]
-    C_CONVERGE -->|可补齐| C_PACKAGE
+    C_START["当前目标、授权与完成条件"] --> C_ARRANGE["安排当前工作：按依赖、归属与实际收益选择执行方式"]
+    C_ARRANGE -->|适合本地完成| C_LOCAL["主任务执行"]
+    C_ARRANGE -->|委派有实际收益| C_DISPATCH["派发：确认自足输入、授权、归属及完成条件<br/>按连续任务收益复用或新建；经 Adapter 单层派发"]
+    C_ARRANGE -->|缺少必要前提| C_CONVERGE["补齐事实、收敛接口或合并耦合部分"]
+    C_DISPATCH -->|输入或依赖不足，暂不启动| C_CONVERGE
+    C_CONVERGE -->|可补齐| C_ARRANGE
     C_CONVERGE -->|当前无法推进| C_BLOCKED["返回具体阻塞与恢复条件"]
-    C_READY -->|是| C_VALUE{"委派有收益？"}
-    C_VALUE -->|否| C_LOCAL["主任务执行"]
-    C_VALUE -->|是| C_REUSE{"同一连续子任务且旧上下文收益成立？"}
-    C_REUSE -->|是| C_OLD["复用原代理"]
-    C_REUSE -->|否| C_NEW["新建代理"]
-    C_OLD --> C_DISPATCH["经 Adapter 派发自足输入、范围、证据、检查与停止条件"]
-    C_NEW --> C_DISPATCH
-    C_DISPATCH --> C_WORK["代理执行；主任务推进其他不冲突工作"]
+    C_DISPATCH -->|条件满足并启动| C_WORK["代理执行；主任务推进其他不冲突工作"]
     C_WORK --> C_EVENT{"当前可行动事实？"}
     C_EVENT -->|结果已返回| C_CONSUME["消费结果与原始证据：差异、失败、待验项"]
     C_EVENT -->|依赖、冲突或失败改变下一步| C_COORD["协调接口、归属与工作包"]
-    C_COORD --> C_PACKAGE
+    C_COORD --> C_ARRANGE
     C_EVENT -->|依赖结果且无其他就绪工作| C_WAIT["等待完成回传；到活性核对点仍缺结果时有界查询"]
     C_WAIT -->|取得新事实| C_EVENT
     C_WAIT -->|仍有有效进展| C_WAIT
@@ -201,7 +195,7 @@ flowchart TD
     C_LOCAL --> C_CONSUME
     C_CONSUME --> C_VERIFY["按需安排共享验证：固定并确认相关输入稳定"]
     C_VERIFY --> C_REMAIN{"剩余依赖或返修？"}
-    C_REMAIN -->|有| C_PACKAGE
+    C_REMAIN -->|有| C_ARRANGE
     C_REMAIN -->|无| C_RETURN["返回调用节点；根任务按整体完成条件继续流转"]
 ```
 
@@ -239,11 +233,11 @@ flowchart TD
 
 | Role | 稳定职责 | 局部流程 | 明确不拥有 |
 | --- | --- | --- | --- |
-| Planner | 把已核实事实和 Human 决定冻结成可执行 Scope、约束与验收 | 核对入口/Gate → 自行核对小事实；需持续探索或实质决定时 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
+| Planner | 把已核实事实和 Human 决定冻结成符合根本准则与 Artifact Protocol 的精确 Spec | 消费入口决定 → 直接调查与局部澄清；需持续探索、候选比较或处理相互依赖的问题时 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
 | Executor | 在明确目标或批准 Scope 内实施、验证并交付真实变更/证据 | 核对 Scope/授权 → 主任务做必要 Manager 协调，或委派 Agent 返回协调请求 → 实施/集成 → 风险对应验证 → Review/收尾 | 冻结新方案、跨单元协调、独立 Review、项目文档 owner |
-| Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 核对 Gate/来源独立性 → 建立 Baseline → 复用有效证据，仅重跑能改变裁决的验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
+| Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 消费入口决定并核对来源独立性 → 建立 Baseline → 复用有效证据，仅重跑能改变裁决的验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
 
-角色技能必须自包含本表声明的职责、局部流程和边界。维护时按[项目开发规则](AGENTS.md#开发改动与决定)区分职责内调整与高层设计变化。
+角色技能保留本表的职责、必要输入、交付与边界；表中局部流程表示工作衔接，不要求把调查、思考或通用工程方法逐项执行。共同路由由 Workflow 决定，派发条件由 Coordination 决定，交付内容由 Artifact 与 Assurance 决定，角色只保留直接使用的引用。维护时按[项目开发规则](AGENTS.md#开发改动与决定)区分职责内调整与高层设计变化。
 
 ## 5. 支持、控制与工具 Skill 能力设计
 
@@ -265,6 +259,6 @@ flowchart TD
 
 ## 6. 开发维护入口
 
-变更批准和修改顺序按[开发改动与决定](AGENTS.md#开发改动与决定)处理，验证选择按[工具与验证](AGENTS.md#工具与验证)处理。本文的第 1 节提供负责位置，第 2～5 节定义现行产品范围和流程；只有这些内容变化时才修改相应设计。
+变更批准和修改顺序按[开发改动与决定](AGENTS.md#开发改动与决定)处理，验证选择按[工具与验证](AGENTS.md#工具与验证)处理。开发与评审先按根本准则核对必要性和一致性，再按第 1 节定位负责文件、第 2～5 节核对产品范围和流程；细化规则存在重复、冲突或冗余时，在其负责位置消除，不以新增同义或反义解释维持副本。只有准则、负责位置、产品范围或流程变化时才修改相应设计。
 
 真实场景的执行者不读取本文；独立评估者可用本文核对产品范围和流程偏差。场景输入与证据隔离以[场景说明](tests/runtime-scenarios/README.md)为准。

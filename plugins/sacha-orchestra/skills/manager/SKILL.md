@@ -1,6 +1,6 @@
 ---
 name: manager
-description: 主任务已接受 Sacha 或显式 Explore 且 Manager Gate 打开时使用；其他上下文、直接调用或 Gate 关闭时不接管。
+description: 主任务按 Workflow 进入协调时使用，统一安排实际工作单元的依赖、并发与归属并返回调用节点；不接受用户直接调用或委派 Agent 接管。
 ---
 
 # Manager（协调）
@@ -11,13 +11,12 @@ description: 主任务已接受 Sacha 或显式 Explore 且 Manager Gate 打开�
 
 ## 输入与首查
 
-1. 按[术语合同](../../core/terminology-contract.md)核对当前上下文是主任务，并已有 [Intake Contract](../../core/intake-contract.md) 的 Sacha 接受状态或显式 Explore 窄授权，再按 [Workflow Contract](../../core/workflow-contract.md) 核对 Manager Gate。
+1. 消费 [Workflow Contract](../../core/workflow-contract.md) 已确定的协调路由与调用方范围，沿用[术语合同](../../core/terminology-contract.md)的主任务身份。通过 Planner、显式入口或 Roadmap 进入的 Explore 均保留自身授权和返回位置，不要求另行接受完整 Sacha。
 2. 用户直接调用 Manager 时，把当前目标返回 `using-sacha` 或当前流程节点判断。委派 Agent 调用时返回协调请求；其他非主任务上下文停止并返回入口缺口。Manager Gate 关闭时返回调用节点。
 
 ## 动作顺序
 
-1. 调用 Coordination Contract，先按 Owner、输入、输出和验证入口识别可独立单元，再完成拆分、依赖、就绪判定、路由要求、单层派发、等待、取消、归并、去重和返回；不能独立完成或验证的局部动作留给调用节点。
-2. 当前波次存在应派发的已就绪单元时，按 Coordination Contract 读取当前 Runtime Adapter，由主任务取得完整首次创建参数并原样派发；Manager 已打开后，当前波次只有一个可派发单元也继续管理剩余依赖，不因此结束协调。Gate 关闭的单代理路线不进入本 Skill。未取得参数时返回偏差。当前 Adapter 映射了观测能力时，只在波次状态已经提交后记录，记录失败不改变调度结论。
+按 Coordination Contract 安排实际工作单元，选择本地执行、复用或新建；派发时读取当前 Adapter 的完整参数映射，不另做一次协调预检。消费结果后继续剩余依赖，直至交付或有具体阻塞；当前波次只有一个单元不结束剩余协调。可选观测只记录已提交事实，失败不改变调度。
 
 ## 输出
 

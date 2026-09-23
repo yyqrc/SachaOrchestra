@@ -28,11 +28,9 @@ DEPLOYMENT_MANIFESTS = {
     "plugin.json",
     ".agents/plugins/marketplace.json",
     ".claude-plugin/marketplace.json",
-    ".cursor-plugin/marketplace.json",
     "plugins/sacha-orchestra/plugin.json",
     "plugins/sacha-orchestra/.claude-plugin/plugin.json",
     "plugins/sacha-orchestra/.codex-plugin/plugin.json",
-    "plugins/sacha-orchestra/.cursor-plugin/plugin.json",
 }
 PRODUCTION_TESTED_MARKDOWN = {
     "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md",

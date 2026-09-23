@@ -6,7 +6,7 @@
 
 ## 默认入口
 
-Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；Cursor 通过自然语言或 `/using-sacha` 调用；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。入口提问与等待期间的独立调查按 [Intake Contract](core/intake-contract.md) 第 4 节处理，同一入口候选只询问一次。
+Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。入口提问与等待期间的独立调查按 [Intake Contract](core/intake-contract.md) 第 4 节处理，同一入口候选只询问一次。
 
 ## 显式入口
 
@@ -29,6 +29,6 @@ Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配
 - [Assurance Contract](core/assurance-contract.md)：Review、Baseline 与 Outcome。
 - [Coordination Contract](core/coordination-contract.md)：Manager、readiness、dispatch/wait/return 与 owner transfer。
 - [Artifact Protocol](core/artifact-protocol.md)：Artifact 生成条件、最小内容、权威关系与恢复规则。
-- [Codex Adapter](adapters/codex/runtime-adapter.md)、[Claude Code Adapter](adapters/claudecode/runtime-adapter.md)、[Cursor Adapter](adapters/cursor/runtime-adapter.md)与 [DeepSeek Harness Adapter](adapters/dsh/runtime-adapter.md)：各自 Runtime transport；DSH Adapter 另映射可选的 Sacha 可视化记录面。
+- [Codex Adapter](adapters/codex/runtime-adapter.md)、[Claude Code Adapter](adapters/claudecode/runtime-adapter.md)与 [DeepSeek Harness Adapter](adapters/dsh/runtime-adapter.md)：各自 Runtime transport；DSH Adapter 另映射可选的 Sacha 可视化记录面。
 
 静态源码与说明不证明安装、fresh discovery、dispatch 或真实 Runtime 行为；这些必须用对应 Runtime scenario 单独验证。
