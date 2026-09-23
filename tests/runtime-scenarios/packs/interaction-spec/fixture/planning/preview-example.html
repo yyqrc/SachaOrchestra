@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>已有预览先例</title>
+<style>body{margin:20px;font:16px sans-serif}.viewport{width:400px;height:180px;overflow:hidden;position:relative;border:1px solid #999;touch-action:none}.image{position:absolute;transform-origin:0 0;display:flex}.pixel{width:60px;height:60px;flex:none;display:grid;place-items:center}</style>
+<p>滚轮以鼠标为锚点缩放，拖动平移，画面限制在预览内。</p><div class="viewport"><div class="image"></div></div>
+<script>
+const viewport=document.querySelector('.viewport'),image=document.querySelector('.image');
+[0,0,1,0,0,3,0,0].forEach((v,i)=>{let e=document.createElement('div');e.className='pixel';e.style.background=['#273547','#277fb5','#eaca53'][v?2:i%2];e.textContent=i+':'+v;image.append(e)});
+let scale=1,x=0,y=0,last=null;
+function draw(){image.style.transform=`translate(${x}px,${y}px) scale(${scale})`}
+viewport.onwheel=e=>{e.preventDefault();let r=viewport.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,n=Math.max(.25,Math.min(8,scale*Math.exp(-e.deltaY*.002)));x=mx-(mx-x)*n/scale;y=my-(my-y)*n/scale;scale=n;draw()};
+viewport.onpointerdown=e=>{last=[e.clientX,e.clientY];viewport.setPointerCapture(e.pointerId)};
+viewport.onpointermove=e=>{if(last){x+=e.clientX-last[0];y+=e.clientY-last[1];last=[e.clientX,e.clientY];draw()}};
+viewport.onpointerup=()=>last=null;
+</script>

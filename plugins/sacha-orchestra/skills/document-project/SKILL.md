@@ -17,11 +17,11 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
    - Roadmap 调用时只接受其已形成的完整自包含正文、唯一目标 path、`create | update` 与 update preimage；不重新划分阶段、依赖或 Spec 映射；
    - `closeout` 把“存档”或组合动作的文档分支映射为 `human-request` 时，按同一显式请求处理；不读取、完成或替代 Spec；
    - Workflow 路由时，入口必须是收尾候选成立后的主任务；候选检查只使用当前任务最终事实；`disabled` 或无配置时静默跳过。
-2. Artifact 与 Execution Report 沿用[术语合同](../../core/terminology-contract.md)，再从当前任务最终事实选择生命周期和目标：
+2. Artifact、Execution Report、Project Integration 与 Project Context 沿用[术语合同](../../core/terminology-contract.md)，再从当前任务最终事实选择生命周期和目标：
    - Execution Report 作为任务 Artifact/证据索引，留在 Spec/任务约定位置；
    - `change-archive`/完成文档记录已交付持久变化，`system-guide` 解释长期使用与维护；显式发布文档目标写入其 path，其他模式写入 Project Documentation root；
    - `roadmap` 只写 Project Integration 配置的 Roadmap root，文件名固定为 `<YYYY-MM-DD>-<short-slug>-roadmap.md`；
-   - `project-context` 只收有跨任务消费者的稳定术语/约束，写入 Project Context path 指定的 `CONTEXT.md` 受管区。
+   - `project-context` 按 Project Context 的内容边界，写入 Project Context path 指定的 `CONTEXT.md` 受管区。
 3. 显式调用已经形成当前文档请求；Workflow 路由中的 `on-request` 只在候选成立后询问一次，`required-at-closeout` 使用 `goal-closeout`。纯问答、无持久变更、仅任务报告或没有新增持久知识的局部修复只对 Workflow 候选检查静默跳过，不否定 Human 的显式文档请求。
 
 ## 动作顺序

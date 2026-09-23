@@ -7,7 +7,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 
 ## 功能
 
-主流程外的显式配置能力：发现并生成或刷新一个 Project Integration，使 Role 能定位项目规则、Skill loading、Spec/Documentation/Context 位置。项目实施、文档正文和用户级 Agent 配置由对应 Skill 处理。
+主流程外的显式配置能力：发现并生成或刷新一个 Project Integration；Project Integration、规范技能与 Project Context 沿用[术语合同](../../core/terminology-contract.md)。项目实施、文档正文和用户级 Agent 配置由对应 Skill 处理。
 
 ## 输入与首查
 

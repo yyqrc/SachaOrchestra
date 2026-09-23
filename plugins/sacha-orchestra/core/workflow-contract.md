@@ -26,7 +26,7 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 
 ### 2.1 技能加载
 
-本节沿用[术语合同](terminology-contract.md)的技能加载策略；Project Integration 没有目标 Skill 的已确认条目时不推导项目策略：
+本节沿用[术语合同](terminology-contract.md)的 Project Integration、规范技能和技能加载策略；Project Integration 没有目标 Skill 的已确认条目时不推导项目策略：
 
 - `on-demand`：当前节点的任务语义匹配规范 Skill 的 `description`，且设计、规划、调查或实施需要其约束或领域输入时加载；只读 `change-guard` 不等待项目写入授权。
 - `change-authorized`：目标 Scope 已有 Human 修改授权，且当前节点需要该 Skill 实施项目变化时加载；加载不表示可以执行 Skill 内的写入、构建、Runtime 或外部动作。

@@ -13,7 +13,7 @@ description: 显式 Planner，或已接受 Sacha 且 Planner Gate 打开时使�
 
 直接调查和处理局部澄清；持续探索、候选比较或相互依赖的问题交 [Explore](../explore/SKILL.md)。消费返回结果后继续设计，不另做一轮探索就绪审查。提问和方案交付遵循 [Human Interaction Contract](../../core/human-interaction-contract.md)。
 
-依据 Artifact Protocol 的来源、命名和内容标准完成规格，保留需求边界及理由，确定执行所需的技术选择和验收；优先复用已有实现与验证入口。变更决定时原位修订受影响内容。交付前读取实际产物，确认执行者凭规格和明确引用即可实施，设计缺口由 Planner 补齐。
+依据 Artifact Protocol 的来源、命名和内容标准完成行为与技术设计，按其适用条件准备或复用界面草稿；优先复用已有实现与验证入口。交付前读取实际产物，沿主要使用过程核对用途和一致性：入口有实际用途，展示的行为有技术实现依据，数据、计算、显示和验收相互对应。执行者凭规格及明确引用应可实施，不得把必要设计留给实施者首次决定；缺口由 Planner 补齐，变更决定时原位修订受影响内容。
 
 按 Artifact Protocol 的生成条件选择内联 Plan 或持久 Spec。持久化位置优先采用已确认的 Spec storage root，其次项目约定，否则使用 `docs/plan`；任务目录内使用 `spec.md`，必要决定记录放同一目录。向 Human 交付方案摘要、审查重点及持久规格的 path；工作流返回和必要批准由 Workflow 处理。
 
