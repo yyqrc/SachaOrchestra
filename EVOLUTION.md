@@ -4,9 +4,9 @@
 
 ## 当前版本线
 
-- 当前 release：`1.0.15`；发布身份以同名 annotated tag `v1.0.15` 为准。
-- 当前源码版本：`1.0.15`；无已确定的下一版本待发布范围。继续维护 Codex、Claude Code 与 DSH，保留共用的 Agent Plugins 开放标准清单。
-- 当前 release Scope：以代表性使用过程补强澄清、Spec 行为与实现设计、交接及验收；优先使用可操作的 HTML 界面草稿对齐必要交互与显示语义，统一规划材料权限。抽取共享术语并同步定义、开发索引与使用方，保留原有流程、授权和唯一 Spec 权威；新增 `interaction-spec` 场景包。
+- 当前 release：`1.0.16`；发布身份以同名 annotated tag `v1.0.16` 为准。
+- 当前源码版本：`1.0.16`；无已确定的下一版本待发布范围。继续维护 Codex、Claude Code 与 DSH，保留共用的 Agent Plugins 开放标准清单。
+- 当前 release Scope：新增开发验收案例 `minimal-existing-flow`，验证规划与无原对话实施复用已有材质处理、保存和清理流程；补充关系冲突、逐槽错误与原材质精确身份的业务检查。插件运行规则不变。
 - 当前 breaking boundary：Cursor 专属适配与市场入口已移除，不再声明 Cursor 支持。Codex 不再提供 v1 或接口/模型自动回退，使用方须满足现行 v2 能力组合；Pi 入口、CLI 参数与配置兼容已移除，原 Pi 使用方须改用当前支持的运行环境。旧项目文件只在后续正常获授权的 setup 事务中更新，本次发布不自动迁移项目或部署 Profile。DSH 后续明确任务指令会更新基础工具集并清空临时解锁。
 - 状态与文档兼容：实施批准只覆盖本次唯一 Spec 在全部阻塞验收满足后的状态行更新，正文保持原样；项目文档仍须已有具体授权，阻塞文档未完成时不得收口。生成器保留显式过期原像拒绝、临近写入复查、失败补偿及旧 SOURCE SHA-256 解析；未新增数据格式迁移要求。
 - 当前成熟度：Astra 基线的源码、定向测试、结构及隔离包证据见[实施记录](docs/plan/2026-09-05-astra-full-audit/execution-report.md)，独立复核 Accepted with follow-up。阶段二的 32 项发布测试及独立复核 Accepted 见[开发与发版整理](docs/plan/2026-09-05-rule-simplification-stages/stage-2/execution-report.md)；阶段三的 44 项生成器测试、独立源码复核 Accepted，以及同一 Astra/medium 上下文五条输入的隔离 source-scenario 独立评估 pass 见[运行流程整理](docs/plan/2026-09-05-rule-simplification-stages/stage-3/execution-report.md)。这些证据分别证明其范围，不证明安装后全新发现或其他宿主行为；Astra 旧规格案例初稿 drift、修订内容 pass，但因缺工具轨迹，完整原生流程仍未证实。DSH 构建保留一条 CommonJS/ESM 建议警告，部署应采用已验证的干净隔离产物。
