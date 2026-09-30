@@ -1107,9 +1107,11 @@ export function installRootToolSurfacePolicy(
     if (isRoot(agent)) maybeInstall(agent)
     else maybeSuppressChild(agent)
   }
-  const stopStarted = ctx.on('agent/session-start', ({ agent }) => {
+  const stopStarted = ctx.on('agent/created', ({ agent }) => {
     if (isRoot(agent)) maybeInstall(agent)
     else maybeSuppressChild(agent)
+    // agent/created 是串行 await 派发，签名要求返回 undefined（不能是 void）
+    return undefined
   })
   const stopInbox = ctx.on('agent/inbox/inserted', ({ agent }) => {
     // A new human turn installs the policy for a not-yet-seen Root, but it no

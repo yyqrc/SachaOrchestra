@@ -1,10 +1,8 @@
 /** Sacha workflow, Manager DAG, and continuable-subagent observability panel. */
 
 import {
-  useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties,
+  useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties,
 } from 'react'
-import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { useSachaActivity } from './activity-monitor.ts'
 import { CONDUCTOR_CAT, MEMBER_CAT, subagentCatProp } from './artwork.ts'
 import { CatArt } from './cats.tsx'
@@ -331,8 +329,9 @@ function CollapsedBadge({ count, busy, onClick }: {
   )
 }
 
-export function ActivityPanel({ sessionsList }: { readonly sessionsList: ObservableSnapshot<SessionListState> }): JSX.Element | null {
-  const current = useSyncExternalStore(sessionsList.subscribe, sessionsList.getSnapshot).current
+export function ActivityPanel({ sessionId }: { readonly sessionId: string }): JSX.Element | null {
+  // 会话身份由会话作用域条目的 standard props 提供（0.2.0 起不再从会话列表读取）
+  const current = sessionId
   const [open, setOpen] = useState(false)
   const observation = useSachaActivity(current, open)
   const snapshot = observation?.snapshot
