@@ -10,7 +10,7 @@ Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配
 
 ## 显式入口
 
-- 高级入口：`planner`、`executor`、`reviewer`；显式 `explore` 保持窄授权，目标项目源码、配置、资源与外部状态只读，可按 Artifact Protocol 写探索决定记录。
+- 高级入口：`planner`、`executor`、`reviewer`；显式 `explore` 保持窄授权，目标项目生产源码、配置、资源与外部状态只读，可按 [Artifact Protocol](core/artifact-protocol.md) 写探索决定记录，以及制作、预览独立界面草稿。
 - `roadmap` 是主流程外显式规划入口：按需复用 Explore，生成可脱离 Sacha 独立理解的长期项目路线图，并通过 `document-project` 写入 Project Integration 配置的 Roadmap root；不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须明确推荐 Sacha Planner 任务；Human 确认创建后，目标任务从显式 Planner 入口开始且不继承 Roadmap 授权。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 即本次写入授权，可按模板新建或原位更新且不要求 Project Integration；其他请求继续服从项目策略。不接受 Sacha、不补走生产 Role。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求：收口只原位完成当前唯一 Spec，存档只映射 `document-project`，组合动作先收口再存档；只讨论或引用这些词语不执行动作。

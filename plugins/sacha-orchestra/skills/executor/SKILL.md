@@ -13,7 +13,7 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 按既定目标做最小修改，写入前确认归属并保护用户改动。有 Spec 时，实施自主权和设计问题交回遵循 [Artifact Protocol](../../core/artifact-protocol.md#21-spec-artifact)；发现无依据扩展也返回具体事实，不自行删改批准方案。
 
-完成覆盖本次改变及受影响保留行为的最小充分验证，检查直接结果与失败信息，复用仍有效的证据。同 Scope 的实现偏差由当前 Executor 修复并重验；验证受阻按 Workflow 的替代与停止条件处理。需要 Human 前置或判断时读取 [Assurance 的验收分类](../../core/assurance-contract.md#2-baseline-与证据)，按 [Human Interaction Contract](../../core/human-interaction-contract.md) 请求具体输入。
+完成覆盖本次改变及受影响保留行为的最小充分验证，检查直接结果与失败信息，复用仍有效的证据。涉及用户操作或结果呈现时，按 [Assurance 的证据要求](../../core/assurance-contract.md#2-baseline-与证据)沿既定使用过程核对生产结果，不仅检查模块各自通过。同 Scope 的实现偏差由当前 Executor 修复并重验；验证受阻按 Workflow 的替代与停止条件处理。需要 Human 前置或判断时按该合同的验收分类和 [Human Interaction Contract](../../core/human-interaction-contract.md) 请求具体输入。
 
 向主任务或当前结果消费者交付实际修改、验证证据、偏差及未完成部分；需要持久记录或恢复时按 Artifact Protocol 保存。实际协作由主任务按 [Coordination Contract](../../core/coordination-contract.md) 安排，主任务保留集成、必要共享验证和最终交付责任。
 

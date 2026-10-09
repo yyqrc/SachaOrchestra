@@ -12,7 +12,10 @@
 | --- | --- | --- | --- |
 | 入口候选 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、入口合同、using-sacha 技能、插件 README | 若该分类直接打开决策关口、取得授权或代表已经接受 Sacha，定义失效。 |
 | Direct | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 根 `AGENTS.md`、`PLUGIN_DESIGN.md`、入口合同、工作流合同、using-sacha 技能、插件 README、运行环境适配器 | 若尚未接受 Sacha 却进入生产角色、决策关口或工作记录，或者把 Direct 解释为可以跳过项目规则、领域能力或必要验证，定义失效。 |
+| Scope | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 入口合同、工作流合同、协调合同、角色技能 | 若只看新增工作而丢失保留行为、排除项或适用条件，或者把范围当作动作授权，定义失效。 |
 | Direct Scope | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 根 `AGENTS.md`、工作流合同 | 若没有用户或已批准实施规格的精确文件约束，却把预计文件列表作为硬边界，定义失效。 |
+| Owner | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 核心合同、角色技能、运行环境适配器、`PLUGIN_DESIGN.md` | 若混淆内容负责文件与工作负责主体，或由局部负责推导主任务职责与授权，定义失效。 |
+| 工作单元 / 工作包 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 协调合同、Manager 技能、运行环境适配器 | 若按代理、文件或 Spec 数量强制拆分，或把术语本身当作就绪证明，定义失效。 |
 | 主任务 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、入口合同、工作流合同、协调合同、角色技能、运行环境适配器 | 若委派代理接管最终完成状态或派发权，或者迁移后来源任务仍负责整个流程，定义失效。 |
 | 单层派发 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、工作流合同、协调合同、Manager 技能、运行环境适配器 | 若任一委派代理创建下级代理或调用 Manager，定义失效。 |
 | 委派 Agent | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、入口合同、工作流合同、协调合同、角色技能、运行环境适配器 | 若其接管整个工作流程、最终完成状态或派发权，定义失效。 |
@@ -26,9 +29,13 @@
 | `path` | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作记录协议、Planner、Explore、Reviewer、setup-project 或 document-project 技能和脚本 | 若目标不是文件系统对象却仍使用 `path`，或者文件位置只写为 `reference`，定义失效。 |
 | `reference` | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 核心合同、角色或支持技能、运行环境适配器、工作记录与报告模板 | 若直接文件位置被称为 `reference`、非文件指向被要求作为文件读取，或者现行内容使用 `locator` 混称，定义失效。 |
 | 显式发布文档目标 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、入口合同、工作流合同、document-project 技能、插件 README | 若未直接提供文件 `path`、类型不符或目标由配置派生却仍使用该术语，定义失效。 |
+| Project Integration | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作流合同、setup-project、角色技能、document-project、roadmap | 若把接入配置当作任务状态或具体动作授权，定义失效。 |
+| 规范技能 / canonical Skill | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作流合同、setup-project 技能与生成器、能力提供方接入指南 | 若别名或内部工作单元被保存为独立技能身份，或者目录身份不能唯一定位，定义失效。 |
 | 技能加载策略 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作流合同、setup-project 技能、Planner、Explore、Executor、Reviewer 技能、能力提供方接入指南 | 若策略直接授予动作、绕过技能前置条件，或者运行环境中的使用方无法取得四种策略的加载条件，定义失效。 |
+| Project Context | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | setup-project、document-project 技能与生成器、工作流合同 | 若混入任务进度或用它替代接入配置、Spec，定义失效。 |
 | Artifact | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、入口合同、工作流合同、保障合同、协调合同、工作记录协议、角色或支持技能、运行环境适配器 | 若 Artifact 替代原始事实、用户授权或流程状态，定义失效。 |
 | Spec Artifact | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作流合同、协调合同、工作记录协议、Planner、Executor、Reviewer 技能、运行环境适配器 | 若其不是目标项目实施规格、不能作为实施与评审基线，或者被其他工作记录替代，定义失效。 |
+| 界面草稿 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作记录协议、入口合同、交互合同、协调合同、Planner、Explore 与 Roadmap 技能、验收合同、插件 README | 若草稿替代 Spec 的必要决定、产生独立批准状态，或被当作生产行为证据，定义失效。 |
 | Roadmap | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、setup-project、roadmap、document-project 技能和脚本、插件 README | 若移除 Sacha 上下文后无法理解路线，或者 Roadmap 直接成为实施授权、实施规格、任务状态或工作流流转，定义失效。 |
 | Spec 完成 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | `PLUGIN_DESIGN.md`、工作流合同、工作记录协议、closeout 技能 | 若未到合法完成状态即写入，或者移动实施规格、创建平行完成工作记录，定义失效。 |
 | 探索决定记录 | [术语合同](../plugins/sacha-orchestra/core/terminology-contract.md) | 工作记录协议、Explore 或 Planner 技能 | 若它被当作获批实施规格或执行授权，定义失效。 |

@@ -1,7 +1,5 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { ActivityPanel } from '../../src/client/ActivityPanel.tsx'
 import panelCss from '../../src/client/ActivityPanel.module.css'
 import { CatArt, type CatKind, type CatProp } from '../../src/client/cats.tsx'
@@ -51,20 +49,13 @@ if (panelScenario !== undefined) {
 }
 
 function PanelScenarioApp({ scenario }: { readonly scenario: PanelScenario }): JSX.Element {
-  const sessionsList = useMemo(() => {
-    const state = { current: scenario.snapshot.sessionId } as SessionListState
-    return {
-      getSnapshot: () => state,
-      subscribe: (_listener: () => void) => () => {},
-    } as ObservableSnapshot<SessionListState>
-  }, [scenario])
   return (
     <div className="panelPage" data-shell-overlay>
       <div className="fakeConversation" data-phase="active">
         <span>会话内容</span>
         <small>{scenario.title}</small>
       </div>
-      <ActivityPanel sessionsList={sessionsList} />
+      <ActivityPanel sessionId={scenario.snapshot.sessionId} />
     </div>
   )
 }
