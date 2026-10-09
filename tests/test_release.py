@@ -296,9 +296,6 @@ class ReleaseScriptTests(unittest.TestCase):
 
     def test_additional_production_assets_select_direct_tests(self) -> None:
         cases = {
-            "plugins/sacha-orchestra/adapters/codex/code-mode-batch.js": {
-                "tests.test_code_mode_batch_asset"
-            },
             "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md": {
                 "tests.test_document_project"
             },
@@ -317,16 +314,20 @@ class ReleaseScriptTests(unittest.TestCase):
                 )
                 self.assertEqual(unittest_modules(commands), expected)
 
-        code_mode = "plugins/sacha-orchestra/adapters/codex/code-mode-batch.js"
-        deleted_commands = release.validation_commands(
-            "0.1.0",
-            [code_mode],
-            deltas={code_mode: ("before\n", None)},
-            deleted_paths={code_mode},
+    def test_codex_transport_needs_no_packaged_executable_helper(self) -> None:
+        adapter = SCRIPT.parents[1] / "plugins" / "sacha-orchestra" / "adapters" / "codex"
+        self.assertTrue((adapter / "runtime-adapter.md").is_file())
+        executable_helpers = [
+            path.relative_to(adapter).as_posix()
+            for path in adapter.rglob("*")
+            if path.is_file() and path.suffix in {".js", ".mjs", ".cjs", ".py", ".ps1"}
+        ]
+        self.assertEqual(executable_helpers, [])
+        path = "plugins/sacha-orchestra/adapters/codex/runtime-adapter.md"
+        commands = release.validation_commands(
+            "0.1.0", [path], deltas={path: ("before\n", "after\n")}
         )
-        self.assertEqual(
-            unittest_modules(deleted_commands), {"tests.test_code_mode_batch_asset"}
-        )
+        self.assertEqual(unittest_modules(commands), set())
 
     def test_shared_project_test_support_selects_both_consumers(self) -> None:
         path = "tests/project_test_support.py"
@@ -342,7 +343,6 @@ class ReleaseScriptTests(unittest.TestCase):
 
     def test_runtime_scenario_paths_select_direct_tests(self) -> None:
         paths = [
-            "tests/test_code_mode_batch_asset.py",
             "tests/test_runtime_scenario_verifiers.py",
             "tests/runtime-scenarios/packs/explore-shared-context-loop/fixture/verify.py",
             "tests/runtime-scenarios/packs/using-sacha-spec-intake/fixture/verify.py",
@@ -357,12 +357,12 @@ class ReleaseScriptTests(unittest.TestCase):
         )
         self.assertEqual(
             unittest_modules(commands),
-            {"tests.test_code_mode_batch_asset", "tests.test_runtime_scenario_verifiers"},
+            {"tests.test_runtime_scenario_verifiers"},
         )
 
     def test_real_staged_deletion_does_not_select_deleted_test_or_unknown_producer(self) -> None:
         deleted_producer = "scripts/removed_producer.py"
-        direct_test = "tests/test_code_mode_batch_asset.py"
+        direct_test = "tests/test_setup_agents.py"
         with tempfile.TemporaryDirectory() as root_dir:
             root = Path(root_dir)
             self.git(root, "init", "-b", "main")

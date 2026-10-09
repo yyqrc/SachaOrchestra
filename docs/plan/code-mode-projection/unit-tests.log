@@ -1,0 +1,23 @@
+test_ambiguous_tool_resolution_is_rejected_before_calls (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_ambiguous_tool_resolution_is_rejected_before_calls) ... ok
+test_business_error_and_running_ids_survive_projection (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_business_error_and_running_ids_survive_projection) ... ok
+test_compaction_preserves_required_missing_and_nested_references (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_compaction_preserves_required_missing_and_nested_references) ... ok
+test_duplicate_unit_is_rejected_before_calls (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_duplicate_unit_is_rejected_before_calls) ... ok
+test_invalid_projection_is_rejected_before_calls (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_invalid_projection_is_rejected_before_calls) ... ok
+test_large_references_fall_back_to_outcome_unknown (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_large_references_fall_back_to_outcome_unknown) ... ok
+test_large_values_are_omitted_before_references (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_large_values_are_omitted_before_references) ... ok
+test_missing_fields_are_explicit_and_falsey_values_survive (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_missing_fields_are_explicit_and_falsey_values_survive) ... ok
+test_nested_projection_keeps_small_values_and_source (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_nested_projection_keeps_small_values_and_source) ... ok
+test_one_rejection_does_not_hide_other_result (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_one_rejection_does_not_hide_other_result) ... ok
+test_own_properties_and_literal_legacy_field_names (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_own_properties_and_literal_legacy_field_names) ... ok
+test_path_bounds_are_validated_before_any_call (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_path_bounds_are_validated_before_any_call) ... ok
+test_required_evidence_over_limit_is_explicitly_unknown (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_required_evidence_over_limit_is_explicitly_unknown) ... ok
+test_small_output_limit_is_rejected_before_calls (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_small_output_limit_is_rejected_before_calls) ... ok
+test_sync_throw_does_not_skip_later_calls_or_async_rejection (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_sync_throw_does_not_skip_later_calls_or_async_rejection) ... ok
+test_tool_resolution_is_rejected_before_calls (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_tool_resolution_is_rejected_before_calls) ... ok
+test_two_successful_calls_are_settled_once (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_two_successful_calls_are_settled_once) ... ok
+test_valid_path_boundaries_and_empty_options_keep_legacy_output (tests.test_code_mode_batch_asset.CodeModeBatchAssetTests.test_valid_path_boundaries_and_empty_options_keep_legacy_output) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 3.151s
+
+OK

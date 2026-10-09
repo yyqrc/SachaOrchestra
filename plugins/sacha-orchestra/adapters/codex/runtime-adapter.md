@@ -99,29 +99,25 @@ Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 - Human 进度使用已知的新事实；需要沟通不自动触发代理状态查询，不为生成进度消息重读相同记录。
 - Owner 转移在交付目标 reference 后结束。
 
-### 2.7 Code Mode 只读批量传输
+### 2.7 客户端原生 Code Mode
 
-主任务只在当前会话实际暴露可执行 Code Mode、[canonical Runtime asset](code-mode-batch.js) 可达、`ALL_TOOLS` 能唯一访问全部目标工具且参数结构可核对时选择该传输；产品说明、磁盘配置、模型能力或其他会话先例不能替代当前工具面证据。任一前置不足时在嵌套调用前说明未选择 Code Mode 的具体原因并使用直接读取，不把 Code Mode 设为正确性前提或失败恢复。
+读取、并发与结果处理直接使用当前客户端提供的 `functions.exec(<JavaScript>)` / `tools` 能力，按实际工具 schema 调用；Sacha 不提供 Code Mode 包装、专用输入/输出协议或加载前提。独立且已就绪的调用可并发，有依赖或需语义判断的步骤按需串行；已有原生批量入口时直接使用。
 
-当前宿主映射为 `functions.exec(<JavaScript>)`。调用方先设置 `globalThis.CODE_MODE_CALLS` 与 `globalThis.CODE_MODE_OUTPUT_LIMIT`，再原样附加 asset 内容；不得修改 asset 控制流或把其副本写入 Adapter、Skill 或测试。asset 从 `ALL_TOOLS` 核对嵌套工具，通过 `tools.<normalized_name>(args)` 调用，并用 `text(...)` 返回 `schema_version: 1` 的有界结构化结果。
+客户端能力不扩大 Scope、授权、读写权限或工具发现范围。Researcher 仍只使用直接可见或已搜索得到的只读工具，不借 Code Mode 获取 shell、写入或下级调度能力；Agent 生命周期工具沿用第 2.2 节和当前宿主的 direct-only 限制。
 
-Code Mode 只接收调用节点已确认的非 Agent 只读调用：至少两个调用已就绪、输入自足且相互独立；调用之间不需要模型解释、授权、风险或 Scope 判断；结果消费者和失败处理已明确。Agent 创建/消息/等待/取消/恢复/关闭、文件或配置写入、消息发送和外部资源动作必须直接调用，不得进入 `CODE_MODE_CALLS`。asset 不生成工作单元、不判断副作用，也不选择 Role、模型、路由、依赖、授权或重试。
+消费者检查实际结果、错误、缺失与遗漏信息，不将 Promise 返回当作业务成功；已发起调用结果不完整或状态未知时，保留原调用和来源，不自动重放，只暂停依赖部分。
 
-当前工具已能以一次调用接收整个目标集合时直接使用原生批量入口；调用少于两个、非只读、结果无需代码缩减或需要中途语义判断时直接调用。分页、排序、过滤、去重、计数和固定字段分支只有在上限与停止条件已给定时才可留在 asset；字段缺失、冲突或需要语义解释时立即返回模型。
+#### 2.7.1 长任务收取
 
-输入校验、输出上限预检或工具解析在 Promise 创建前失败时没有嵌套调用，主任务可重新评估直接读取。任一嵌套调用已开始、返回不完整或状态未知时保留原始 call/reference 并暂停受影响批次，不直接重放；`Promise.allSettled` 中单项拒绝只形成对应逐项结果，不掩盖或重放其他调用。
+按当前宿主 schema 区分外层 cell 与底层 session：`functions.exec` 返回 `Script running with cell ID ...` 后，才调用 `functions.wait(cell_id=...)` 收取同一 cell；嵌套 shell 返回的 `session_id` 则交给当前 `write_stdin` 收取同一进程。保留两类标识及已发起调用，不混用或重放原程序。
 
-#### 2.7.1 Runtime asset 输入与结果
-
-`CODE_MODE_CALLS` 每项只携带稳定 `unit_id`、当前 `ALL_TOOLS` 中的 `normalized_name`、完整 `args`，以及消费者决定的 `result_fields`/`reference_fields`；两个投影字段都必须显式传入字符串数组，`[]` 表示不返回该类字段。`CODE_MODE_OUTPUT_LIMIT` 必须是正整数。
-
-asset 在创建 Promise 前校验调用数、单元标识、投影、输出上限和工具唯一可调用性，并预检最小 `outcome_unknown` 包络；随后每项只调用一次并按输入顺序返回 `settled`、`output_limit_exceeded` 或 `outcome_unknown`。Runtime 场景必须保留 asset path/hash、实际外层程序、嵌套 caller 关系、逐项原始结果和最终输出；源码字符串、fixture 或执行者自报不能替代真实行为证据。
+yield、running、等待超时和中间输出不等于完成或取消。继续收取原目标直到取得可核实终态；没有标识或状态未知时报告具体缺口，只暂停依赖部分。`terminate`/interrupt 只消费已有取消决定，仍须核对底层任务是否停止，不能把外层 cell 结束当作进程已取消。这里使用宿主现有能力，不建立 job manager。
 
 ### 2.8 原生工具搜索
 
 调用节点需要工具时，按当前任务实际暴露的入口处理：目标工具已在模型工具面时直接调用；目标工具不可见且原生 `tool_search` 可用时，用 capability 或 namespace 搜索，并只调用唯一匹配的返回结果；所需能力不可见、搜索没有匹配或结果不唯一时，报告能力缺口并停止受影响调用，继续独立工作。普通事实读取可重新评估当前已暴露、输入输出和副作用已核对且在授权内的等价能力；接口身份本身属于验证目标、已有更严格传输约束，或写入状态未知时不得替换或重放。没有新证据、不同且可检验的假设或已确认的等价能力时，保留结果并报告恢复条件，不反复搜索或重试。
 
-根任务与每个 child 分别执行上述判断，并在 spawn、resume、compaction 或 Runtime 重连后重新检查。MCP 工具使用当前实际表面；Code Mode 工具只按第 2.7 节从当前 `ALL_TOOLS` 选择已确认目标，不能替代模型工具面或 `tool_search` 结果。
+根任务与每个 child 分别执行上述判断，并在 spawn、resume、compaction 或 Runtime 重连后重新检查。MCP 工具使用当前实际表面；客户端 Code Mode 使用已确认的当前工具，不替代模型工具面或 `tool_search` 结果。
 
 工具发现不改变 Scope、授权或外部副作用边界。Researcher 只使用直接可见或搜索得到的只读工具；需要 `exec_command`、`apply_patch` 或其他写入入口时返回调用节点。
 
@@ -184,4 +180,4 @@ asset 在创建 Promise 前校验调用数、单元标识、投影、输出上�
 
 ## 4. 进度与证据边界
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；Code Mode 另回传 asset path/hash、外层调用 reference、`ALL_TOOLS` 中命中的目标、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；客户端 Code Mode 沿用原生调用、参数、结果和来源证据。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

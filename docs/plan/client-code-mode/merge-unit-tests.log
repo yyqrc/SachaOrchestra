@@ -1,0 +1,39 @@
+test_added_packaged_resource_runs_plugin_validator (tests.test_release.ReleaseScriptTests.test_added_packaged_resource_runs_plugin_validator) ... ok
+test_additional_production_assets_select_direct_tests (tests.test_release.ReleaseScriptTests.test_additional_production_assets_select_direct_tests) ... ok
+test_candidate_with_unstaged_delta_is_rejected (tests.test_release.ReleaseScriptTests.test_candidate_with_unstaged_delta_is_rejected) ... ok
+test_codex_cli_missing_is_reported (tests.test_release.ReleaseScriptTests.test_codex_cli_missing_is_reported) ... ok
+test_codex_transport_needs_no_packaged_executable_helper (tests.test_release.ReleaseScriptTests.test_codex_transport_needs_no_packaged_executable_helper) ... ok
+test_deleted_skill_metadata_does_not_validate_absent_root (tests.test_release.ReleaseScriptTests.test_deleted_skill_metadata_does_not_validate_absent_root) ... ok
+test_dsh_companion_machine_files_select_package_validator (tests.test_release.ReleaseScriptTests.test_dsh_companion_machine_files_select_package_validator) ... ok
+test_dsh_companion_validator_change_runs_release_tests (tests.test_release.ReleaseScriptTests.test_dsh_companion_validator_change_runs_release_tests) ... ok
+test_install_access_denied_stops_without_cache_mutation (tests.test_release.ReleaseScriptTests.test_install_access_denied_stops_without_cache_mutation) ... ok
+test_install_checks_list_and_source_cache_parity (tests.test_release.ReleaseScriptTests.test_install_checks_list_and_source_cache_parity) ... ok
+test_manifest_change_runs_plugin_validator (tests.test_release.ReleaseScriptTests.test_manifest_change_runs_plugin_validator) ... ok
+test_prepare_failure_cleans_temporary_tree (tests.test_release.ReleaseScriptTests.test_prepare_failure_cleans_temporary_tree) ... ok
+test_prepare_runs_validations_and_reports_outputs (tests.test_release.ReleaseScriptTests.test_prepare_runs_validations_and_reports_outputs) ... ok
+test_prepare_uses_index_snapshot_and_cleans_temporary_tree (tests.test_release.ReleaseScriptTests.test_prepare_uses_index_snapshot_and_cleans_temporary_tree) ... ok
+test_production_schema_selects_its_direct_test (tests.test_release.ReleaseScriptTests.test_production_schema_selects_its_direct_test) ... ok
+test_project_skill_metadata_runs_only_quick_validator (tests.test_release.ReleaseScriptTests.test_project_skill_metadata_runs_only_quick_validator) ... ok
+test_publish_cli_records_review_not_required (tests.test_release.ReleaseScriptTests.test_publish_cli_records_review_not_required) ... ok
+test_publish_creates_commit_tag_and_atomic_remote_identity (tests.test_release.ReleaseScriptTests.test_publish_creates_commit_tag_and_atomic_remote_identity) ... ok
+test_publish_preserves_unrelated_working_change (tests.test_release.ReleaseScriptTests.test_publish_preserves_unrelated_working_change) ... ok
+test_publish_requires_explicit_review_disposition (tests.test_release.ReleaseScriptTests.test_publish_requires_explicit_review_disposition) ... ok
+test_publish_stops_before_commit_when_candidate_validation_fails (tests.test_release.ReleaseScriptTests.test_publish_stops_before_commit_when_candidate_validation_fails) ... ok
+test_real_staged_deletion_does_not_select_deleted_test_or_unknown_producer (tests.test_release.ReleaseScriptTests.test_real_staged_deletion_does_not_select_deleted_test_or_unknown_producer) ... ok
+test_retired_dsh_companion_paths_select_migration_validation (tests.test_release.ReleaseScriptTests.test_retired_dsh_companion_paths_select_migration_validation) ... ok
+test_runtime_scenario_paths_select_direct_tests (tests.test_release.ReleaseScriptTests.test_runtime_scenario_paths_select_direct_tests) ... ok
+test_shared_project_test_support_selects_both_consumers (tests.test_release.ReleaseScriptTests.test_shared_project_test_support_selects_both_consumers) ... ok
+test_skill_body_only_skips_structure_validators (tests.test_release.ReleaseScriptTests.test_skill_body_only_skips_structure_validators) ... ok
+test_skill_frontmatter_change_runs_only_quick_validator (tests.test_release.ReleaseScriptTests.test_skill_frontmatter_change_runs_only_quick_validator) ... ok
+test_staged_text_returns_none_for_binary_blob (tests.test_release.ReleaseScriptTests.test_staged_text_returns_none_for_binary_blob) ... ok
+test_tree_hashes_detects_missing_extra_and_mismatch (tests.test_release.ReleaseScriptTests.test_tree_hashes_detects_missing_extra_and_mismatch) ... ok
+test_unmapped_production_script_is_rejected (tests.test_release.ReleaseScriptTests.test_unmapped_production_script_is_rejected) ... ok
+test_unrelated_staged_change_is_rejected (tests.test_release.ReleaseScriptTests.test_unrelated_staged_change_is_rejected) ... ok
+test_unrelated_tracked_working_change_does_not_block_candidate (tests.test_release.ReleaseScriptTests.test_unrelated_tracked_working_change_does_not_block_candidate) ... ok
+test_windows_codex_cli_prefers_executable_wrapper (tests.test_release.ReleaseScriptTests.test_windows_codex_cli_prefers_executable_wrapper) ... ok
+test_reviewer_semantic_fixture_exposes_claimed_failures (tests.test_runtime_scenario_verifiers.RuntimeScenarioVerifierTests.test_reviewer_semantic_fixture_exposes_claimed_failures) ... ok
+
+----------------------------------------------------------------------
+Ran 34 tests in 10.437s
+
+OK

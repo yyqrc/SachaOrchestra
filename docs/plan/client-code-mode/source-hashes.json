@@ -1,0 +1,5 @@
+{
+  "plugins/sacha-orchestra/adapters/codex/runtime-adapter.md": "c279f8ed40a06e72e528736148b3ccecfbefafcc55eaeee3437a8a7a101984a0",
+  "scripts/release.py": "8c87d15d44085187304c01292ccd3ff59a0c3617f1b3de9b5f8a77920ffcc81f",
+  "tests/test_release.py": "3847f42b6f8e1252002f2eb8d8135b59dc4c61ed15d7d57d9796733bd20a63e4"
+}
