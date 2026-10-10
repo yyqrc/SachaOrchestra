@@ -184,4 +184,6 @@ asset 在创建 Promise 前校验调用数、单元标识、投影、输出上�
 
 ## 4. 进度与证据边界
 
+文件变更的收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。只有当前工具面实际提供文件变更登记接口时才使用，并核对其是否支持 MCP、外部生成和二进制文件；没有该能力时通过 `final` 提供实际改动路径或完整清单的可达 reference，并说明原生卡片的展示缺口。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片而重写未改变的文件、把二进制转换成文本补丁，或声称已登记。
+
 Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；Code Mode 另回传 asset path/hash、外层调用 reference、`ALL_TOOLS` 中命中的目标、稳定单元标识、完整嵌套参数、逐项结果和最终 `schema_version`。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
