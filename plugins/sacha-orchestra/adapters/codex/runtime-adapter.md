@@ -142,9 +142,9 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 | route_id | 判断 | 请求字段 |
 | --- | --- | --- |
 | `human_exact` | 用户或批准范围明确对当前子代理及阶段精确指定，且满足 A 节对象与阶段适用性 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
-| `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-5.6-sol"`, `reasoning_effort="medium"` |
-| `luna_max` | bounded + nontrivial | `model="gpt-5.6-luna"`, `reasoning_effort="max"` |
-| `luna_xhigh` | bounded + light | `model="gpt-5.6-luna"`, `reasoning_effort="xhigh"` |
+| `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-6.1-sol"`, `reasoning_effort="medium"` |
+| `luna_max` | bounded + nontrivial | `model="gpt-6-luna"`, `reasoning_effort="max"` |
+| `luna_xhigh` | bounded + light | `model="gpt-6-luna"`, `reasoning_effort="xhigh"` |
 | `astra_low` | 其余 broad 单元，包括 critical、跨模块综合、复杂集成、动态诊断、较大有效上下文及相应独立复核 | `model="gpt-6-astra"`, `reasoning_effort="low"` |
 
 自动路线中 Astra 只用 low、Sol 只用 medium；有界实施、重复处理和固定验证按 Luna 路线，不因工作量或共享环境的串行使用升级。Astra high/xhigh 只供用户在需求对齐、方案比较与制定 Spec 时手动选择，不自动沿用到 Spec 冻结后的实施或验收。当前主任务的型号/强度仍由宿主与用户控制，Adapter 不声称已切换；用户新的精确要求按 human_exact 消费。
@@ -180,6 +180,6 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 
 ## 4. 进度与证据边界
 
-文件变更的收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。只有当前工具面实际提供文件变更登记接口时才使用，并核对其是否支持 MCP、外部生成和二进制文件；没有该能力时通过 `final` 提供实际改动路径或完整清单的可达 reference，并说明原生卡片的展示缺口。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片而重写未改变的文件、把二进制转换成文本补丁，或声称已登记。
+文件变更收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。当前工具面提供文件变更登记接口时，先核对其对 MCP、外部生成和二进制文件的支持；无法登记或展示不完整时，通过 `final` 按交互合同补充。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片重写未改变的文件、把二进制转换成文本补丁，或虚报登记成功。
 
 Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；客户端 Code Mode 沿用原生调用、参数、结果和来源证据。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

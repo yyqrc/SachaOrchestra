@@ -15,7 +15,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 2. Runtime catalog 提供规范 Skill（canonical Skill）的 `name`、`description` 和 `path`；Provider catalog 可补充公开 Skill 与副作用上界。Setup 展示 canonical `description`，Human 按 [Workflow Contract](../../core/workflow-contract.md) 为每个 Skill 确认一次加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的 Skill。
 2. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
 
-已选 Skill 需要独立的项目数据绑定（如外部知识库）时，使用该 Provider 可用的只读入口检查有效绑定；已有有效绑定直接复用，明确禁用时尊重该选择，缺失或失效时说明影响并让 Human 选择现在设置或暂不设置。Human 明确要求设置后，由该 Provider 的配置 Skill 处理，沿用已有授权，不把普通项目接入解释成修改用户级配置的授权。配置 Skill 不可用时只报告缺口，不自行实现另一套写入。Project Integration 只保存 Skill 加载策略，不复制 Provider 的知识目录或数据绑定值，也不以 Spec/Documentation/Context 位置替代知识库。
+已选 Skill 依赖独立的项目数据绑定（如外部知识库）时，通过 Provider 可用的只读入口检查；有效绑定直接复用，明确禁用则尊重选择，缺失或失效时说明影响，由 Human 决定是否设置。已有设置授权直接消费，由 Provider 的配置 Skill 处理；普通项目接入不授权修改用户级配置，配置能力缺失时报告缺口，不自行补建写入机制。Provider 数据绑定由 Provider 管理，不复制到 Project Integration，也不以 Spec/Documentation/Context 位置替代。
 
 ## 动作顺序
 
