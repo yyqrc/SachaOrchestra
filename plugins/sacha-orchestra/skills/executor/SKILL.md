@@ -15,6 +15,8 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 完成覆盖本次改变及受影响保留行为的最小充分验证，检查直接结果与失败信息，复用仍有效的证据。涉及用户操作或结果呈现时，按 [Assurance 的证据要求](../../core/assurance-contract.md#2-baseline-与证据)沿既定使用过程核对生产结果，不仅检查模块各自通过。同 Scope 的实现偏差由当前 Executor 修复并重验；验证受阻按 Workflow 的替代与停止条件处理。需要 Human 前置或判断时按该合同的验收分类和 [Human Interaction Contract](../../core/human-interaction-contract.md) 请求具体输入。
 
+向 Human 交付实施结果前，读取并执行 [Human Interaction Contract 第 2 节](../../core/human-interaction-contract.md#2-信息顺序与可见性)，对照已核对的本次改动清单逐项检查交付正文中的可点击完整路径和主要变化，补齐遗漏；不得以文件数或宿主卡片代替路径，已有用户改动不得计入本次增量。
+
 向主任务或当前结果消费者交付已核对的实际修改、验证证据、偏差及未完成部分；需要持久记录或恢复时按 Artifact Protocol 保存。实际协作由主任务按 [Coordination Contract](../../core/coordination-contract.md) 安排，主任务保留集成、必要共享验证和最终交付责任。
 
 ## 边界
