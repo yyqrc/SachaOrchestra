@@ -1,0 +1,38 @@
+{
+  "description": "Historical excerpts plus a later delivery addition projected onto incoming/result; not a complete historical merge.",
+  "revisions": {
+    "base": "96bf4cd256cee32209627ca2e944ba064dcc3ce3",
+    "main": "8734c744404afe54129707d16ed20e4394462f67",
+    "incoming": "73636f8ab29692425a972050585fc769291a11eb",
+    "result": "469ea11b753031cecbc072bc27f2815b3fd981ed"
+  },
+  "source_ranges": {
+    "base": {
+      "workflow.md": "core/workflow-contract.md: section 2 before 2.1, section 3, and dynamic routing / execution / environment paragraphs in section 4",
+      "artifacts.md": "core/artifact-protocol.md: section 2 through first Spec Artifact paragraph; later delivery addition in incoming/result"
+    },
+    "main": {
+      "workflow.md": "core/workflow-contract.md: section 2 before 2.1, section 3, and dynamic routing / execution / environment paragraphs in section 4",
+      "artifacts.md": "core/artifact-protocol.md: section 2 through first Spec Artifact paragraph; later delivery addition in incoming/result"
+    },
+    "incoming": {
+      "workflow.md": "core/workflow-contract.md: section 2 before 2.1, section 3, and dynamic routing / execution / environment paragraphs in section 4",
+      "artifacts.md": "core/artifact-protocol.md: section 2 through first Spec Artifact paragraph; later delivery addition in incoming/result"
+    },
+    "result": {
+      "workflow.md": "core/workflow-contract.md: section 2 before 2.1, section 3, and dynamic routing / execution / environment paragraphs in section 4",
+      "artifacts.md": "core/artifact-protocol.md: section 2 through first Spec Artifact paragraph; later delivery addition in incoming/result"
+    }
+  },
+  "delivery_source": "c6a9e2ce69324741cfa24e25aa67341dc3c92794",
+  "sha256": {
+    "base/workflow.md": "7a3375961ae320e8381a3d58f6731d212503c43199d81441135b053032bace7c",
+    "base/artifacts.md": "2c5813109768b349a031e66ec843cb68651668d320b3f821b396ed04ab02b6c6",
+    "main/workflow.md": "449f2efa512c371423d2a8c3e8a32dd1e157d930ce521e850ae3fe9130492aa3",
+    "main/artifacts.md": "b3e21081df2a21f5679bc7636f596b40f0125fd62278e60c9003eab255a69cf9",
+    "incoming/workflow.md": "03d2535ee308e4f6b65b8d975dcc60d2cfb8c1bc87a22cd08ddfb674302a02a3",
+    "incoming/artifacts.md": "11e63c7d37c1ad2570223ef6d0f4329eb6291d24536c6630d20290cb4c1e795e",
+    "result/workflow.md": "03d2535ee308e4f6b65b8d975dcc60d2cfb8c1bc87a22cd08ddfb674302a02a3",
+    "result/artifacts.md": "b2f3efd3405935eae516bd7d8b33e7877f101d806b446c55314e9a08fa7b1534"
+  }
+}
