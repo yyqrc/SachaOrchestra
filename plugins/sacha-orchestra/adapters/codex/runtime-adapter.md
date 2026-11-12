@@ -128,9 +128,9 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 ### A. 判断所需事实
 
 - 先核对精确型号/强度要求的适用对象与阶段，再优先消费。创建或迁移主任务时指定的型号/强度默认只约束该主任务；只有用户明确指定子代理、相应工作单元或整个任务统一使用时，才对子代理采用 human_exact。交接文本携带主任务的型号要求，不自动扩大其适用对象；未覆盖当前子代理时，按该工作单元采用自动路线。
-- 精确要求适用但当前工具不支持时停止，不能自动换档。规划阶段的 Astra high/xhigh 即使写入批准范围，也不延续到实施或验收；只有用户针对该阶段另行明确指定时才走 human_exact，否则重新采用自动路线。
+- Astra 仅在用户明确要求当前子代理及阶段使用时采用；主任务选用 Astra 不构成该要求。精确要求适用但当前工具不支持时停止，不能自动换档。规划阶段对 Astra 的明确要求即使写入批准范围，也不延续到实施或验收；只有用户针对该阶段另行明确指定时才走 human_exact，否则重新采用自动路线。
 - 只读研究、获授权实施和正式独立复核分别需要对应能力类型。角色不等于型号，正式复核的独立性不能由更强模型替代。
-- `bounded` 表示输入、边界、完成检查自足；其负荷区分 `light / nontrivial`。`broad` 表示需要跨负责位置综合、集成或仍有重要边界推理，区分 `standard / critical`。
+- `bounded` 表示输入、边界、完成检查自足。`broad` 表示需要跨负责位置综合、集成或仍有重要边界推理，区分 `standard / critical`。
 - 同时检查实施边界和失败影响：破坏性删除/覆盖、跨消费者持久身份或数据解释变化，以及依赖并发、兼容和跨系统生命周期的正确性，至少按 broad；困难回退、跨系统耦合或关键冲突为 critical。普通可重建文件输出本身不自动升级。
 - 较大有效上下文的依据是多个模块、调用/数据链或约束必须共同参与判断。文件数量、仓库体积、累计 token、正式复核或发布名称本身不决定型号或强度。
 - 输入、范围、写入者、完成检查或独立性无法可靠判断时停止派发。只保存会改变当前选择的事实，复用仍有效的评估。
@@ -143,11 +143,12 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 | --- | --- | --- |
 | `human_exact` | 用户或批准范围明确对当前子代理及阶段精确指定，且满足 A 节对象与阶段适用性 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
 | `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-6.1-sol"`, `reasoning_effort="medium"` |
-| `luna_max` | bounded + nontrivial | `model="gpt-6-luna"`, `reasoning_effort="max"` |
-| `luna_xhigh` | bounded + light | `model="gpt-6-luna"`, `reasoning_effort="xhigh"` |
-| `astra_low` | 其余 broad 单元，包括 critical、跨模块综合、复杂集成、动态诊断、较大有效上下文及相应独立复核 | `model="gpt-6-astra"`, `reasoning_effort="low"` |
+| `luna_max` | bounded | `model="gpt-6-luna"`, `reasoning_effort="max"` |
+| `sol_max` | broad + critical，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="max"` |
+| `sol_xhigh` | broad + standard，且需要复杂集成、动态诊断或较大有效上下文，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="xhigh"` |
+| `sol_high` | 其余 broad 单元，包括跨模块综合及相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="high"` |
 
-自动路线中 Astra 只用 low、Sol 只用 medium；有界实施、重复处理和固定验证按 Luna 路线，不因工作量或共享环境的串行使用升级。Astra high/xhigh 只供用户在需求对齐、方案比较与制定 Spec 时手动选择，不自动沿用到 Spec 冻结后的实施或验收。当前主任务的型号/强度仍由宿主与用户控制，Adapter 不声称已切换；用户新的精确要求按 human_exact 消费。
+自动路线不使用 Astra；GPT-6.1 Sol 按上表选择 medium、high、xhigh 或 max。有界实施、重复处理和固定验证按 Luna 路线，不因工作量或共享环境的串行使用升级。当前主任务的型号/强度仍由宿主与用户控制，Adapter 不声称已切换；用户新的精确要求按 human_exact 消费，Astra 仍须满足 A 节的明确要求。
 
 执行中发现冻结前提不成立时，返回受影响的方案问题，不以困难、失败或反复尝试自动提高强度。满足 Coordination 第 2 节复用条件时保留原模型，新建时按本节路由，不假定跨模型或新代理继承原缓存。使用实际输入、缓存、输出、耗时与返工并核对宿主计费口径；遥测不足时保留不确定性，不宣称切换更省，不以单价、累计 token 或固定阈值自动切换，也不要求每次重新跑基准。
 
