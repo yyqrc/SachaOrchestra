@@ -53,9 +53,11 @@ Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机�
 
 Adapter 消费 Workflow/Coordination 已确认的普通批准或明确迁移批准。普通批准由主对话继续；明确迁移批准后来源主任务停止实施和写入派发，使用可验证的等价用户会话传输查询、复用或创建唯一目标。唯一目标取得最小 Handoff 后才转移 Owner，Source 交付 reference 并结束。条件不足时来源主任务保持唯一 Owner、报告原始缺口且不进入 Executor；用户任务迁移标识只属于目标任务。
 
+Roadmap 明确推荐独立 Sacha Planner 任务且 Human 已确认创建时，使用能返回用户可见会话引用的宿主入口，将显式 Planner 请求、Roadmap 路径、候选 Spec、已定条件和实施授权边界放入初始输入。缺少等价入口时交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。子代理不能代替独立用户会话。
+
 ### 3.3 Feedback Owner 转移
 
-Adapter 消费 Coordination Contract 返回的 Feedback 标识、匹配和 Owner 转移判断。唯一匹配或 `no_op` 返回既有用户可见上下文 reference；需要新目标时创建唯一上下文；无法完成等价 Owner 转移时报告真实能力缺口。来源任务交付 reference 后结束。
+按 Coordination Contract 的反馈标识匹配目标。唯一活跃或可恢复的目标收到本次最小 Handoff 后，来源任务交付引用并结束；没有匹配时，把同一 Handoff 随新建的唯一用户会话交付。只有已结束且精确重复的 `no_op` 可直接返回原引用。匹配不唯一、传递失败或结果未知时保留来源 Owner 和已有目标引用，说明缺口，不重复创建或发送。
 
 ### 3.4 模型映射
 

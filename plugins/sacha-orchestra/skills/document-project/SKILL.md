@@ -37,7 +37,7 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
 5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。预览检查策略、trigger、目标、原像和结构，返回既有目标与摘要字段；本次写入授权及已有 Context 定义覆盖确认只在 `--write` 时检查。显式发布文档目标输入包含项目相对 `target_path`、`create | update`、update preimage、可选项目相对 template catalog path、Profile 与完整正文。
 6. 显式发布文档目标试运行通过后增加 `--write`；`required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；其他显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 超出已确认写入范围时重新确认；当前请求已明确覆盖同一次具体写入时直接消费，不因参数名再次提问。
 7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式再次完整校验当前 manifest，并比较所选 Profile 的完整结构、选中模板的 SHA-256 与 `generation_policy`；其他 Profile 的合法变化或 JSON 排版变化不构成选中模板冲突。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
-8. 发布文档按明确 mode 原子新建或以 preimage 原位更新；Roadmap 同样按 mode 写入；Context 只写受管区。并发变化时停止写入，写后校验失败时恢复原内容。
+8. 发布文档和 Roadmap 按明确 mode 写入，Context 只更新受管区。新建只占用空缺路径。更新已有文件时用支持保留被替换版本的系统操作，核对实际被替换的内容；系统不支持时停止更新。若替换时发现并发保存，恢复该版本并报告冲突。写后验证失败时仅撤回本次内容；恢复期间再遇变动或无法安全还原时，报告 `partial_write`、目标与可用恢复位置，保留冲突版本。
 
 ## 输出
 

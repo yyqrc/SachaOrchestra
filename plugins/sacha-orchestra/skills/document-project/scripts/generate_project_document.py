@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import hashlib
 import importlib.util
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 from pathlib import Path, PurePosixPath
@@ -1344,78 +1347,106 @@ def _roadmap_preimage(
     return original
 
 
-def _commit_roadmap_update(
-    target: Path,
-    generated: bytes,
-    original: bytes | None,
-) -> None:
-    temp_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            prefix=".sacha-roadmap-",
-            suffix=".tmp",
-            dir=target.parent,
-            delete=False,
-        ) as handle:
-            temp_path = Path(handle.name)
-            handle.write(generated)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if original is None:
-            os.link(temp_path, target)
-        else:
-            if not target.is_file() or target.read_bytes() != original:
-                raise DocumentError("roadmap changed before atomic replace")
-            os.replace(temp_path, target)
-            temp_path = None
-    except FileExistsError as exc:
-        raise DocumentError("roadmap appeared during atomic create") from exc
-    except OSError as exc:
-        raise DocumentError(f"atomic roadmap write failed: {type(exc).__name__}") from exc
-    finally:
-        if temp_path is not None:
-            try:
-                temp_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+class DocumentWriteConflict(DocumentError):
+    def __init__(self, transaction: str, message: str):
+        super().__init__(message)
+        self.transaction = transaction
 
 
-def _commit_publication_update(
-    target: Path,
-    generated: bytes,
-    original: bytes | None,
-) -> None:
-    temp_path: Path | None = None
+def _replace_and_keep_displaced(target: Path, incoming: Path, backup: Path) -> Path:
+    """Install incoming and retain the object actually displaced by this operation."""
+    if os.name == "nt":
+        replace = ctypes.WinDLL("kernel32", use_last_error=True).ReplaceFileW
+        replace.argtypes = [ctypes.c_wchar_p] * 3 + [ctypes.c_uint32, ctypes.c_void_p, ctypes.c_void_p]
+        replace.restype = ctypes.c_int
+        if not replace(str(target), str(incoming), str(backup), 0, None, None):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return backup
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    paths = (os.fsencode(target), os.fsencode(incoming))
+    if sys.platform.startswith("linux") and hasattr(libc, "renameat2"):
+        # AT_FDCWD and RENAME_EXCHANGE; both operands already exist.
+        status = libc.renameat2(-100, paths[0], -100, paths[1], 2)
+    elif sys.platform == "darwin" and hasattr(libc, "renamex_np"):
+        status = libc.renamex_np(*paths, 2)  # RENAME_SWAP
+    else:
+        raise DocumentError("filesystem runtime does not provide atomic exchange")
+    if status != 0:
+        error = ctypes.get_errno()
+        if error in (errno.ENOSYS, errno.EINVAL, errno.EOPNOTSUPP):
+            raise DocumentError(f"atomic file exchange is unsupported for {target} ({os.strerror(error)})")
+        raise OSError(error, os.strerror(error))
+    return incoming
+
+
+def _matches_document(path: Path, expected: bytes) -> bool:
+    info = path.lstat()
+    return (
+        stat.S_ISREG(info.st_mode)
+        and not (getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+        and path.read_bytes() == expected
+    )
+
+
+def _change_document(target: Path, before: bytes | None, after: bytes | None) -> None:
+    """Create, replace or undo a write without discarding a concurrent save."""
+    if before is not None and not _matches_document(target, before):
+        raise DocumentError("document changed before write")
+    directory = Path(tempfile.mkdtemp(prefix=".sacha-document-", dir=target.parent))
+    incoming = directory / "incoming"
+    previous = directory / "previous"
+    during_restore = directory / "during-restore"
+    keep_files = False
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            prefix=".sacha-document-",
-            suffix=".tmp",
-            dir=target.parent,
-            delete=False,
-        ) as handle:
-            temp_path = Path(handle.name)
-            handle.write(generated)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if original is None:
-            os.link(temp_path, target)
+        if after is not None:
+            flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0)
+            with os.fdopen(os.open(incoming, flags, 0o600), "wb") as handle:
+                handle.write(after)
+                handle.flush()
+                os.fsync(handle.fileno())
+        if before is None:
+            os.link(incoming, target)
+            return
+
+        if after is None:
+            # Capture first; a checked path must never be unlinked by name later.
+            target.rename(previous)
+            displaced = previous
         else:
-            if not target.is_file() or target.read_bytes() != original:
-                raise DocumentError("explicit target changed before atomic replace")
-            os.replace(temp_path, target)
-            temp_path = None
-    except FileExistsError as exc:
-        raise DocumentError("explicit target appeared during atomic create") from exc
+            displaced = _replace_and_keep_displaced(target, incoming, previous)
+        keep_files = True
+        if not _matches_document(displaced, before):
+            if after is None:
+                # A newer file at target takes precedence over this recovery.
+                os.link(displaced, target, follow_symlinks=False)
+            else:
+                if not _matches_document(target, after):
+                    raise OSError("target changed again before recovery")
+                replaced = _replace_and_keep_displaced(target, displaced, during_restore)
+                if not _matches_document(replaced, after):
+                    raise OSError("another save occurred during recovery")
+            keep_files = False
+            raise DocumentWriteConflict("rolled_back", "concurrent save restored at document target")
+        keep_files = False
     except OSError as exc:
-        raise DocumentError(f"atomic explicit target write failed: {type(exc).__name__}") from exc
+        # ReplaceFileW can leave the original at the backup name even on failure.
+        if keep_files or os.path.lexists(previous) or os.path.lexists(during_restore):
+            keep_files = True
+            raise DocumentWriteConflict(
+                "partial_write", f"{exc}; inspect {target} and preserved files in {directory}"
+            ) from exc
+        raise
     finally:
-        if temp_path is not None:
+        if not keep_files:
             try:
-                temp_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+                for path in (incoming, previous, during_restore):
+                    path.unlink(missing_ok=True)
+                directory.rmdir()
+            except OSError as exc:
+                raise DocumentWriteConflict(
+                    "partial_write", f"could not finish cleanup; inspect {target} and {directory}: {exc}"
+                ) from exc
 
 
 def _context_preimage(target: Path, expected_sha256: str | None) -> bytes | None:
@@ -1434,71 +1465,17 @@ def _context_preimage(target: Path, expected_sha256: str | None) -> bytes | None
     return None
 
 
-def _commit_context_update(target: Path, generated: bytes, original: bytes | None) -> None:
-    temp_path: Path | None = None
+def _undo_document_write(
+    result: dict[str, Any], target: Path, original: bytes | None, generated: bytes, error: Exception
+) -> None:
+    result.update(status="failed", transaction="partial_write")
+    result["conflicts"].append(str(error))
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            prefix=".sacha-context-",
-            suffix=".tmp",
-            dir=target.parent,
-            delete=False,
-        ) as handle:
-            temp_path = Path(handle.name)
-            handle.write(generated)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if original is None:
-            os.link(temp_path, target)
-        else:
-            if not target.is_file() or target.read_bytes() != original:
-                raise DocumentError("project context changed before atomic replace")
-            os.replace(temp_path, target)
-            temp_path = None
-    except FileExistsError as exc:
-        raise DocumentError("project context appeared during atomic create") from exc
-    except OSError as exc:
-        raise DocumentError(f"atomic project context write failed: {type(exc).__name__}") from exc
-    finally:
-        if temp_path is not None:
-            try:
-                temp_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-
-def _restore_context(target: Path, original: bytes | None, generated_hash: str) -> bool:
-    try:
-        if original is None:
-            if target.is_file() and sha256_bytes(target.read_bytes()) == generated_hash:
-                target.unlink()
-            return not target.exists()
-        restore_path: Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="wb",
-                prefix=".sacha-context-restore-",
-                suffix=".tmp",
-                dir=target.parent,
-                delete=False,
-            ) as handle:
-                restore_path = Path(handle.name)
-                handle.write(original)
-                handle.flush()
-                os.fsync(handle.fileno())
-            if (
-                not target.is_file()
-                or sha256_bytes(target.read_bytes()) != generated_hash
-            ):
-                return False
-            os.replace(restore_path, target)
-            restore_path = None
-        finally:
-            if restore_path is not None:
-                restore_path.unlink(missing_ok=True)
-        return target.read_bytes() == original
-    except OSError:
-        return False
+        _change_document(target, generated, original)
+    except (OSError, DocumentError) as exc:
+        result["conflicts"].append(str(exc))
+    else:
+        result["transaction"] = "rolled_back"
 
 
 def generate_project_document(
@@ -1615,19 +1592,14 @@ def generate_project_document(
             if current == generated:
                 result.update(status="ok", transaction="no_changes")
                 return result
-            _commit_roadmap_update(current_target, generated, current)
+            _change_document(current_target, current, generated)
             try:
                 written = current_target.read_bytes()
                 if sha256_bytes(written) != generated_hash:
                     raise DocumentError("post-write roadmap SHA-256 validation failed")
                 parse_roadmap_document(written)
             except (OSError, DocumentError) as exc:
-                restored = _restore_context(current_target, current, generated_hash)
-                result.update(
-                    status="failed",
-                    transaction="rolled_back" if restored else "partial_write",
-                )
-                result["conflicts"].append(str(exc))
+                _undo_document_write(result, current_target, current, generated, exc)
                 return result
             result.update(status="ok", transaction="committed")
             return result
@@ -1683,19 +1655,14 @@ def generate_project_document(
                 result.update(status="ok", transaction="no_changes")
                 return result
             generated_hash = sha256_bytes(generated)
-            _commit_context_update(target, generated, current)
+            _change_document(target, current, generated)
             try:
                 written = target.read_bytes()
                 if sha256_bytes(written) != generated_hash:
                     raise DocumentError("post-write project context SHA-256 validation failed")
                 _parse_context_document(written)
             except (OSError, DocumentError) as exc:
-                restored = _restore_context(target, current, generated_hash)
-                result.update(
-                    status="failed",
-                    transaction="rolled_back" if restored else "partial_write",
-                )
-                result["conflicts"].append(str(exc))
+                _undo_document_write(result, target, current, generated, exc)
                 return result
             result.update(status="ok", transaction="committed")
             return result
@@ -1805,18 +1772,13 @@ def generate_project_document(
             if current == generated:
                 result.update(status="ok", transaction="no_changes")
                 return result
-            _commit_publication_update(target, generated, current)
+            _change_document(target, current, generated)
             try:
                 written = target.read_bytes()
                 if written != generated:
                     raise DocumentError("post-write explicit target validation failed")
             except (OSError, DocumentError) as exc:
-                restored = _restore_context(target, current, generated_hash)
-                result.update(
-                    status="failed",
-                    transaction="rolled_back" if restored else "partial_write",
-                )
-                result["conflicts"].append(str(exc))
+                _undo_document_write(result, target, current, generated, exc)
                 return result
             result.update(status="ok", transaction="committed")
             return result
@@ -1862,17 +1824,13 @@ def generate_project_document(
                     expected_headings=document_template["headings"],
                 )
         except (OSError, DocumentError) as exc:
-            try:
-                if target.is_file() and sha256_bytes(target.read_bytes()) == generated_hash:
-                    target.unlink()
-                    result.update(status="failed", transaction="rolled_back")
-                else:
-                    result.update(status="failed", transaction="partial_write")
-            except OSError:
-                result.update(status="failed", transaction="partial_write")
-            result["conflicts"].append(str(exc))
+            _undo_document_write(result, target, None, generated, exc)
             return result
         result.update(status="ok", transaction="committed")
+        return result
+    except DocumentWriteConflict as exc:
+        result.update(status="failed", transaction=exc.transaction)
+        result["conflicts"].append(str(exc))
         return result
     except (OSError, UnicodeError, json.JSONDecodeError, DocumentError) as exc:
         if write_started:

@@ -153,6 +153,43 @@ class DocumentProjectTests(ProjectTestCase):
         preimage = digest(target)
         second_body = "# 渲染管线\n\n## 当前机制\n\n第二版机制。\n"
         update_input = explicit_input(mode="update", expected=preimage, body=second_body)
+        # An editor can save by renaming a new inode after the final check.
+        external = b"# externally saved version\n"
+        swap = document_generator._replace_and_keep_displaced
+
+        def save_before_replace(target_path, incoming, backup):
+            if backup.name == "previous":
+                saved = target_path.with_suffix(".editor")
+                saved.write_bytes(external)
+                saved.replace(target_path)
+            return swap(target_path, incoming, backup)
+
+        with mock.patch.object(document_generator, "_replace_and_keep_displaced", save_before_replace):
+            conflict = document_generator.generate_project_document(
+                project_root=project, workflow_rule_path="docs/workflow-rule.md",
+                document_input=update_input, write=True,
+            )
+        self.assertEqual(("failed", "rolled_back"), (conflict["status"], conflict["transaction"]))
+        self.assertEqual(external, target.read_bytes())
+        self.assertEqual([], list(target.parent.glob(".sacha-document-*")))
+        target.write_bytes(crlf_original)
+
+        def save_at_both_replacements(target_path, incoming, backup):
+            target_path.write_bytes(external if backup.name == "previous" else b"second save")
+            return swap(target_path, incoming, backup)
+
+        with mock.patch.object(document_generator, "_replace_and_keep_displaced", save_at_both_replacements):
+            conflict = document_generator.generate_project_document(
+                project_root=project, workflow_rule_path="docs/workflow-rule.md",
+                document_input=update_input, write=True,
+            )
+        self.assertEqual(("failed", "partial_write"), (conflict["status"], conflict["transaction"]))
+        self.assertEqual(external, target.read_bytes())
+        recovery, = target.parent.glob(".sacha-document-*")
+        self.assertIn(str(recovery), " ".join(conflict["conflicts"]))
+        self.assertIn(b"second save", [path.read_bytes() for path in recovery.iterdir()])
+        target.write_bytes(crlf_original)
+
         updated = document_generator.generate_project_document(
             project_root=project,
             workflow_rule_path="docs/workflow-rule.md",
@@ -1194,8 +1231,8 @@ class DocumentProjectTests(ProjectTestCase):
             rendered_markdown=updated_markdown,
         )
         with mock.patch.object(
-            document_generator.os,
-            "replace",
+            document_generator,
+            "_replace_and_keep_displaced",
             side_effect=PermissionError("fault injection"),
         ):
             failed_update = document_generator.generate_project_document(
@@ -1209,15 +1246,15 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual(original, target.read_bytes())
 
         concurrent = b"# concurrent writer\n"
-        real_commit = document_generator._commit_roadmap_update
+        real_commit = document_generator._change_document
 
-        def commit_then_concurrent_write(target_path, generated, preimage):
-            real_commit(target_path, generated, preimage)
+        def commit_then_concurrent_write(target_path, before, after):
+            real_commit(target_path, before, after)
             target_path.write_bytes(concurrent)
 
         with mock.patch.object(
             document_generator,
-            "_commit_roadmap_update",
+            "_change_document",
             side_effect=commit_then_concurrent_write,
         ):
             concurrent_update = document_generator.generate_project_document(

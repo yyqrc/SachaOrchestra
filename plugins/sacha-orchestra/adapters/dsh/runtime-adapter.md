@@ -107,6 +107,8 @@ Sacha 单层派发必须由当前 Runtime 的 direct-parent/depth 记录和 chil
 
 普通批准由当前 Root Session 继续。continuable child 不是新的用户可见 task，不能代替 Workflow 的任务迁移或 Feedback Owner 转移。当前 DSH 工具面没有可查询、创建并返回唯一用户任务 reference 的等价能力时，明确迁移批准与需要新目标的 Feedback 停止在能力缺口；来源主任务保持唯一 Owner，不用 child、后台 turn 或 fork 冒充目标任务。
 
+Roadmap 明确推荐独立 Sacha Planner 任务且 Human 已确认创建时，通过能创建并返回唯一用户任务引用的宿主入口，在初始输入中交付显式 Planner 请求、Roadmap 路径、候选 Spec、已定条件和实施授权边界。没有该能力时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建；不使用 continuable child 代替。
+
 Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract 展示。互斥选择使用当前 DSH 会话真实提供的选择能力；不可用或需要自由输入时使用普通文本，只询问一个关键差异。
 
 ## 7. Sacha 可视化记录

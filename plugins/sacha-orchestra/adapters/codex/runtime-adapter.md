@@ -67,7 +67,7 @@ Roadmap 已完成、其当前推荐明确说明另开 Sacha Planner 任务形成
 
 1. 使用当前项目对应的已保存 Codex Project；无法唯一确定时先让 Human 消歧，不创建 projectless 替代任务。
 2. `create_thread(prompt=...)` 的初始输入必须显式写明“使用 Sacha Planner”，并携带唯一 Roadmap path、候选 Spec 目标/Scope、已确认决定、阻塞性未决项、当前只读边界与未授予的实施动作。不得把“冻结完整 Spec”弱化为普通调查或聊天草案，也不得复制整份 Roadmap。
-3. 创建成功后只调用一次有界 `wait_threads` 核对目标任务已经按显式 Planner 请求开始；目标再次询问是否使用 Sacha、按 Direct 展开完整领域调查或初始输入丢失时，报告交接偏差并保留唯一目标 reference，不创建第二个任务。
+3. 取得正式 `threadId` 后用一次有界 `wait_threads` 核对 Planner 已开始；仅收到排队用的 `clientThreadId` 时保留该引用，待取得正式标识再等待。超时只说明启动尚未核实。初始输入丢失、再次询问是否使用 Sacha 或按 Direct 展开时，报告交接偏差；以上情况均不得重复创建。
 4. 目标任务独立读取项目规则、Workflow 和 Planner Skill；Roadmap 的写入授权、任务状态与未落盘上下文不随创建传递。来源任务交付目标 reference 后结束，不等待完整 Spec 终态。
 
 Roadmap 只推荐普通任务、推荐没有明确 Sacha Planner，或 Human 没有确认创建时，不进入本节；新任务按普通 Intake 重新判断。
@@ -91,7 +91,7 @@ Adapter 消费 Workflow/Coordination 已确认的迁移标识与转移动作。�
 
 Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 
-- 子代理依赖使用`collaboration.wait_agent`；独立依赖或全新验证任务使用带 `cursor` 的 `wait_threads`。
+- 子代理依赖使用 `collaboration.wait_agent`。独立用户任务使用 `wait_threads`；首次传对应 `threadId` 和已取得的 `hostId`，续等时把各目标上次返回的游标分别传给 `targets[].afterCursor`。
 - 调用等待前推进其他不依赖结果且不冲突的就绪工作。
 - 等待时长在当前工具允许范围内兼顾宿主沟通要求与预计结果时间；通知可提前唤醒时，不为捕获完成而反复短等。没有可推进工作时沿用阻塞等待，不用定时消息催报或通过中断再继续探测进度。
 - 进入等待时，按工作包预期耗时、最近实际活动和任务截止时间确定下一次活性核对点；它可以跨越多次 `wait_agent` 超时，不另建定时任务或固定频率催报。到点仍无完成回传，或通知缺少会改变下一步的状态时，才对已知目标有界调用 `list_agents`。
@@ -115,9 +115,9 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 
 ### 2.8 原生工具搜索
 
-调用节点需要工具时，按当前任务实际暴露的入口处理：目标工具已在模型工具面时直接调用；目标工具不可见且原生 `tool_search` 可用时，用 capability 或 namespace 搜索，并只调用唯一匹配的返回结果；所需能力不可见、搜索没有匹配或结果不唯一时，报告能力缺口并停止受影响调用，继续独立工作。普通事实读取可重新评估当前已暴露、输入输出和副作用已核对且在授权内的等价能力；接口身份本身属于验证目标、已有更严格传输约束，或写入状态未知时不得替换或重放。没有新证据、不同且可检验的假设或已确认的等价能力时，保留结果并报告恢复条件，不反复搜索或重试。
+调用节点先使用当前宿主直接暴露的工具。延迟加载的工具通过宿主提供的原生目录发现，例如在 `functions.exec` 内按名称或能力检索 `ALL_TOOLS`，按返回的 schema 调用对应 `tools` 方法；提供 `tool_search` 的宿主也可通过它发现工具。所需接口未找到或无法唯一确定时，只停止依赖它的调用。普通事实读取可使用已核对输入输出、副作用和授权的等价能力；接口身份属于验证目标、传输约束更严格或写入状态未知时，不替换或重放。没有新依据时不反复搜索。
 
-根任务与每个 child 分别执行上述判断，并在 spawn、resume、compaction 或 Runtime 重连后重新检查。MCP 工具使用当前实际表面；客户端 Code Mode 使用已确认的当前工具，不替代模型工具面或 `tool_search` 结果。
+根任务与每个 child 独立核对本会话的可见工具和目录，在 spawn、resume、compaction 或 Runtime 重连后重新确认。父任务发现的工具不证明 child 可以调用。
 
 工具发现不改变 Scope、授权或外部副作用边界。Researcher 只使用直接可见或搜索得到的只读工具；需要 `exec_command`、`apply_patch` 或其他写入入口时返回调用节点。
 
@@ -143,12 +143,12 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 | --- | --- | --- |
 | `human_exact` | 用户或批准范围明确对当前子代理及阶段精确指定，且满足 A 节对象与阶段适用性 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
 | `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-6.1-sol"`, `reasoning_effort="medium"` |
-| `luna_max` | bounded | `model="gpt-6-luna"`, `reasoning_effort="max"` |
+| `terra_high` / `terra_xhigh` / `terra_max` | bounded；固定步骤和直接核验用 high，需结合多条已知条件判断用 xhigh，边界已定但须推导并核验多步相互依赖的结论用 max | `model="gpt-6.1-terra"`，按判断传 `reasoning_effort="high"`、`"xhigh"` 或 `"max"` |
 | `sol_max` | broad + critical，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="max"` |
 | `sol_xhigh` | broad + standard，且需要复杂集成、动态诊断或较大有效上下文，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="xhigh"` |
 | `sol_high` | 其余 broad 单元，包括跨模块综合及相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="high"` |
 
-自动路线不使用 Astra；GPT-6.1 Sol 按上表选择 medium、high、xhigh 或 max。有界实施、重复处理和固定验证按 Luna 路线，不因工作量或共享环境的串行使用升级。当前主任务的型号/强度仍由宿主与用户控制，Adapter 不声称已切换；用户新的精确要求按 human_exact 消费，Astra 仍须满足 A 节的明确要求。
+同一有界单元不因工作量或共享环境的串行使用升级。主任务的型号与强度由宿主和用户控制；用户精确指定子代理时按 A 节判断适用阶段。
 
 执行中发现冻结前提不成立时，返回受影响的方案问题，不以困难、失败或反复尝试自动提高强度。满足 Coordination 第 2 节复用条件时保留原模型，新建时按本节路由，不假定跨模型或新代理继承原缓存。使用实际输入、缓存、输出、耗时与返工并核对宿主计费口径；遥测不足时保留不确定性，不宣称切换更省，不以单价、累计 token 或固定阈值自动切换，也不要求每次重新跑基准。
 
@@ -162,7 +162,7 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 
 当前 v2 必须实际暴露 `agent_type`、`model`、`reasoning_effort` 与 `fork_turns` 的组合，并发现所选能力类型；不能把某一 Desktop 的字段推广到 Work 或其他会话。缺失类型或必需字段时停止，不省略能力类型改用普通代理。
 
-调用 `collaboration.spawn_agent`，默认 `fork_turns="none"`；当前 schema 提供 task_name 时使用稳定短名，必填字段不得省略。只有未落盘用户决定确需携带时才使用最小正整数轮数，不复制完整父历史。message 自包含目标、范围、输入、能力/副作用、完成检查、停止及协调请求返回条件。有 Spec 的实施单元同时提供当前 Artifact Protocol 的 Spec 标准及相关实施内容的可读绝对路径与精确定位，要求 child 在实施前读取，不依赖自动 Skill instructions 或继承历史。
+调用 `collaboration.spawn_agent`，默认 `fork_turns="none"`；当前 schema 提供 task_name 时使用稳定短名，必填字段不得省略。显式选择型号或强度时使用 `fork_turns="none"`，将必要的未落盘用户决定写入 message。message 自包含目标、范围、输入、能力/副作用、完成检查、停止及协调请求返回条件。有 Spec 的实施单元同时提供当前 Artifact Protocol 的 Spec 标准及相关实施内容的可读绝对路径与精确定位，要求 child 在实施前读取，不依赖自动 Skill instructions 或继承历史。
 
 能力类型不固定 model 或 reasoning effort，自动路线显式传 B 节字段。固定模型类型只供与其固定设置一致的精确请求，不能覆盖不可改写的模型，也不能作自动回退。显式字段、类型默认值和父任务继承的优先级只在当前工具允许该组合时取证；参数被接受不等于实际模型、权限或工具面已经验证。
 
@@ -181,6 +181,6 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 
 ## 4. 进度与证据边界
 
-文件变更收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。当前工具面提供文件变更登记接口时，先核对其对 MCP、外部生成和二进制文件的支持；无法登记或展示不完整时，通过 `final` 按交互合同补充。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片重写未改变的文件、把二进制转换成文本补丁，或虚报登记成功。
+文件变更收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。当前工具面提供文件变更登记接口时，先核对其对 MCP、外部生成和二进制文件的支持；已知漏项或仓库外改动按交互合同在结果中简要补列。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片重写未改变的文件、把二进制转换成文本补丁，或虚报登记成功。
 
-Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的初始模型可见 schema、原生 `tool_search` 是否存在及其加载结果、实际调用轨迹；客户端 Code Mode 沿用原生调用、参数、结果和来源证据。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
+Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的直接暴露的 schema、当前宿主原生目录的发现结果与实际调用轨迹；客户端 Code Mode 沿用原生调用、参数、结果和来源证据。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。
