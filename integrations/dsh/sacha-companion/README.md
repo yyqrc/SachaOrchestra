@@ -2,11 +2,11 @@
 
 > 文档身份：独立 DSH companion package；不进入 `plugins/sacha-orchestra` 的 Agent Plugin 发布 `root`。
 
-`@sacha-orchestra/dsh-companion` 是 Sacha 在 DeepSeek Harness（DSH）中的唯一配套包。它合并三个以前分开的责任面：
+`@sacha-orchestra/dsh-companion` 是 Sacha 在 DeepSeek Harness（DSH）中的唯一配套包，负责以下工作。
 
-1. Root Session 的任务感知工具暴露、查询、解锁与恢复；
-2. `sacha_research` / `sacha_worker` / `sacha_review` continuable child surfaces；
-3. Sacha Manager、delegation、Review、Evidence、Root direct child 与工具面状态的 Host/Client 可视化。
+1. 管理主会话可用的工具，支持查询、解锁和恢复。
+2. 提供可接收后续指令的子代理工具 `sacha_research`、`sacha_worker` 和 `sacha_review`。
+3. 在面板上显示已记录的工作依赖、派发、评审和证据，以及直属子代理与主会话工具的状态。
 
 它不接受 Sacha、不决定 Role/Gate/readiness/Scope/授权/调度/Outcome/完成，也不维护第二份 Workflow 或 DAG。安装 package 只改变目标 DSH Profile 的 Runtime 工具组合与观察面。
 
@@ -14,17 +14,17 @@
 
 Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation 也会进入 `AgentRegistry.roots()`，因此 Root 还必须没有原生 `subagent/descriptor`；subagent、teammate 与其他非 Root Agent 不安装 Root policy，并在自己的 scope 移除从 Root 继承的 `sacha_tools`，其他 child toolFilter 不变。Root 在 `agent/session-start` 先安装失败关闭保护，保证冷恢复时也不会先以完整工具集运行。启动期晚注册的 global tools 由 `tools/change` 加入同一个目录快照；替换时先成功安装新策略，再移除旧策略：
 
-| Phase | 进入条件 | 工具面 |
+| 阶段 | 进入条件 | 可用工具 |
 | --- | --- | --- |
-| `bootstrap` | 会话首个请求 | read/read_image/glob/grep、`sacha_visual_event`（只读，最小起步面） |
-| `resident` | 首个耐久晋升信号，或模型显式切换 | 增加 write/edit、当前平台 shell、todo、web、skill、ask_user_question 与 `sacha_research`/`sacha_worker`/`sacha_review` |
+| `bootstrap` | 会话首个请求 | read/read_image/glob/grep 和记录面板事件的 `sacha_visual_event` |
+| `resident` | 首条已记录的非 `sacha_tools` 工具调用或助手消息，或模型显式切换 | 增加 write/edit、当前平台 shell、todo、web、skill、ask_user_question 与 `sacha_research`/`sacha_worker`/`sacha_review` |
 
-阶段由**耐久会话事件**推导，不解析人类消息措辞：
+阶段由会话中已保存的事件决定。
 
 - DSH 运行时写入的首个符合条件的 `tool/call` 或 `assistant/message` 是自动切换信号。两类事件以先出现的为准，会话由 `bootstrap` 切换到 `resident` 并开放该阶段的工具集。
-- 本包自身的控制调用不参与晋升。`sacha_tools` 始终可见，若把它计入，一次 `status` 查询、一次单工具 `unlock`，甚至模型主动收窄到 `bootstrap` 本身，都会被误判为"开始干活"。
-- 上下文压缩只追加一条遮蔽用的 `user/message`，原始事件仍留在耐久日志中，因此**压缩后阶段与工具面保持不变**，模型不会在任务中途突然失去 write/shell/委派能力。恢复路径与运行路径都从同一份事件推导，两者不会分歧。
-- 模型可随时用 `sacha_tools` 的 `phase` 动作显式切换阶段（见下），这是分类之外的**自救路径**；一旦显式切换，自动晋升不再覆盖该选择。
+- `sacha_tools` 始终可见。查询、解锁或显式切换等控制调用不触发自动切换。
+- 上下文压缩会追加一条遮蔽消息用的 `user/message`。原始事件仍在，压缩前后的阶段和工具集相同。运行和恢复都按同一份事件记录判断。
+- 模型可用 `sacha_tools` 的 `phase` 动作显式选择阶段，以恢复或调整可用工具集。之后由显式选择决定阶段。
 
 MCP/App、Agent Teams、普通 subagent/workflow、调试器、部署和其他长尾工具在两个阶段都默认隐藏，需要时通过 `catalog` 查询与 `unlock` 取得。工具收窄不改变底层 sandbox/权限，也不能给已隐藏工具之外的操作授权。切换只提交已成功应用的状态，不宣称已停止此前运行的工具或进程。
 
@@ -56,11 +56,11 @@ PTC 下 wire schema 只有保留的 `run_code`，其余工具经**生成的 SDK 
 | `status` | 当前 phase、可见/隐藏数量、临时解锁和 recovery 来源 |
 | `catalog` | 按 query 有界列出已采样目录中的隐藏工具信息；多个词按任意词匹配名称、描述与 family |
 | `help` | 返回一个具名工具的描述与参数 schema |
-| `phase` | 显式切换 `bootstrap`/`resident`；切换后自动晋升不再覆盖该选择 |
-| `unlock` | 把具名工具或已定义 family 加入下一 step 的可见/可执行 surface |
+| `phase` | 显式切换 `bootstrap` 或 `resident`。之后以这次选择为准 |
+| `unlock` | 让指定工具或工具组在下一次模型请求中可见、可用 |
 | `reset` | 清除临时解锁并恢复当前 phase |
 
-`unlock` 与 `phase` 成功后，同一 assistant response 中紧随的未广告工具仍被拒绝；只有下一 step 的 `request/header.tools` 已出现该工具后才能执行。这样模型不能在没有见过 schema 的同一批调用里获得新能力。
+`unlock` 与 `phase` 成功后，等下一次模型请求实际提供新工具再调用。直接模式的执行限制按 `request/header.tools` 拒绝同一回复中尚未声明的工具。PTC 通过工具 SDK 提供工具，程序内调用按当前允许的工具集检查。PTC 的实际放行和拒绝需用该模式的调用证据核对。
 
 `catalog` 的检索按词切分并做任意词匹配，因此 `unity editor bridge` 这类自然多词查询能返回它所指的工具；整串匹配会让这类查询恒返回空，使被隐藏的 `sacha_worker`/`sacha_review` 无法被发现。
 
@@ -117,14 +117,18 @@ Visualizer 不从颜色、label 或 child 存在推导 Scope、授权、Outcome 
 
 ## Profile 前提
 
-当前 package 面向 DSH `0.1.1-rc.2` standard coding preset 或等价组合。目标 Profile 必须提供：
+配套包的开发和测试基准为 DSH `0.2.0-rc.1`，组件依赖见 [package.json](package.json)。`0.2.2-rc.1` 的 `dsh-tool-subagent` 会拒绝本包使用的 `persona` 和 `toolFilter` 配置。该版本需要先适配子代理配置，再加载本配套包。
+
+依赖版本范围用于依赖解析，DSH `0.2.2-rc.1` 也会用它检查宿主版本。工具能否加载和使用，仍需核对实际版本和接口。
+
+目标 Profile 使用兼容的 standard coding preset 或等价组合，须提供以下能力。
 
 - Agent/Session/ToolRuntime/SystemPrompt 与 Web Host/Client runtime；
 - `@deepseek-ai/dsh-subagent`、spawn provider、continuable settlement/report；
 - standard `read/read_image/write/edit/glob/grep`、平台 shell、skill、Web 与 control tools；
 - React 与 DSH Client layout/slot surface。
 
-未知 allow-list 名、缺少 provider、Root policy 不能同步 schema/section/guard 或 package build/pack 缺文件时应响亮失败，不静默放宽。
+遇到未知允许项、缺少委派提供方、工具声明和执行限制无法同步，或构建及打包缺文件时，停止并报告具体错误。
 
 ## 构建与验证
 
@@ -138,22 +142,19 @@ pnpm pack --dry-run --json
 
 ## 安装与迁移
 
-同一 Profile 最终只保留一个 companion package：
+同一 Profile 使用一个配套包。安装或迁移前，对照 [Profile 前提](#profile-前提)，核对目标 Profile 实际使用的 DSH 组件版本和所需能力。有配置不兼容时先处理兼容问题。核对通过后，在仓库根目录执行以下命令。
 
 ```powershell
-$oldVisualizer = '@sacha-orchestra/dsh-visualizer'
-$oldSubagents = '@sacha-orchestra/dsh-subagents'
-$companion = Join-Path $sachaRoot 'integrations/dsh/sacha-companion'
+$companion = (Resolve-Path -LiteralPath 'integrations/dsh/sacha-companion').Path
 
-dsh plugin --profile web remove $oldVisualizer $oldSubagents
 dsh plugin --profile web add $companion
 dsh --profile web --dump-config
 ```
 
-执行前保存 Profile package/lock/patch 与进程身份；任一 remove/add 拟升级无关依赖或产生部分失败时停止，不手改 Profile manifest/lock 绕过。安装后重启目标 DSH Profile，并从 fresh Root Session 验证：
+执行前保存 Profile package、锁文件、patch 和进程身份。迁移旧 Profile 时，先核对是否仍安装 `@sacha-orchestra/dsh-visualizer`、`@sacha-orchestra/dsh-subagents`。只有实际存在且用户已授权迁移的旧包，才在添加配套包前用 `dsh plugin --profile <profile> remove <package>` 移除。任何一步拟升级无关依赖或发生部分失败时，保留现场并停止，不手改 Profile manifest 或锁文件绕过。安装后重启目标 DSH Profile，从全新的主会话核对以下结果。
 
-1. 首个 `request/header.tools` 为 bootstrap 面，首个耐久信号后的 header 为 resident 面；
-2. `sacha_tools` status/catalog/help/phase/unlock/reset、same-response guard 与 next-step unlock；
+1. 首次模型请求使用 `bootstrap` 工具集。记录首条非 `sacha_tools` 工具调用或助手消息后，下一次请求使用 `resident` 工具集。直接模式查看 `request/header.tools`，PTC 模式查看模型收到的工具 SDK。
+2. 核对 `sacha_tools` 的状态、查询、切换、解锁和重置。直接模式检查同一回复中尚未声明的工具被拒，以及下一次请求能够调用。PTC 核对收到的工具 SDK 和实际调用结果。
 3. DSH restart/cold resume 后 exposure 恢复，且压缩后 phase 不回退；
 4. 三个 Sacha continuable surface、depth、settlement、Reviewer isolation；
 5. state route 与真实 Manager/delegation/child/tool-surface 对齐；

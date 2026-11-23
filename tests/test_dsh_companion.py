@@ -97,6 +97,20 @@ class DshCompanionTests(unittest.TestCase):
             with self.assertRaises(validator.ValidationError):
                 validator.validate_companion(root)
 
+    def test_matching_nonversion_dsh_declarations_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            copy_candidate(root)
+            package_path = root / "package.json"
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            for invalid_version in ("workspace:*", "latest", "^0.2.0-rc.1", "0.2.0-rc.01"):
+                with self.subTest(invalid_version=invalid_version):
+                    package["devDependencies"]["@deepseek-ai/dsh-agent"] = invalid_version
+                    package["peerDependencies"]["@deepseek-ai/dsh-tool-subagent"] = f"^{invalid_version}"
+                    package_path.write_text(json.dumps(package), encoding="utf-8")
+                    with self.assertRaisesRegex(validator.ValidationError, "精确的 SemVer"):
+                        validator.validate_companion(root)
+
     def test_empty_machine_version_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

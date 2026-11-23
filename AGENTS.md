@@ -30,7 +30,7 @@
 | `plugins/sacha-orchestra/core/coordination-contract.md` | 负责定义 Manager 的评估、拆分、依赖、就绪判定、流转要求、派发与返回、身份与去重及偏差处理 |
 | `plugins/sacha-orchestra/core/artifact-protocol.md` | 工作记录（Artifact）的生成条件、最小内容、Spec 完成、权威关系与恢复规则；术语定义归插件内术语合同 |
 | `plugins/sacha-orchestra/adapters/<runtime>/runtime-adapter.md` | 单一运行环境的传输、自动模型和强度选择、精确调用参数、回退、恢复与验证映射；不得反向定义决策关口或就绪条件 |
-| `integrations/dsh/sacha-companion` | 唯一 DSH 配套包：负责 Profile 内 Root 工具暴露的任务分类、限制、查询、解锁与恢复，组合 continuable child surface，并拥有 Host/Client 状态投影、构建和界面；只消费现有 Sacha 任务、角色和已提交事实，不定义入口、决策关口、就绪判定、授权、调度、评审结果、完成判断或发布插件运行语义 |
+| `integrations/dsh/sacha-companion` | 唯一 DSH 配套包。按任务阶段管理主会话可用的工具，支持查询、解锁和恢复，提供可接收后续指令的子代理工具。负责服务端状态接口、客户端面板和构建，只显示现有任务、角色和已提交事实。入口、决策关口、就绪判定、授权、调度、评审、完成和发布插件的运行规则仍归各自负责文件 |
 | `plugins/sacha-orchestra/skills/*` | 不绑定具体运行环境的节点职责、局部工作流与边界；不增加流程节点，不复制核心合同判断或适配器参数 |
 
 ## 按任务读取

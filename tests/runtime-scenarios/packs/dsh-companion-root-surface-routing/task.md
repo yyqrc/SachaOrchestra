@@ -4,7 +4,7 @@
 
 ## 第一条
 
-只读检查当前 DSH Root 的工具面。调用 `sacha_tools status`，记录当前 profile、可见/隐藏数量、source、unlocked 与 fallback；不要修改工作区，也不要创建或唤醒协作者。
+只读检查当前 DSH 主会话能使用哪些工具。调用 `sacha_tools status`，报告它返回的阶段、可见和隐藏工具数量、状态来源、临时解锁和回退状态。工作区保持只读，也不要创建或唤醒协作者。
 
 ## 第二条
 

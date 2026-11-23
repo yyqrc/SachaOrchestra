@@ -13,6 +13,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "integrations" / "dsh" / "sacha-companion"
 PATCH = PACKAGE / "cordis.patch.yml"
+VERSION_NUMBER = r"(?:0|[1-9][0-9]*)"
+PRERELEASE_PART = rf"(?:{VERSION_NUMBER}|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+EXACT_VERSION = re.compile(
+    rf"{VERSION_NUMBER}\.{VERSION_NUMBER}\.{VERSION_NUMBER}"
+    rf"(?:-{PRERELEASE_PART}(?:\.{PRERELEASE_PART})*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
 REQUIRED_PACK_FILES = {
     "README.md",
     "assets/cats/cat-sacha-base.png",
@@ -78,9 +85,15 @@ def validate_companion(root: Path = PACKAGE) -> dict[str, object]:
     )
     require(package.get("dsh", {}).get("bundle", {}).get("patch") == "./cordis.patch.yml", "缺少 dsh.bundle.patch")
     require(package.get("dsh", {}).get("client", {}).get("platform") == "web", "缺少 Web client 声明")
+    dsh_agent_version = package.get("devDependencies", {}).get("@deepseek-ai/dsh-agent")
+    subagent_peer_version = package.get("peerDependencies", {}).get("@deepseek-ai/dsh-tool-subagent")
     require(
-        package.get("peerDependencies", {}).get("@deepseek-ai/dsh-tool-subagent") == "^0.1.2-rc.1",
-        "dsh-tool-subagent peer version 必须匹配 0.1.2-rc.1 版本线",
+        isinstance(dsh_agent_version, str) and EXACT_VERSION.fullmatch(dsh_agent_version) is not None,
+        "dsh-agent 的开发依赖必须使用精确的 SemVer 版本号",
+    )
+    require(
+        subagent_peer_version == f"^{dsh_agent_version}",
+        "dsh-tool-subagent 的 peer 版本须匹配 dsh-agent 的开发版本",
     )
     require("agent-team" not in patch.lower() and "spawn_teammate" not in patch, "companion 不得重新引入 Agent Teams")
 

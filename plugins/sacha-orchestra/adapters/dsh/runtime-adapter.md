@@ -1,6 +1,6 @@
 # DeepSeek Harness Runtime Adapter（运行时适配器）
 
-> 状态：规范性 DSH 传输映射；以正式 continuable subagent 能力为主路径，安装、fresh discovery、可视化与真实行为需分别验证
+> 状态：DSH 运行规则。主路径使用可接收后续指令的子代理（`continuable`）。安装、新会话能否发现插件、面板显示和实际运行分别取证。
 
 ## 1. 边界
 
@@ -18,7 +18,7 @@
 
 ## 2. 能力发现与选择
 
-首次使用 DSH Agent 传输前，主任务必须按当前会话实际暴露的工具名与参数结构核对 continuable subagent 组合。主路径要求：
+仓库配套包及以下子代理调用说明以 DSH `0.2.0-rc.1` 为验证基准。首次派发前，主任务按当前会话实际暴露的工具名和参数核对该版本的子代理能力。其他版本须按实际接口和兼容证据核对。主路径要求以下能力。
 
 - 至少一个可启动 continuable child 的 delegation tool；Sacha 组合推荐暴露 `sacha_research`、`sacha_worker`、`sacha_review` 三个具名入口；
 - `send_message`、`interrupt_agent`、`list_agents`；
@@ -33,9 +33,14 @@
 
 `sacha_visual_event` 是可选观测能力。它存在时，主任务按第 7 节记录已经提交的 Sacha 转换；缺失、失败或不可达只形成观测缺口，不打开或关闭 Gate，不撤销已提交动作，也不阻塞能够独立验证的工作流。
 
-目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，Companion 对 live Root 提供 `bootstrap | resident` 两阶段工具面与 `sacha_tools` 查询、切档和解锁。阶段由耐久会话事件推导，不解析人类消息措辞：首个 `tool/call` 或 `assistant/message`（先到者生效）即从只读起步面晋升到工作集；Companion 自身的 `sacha_tools` 控制调用不构成晋升信号。模型可用 `sacha_tools` 的 `phase` 动作显式切换阶段，这是措辞分类之外的恢复路径，显式切换后自动晋升不再覆盖该选择。上下文压缩只遮蔽消息视图而保留原始事件，因此压缩后阶段与工具面不回退。冷恢复按原生事件顺序重放阶段及成功配对的控制调用，显式切档之前发起的旧控制调用不能用晚到结果重新解锁。新增工具仍须在下一次 `request/header.tools` 出现后才能执行；切换失败不提交成功状态，也不宣称此前运行的工具已停止。
+目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，运行中的主会话有 `bootstrap`、`resident` 两阶段工具集。模型可用 `sacha_tools` 查询、切换阶段和临时解锁工具。
 
-该阶段只控制 DSH 的可见与可执行工具，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 只消费当前会话真实 `request/header.tools`、成功控制记录和恢复结果；隐藏工具需要当前工作单元且已有授权时才能解锁，`sacha_tools` 成功不授予目标工具自身没有的权限。
+- 从起步工具集自动切换到工作工具集，以会话记录的首个 `tool/call` 或 `assistant/message` 为准。排除 `sacha_tools` 自己的控制调用。用户消息的措辞不参与判断。
+- 模型可以用 `sacha_tools` 的 `phase` 动作显式选择阶段。此后由显式选择决定阶段。
+- 上下文压缩只遮蔽消息视图，原事件保留，因此工具集保持当前阶段。冷恢复按原生事件顺序重放阶段和成功配对的控制调用。切换之前发起的旧控制调用，不能用晚到结果重新解锁。
+- 切换或解锁后，只在下一次模型请求实际提供目标工具时调用。直接模式核对 `request/header.tools`，PTC 模式核对模型实际收到的工具 SDK。切换失败时保留实际状态。工具是否已停止需单独核实。
+
+该阶段只控制 DSH 的可见与可执行工具，不产生或改变 Direct、Role、Gate、readiness、Scope、授权、Outcome 或完成。Adapter 依据当前会话的工具声明、成功控制记录和恢复结果判断。隐藏工具须为当前工作所需且已有授权才能解锁，`sacha_tools` 成功不扩大目标工具的权限。
 
 ## 3. 主任务、Role 与 child 映射
 
@@ -70,13 +75,19 @@ Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter �
 
 `toolFilter` 只在当前 DSH provider 声明并实际接受该 capability 时使用；未知工具名、过滤失败或工具面无法回读时不得把提示词当作 enforcement。Reviewer 若依赖文件只读，应使用当前 DSH sandbox 的真实模式/结果，并区分 `full | partial | unknown`；read-only sandbox 不证明读隔离或网络隔离。
 
-每个 surface 首次使用或 Profile/插件/版本变化后，Adapter 必须从 child `request/header.tools` 建立能力包络，至少分开记录：本地文件、shell/进程、Web、MCP/App/外部系统、自动 Skill 与明确 reference、权限/控制工具、下级 Agent、模型路线和 continuable/recovery。当前 work unit 的必需能力不属于已验证包络时，留在 Root、选择已核对等价 surface 或停止该单元；不能只因 Role 名称或 persona 匹配就派发。
+首次使用子代理入口，或 Profile、插件、版本变化后，按第 2 节从子代理实际收到的工具声明核对可用能力。分别记录本地文件、shell 或进程、Web、MCP/App 或外部系统、自动加载的技能与明确引用、权限和控制工具、下级代理、模型路线及继续和恢复能力。
 
-独立配套包 `@sacha-orchestra/dsh-companion` 提供当前标准 DSH coding preset 的 Root policy 与三种默认 child surface。当前 Runtime 的 continuable activation 会同时出现在 `AgentRegistry.roots()`，Companion 还必须用 child 原生 `subagent/descriptor` 排除它，并在 child scope 移除继承的 `sacha_tools`；不得用 durable `parentSession` 推导 Sacha Owner。它只组合 DSH Runtime 能力，不拥有 Sacha 语义；目标 Profile 不满足显式工具、schema/guard、provider 或恢复前提时应响亮失败或不安装，不静默退化。
+工作单元缺少必需能力时，由主会话继续、改用已核对的等价入口，或只暂停这一单元。派发须以实际可用能力为依据，角色名称和 persona 只能提供线索。
+
+独立配套包 `@sacha-orchestra/dsh-companion` 管理主会话的工具集，并提供三种可继续接收指令的子代理工具。在基准版中，`AgentRegistry.roots()` 也会列出已激活的 `continuable` 子代理。配套包用原生 `subagent/descriptor` 排除它们，并移除子代理继承的 `sacha_tools`。按核心合同判断 Sacha 的负责方，不得从 DSH 持久化的 `parentSession` 推断。目标 Profile 缺少必需工具、参数声明、执行限制、委派提供方或恢复能力时，停止安装或加载并报告具体原因。
 
 ### 4.2 子模型路由
 
-当前 DSH `0.1.1-rc.2` 的 `dsh-tool-subagent` 实例可配置固定 `agentOptions.provider/model/maxTokens`，但模型调用不接受逐 child `provider/model/reasoning_effort`。仓库 bundle 省略 `agentOptions`，因此使用 Root 的 provider/model 继承；需要不同固定 route 时只能由 Profile 提供另一个唯一 `toolName` 的已核对实例。
+仓库配套包的具名入口省略 `agentOptions`，沿用主会话的提供方和模型。需要固定的不同路线时，由 Profile 为另一个唯一 `toolName` 的实例配置 `agentOptions`，并核对该实例及实际路线。
+
+DSH `0.2.0-rc.1` 的工具实例通过 `modelSelectionSettings: true` 使用宿主的会话选模设置。宿主为新主会话启用选模并配置允许的模型后，工具才提供逐次调用的 `provider`、`model` 和 `reasoning_effort`。以当前会话实际提供的参数为准。仓库配套包默认使用上段的模型配置方式。
+
+DSH `0.2.2-rc.1` 把逐次选模和模型查询分别配置为 `modelSelection` 与 `modelDiscovery`。该版也会拒绝当前配套包仍使用的 `persona` 和 `toolFilter` 配置。使用这个版本时，先解决配套包的加载兼容问题，再核对会话提供的参数。
 
 主任务只选择当前工具目录中已装配且质量满足要求的 surface，不把 Core route requirement 改写成目标 Runtime 不支持的逐调用字段。高风险 Planner、Executor 或独立 Reviewer 若继承 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork、另一个 Role surface或自报模型降级。
 
@@ -113,7 +124,7 @@ Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract
 
 ## 7. Sacha 可视化记录
 
-当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill/Adapter 事实已经提交后调用一次。工具记录失败不回滚真实流程；主任务保留失败 reference，并在本轮下一次 Human 进度或最终结果中披露“可视化未同步”。
+当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill/Adapter 事实已经提交后调用一次。记录失败时，主任务把失败证据留在任务记录中，并按已提交的流程状态继续。只有面板信息会影响用户对当前进度、结果或下一步的判断时，才在相关汇报中说明哪项状态未同步。
 
 | `event_type` | 记录时机 | 必填映射 |
 | --- | --- | --- |
@@ -136,12 +147,12 @@ Visualizer 的 Runtime child 面只观察 Root 的 continuable direct child：du
 
 源码与文档检查只证明本映射存在。根据实际修改、交付声明和明确案例，从下列维度选择所需证据；这不是每次必跑矩阵。声明某项实际行为时，必须取得目标 DSH 版本的真实运行证据：
 
-- Agent Plugin fresh discovery；
-- Companion Root `bootstrap | resident` 两阶段的首个 `request/header.tools`、same-scope schema/section/guard 对齐和隐藏工具负例；
-- `sacha_tools` status/catalog/help/phase/unlock/reset、同 response 拒绝、下一 step 放行和 cold resume；
-- 首个耐久信号后的晋升、压缩后阶段不回退、以及多词 catalog 检索能返回被隐藏的 surface；
+- 插件能否在新会话中被发现；
+- Companion Root `bootstrap | resident` 两阶段的模型工具声明（直接模式查 `request/header.tools`，PTC 查工具 SDK）、same-scope schema/section/guard 对齐和隐藏工具负例；
+- `sacha_tools` 的 `status`、`catalog`、`help`、`phase`、`unlock`、`reset` 与重启后恢复。直接模式核对同一回复中尚未声明的工具是否被拒，以及下一次请求能否使用。PTC 按模型收到的工具 SDK 和实际调用取证；
+- 首条已记录的非 `sacha_tools` 工具调用或助手消息触发工具集切换，上下文压缩后阶段不回退，以及 `catalog` 能用多词查到隐藏工具；
 - 具名 `sacha_research` / `sacha_worker` / `sacha_review` 或等价 continuable surface discovery；
-- fresh child、逐 child route、toolFilter、maxDepth 与 sandbox 实际值；
+- fresh child、实际模型路线、toolFilter、maxDepth 与 sandbox 实际值；
 - research/review 的最终工具目录不含本地写入、MCP/App/外部系统、Agent Teams、Sacha sibling 或长尾控制能力；Reviewer 只按任务需要保留 shell；
 - 两个以上 direct child 的并发启动；
 - 主任务在 child 运行时继续推进其他 ready work；

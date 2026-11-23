@@ -31,9 +31,11 @@
 | [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
 | [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
-| [DSH Companion](integrations/dsh/sacha-companion) | 单一 DSH Profile bundle：对 live Root 实现 task-aware tool-surface restriction/catalog/unlock/recovery，组合 continuable child surfaces，并提供 Host/Client 状态投影与 Visualizer | Sacha 入口、Role/Gate/readiness、Scope、授权、模型事实、DAG/调度、Review Outcome、完成判断和其他 Runtime |
+| [DSH 配套包](integrations/dsh/sacha-companion) | 针对一个 DSH Profile 管理主会话的工具，支持查询、解锁和恢复。提供可接收后续指令的子代理工具，以及服务端状态接口与客户端面板 | Sacha 入口、角色、决策关口、就绪判定、范围、授权、实际模型、任务依赖和调度、评审结果、完成判断及其他运行环境 |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH companion package：安装到一个 Profile 后，Root tool-surface policy 对该 Profile 的 live Root Session 生效；它按耐久会话事件和成功的控制调用决定模型可见、可执行的工具；首个非控制工具调用或助手消息触发自动晋升，显式切换阶段清空临时解锁，恢复按原生事件顺序重放，不决定 Sacha 入口、Role、Gate、readiness、授权或完成。同一 package 组合 `sacha_research` / `sacha_worker` / `sacha_review` continuable surface，并投影 DSH Root Session 的 tool-surface 状态、continuable direct-child 与 Adapter 已记录的 Sacha phase/Gate/Manager DAG/delegation/Review/Evidence 事实。Companion 不进入 Agent Plugin 发布 `root`，也不创建第二份 Workflow、DAG、Outcome 或授权。Deployment manifest 与 marketplace manifest 只保存版本、部署身份和插件入口，不拥有流程语义。
+Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH 配套包。它按目标 Profile 主会话已保存的事件和成功的控制调用决定可见、可执行的工具。首条已记录的非控制工具调用或助手消息触发自动切换。显式切换会清空临时解锁，恢复时按原生事件顺序重放。
+
+配套包提供可接收后续指令的 `sacha_research`、`sacha_worker` 和 `sacha_review`。面板显示主会话的工具、直属子代理和适配器已记录的流程阶段、决策关口、工作依赖、派发、评审及证据。配套包独立于 Agent Plugin 的发布目录，Sacha 的流程、依赖、评审结果和授权仍由各自合同决定。部署与市场清单只保存版本、部署身份和插件入口。
 
 ## 2. 产品入口
 

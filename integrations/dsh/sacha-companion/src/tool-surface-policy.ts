@@ -941,7 +941,7 @@ function createControlTool(controller: RootToolSurfaceController) {
       action: { type: 'string', required: true, enum: [...CONTROL_ACTIONS] },
       query: { type: 'string', description: 'Catalog search terms; used only with catalog. Multiple words match any word across a tool name, description, or family.' },
       name: { type: 'string', description: 'Exact tool name; required with help.' },
-      phase: { type: 'string', enum: [...TOOL_SURFACE_PHASES], description: 'Working phase to adopt: bootstrap keeps the minimal read-only pair, resident opens the standard working set. Used only with phase.' },
+      phase: { type: 'string', enum: [...TOOL_SURFACE_PHASES], description: 'Use bootstrap for initial inspection and panel event logging. Use resident for the standard working tools. Used only with the phase action.' },
       tools: { type: 'array', items: { type: 'string' }, description: 'Exact snapshot tool names to unlock.' },
       family: { type: 'string', enum: [...TOOL_FAMILIES], description: 'Defined tool family to unlock.' },
       limit: { type: 'integer', description: `Catalog result limit, clamped to 1-${MAX_CATALOG_RESULTS}.` },
@@ -960,12 +960,12 @@ function createControlTool(controller: RootToolSurfaceController) {
       if (args.action === 'phase') {
         if (args.phase === undefined) throw new Error('phase requires phase')
         return Promise.resolve(toolResult('phase', controller.setPhase(args.phase), {
-          notice: 'The chosen phase applies from the next model step, once a later request header advertises it.',
+          notice: 'Use tools from the chosen phase when a later model request makes them available.',
         }))
       }
       if (args.action === 'unlock') {
         return Promise.resolve(toolResult('unlock', controller.unlock(args.tools ?? [], args.family), {
-          notice: 'Unlocked tools become callable only after a later request header advertises them.',
+          notice: 'Call an unlocked tool only after a later model request makes it available.',
         }))
       }
       return Promise.resolve(toolResult('reset', controller.reset()))

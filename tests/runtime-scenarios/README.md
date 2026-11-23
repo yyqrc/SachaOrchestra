@@ -46,6 +46,6 @@
 - `delegation-context-cost`：验证共同接口未定时的工作块安排、同级事实与控制动作边界，以及连续/独立后续工作的复用判断和恢复信息；需要全新主任务，未运行不算基线通过。
 - `delegation-serial-evidence`：验证调查派发后的责任边界、同文件串行实施归属、有效输入复用与实际发生的等待/状态查询；需要全新主任务，不推算成本节省比例。
 - `dsh-continuable-review-isolation`：验证 DSH 正式 Reviewer 是新的 Root direct continuable child，输入来源独立、消费原始 evidence、没有下级创建，并且不依赖 Agent Teams。
-- `dsh-companion-root-surface-routing`：验证同一 DSH Root 对话从只读要求切换为明确实施要求后，下一步工具面随最新指令更新；需要恢复证据时只续查这一案例。
+- `dsh-companion-root-surface-routing`：在同一个 DSH 主会话中，先检查工具可见性，再按授权修改文件。核对工具集由 `bootstrap` 切到 `resident` 的会话事件，以及文件写入是否限于第二条消息的授权。需要恢复证据时只续查这一案例。
 
 新增包必须满足“什么时候新增场景”的条件，来自能够观察失败与成功结果、且现有案例无法覆盖的具体问题。先写不带答案的 `task.md`，再把期望与允许弹性写进独立 `oracle.md`。流程变化、角色、参数或状态枚举本身不构成新增理由；不得为了数量或组合完整性拼接任务，也不规定一个案例必须独占一个包。
