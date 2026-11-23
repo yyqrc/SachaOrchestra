@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: 显式生成/刷新 Project Integration；评估项目 Skill，通过 `dry-run`、hash 和回滚保护写入。
+description: 用户明确要求配置或更新项目接入时使用。核对项目规则、技能加载策略和文档位置，再生成接入配置。
 ---
 
 # Setup Project（项目接入）
@@ -13,7 +13,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 
 1. 接收 Human 显式 project base；未提供时由[解析器](scripts/resolve_provider_queries.py)从 Project Integration、AGENTS 和 SCM 定位唯一 project root。多候选保持 `unresolved`。
 2. Runtime catalog 提供规范 Skill（canonical Skill）的 `name`、`description` 和 `path`；Provider catalog 可补充公开 Skill 与副作用上界。Setup 展示 canonical `description`，Human 按 [Workflow Contract](../../core/workflow-contract.md) 为每个 Skill 确认一次加载策略，并另行确认 Skill root 策略。完整读取 `authority`/`independent` 正文和调用必需 path，只映射 Runtime 可见且可独立交付的 Skill。
-2. `project.rules` 使用 Human 明示或本轮已选 Provider 的规范 asset 原始字节。
+3. `project.rules` 使用用户明示或本轮已选 Provider 的正式资源原始字节。
 
 已选 Skill 依赖独立的项目数据绑定（如外部知识库）时，通过 Provider 可用的只读入口检查；有效绑定直接复用，明确禁用则尊重选择，缺失或失效时说明影响，由 Human 决定是否设置。已有设置授权直接消费，由 Provider 的配置 Skill 处理；普通项目接入不授权修改用户级配置，配置能力缺失时报告缺口，不自行补建写入机制。Provider 数据绑定由 Provider 管理，不复制到 Project Integration，也不以 Spec/Documentation/Context 位置替代。
 
@@ -26,8 +26,8 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
    - 外部 path 标记 `non-portable`；文件系统根无效。
 3. 项目可选绑定一个模板目录 root（template catalog root）。Setup 校验固定名 `profiles.json`、`manifest-ranked`/`tie-ask-Human`/`no-merge`/`no-ad-hoc` 选择合同、`generation_policy`，以及各 Profile 的 `required_topics`、`optional_sections`、类型、意图、template 的相对 path 和版本；Integration 只保存目录的 path kind/path。
 4. 读取受管块，按规范 Skill 标记的归属规则：保留适用项、刷新同源 asset 完整内容、合并新源。无来源旧段需要 Human 显式指定并核对 asset；旧 `SOURCE SHA-256` 行在本次确认刷新时删除。
-5. 试运行（`dry-run`）返回 `reconciliation`、冲突、`warning`、完整 `delta` 和 `planned_delta_sha256`。显式配置/刷新已授权且无待决策略、范围或高影响变化时，在同一流程把当前值传给 `--confirmed-planned-delta-sha256` 后写入。
-6. 目标、变更或关键决定变化时重新试运行，只就变化请求 Human 确认。
+5. 试运行（`dry-run`）返回 `reconciliation`、冲突、`warning`、完整 `delta` 和 `planned_delta_sha256`。已有配置授权，且策略、范围或高影响变化没有待决定事项时，把当前 `planned_delta_sha256` 传给 `--confirmed-planned-delta-sha256`，在同一流程完成写入。
+6. 目标、计划改动或关键决定变化时重新试运行，只就变化的部分请求用户确认。
 
 ## 输出
 

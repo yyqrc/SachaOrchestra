@@ -60,7 +60,9 @@ Catalog 不保存 summary、触发、前置、具体影响或输出；这些事�
 5. Generator 核对项目 Skill 评估的 root 身份、完整覆盖、正文行、SHA-256、必需路径和 Runtime 可见性；它不从名称或描述自行推断可调度性。缺评估、证据过期、歧义、冲突或未确认 policy 均不得写入。
 6. Human 集中确认 project root、每个 Skill 的原始 `description` 与 load policy、reconciliation、planned diff 与 hash 后，生成器才可写入。
 7. Skill loading 只保存 `canonical Skill + load policy`；项目 Skill assessment 是本轮证据，不保存 catalog/Skill 正文、摘要、路径、query、unit、前置或输出，rerun 重新读取。
-8. Provider 可声明 `project.rules` read_only Skill；模板只能位于该 Skill 的 `assets/project-rules.md`。Setup 只消费 Human 明示或本轮已选 provider，直接读取 asset 原始字节，不调用 Skill 生成文本；生成器核对 canonical Skill/asset 路径和 owner marker，并按完整内容与既有段做 keep/add/update/remove reconciliation。AGENTS 不持久化 source hash；旧 hash 行在刷新时移除。规则 owner=provider，Setup 注入不依赖 Skill loading；若同一 Skill 还支持 Human 直接查询工程纪律，可作为公开 Skill 进入 catalog 和 Skill loading。
+8. Provider 可声明只读的 `project.rules` 技能。模板只能位于该技能的 `assets/project-rules.md`。Setup 从用户明示或本轮已选的 Provider 直接读取原始字节，不调用技能生成替代正文。
+   - 生成器核对正式技能身份、资源路径和归属标记，用完整资源内容和既有段落决定保留、新增、更新或移除。AGENTS 的受管段不保存源文件哈希。刷新时移除旧的哈希行。
+   - Provider 负责规则原文。Setup 写入模板与 Skill loading 分别处理。该技能若也接受用户直接查询工程纪律，可以同时进入公开目录和 Skill loading。
 
 Provider 不可见时保留既有 Skill loading 并使用 fallback；只有 Human 确认的 reconcile 集合可移除或替换条目。
 
@@ -90,9 +92,9 @@ Human 接受 Sacha 且任务需要项目 Skill 时，Role：
 
 Planner/Explore 消费 Provider 时，Provider 可按当前任务需要给出领域事实与 reference、约束、候选方案及推荐、需要 Human 决定的领域取舍、实施位置/依赖/数据边界，以及 A/B/C 验收输入和 Unknown。遇到术语或边界问题时，Provider 还可返回已有领域术语 owner/path、当前定义、代码/文档冲突、真实用例，以及可能改变方案的极值、生命周期、迁移或跨版本压力场景；没有 owner 时明确返回“无”。上述名称只是信息覆盖说明，不是固定输出 schema；实施越依赖顺序、owner、数据边界和领域约束，信息越接近可直接执行，只剩局部代码表达时停止细化。
 
-Provider 不拥有 Planner/Explore 生命周期，不批准或冻结 Spec、不启动 Executor，不创建项目词典，也不负责面向 Human 的术语对齐、Review Focus 或最终建议完整性清单。Sacha 根据 Project Integration 使用 Project Context path，并在回复中完成通用沟通收口；Provider 只为它提供领域依据，不新增 `glossary`/`grill` capability、Provider 协议、Gate、状态、字段或 Artifact。
+Provider 提供领域依据。Planner 和 Explore 管各自流程，批准 Spec 和启动 Executor 仍按 Sacha 的合同处理。Sacha 按 Project Integration 指定的路径读取项目上下文，并向用户交代术语澄清、审阅重点和最终建议。禁止为这些交接另增词汇或方案质疑能力、Provider 协议、决策关口、状态、字段或工作记录。
 
-无 Skill loading 条目、Skill 不可见或前置不足时，回退 Project AGENTS、可发现 Domain Skill 或 Role 原生路线，并保留未验证项。
+没有已确认的 Skill loading 条目时，沿项目规则和已有授权选择可用做法。Skill 不可见或前置不足时，按[工作流合同的技能加载规则](../../plugins/sacha-orchestra/core/workflow-contract.md#21-技能加载)处理受影响部分，保留因此未完成的验证。
 
 ## 经验候选与项目存档
 
@@ -102,7 +104,7 @@ Provider 可把 `experience.extract` 一类只读 Skill 公开到 catalog，用�
 - 不决定文档 policy、root、授权、类型或最终正文；
 - 不依赖 Sacha、Role、Documentation writer 或预先配置的项目存档；
 - 只以当前源码、配置、产物、日志或 Runtime 观察为证据，会话总结和 Agent 自报只作 reference；
-- 返回项目事实，以及候选短句、适用边界、现有 Reference 缺口、最短 evidence reference 和静态/编译/Runtime 验证边界；无合格候选时明确返回“无”。
+- 返回项目事实。对合格候选说明机制、适用条件、现有参考资料缺口、可复核的证据引用和静态、编译、运行验证的范围。没有合格候选时明确返回“无”。
 
 调用方配置了 Project Documentation 时，可把上述基础结果适配成 Documentation writer 的有界交接，但不得把 Spec/Execution Report/Review path 变成发布文档依赖。Documentation writer 仅在 confirmed policy 与写入授权允许时生成自包含 `change-archive` 或 `system-guide`；未配置时只返回当前任务结果。项目/provider 文风以 Project Integration 显式绑定一个 template catalog 目录；目录用 `profiles.json` 声明选择规则、`generation_policy`、`document_type`、`primary_purpose`、`primary_question`、`choose_when`、`avoid_when`、`required_topics`、`optional_sections`、版本化 profile 和模板相对 path。Integration 只保存 catalog path kind/path；归档时 AI 读取当前 manifest 选唯一 profile，再只读取并校验该模板。其他模板可独立演进，不使项目绑定失效。禁止扫描文档根或历史正文猜文风。
 

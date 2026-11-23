@@ -4,7 +4,7 @@
 
 本文与仓库根 `AGENTS.md` 并列，是供插件开发与评审阶段的 AI 和 Human 共同读取的顶层设计权威，保存产品入口、流程骨架、Role/Skill 职责和 Core owner。它不复制 Runtime 细节，不随插件发布，也不是任务执行依赖。
 
-本文使用的开发控制面提炼术语与规则见[项目上下文](docs/CONTEXT.md)；其中被多个发布插件消费者共享的术语以[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)为 Runtime Owner；完整定义只在术语合同维护，项目上下文保存链接、使用方与核验方法。项目上下文可以额外拥有仅供插件开发、维护和评审消费的术语，不要求写入发布插件。
+开发文档使用的术语见[项目上下文](docs/CONTEXT.md)。多个发布插件使用的共享术语由[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)完整定义。项目上下文保存定义链接、使用方和核验方法，也可以定义仅供开发、维护和评审使用的术语。此类术语留在开发文档。
 
 ## 根本准则
 
@@ -56,7 +56,7 @@ flowchart TD
     ENTRY -->|"默认评估或显式 using-sacha"| INTAKE{"using-sacha Intake"}
     INTAKE -->|"无入口候选，或 Human 拒绝同一入口候选"| DIRECT["当前任务直接完成"]
     DIRECT -->|"出现改变执行方式的新事实"| INTAKE
-    DIRECT --> CLOSE["结束 / 合法根终态<br/>正常实施：全部阻塞验收满足后自动收口本次 Spec"]
+    DIRECT --> CLOSE["按任务终态结束<br/>正常实施满足全部阻塞验收后，自动完成本次 Spec"]
 
     INTAKE -->|"明确接受 / 核实既有接受事实：已接受"| PLANNER_GATE{"Planner Gate？"}
     INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
@@ -77,14 +77,14 @@ flowchart TD
     NEED_APPROVAL -->|"是"| HUMAN_APPROVAL["Human 审阅 Spec<br/>有可靠迁移信号时推荐迁移，否则推荐当前任务继续"]
     HUMAN_APPROVAL -->|"要求调整"| PLANNER
     HUMAN_APPROVAL -->|"取消或不再继续"| CLOSE
-    HUMAN_APPROVAL -->|"普通批准"| EXECUTOR
-    HUMAN_APPROVAL -->|"明确迁移批准；停止实施和写入派发"| MIGRATION{"满足执行任务迁移前提？"}
+    HUMAN_APPROVAL -->|"批准在当前任务执行"| EXECUTOR
+    HUMAN_APPROVAL -->|"明确批准转到新任务，暂停实施及写入派发"| MIGRATION{"满足任务迁移条件？"}
     MIGRATION -->|"否"| MIGRATION_BLOCKED["报告缺口与恢复条件；主任务不变"]
     MIGRATION_BLOCKED -->|"条件恢复"| MIGRATION
     MIGRATION_BLOCKED -->|"Human 改为普通批准"| EXECUTOR
     MIGRATION_BLOCKED -->|"取消"| CLOSE
     MIGRATION -->|"是"| TRANSFER["唯一目标取得最小 Handoff；Adapter 使其成为主任务；来源主任务结束"]
-    TRANSFER -->|"新目标任务继续同一生命周期"| EXECUTOR
+    TRANSFER -->|"新任务继续实施"| EXECUTOR
 
     ENTRY -->|"显式 Planner"| PLANNER
     ENTRY -->|"显式 Executor"| EXECUTOR
@@ -185,11 +185,11 @@ flowchart TD
     C_CONVERGE -->|当前无法推进| C_BLOCKED["返回具体阻塞与恢复条件"]
     C_DISPATCH -->|条件满足并启动| C_WORK["代理执行；主任务推进其他不冲突工作"]
     C_WORK --> C_EVENT{"当前可行动事实？"}
-    C_EVENT -->|结果已返回| C_CONSUME["消费结果与原始证据：差异、失败、待验项"]
+    C_EVENT -->|结果已返回| C_CONSUME["核对结果和原始证据，确认改动、失败和待验证项"]
     C_EVENT -->|依赖、冲突或失败改变下一步| C_COORD["协调接口、归属与工作包"]
     C_COORD --> C_ARRANGE
     C_EVENT -->|依赖结果且无其他就绪工作| C_WAIT["等待完成回传；到活性核对点仍缺结果时有界查询"]
-    C_WAIT -->|取得新事实| C_EVENT
+    C_WAIT -->|收到新事实| C_EVENT
     C_WAIT -->|仍有有效进展| C_WAIT
     C_WAIT -->|状态不明或无进展| C_RECOVER["核对活动，按证据与停止条件补问、恢复或取消"]
     C_RECOVER -->|可继续| C_WORK
@@ -248,9 +248,9 @@ flowchart TD
 | 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
 | --- | --- | --- | --- | --- |
 | 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct，或提出一次入口候选选择并继续独立事实调查 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
-| 支持节点 | explore | 探索并补齐会改变方案的事实与 Human 决定 | 先查可得事实 → 只问不可推出的决定 → 按 Artifact Protocol 写入必要的探索决定记录 → 返回调用节点 | 显式调用、活跃 Planner 或活跃 Roadmap 调用；目标项目源码、配置、资源与外部状态保持只读，可写探索决定记录，不冻结 Scope |
-| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、Spec 映射、决策前沿、`Unknown` 与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 → 按需明确推荐独立 Sacha Planner 任务 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root；新任务须由 Human 确认创建 |
-| 控制面 | manager | 调用后返回的协调控制面 | 评估/拆分 → 依赖/就绪判定 → 串行或单层派发 → 依赖屏障 wait → 聚合/返回 | 仅主任务 + Gate；不成为委派 Agent、生产 Role 或用户入口 |
+| 支持节点 | explore | 探索并补齐会改变方案的事实与用户决定 | 先查可得事实，只问需要用户决定的问题。按工作记录协议保存必要决定，按需制作和预览独立界面草稿，再将结果交回调用方 | 接受显式调用，也可由活跃 Planner 或 Roadmap 调用。目标项目源码、配置、资源和外部状态保持只读。规划材料按工作记录协议处理，不定稿实施范围 |
+| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、各阶段对应的实施规格、待决定事项、待查明的问题与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 → 按需明确推荐独立 Sacha Planner 任务 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root；新任务须由 Human 确认创建 |
+| 内部协调 | manager | 在主任务内安排工作，并把结果交回调用方 | 评估和拆分工作，核对依赖与可否开始。按需要串行执行或单层派发，等待必需结果，再汇总交回 | 仅由主任务按工作流调用，不作为委派代理、生产角色或用户入口 |
 | 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
 | 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
 | 显式支持/内部收尾 | document-project | 复用项目或内置模板生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，安全新建/更新发布文档和 Roadmap，并可维护 Context | 显式发布文档目标 → path 即本次授权；其他请求 → Project Integration 的 root/策略/授权；随后按文档类型生成或验证正文 → 原子写入 → 验证/报告 | 显式发布文档目标以 preimage 防并发；Roadmap/Context 不绕过 Project Integration；不生成 Roadmap 路线语义，不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
