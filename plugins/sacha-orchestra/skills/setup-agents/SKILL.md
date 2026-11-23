@@ -20,7 +20,7 @@ description: 显式配置 Sacha 官方 Codex 自定义 Agent；普通流程不�
 ## 动作顺序
 
 1. 运行[配置器](scripts/setup_agents.py) `--dry-run`，取得五个目标的 `create | update | no-op | conflict`，以及旧 `sacha-readonly-worker.toml` 的 `remove | no-op | conflict` 计划。
-2. 自动更新或移除只接受 Owner 标记与预期 Agent 身份同时匹配的文件；其他冲突停止整批写入。已退出受管集合的 Luna/K3 文件和旧 `luna-worker*.toml` 保持原状。
+2. 只更新或移除归属标记和预期 Agent 身份都匹配的文件。发现其他冲突时停止整批写入。
 3. 无 `conflict` 时在同一调用中执行 `--write`。配置器重读全部 preimage，校验并替换五个目标，回读成功后移除旧 Researcher 文件；任一步失败都恢复写入前状态。
 4. 写后按完整字节和 Agent 类型回读：固定模型 Agent 匹配模型与强度；能力 Agent 不含固定模型或 `sandbox_mode`，并匹配各自 feature/Skill 降权。
 
@@ -28,7 +28,7 @@ description: 显式配置 Sacha 官方 Codex 自定义 Agent；普通流程不�
 
 - 试运行（`dry-run`）冲突、计划变化或最终结果面向 Human 展示时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
 - 说明实际创建、更新、移除或保留了哪些 Agent 配置，给出涉及的路径和配置验证结果。只完成预检时说明尚未写入。出现冲突或影响使用的警告时，说明受影响项及下一步。需要核对或排障时，引用工具返回的 `action`、`transaction`、`delta` 或 `warning`。只有结果使用方需要核对时才提供 `per-file`、`planned` 或 `installed` 哈希。
-- 分别核对运行证据中的发现（`discovery`）、具名传输选择（`named transport selection`）、`spawn`/`join`、实际模型和推理强度、权限状态与工具面。向 Human 说明证据确认了哪些运行行为、哪些缺口会影响使用。宿主没有遥测时，对应项标为未验证。配置、schema 接受和 Agent 自报各只证明自身。
+- 单纯配置以写后回读为准。本次也要求检查发现或派发时，按 [Codex 适配器的证据要求](../../adapters/codex/runtime-adapter.md#4-进度与证据边界)核对实际运行。分别报告配置结果和有直接证据的运行结果，并说明影响使用的证据缺口。
 
 ## 停止与禁止边界
 
