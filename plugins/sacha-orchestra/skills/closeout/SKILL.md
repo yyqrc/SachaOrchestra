@@ -1,13 +1,13 @@
 ---
 name: closeout
-description: Human 用“收口”原位完成当前唯一 Spec、用“存档”请求项目文档，或要求“收口并存档”时使用；普通正文提及不触发。
+description: 用户明确要求“收口”“存档”或“收口并存档”时使用。收口更新当前唯一 Spec 的完成状态，存档处理项目文档。只讨论或引用这些词语时不执行。
 ---
 
 # Closeout（任务收口）
 
 ## 功能
 
-接收“收口”“存档”“收口并存档”请求，并把动作分别交给 [Artifact Protocol](../../core/artifact-protocol.md) 的 Spec 完成语义和 `document-project`；本 Skill 只拥有预检、顺序和聚合结果，不接管两个内容 Owner。
+接收“收口”“存档”或“收口并存档”请求，先核对条件，再按顺序执行并汇报本次请求涉及的结果。Spec 的完成规则见[工作记录协议](../../core/artifact-protocol.md)，项目文档由 `document-project` 处理。
 
 ## 输入与首查
 

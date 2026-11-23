@@ -90,7 +90,7 @@ flowchart TD
     ENTRY -->|"显式 Executor"| EXECUTOR
     ENTRY -->|"显式 Reviewer"| REVIEWER
     ENTRY -->|"显式 Explore：仅窄授权"| EXPLORE
-    ENTRY -->|"显式 Roadmap：独立规划"| ROADMAP["Roadmap：组织长期阶段 / 依赖 / Spec 映射"]
+    ENTRY -->|"显式 Roadmap：独立规划"| ROADMAP["Roadmap：组织长期阶段、依赖及各阶段对应的实施规格"]
     ROADMAP -->|"事实或决定不足：只读探索"| EXPLORE
     ROADMAP -->|"自包含 Roadmap 就绪"| DOCUMENT
     ENTRY -->|"显式 document-project：当前文档目标"| DOCUMENT

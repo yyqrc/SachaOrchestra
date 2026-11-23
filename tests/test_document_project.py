@@ -27,6 +27,14 @@ else:
     )
 
 
+LEGACY_ROADMAP_TITLES = {
+    "目标与预期结果": "目标与完成形态",
+    "各阶段对应的实施规格": "Spec 映射",
+    "待决定事项": "决策前沿",
+    "待查明的问题": "Unknown",
+}
+
+
 class DocumentProjectTests(ProjectTestCase):
     def test_explicit_target_create_and_update_bypass_project_integration(self) -> None:
         project = self.root / "explicit-target"
@@ -384,6 +392,10 @@ class DocumentProjectTests(ProjectTestCase):
             "## 排除范围\n\n{排除}\n\n## 主要项目位置与依据\n\n{依据}\n",
             encoding="utf-8",
         )
+        legacy_roadmap_topics = [
+            LEGACY_ROADMAP_TITLES.get(heading, heading)
+            for heading in document_generator.ROADMAP_REQUIRED_HEADINGS
+        ]
         profiles = [
             {
                 "id": "rendering-implementation-record-v1",
@@ -416,7 +428,7 @@ class DocumentProjectTests(ProjectTestCase):
                 "primary_question": "长期目标如何分阶段并映射到 Spec",
                 "choose_when": ["需要跨阶段路线"],
                 "avoid_when": ["只需要单个 Spec"],
-                "required_topics": list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+                "required_topics": legacy_roadmap_topics,
                 "optional_sections": ["阅读导航", "修订记录"],
                 "template": roadmap_template.name,
                 "reference_samples": [],
@@ -540,8 +552,12 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual("project-catalog", roadmap_ready["template"]["source"])
         self.assertEqual("project-roadmap-v1", roadmap_ready["template"]["profile"])
         self.assertEqual(
-            list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+            legacy_roadmap_topics,
             roadmap_ready["template"]["required_topics"],
+        )
+        self.assertEqual(
+            list(document_generator.ROADMAP_REQUIRED_HEADINGS),
+            roadmap_ready["parsed"]["sections"],
         )
 
         template_instruction = document_generator.generate_project_document(
@@ -1128,6 +1144,10 @@ class DocumentProjectTests(ProjectTestCase):
         self.assertEqual(("ok", "committed"), (created["status"], created["transaction"]))
         parsed = document_generator.parse_roadmap_document(target.read_bytes())
         self.assertEqual("Depth Fetch 项目路线图", parsed["title"])
+        self.assertIn("目标与预期结果", parsed["sections"])
+        self.assertIn("各阶段对应的实施规格", parsed["sections"])
+        self.assertIn("待决定事项", parsed["sections"])
+        self.assertIn("待查明的问题", parsed["sections"])
         original_hash = digest(target)
 
         updated_markdown = document["rendered_markdown"].replace(
@@ -1157,6 +1177,167 @@ class DocumentProjectTests(ProjectTestCase):
             per_write_confirmed=True,
         )
         self.assertEqual("refused", stale["status"])
+
+    def test_roadmap_update_preserves_final_crlf(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("roadmap-final-crlf")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        body = document["rendered_markdown"].removesuffix("\n").replace("\n", "\r\n")
+        edited = body.replace("尚未形成实施 Spec", "已经形成首个候选 Spec")
+
+        for spaces, ending in (("", "\r\n"), ("", "\r\n\r\n"), ("  ", "\r\n\r\n")):
+            original = body + spaces + ending
+            updated_body = edited + spaces
+            for submitted, expected, transaction in (
+                (original, original, "no_changes"),
+                (body + spaces, original, "no_changes"),
+                (updated_body + "\n", updated_body + ending, "committed"),
+            ):
+                with self.subTest(spaces=spaces, ending=ending, transaction=transaction):
+                    target.write_bytes(original.encode("utf-8"))
+                    result = document_generator.generate_project_document(
+                        project_root=project,
+                        workflow_rule_path="docs/workflow-rule.md",
+                        document_input=self.roadmap_input(
+                            mode="update",
+                            expected_target_sha256=digest(target),
+                            rendered_markdown=submitted,
+                        ),
+                        write=True,
+                        per_write_confirmed=True,
+                    )
+                    self.assertEqual(("ok", transaction), (result["status"], result["transaction"]))
+                    self.assertEqual(expected.encode("utf-8"), target.read_bytes())
+                    self.assertEqual(digest(target), result["sha256"])
+
+    def test_roadmap_create_rejects_legacy_headings(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("create-with-legacy-heading")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        for canonical, old_title in LEGACY_ROADMAP_TITLES.items():
+            with self.subTest(heading=canonical):
+                legacy = document["rendered_markdown"].replace(
+                    f"## {canonical}\n", f"## {old_title}\n", 1
+                )
+                result = document_generator.generate_project_document(
+                    project_root=project,
+                    workflow_rule_path="docs/workflow-rule.md",
+                    document_input=self.roadmap_input(rendered_markdown=legacy),
+                    write=True,
+                    per_write_confirmed=True,
+                )
+                self.assertEqual(("refused", "no_write"), (result["status"], result["transaction"]))
+                self.assertIn(f"roadmap create requires the current heading: {canonical}", result["conflicts"])
+                self.assertFalse(target.exists())
+
+    def test_roadmap_update_preserves_existing_legacy_headings(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("legacy-roadmap")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        legacy = document["rendered_markdown"]
+        for canonical, old_title in LEGACY_ROADMAP_TITLES.items():
+            legacy = legacy.replace(f"## {canonical}\n", f"## {old_title}\n", 1)
+        target.write_bytes(legacy.encode("utf-8"))
+        updated = legacy.replace("尚未形成实施 Spec", "已经形成首个候选 Spec")
+
+        result = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(
+                mode="update",
+                expected_target_sha256=digest(target),
+                rendered_markdown=updated,
+            ),
+            write=True,
+            per_write_confirmed=True,
+        )
+
+        self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
+        self.assertEqual(updated.encode("utf-8"), target.read_bytes())
+        for old_title in LEGACY_ROADMAP_TITLES.values():
+            self.assertIn(old_title, result["parsed"]["sections"])
+
+    def test_roadmap_rejects_both_spellings_of_one_required_heading(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("duplicate-roadmap-heading")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        original = document["rendered_markdown"].encode("utf-8")
+        for canonical, old_title in LEGACY_ROADMAP_TITLES.items():
+            old_headings = (
+                f"## {old_title}", f"## {old_title} ", f"## {old_title} ##", f"  ##\t{old_title} ##",
+            )
+            for old_heading in old_headings:
+                with self.subTest(heading=old_heading):
+                    target.write_bytes(original)
+                    duplicate = document["rendered_markdown"].replace(
+                        f"## {canonical}\n",
+                        f"{old_heading}\n\n已有旧标题。\n\n## {canonical}\n",
+                        1,
+                    )
+                    result = document_generator.generate_project_document(
+                        project_root=project,
+                        workflow_rule_path="docs/workflow-rule.md",
+                        document_input=self.roadmap_input(
+                            mode="update",
+                            expected_target_sha256=digest(target),
+                            rendered_markdown=duplicate,
+                        ),
+                        write=True,
+                        per_write_confirmed=True,
+                    )
+                    self.assertEqual(("refused", "no_write"), (result["status"], result["transaction"]))
+                    self.assertIn(f"roadmap required heading is missing or duplicated: {canonical}", result["conflicts"])
+                    self.assertEqual(original, target.read_bytes())
+
+    def test_roadmap_required_heading_cannot_be_supplied_by_a_code_block(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("roadmap-missing-body-heading")
+        heading = "各阶段对应的实施规格"
+        for name, fence in (("backticks", "````"), ("tildes", "~~~")):
+            with self.subTest(fence=fence):
+                document = self.roadmap_input(output_path=f"2026-08-19-{name}-roadmap.md")
+                target = roadmap_root / document["output_path"]
+                code_block = f"{fence}markdown\n## {heading}\n示例文字。\n{fence}\n"
+                incomplete = document["rendered_markdown"].replace(f"## {heading}\n", code_block, 1)
+                result = document_generator.generate_project_document(
+                    project_root=project,
+                    workflow_rule_path="docs/workflow-rule.md",
+                    document_input={**document, "rendered_markdown": incomplete},
+                    write=True,
+                    per_write_confirmed=True,
+                )
+                self.assertEqual(("refused", "no_write"), (result["status"], result["transaction"]))
+                self.assertIn(f"roadmap required heading is missing or duplicated: {heading}", result["conflicts"])
+                self.assertFalse(target.exists())
+                with self.assertRaises(document_generator.DocumentError):
+                    document_generator.parse_roadmap_document(incomplete.encode("utf-8"))
+
+    def test_roadmap_keeps_code_examples_and_heading_format_on_update(self) -> None:
+        project, roadmap_root = self.configured_roadmap_project("roadmap-with-code-example")
+        document = self.roadmap_input()
+        target = roadmap_root / document["output_path"]
+        legacy = document["rendered_markdown"].replace(
+            "## 各阶段对应的实施规格\n", "  ##\tSpec 映射  ##\n", 1
+        )
+        target.write_bytes(legacy.encode("utf-8"))
+        updated = legacy.replace(
+            "## 当前状态\n",
+            "## 当前状态\n\n````markdown\n# 示例标题\n```\n## 各阶段对应的实施规格\n````\n",
+            1,
+        )
+        result = document_generator.generate_project_document(
+            project_root=project,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=self.roadmap_input(
+                mode="update", expected_target_sha256=digest(target), rendered_markdown=updated
+            ),
+            write=True,
+            per_write_confirmed=True,
+        )
+
+        self.assertEqual(("ok", "committed"), (result["status"], result["transaction"]))
+        self.assertEqual(updated.encode("utf-8"), target.read_bytes())
+        self.assertIn("Spec 映射", result["parsed"]["sections"])
+        self.assertNotIn("各阶段对应的实施规格", result["parsed"]["sections"])
 
     def test_roadmap_rejects_missing_root_and_invalid_path(self) -> None:
         project = self.root / "roadmap-missing-root"

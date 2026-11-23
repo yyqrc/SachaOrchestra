@@ -10,6 +10,14 @@
   "generation_policy": {
     "minimum_section_count": 0,
     "minimum_word_count": 0,
+    "structure_rule": "按项目目标、阶段和依赖组织正文。",
+    "required_topics_rule": "逐项覆盖必需主题。",
+    "optional_sections_rule": "有实质内容时保留可选章节。",
+    "section_admission_test": ["是否回答独立问题", "是否包含独立事实", "删除是否损失信息"],
+    "section_admission_rule": "未通过时合并或删除。",
+    "compression_rule": "合并重复内容。",
+    "navigation_rule": "长文可加入阅读导航。",
+    "revision_history_rule": "新文档省略空修订记录。",
     "output_gate": [
       "不得残留占位符、模板说明或空章节",
       "最终 Roadmap 必须脱离 Sacha 与原对话独立成立"
@@ -23,7 +31,7 @@
       "primary_question": "长期目标如何分阶段并映射到 Spec",
       "choose_when": ["需要跨阶段项目路线"],
       "avoid_when": ["只需要单个可执行 Spec"],
-      "required_topics": ["目标与完成形态", "当前状态", "路线原则", "阶段路线", "Spec 映射", "决策前沿", "Unknown", "排除范围", "主要项目位置与依据"],
+      "required_topics": ["目标与预期结果", "当前状态", "路线原则", "阶段路线", "各阶段对应的实施规格", "待决定事项", "待查明的问题", "排除范围", "主要项目位置与依据"],
       "optional_sections": ["阅读导航", "修订记录"],
       "template": "roadmap-project-roadmap-v1.md"
     }

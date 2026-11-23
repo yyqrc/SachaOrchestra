@@ -53,16 +53,22 @@ ROADMAP_FILE_NAME = re.compile(
 )
 ROADMAP_FILE_PATTERN = "<YYYY-MM-DD>-<short-slug>-roadmap.md"
 ROADMAP_REQUIRED_HEADINGS = (
-    "目标与完成形态",
+    "目标与预期结果",
     "当前状态",
     "路线原则",
     "阶段路线",
-    "Spec 映射",
-    "决策前沿",
-    "Unknown",
+    "各阶段对应的实施规格",
+    "待决定事项",
+    "待查明的问题",
     "排除范围",
     "主要项目位置与依据",
 )
+LEGACY_ROADMAP_HEADINGS = {
+    "目标与完成形态": "目标与预期结果",
+    "Spec 映射": "各阶段对应的实施规格",
+    "决策前沿": "待决定事项",
+    "Unknown": "待查明的问题",
+}
 BUNDLED_REQUIRED_TOPICS = {
     "change-archive": ("背景或触发原因", "目标", "实际结果与范围", "关键约束或根因", "验证结论与未验证边界"),
     "system-guide": ("系统用途与边界", "主数据流或执行流", "权威基准", "当前限制或验证边界"),
@@ -789,7 +795,7 @@ def _parse_roadmap_input(value: dict[str, Any]) -> dict[str, Any]:
             None if expected_hash is None else expected_hash.upper()
         ),
         "template_profile": profile,
-        "rendered_markdown": rendered.strip() + "\n",
+        "rendered_markdown": rendered,
     }
 
 
@@ -998,24 +1004,48 @@ def render_document(
     raise DocumentError("unsupported publication document type")
 
 
+def _roadmap_heading_matches(text: str) -> list[re.Match[str]]:
+    """Find the roadmap's ATX headings, excluding fenced code examples."""
+    lines = re.finditer(
+        r"(?m)^ {0,3}(?:(?P<fence>`{3,}|~{3,})|(?P<heading>#{1,6})(?=[ \t\r\n]|$))"
+        r"(?P<rest>[^\r\n]*)",
+        text,
+    )
+    headings: list[re.Match[str]] = []
+    open_fence = None
+    for line in lines:
+        marker = line["fence"]
+        rest = line["rest"]
+        if marker is not None:
+            if open_fence is not None:
+                if marker.startswith(open_fence) and not rest.strip(" \t"):
+                    open_fence = None
+            elif marker.startswith("~") or "`" not in rest:
+                open_fence = marker
+        elif open_fence is None:
+            headings.append(line)
+    return headings
+
+
 def render_profile_document(
     document: dict[str, Any],
     template: dict[str, Any],
 ) -> bytes:
     text = str(document["rendered_markdown"])
-    forbidden_references = (
-        ROADMAP_FORBIDDEN_REFERENCES
-        if document["document_type"] == "roadmap"
-        else INTERNAL_REFERENCES
-    )
+    is_roadmap = document["document_type"] == "roadmap"
+    forbidden_references = ROADMAP_FORBIDDEN_REFERENCES if is_roadmap else INTERNAL_REFERENCES
     for pattern in forbidden_references:
         if pattern.search(text):
             raise DocumentError("rendered_markdown contains an internal or machine-local reference")
-    generated_headings = tuple(re.findall(r"(?m)^(#{1,6}) ([^\r\n]+)\r?$", text))
+    heading_matches = (
+        _roadmap_heading_matches(text)
+        if is_roadmap
+        else list(re.finditer(r"(?m)^(?P<heading>#{1,6})(?P<rest> [^\r\n]+)\r?$", text))
+    )
     if (
-        not generated_headings
-        or generated_headings[0][0] != "#"
-        or generated_headings[0][1] != document["title"]
+        not heading_matches
+        or heading_matches[0]["heading"] != "#"
+        or heading_matches[0]["rest"][1:] != document["title"]
     ):
         raise DocumentError("rendered_markdown title must equal title")
     if "<!--" in text or "-->" in text or "生成说明" in text:
@@ -1024,12 +1054,11 @@ def render_profile_document(
     unresolved = sorted(placeholder for placeholder in placeholders if placeholder in text)
     if unresolved:
         raise DocumentError("rendered_markdown still contains template placeholders")
-    heading_matches = list(re.finditer(r"(?m)^(#{1,6}) [^\r\n]+\r?$", text))
     for index, match in enumerate(heading_matches):
-        level = len(match.group(1))
+        level = len(match["heading"])
         section_end = len(text)
         for following in heading_matches[index + 1:]:
-            if len(following.group(1)) <= level:
+            if len(following["heading"]) <= level:
                 section_end = following.start()
                 break
         section_body = text[match.end():section_end]
@@ -1044,62 +1073,66 @@ def render_profile_document(
 
 
 def render_roadmap_document(document: dict[str, Any]) -> bytes:
-    text = str(document["rendered_markdown"])
-    for pattern in ROADMAP_FORBIDDEN_REFERENCES:
-        if pattern.search(text):
-            raise DocumentError("roadmap contains a Sacha-internal reference")
-    title_match = re.match(r"\A# ([^\r\n]+)\r?\n", text)
-    if (
-        title_match is None
-        or title_match.group(1) != document["title"]
-        or len(re.findall(r"(?m)^# ", text)) != 1
-    ):
-        raise DocumentError("roadmap must have exactly one title matching title")
-    if "<!--" in text or "-->" in text or "{{" in text or "}}" in text:
-        raise DocumentError("roadmap contains comments or unresolved placeholders")
-    headings = re.findall(r"(?m)^## ([^\r\n]+)\r?$", text)
-    positions: list[int] = []
-    for heading in ROADMAP_REQUIRED_HEADINGS:
-        if headings.count(heading) != 1:
-            raise DocumentError(f"roadmap required heading is missing or duplicated: {heading}")
-        positions.append(headings.index(heading))
-    if positions != sorted(positions):
-        raise DocumentError("roadmap required headings are out of order")
-    heading_matches = list(re.finditer(r"(?m)^## ([^\r\n]+)\r?$", text))
-    for index, match in enumerate(heading_matches):
-        section_end = (
-            heading_matches[index + 1].start()
-            if index + 1 < len(heading_matches)
-            else len(text)
-        )
-        if not text[match.end() : section_end].strip():
-            raise DocumentError(
-                f"roadmap heading has no substantive content: {match.group(1)}"
-            )
-    data = text.encode("utf-8")
-    if len(data) > MAX_DOCUMENT_BYTES:
-        raise DocumentError(f"roadmap exceeds {MAX_DOCUMENT_BYTES} bytes")
+    data = str(document["rendered_markdown"]).encode("utf-8")
+    parse_roadmap_document(
+        data, expected_title=document["title"], creating=document.get("mode") == "create"
+    )
     return data
 
 
-def parse_roadmap_document(data: bytes) -> dict[str, Any]:
+def parse_roadmap_document(
+    data: bytes, *, expected_title: str | None = None, creating: bool = False
+) -> dict[str, Any]:
+    if len(data) > MAX_DOCUMENT_BYTES:
+        raise DocumentError(f"roadmap exceeds {MAX_DOCUMENT_BYTES} bytes")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise DocumentError("roadmap must be UTF-8") from exc
+    for pattern in ROADMAP_FORBIDDEN_REFERENCES:
+        if pattern.search(text):
+            raise DocumentError("roadmap contains a Sacha-internal reference")
     title_match = re.match(r"\A# ([^\r\n]+)\r?\n", text)
     if title_match is None:
         raise DocumentError("roadmap title is missing")
-    document = {
-        "title": title_match.group(1),
-        "rendered_markdown": text,
-    }
-    generated = render_roadmap_document(document)
-    if generated != data:
-        raise DocumentError("roadmap normalization changed generated bytes")
+    title = title_match.group(1)
+    heading_matches = _roadmap_heading_matches(text)
+    if (
+        (expected_title is not None and title != expected_title)
+        or sum(match["heading"] == "#" for match in heading_matches) != 1
+    ):
+        raise DocumentError("roadmap must have exactly one title matching title")
+    if "<!--" in text or "-->" in text or "{{" in text or "}}" in text:
+        raise DocumentError("roadmap contains comments or unresolved placeholders")
+    section_matches = [match for match in heading_matches if match["heading"] == "##"]
+    supplied_headings = [
+        re.sub(r"[ \t]+#+[ \t]*\Z", "", match["rest"]).strip(" \t")
+        for match in section_matches
+    ]
+    # Compare heading names without rewriting the original Markdown.
+    headings = [LEGACY_ROADMAP_HEADINGS.get(heading, heading) for heading in supplied_headings]
+    positions: list[int] = []
+    for heading in ROADMAP_REQUIRED_HEADINGS:
+        if headings.count(heading) != 1:
+            raise DocumentError(f"roadmap required heading is missing or duplicated: {heading}")
+        if creating and heading not in supplied_headings:
+            raise DocumentError(f"roadmap create requires the current heading: {heading}")
+        positions.append(headings.index(heading))
+    if positions != sorted(positions):
+        raise DocumentError("roadmap required headings are out of order")
+    for index, match in enumerate(section_matches):
+        section_end = (
+            section_matches[index + 1].start()
+            if index + 1 < len(section_matches)
+            else len(text)
+        )
+        if not text[match.end() : section_end].strip():
+            raise DocumentError(
+                f"roadmap heading has no substantive content: {supplied_headings[index]}"
+            )
     return {
-        "title": title_match.group(1),
-        "sections": re.findall(r"(?m)^## ([^\r\n]+)\r?$", text),
+        "title": title,
+        "sections": supplied_headings,
     }
 
 
@@ -1525,6 +1558,14 @@ def generate_project_document(
                 mode=document["mode"],
                 expected_sha256=document["expected_target_sha256"],
             )
+            rendered = document["rendered_markdown"]
+            if original is not None and original.endswith(b"\r\n"):
+                ending_start = len(original.rstrip(b"\r\n"))
+                line_breaks = original[ending_start:].decode("ascii")
+                # Preserve spaces on the last content line as well as the original line breaks.
+                document["rendered_markdown"] = rendered.lstrip().rstrip("\r\n") + line_breaks
+            else:
+                document["rendered_markdown"] = rendered.strip() + "\n"
             document_template = _resolve_profile_template(
                 project,
                 documentation,

@@ -13,9 +13,9 @@ Codex 先根据 `$sacha-orchestra:using-sacha` 的简短说明判断任务是否
 ## 显式入口
 
 - 高级入口：`planner`、`executor`、`reviewer`；显式 `explore` 保持窄授权，目标项目生产源码、配置、资源与外部状态只读，可按 [Artifact Protocol](core/artifact-protocol.md) 写探索决定记录，以及制作、预览独立界面草稿。
-- `roadmap` 是主流程外显式规划入口：按需复用 Explore，生成可脱离 Sacha 独立理解的长期项目路线图，并通过 `document-project` 写入 Project Integration 配置的 Roadmap root；不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须明确推荐 Sacha Planner 任务；Human 确认创建后，目标任务从显式 Planner 入口开始且不继承 Roadmap 授权。
+- 明确调用 `roadmap` 可编写长期项目路线图，必要时用 `explore` 补齐事实。路线图应能独立阅读和使用，由 `document-project` 保存到项目配置指定的路线图目录。创建或实施规格由你另行发起。若建议另开任务写完整实施规格，会明确推荐 Sacha Planner 任务。你确认创建后，新任务从 `planner` 入口开始，本次路线图的授权仅适用于原任务。
 - `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 即本次写入授权，可按模板新建或原位更新且不要求 Project Integration；其他请求继续服从项目策略。不接受 Sacha、不补走生产 Role。
-- `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求：收口只原位完成当前唯一 Spec，存档只映射 `document-project`，组合动作先收口再存档；只讨论或引用这些词语不执行动作。
+- `closeout` 处理用户明确要求的「收口」「存档」或「收口并存档」。「收口」在满足完成条件后，把本次唯一获批的实施规格标为「已完成」，只更新原文件的状态行。「存档」通过 `document-project` 归档项目文档。「收口并存档」先标记完成，再归档。只讨论或引用这些词语时，不执行这些动作。
 - `feedback` 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。来源任务交付唯一目标任务 reference 后结束，目标任务按普通任务重新判断。
 - Manager 只接受内部 Gate 路由，不是用户入口。
 - `setup-project`、`setup-agents` 是主流程外显式配置能力，不属于 workflow 入口。

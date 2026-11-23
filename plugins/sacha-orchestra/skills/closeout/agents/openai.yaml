@@ -1,7 +1,7 @@
 interface:
-  display_name: "Sacha Orchestra Closeout（收口）"
-  short_description: "通过短命令完成当前唯一 Spec，并可继续生成项目文档"
-  default_prompt: "使用 $sacha-orchestra:closeout 处理“收口”“存档”或“收口并存档”。"
+  display_name: "Sacha Orchestra 完成实施规格与归档项目文档"
+  short_description: "核对条件后将本次实施规格标记为完成，也可单独归档项目文档"
+  default_prompt: "使用 $sacha-orchestra:closeout 处理我指定的收口、存档或收口并存档。收口会将本次实施规格标记为完成，存档会归档项目文档。"
 
 policy:
   allow_implicit_invocation: false

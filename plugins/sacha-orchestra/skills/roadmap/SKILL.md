@@ -1,32 +1,32 @@
 ---
 name: roadmap
-description: Human 显式要求生成、整理或更新跨阶段项目 Roadmap 时使用；单个可执行 Scope、Spec 起草或当前任务实施不用，不接受 Sacha、不进入生产 Role。
+description: 用户明确要求编写或更新跨阶段项目路线图时使用。路线图组织长期目标、阶段和依赖。单项实施或起草实施规格按对应入口处理。
 ---
 
 # Roadmap（项目路线图）
 
 ## 功能
 
-作为主流程外独立规划环节，按需复用 Explore 补齐事实与 Human 决定，把项目长期目标组织为可独立理解的阶段、依赖、完成信号和 Spec 映射，再复用 document-project 写入 Project Integration 配置的 Roadmap root。
+独立编写项目路线图。按需用 Explore 补齐事实和用户决定，说明长期目标、阶段、依赖、完成信号及各阶段对应的实施规格。通过 document-project 写入项目接入配置指定的路线图目录。
 
 ## 输入与首查
 
 1. 只接受 Human 显式 Roadmap 请求；调用不接受 Sacha，不进入 Planner、Executor、Reviewer 或正常收尾候选。向 Human 提问、确认写入或报告结果前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-2. 先读项目规则、当前 Project Integration、项目事实、现有正式文档和相关 Spec。Project Integration 必须提供唯一 Roadmap root 与 Roadmap 文件模式；缺失时报告需要由 `setup-project` 配置的明确输入并停止，不自行调用 Setup，也不回退工作区默认目录。Project Integration 绑定 template catalog 时，按 `document_type=roadmap` 选择唯一最高相关 Profile；没有绑定时使用插件内 `canonical-roadmap-v1`。
+2. 先读项目规则、当前项目接入配置、项目事实、现有正式文档和相关 Spec。接入配置须给出唯一的路线图目录和文件模式。缺失时说明 `setup-project` 需要的具体输入，暂停当前工作，不自行配置或回退到工作区默认目录。已绑定模板目录时，按 `document_type=roadmap` 选择唯一最贴合的 Profile。否则使用内置 `canonical-roadmap-v1`。
 3. 更新既有 Roadmap 时从 Human 输入或当前任务可达 reference 取得唯一文件 `path`，核对它位于 Roadmap root；不得扫描 root 按日期或名称猜测最新文件。新建时根据 Human 目标确定简短稳定 slug，按 Project Integration 的 Roadmap 文件模式生成文件名；日期使用首次创建日，后续更新保持 path 不变。
 4. 事实、目标边界或实质决定不足时调用 `$sacha-orchestra:explore`；Roadmap 的显式请求只授权同一目标内的 Explore 读取目标项目源码、配置、资源与外部状态，并按 [Artifact Protocol](../../core/artifact-protocol.md) 创建或更新探索决定记录，以及制作、预览独立界面草稿，结果返回 Roadmap。Explore 需要除此以外的新写入、实施、Scope 或高影响授权时停止受影响部分并交 Human 决定。
 
 ## 动作顺序
 
-1. 按 [Workflow Contract 的运行原则](../../core/workflow-contract.md#2-运行原则)选择阶段与工作面，从项目来源和 Human 决定确定目标与完成形态、当前状态、适用范围、排除范围和稳定约束；Roadmap 不自行定义项目事实或改变 Scope。
-2. 按需消费 Explore 返回的已核实事实、Human 决定、冲突、阻塞项、`Unknown` 和证据 reference。只把能够精确陈述且依赖可判断的内容组织为阶段或决策前沿；尚不能准确表述的内容留在 `Unknown`，不伪造阶段、日期或 Spec。
-3. 每个阶段按项目语义写清名称、目标结果、范围、必要工作和完成信号；进入条件、依赖、风险/`Unknown` 和 Spec 映射仅记录已有依据且影响阶段安排的内容，不为补齐这些项目展开调查或设计。阶段顺序由依赖与目标结果决定；没有真实排期来源时不得编造季度、月份、工期或承诺日期。
+1. 按[工作流合同的运行原则](../../core/workflow-contract.md#2-运行原则)划分阶段和主要工作。根据项目来源与用户决定明确目标、预期结果、当前状态、适用范围、排除范围和稳定约束。路线图不得自行定义项目事实或改变范围。
+2. 使用 Explore 返回的已核实事实、用户决定、冲突、阻塞、未知问题和证据引用。内容能准确陈述且依赖可判断时，才组织成阶段，或将会改变路线、尚未作出的决定写入「待决定事项」。事实不足、暂时还说不清的问题，写入「待查明的问题」。不得据此编造阶段、日期或 Spec。
+3. 每个阶段按项目语义写清名称、目标结果、范围、必要工作和完成信号。进入条件、依赖、风险、待查明的问题和对应的实施规格，只记录已有依据且影响阶段安排的内容。不得为填写这些内容扩大调查或设计。阶段顺序由依赖与目标结果决定。日期和工期须有实际排期依据。
 4. Roadmap 不强制阶段与 Spec 一一对应：一个阶段可对应一个 Spec，多个阶段也可按共同目标结果、Owner、验收和回退边界归入同一 Spec。只因阶段相邻不足以合并；已有 Spec 使用精确 path，尚未形成的分组明确标为候选，不创建 `spec.md` 或替 Planner 冻结实施方案。
-5. 正文必须包含“目标与完成形态”“当前状态”“路线原则”“阶段路线”“Spec 映射”“决策前沿”“Unknown”“排除范围”“主要项目位置与依据”；没有对应事项时写明“当前无”，不得删除这些必需标题。其他扩展章节没有实质内容时不保留。一个事实只写一次，正文保留独立理解必需的项目语义，详细实现和证据通过可达 path/reference 指向 Owner。
+5. 正文必须包含「目标与预期结果」「当前状态」「路线原则」「阶段路线」「各阶段对应的实施规格」「待决定事项」「待查明的问题」「排除范围」「主要项目位置与依据」。没有事项的必需章节写「当前无」，有实质内容时再加其他章节。新建使用上述标题。更新旧路线图时，可以保留原有的「目标与完成形态」「Spec 映射」「决策前沿」或「Unknown」，并按获授权的编辑范围决定是否改名。同一主题只用一个标题。正文只写一次独立理解所需的项目事实，详细实现和证据给出可达引用。
 6. Roadmap 面向项目 Human 与 Agent：移除 Sacha 上下文后仍须理解目标、阶段、依赖、完成信号和 Spec 分组。正文不得写 Sacha Role、Gate、Skill 调用、task/thread ID、Adapter、Handoff、内部路由或“返回某节点”等流程信息。
-7. 读取选中的 Roadmap Profile/template 取得文风、章节组织和 generation policy；Profile 不得改变或省略第 5 步的必需语义。再读取 [Roadmap 文档输入](../document-project/assets/roadmap.json)，填充 `template_profile`、完整正文、document type `roadmap`、目标 path 和 create/update 意图后交给 `$sacha-orchestra:document-project`。document-project 按 Project Integration 的 Roadmap root 执行 dry-run、写入授权、Profile/template SHA-256、preimage、原子创建/更新、并发检查和回读验证；Roadmap 不绕过该 Skill 直接写文件。
+7. 读取选中的 Profile 和模板以确定文风、结构和生成规则，保留第 5 步的必需语义。按[路线图文档输入](../document-project/assets/roadmap.json)提供 `template_profile`、完整正文、类型 `roadmap`、目标路径和 `create | update`，更新时提供原文件哈希。把输入交给 [document-project](../document-project/SKILL.md) 处理授权、并发、写入和回读。路线图只通过该技能写入。
 8. document-project 返回后核对实际 path、transaction、验证、冲突和未验证项；写入失败时保留完整自包含正文及恢复条件，不把 draft 宣称为已持久化 Roadmap。
-9. Roadmap 完成后，只有某个候选 Spec 已有明确目标、来源与后续消费者，且独立任务会实质改善完整 Spec 的澄清、持久化或恢复时，才按 Workflow Contract 推荐另开任务。推荐必须明确写成 Sacha Planner 任务，并按 Human Interaction Contract 说明先澄清再形成完整 Spec、创建用户任务的影响以及不包含实施授权；Human 确认创建后，才把 Roadmap path、目标/Scope、已确认决定、未决项和“使用 Sacha Planner”交给目标 Runtime Adapter。不得只推荐普通 Codex 任务后让目标重新猜测入口。
+9. 路线图完成后，候选 Spec 已有明确目标、来源和后续使用方，并且另开任务能实质改善澄清、保存或恢复时，才按工作流合同推荐另开 Sacha Planner 任务。告诉用户新任务会先澄清再形成完整 Spec，以及创建任务的影响和实施另需授权。用户确认创建后，把路线图路径、目标和范围、已确认决定、未决项及明确的“使用 Sacha Planner”请求交给目标宿主的适配器。
 
 ## 输出
 
