@@ -80,7 +80,7 @@ Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter �
 
 主任务只选择当前工具目录中已装配且质量满足要求的 surface，不把 Core route requirement 改写成目标 Runtime 不支持的逐调用字段。高风险 Planner、Executor 或独立 Reviewer 若继承 route 无法满足既定质量或独立性要求，停止该单元，不通过改名、fork、另一个 Role surface或自报模型降级。
 
-配置中的 `agentOptions`、child descriptor、child `request/header.config` 与实际 `assistant/message.source` 分别只证明声明、请求和实际 provider/model；reasoning 只有 request header 或可绑定 Runtime 遥测明确返回时才记录。配置和 Agent 自报不构成实际模型证据。
+配置中的 `agentOptions` 说明部署声明。`subagent/descriptor` 标识当前会话属于子代理，并记录运行模式，`provider` 标识创建子代理的委派提供方（例如 `spawn`）。continuable 描述符中可选的 `agentProvider`、`agentModel` 及版本支持的 `agentReasoningEffort` 属于恢复使用的配置声明。请求配置以子代理 `request/header` 的 `config` 为据。实际提供方和模型以对应 `assistant/message` 的 `source` 中 `provider`、`model` 为据。推理强度只记录请求头或可关联到该次调用的 Runtime 遥测明确返回的值，并区分请求值与实际值。配置和 Agent 自报不能证明实际模型。
 
 ## 5. 派发、并发、barrier 与返回
 

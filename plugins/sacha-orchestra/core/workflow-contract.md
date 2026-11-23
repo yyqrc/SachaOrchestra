@@ -21,7 +21,7 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 主任务推进到根终态并独占 Manager 与派发；委派 Agent 的完成结果和协调请求只是中间结果。
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
-- 所有任务使用同一通用生命周期；新增特殊目标、隐藏旁路或额外生命周期前，必须向 Human 提交真实失败模式、现有路由缺口与影响并取得明确批准。
+- 所有任务沿用同一通用生命周期。处理特殊目标需要调整流程时，先向 Human 说明真实失败模式、现有路由缺口和拟议改动的影响，取得明确批准后调整通用流程。禁止新增隐藏阶段、旁路或第二套生命周期。
 - 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。Roadmap 完成后若建议为一个候选 Spec 另开任务，必须先按 Human Interaction Contract 明确说明这是 Sacha Planner 任务及其执行影响；只有 Human 确认创建后，Runtime Adapter 才创建新任务并把显式 Planner 请求写入初始输入。
 - 无需规划、协调或独立评审时，Executor 直接实施并验证。委派、交接或恢复需要时加载 Coordination 与目标 Runtime Adapter；验收分类或记录有实际消费者时加载 Assurance 或 Artifact 的对应内容。
 

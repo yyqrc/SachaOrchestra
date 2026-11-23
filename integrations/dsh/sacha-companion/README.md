@@ -21,7 +21,7 @@ Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation �
 
 阶段由**耐久会话事件**推导，不解析人类消息措辞：
 
-- 晋升信号是 Runtime 自己写入的首个 `tool/call` **或** `assistant/message`，两者先到者生效。模型发出第一个工具调用或第一条回复，就证明它已经理解任务，工具面随即打开，不需要任何人去读用户那句话想表达什么。
+- DSH 运行时写入的首个符合条件的 `tool/call` 或 `assistant/message` 是自动切换信号。两类事件以先出现的为准，会话由 `bootstrap` 切换到 `resident` 并开放该阶段的工具集。
 - 本包自身的控制调用不参与晋升。`sacha_tools` 始终可见，若把它计入，一次 `status` 查询、一次单工具 `unlock`，甚至模型主动收窄到 `bootstrap` 本身，都会被误判为"开始干活"。
 - 上下文压缩只追加一条遮蔽用的 `user/message`，原始事件仍留在耐久日志中，因此**压缩后阶段与工具面保持不变**，模型不会在任务中途突然失去 write/shell/委派能力。恢复路径与运行路径都从同一份事件推导，两者不会分歧。
 - 模型可随时用 `sacha_tools` 的 `phase` 动作显式切换阶段（见下），这是分类之外的**自救路径**；一旦显式切换，自动晋升不再覆盖该选择。

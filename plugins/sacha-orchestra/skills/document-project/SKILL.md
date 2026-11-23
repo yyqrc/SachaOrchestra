@@ -13,7 +13,7 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
 
 1. 先识别入口，再决定是否需要 Project Integration：
    - Human 显式调用并提供显式发布文档目标时，当前请求直接形成 `human-request` 输入；沿用 Intake Contract 的写入授权，不读取 Project Integration；调用方提供 `create | update`，update 时读取当前文件并提供 `expected_target_sha256`；
-   - Human 显式调用但未指定目标时，当前文档请求直接形成输入并读取已确认的 Project Integration；只处理该文档目标，不接受 Sacha、不补走生产 Role，也不要求先存在收尾候选；
+   - Human 显式调用但请求不符合「显式发布文档目标」的定义时，直接受理当前文档请求，并按已确认的 Project Integration 处理。只处理该文档目标，不接受 Sacha、不补走生产 Role，也不要求先存在收尾候选；
    - Roadmap 调用时只接受其已形成的完整自包含正文、唯一目标 path、`create | update` 与 update preimage；不重新划分阶段、依赖或 Spec 映射；
    - `closeout` 把“存档”或组合动作的文档分支映射为 `human-request` 时，按同一显式请求处理；不读取、完成或替代 Spec；
    - Workflow 路由时，入口必须是收尾候选成立后的主任务；候选检查只使用当前任务最终事实；`disabled` 或无配置时静默跳过。
@@ -28,20 +28,20 @@ description: Human 提供显式发布文档目标并要求按模板新建或更�
 
 1. `change-archive`、`system-guide` 或 `roadmap` 使用模板目录（template catalog）时读取当前 `profiles.json`；显式发布文档目标由调用方提供项目内 template catalog path，其他模式从 Project Integration 取得绑定：
    - 按 `document_type` 过滤，再用 `primary_purpose`、`primary_question`、`choose_when`、`avoid_when` 选择唯一最高相关 Profile。
-   - 选定后只读取并校验该 Profile 的 `template`；正文覆盖 `required_topics`，可按 `generation_policy` 删除、合并、改名或重排可选章节。
+   - 选定后只读取并校验该 Profile 的 `template`。正文覆盖 `required_topics`。在本次获授权的编辑范围内，可按 `generation_policy` 删除、合并、改名或重排可选章节。局部更新时，保留范围外的原文和结构。
    - Profile 并列或主要意图不清时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，向 Human 展示候选差异并请求选择。
    - 未绑定模板目录时按文档类型使用插件内 `canonical-change-archive-v1`、`canonical-system-guide-v1` 或 `canonical-roadmap-v1` 内置模板。
 2. `project-context` 使用最终 Spec、真实证据、Review 和现有 `CONTEXT.md` 复核当前任务候选，不使用模板目录。
 3. `roadmap` 读取并消费 [Roadmap 文档输入](assets/roadmap.json)，校验所选 Roadmap Profile/template、标题、九个必需语义章节、唯一文件名、Roadmap root 包含关系、`create | update` 与 `expected_target_sha256`；Profile 只提供文风和章节组织，正文语义仍由 Roadmap Skill 拥有。
-4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner，正文描述当前项目状态而不叙述任务过程、Review 编舞或 Sacha 路由；每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
+4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner。正文说明项目当前状态。任务执行过程、评审步骤和 Sacha 内部流转留在相应的任务记录中，是否保存按各自规则判断。每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
 5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。预览检查策略、trigger、目标、原像和结构，返回既有目标与摘要字段；本次写入授权及已有 Context 定义覆盖确认只在 `--write` 时检查。显式发布文档目标输入包含项目相对 `target_path`、`create | update`、update preimage、可选项目相对 template catalog path、Profile 与完整正文。
 6. 显式发布文档目标试运行通过后增加 `--write`；`required-at-closeout + bounded-closeout` 覆盖当前持久变更时直接写入；其他显式调用、`on-request`、`per-write-confirmation` 或 Roadmap create/update 仍核对本次写入授权，满足后增加 `--per-write-confirmed --write`。目标、正文或计划 path 超出已确认写入范围时重新确认；当前请求已明确覆盖同一次具体写入时直接消费，不因参数名再次提问。
-7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式再次完整校验当前 manifest，并比较所选 Profile 的完整结构、选中模板的 SHA-256 与 `generation_policy`；其他 Profile 的合法变化或 JSON 排版变化不构成选中模板冲突。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。
+7. 显式发布文档目标校验项目 root 包含关系、mode、结构、preimage 与 path；其他模式校验 Integration、授权和配置 root。模板目录模式再次完整校验当前 manifest，并比较所选 Profile 的完整结构、选中模板的 SHA-256 与 `generation_policy`；其他 Profile 的合法变化或 JSON 排版变化不构成选中模板冲突。正文必须清除占位符和模板作者说明，只保留有实质内容的标题。局部更新因编辑范围外的原文或结构无法通过整篇校验时，保留原文并暂停写入。说明具体位置和原因，请用户决定是否扩大编辑范围。
 8. 发布文档和 Roadmap 按明确 mode 写入，Context 只更新受管区。新建只占用空缺路径。更新已有文件时用支持保留被替换版本的系统操作，核对实际被替换的内容；系统不支持时停止更新。若替换时发现并发保存，恢复该版本并报告冲突。写后验证失败时仅撤回本次内容；恢复期间再遇变动或无法安全还原时，报告 `partial_write`、目标与可用恢复位置，保留冲突版本。
 
 ## 输出
 
-- 向 Human 提问、确认或报告结果时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)；报告文档类型、目标 path、`transaction`、验证与限制。
+- 向 Human 提问、确认或报告结果时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。先说明哪类文档已新建、已更新、无需改动或写入失败，并给出目标路径。只完成预检时说明尚未写入。把影响使用的验证结果和限制放在对应结果旁。发生冲突、回滚或部分写入时，说明文件的实际状态及可用的恢复入口。需要核对写入状态或排障时，引用工具返回的 `transaction`。
 - SHA-256 只在并发 preimage、恢复或 Human 明确需要内容指纹时展示。
 - 未满足事实、消费者或授权条件的候选，以及发生冲突的候选，保留在任务记录。
 

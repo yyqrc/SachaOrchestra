@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: 显式 Reviewer，或已接受 Sacha 且 Reviewer Gate 打开/重审时使用；独立核对 Scope、实现与证据。未 Intake、无 Gate 或参与实现者不得独立裁决。
+description: 用户直接调用 Reviewer 时按入口合同进入。自动路由须已接受 Sacha，并且工作流已打开 Reviewer Gate 或已进入重审。独立核对 Scope、实现与证据，参与当前方案或实现的上下文只做自检。
 ---
 
 # Reviewer（复核）

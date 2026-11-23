@@ -10,7 +10,7 @@ Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)�
 ## 2. Baseline 与证据
 
 正式 Review 维护一个实现 Baseline。Git 使用可解析的 commit/range/diff/文件集；其他状态才补 manifest/hash。
-Baseline/`acceptance_revision` 变化后需对当前交付形成裁决；复核新增差异、直接影响及因此失效的证据，仍有效的检查可复用。仅证据变更只复核 `changed_check_ids`，Review 记录只追加。
+Baseline/`acceptance_revision` 变化后需对当前交付形成裁决；复核新增差异、直接影响及因此失效的证据，仍有效的检查可复用。如果变化仅涉及证据，复核范围限于 `changed_check_ids` 对应的检查。评审记录保留既有条目，并追加本轮结果。
 
 验收矩阵使用稳定的 `check_id`。摘要保留 Scope/修订号、必需/已尝试状态、结果、reference、风险、恢复入口、人工状态与计数。
 人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、过期、不可达或计数不一致时保持未验证；Provider、报告和自报不拥有裁决权。

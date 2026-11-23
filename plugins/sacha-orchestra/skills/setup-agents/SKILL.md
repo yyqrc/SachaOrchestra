@@ -27,8 +27,8 @@ description: 显式配置 Sacha 官方 Codex 自定义 Agent；普通流程不�
 ## 输出
 
 - 试运行（`dry-run`）冲突、计划变化或最终结果面向 Human 展示时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-- 返回 `action`、`transaction`、目标 path、`delta`、`warning` 和配置层验证；省略无消费者的 `per-file`/`planned`/`installed` hash。
-- Runtime 证据分别报告发现（`discovery`）、具名传输选择（`named transport selection`）、`spawn`/`join`、实际模型/推理强度、权限状态与工具面；配置、schema 接受和 Agent 自报只证明自身，宿主无遥测时标记未验证。
+- 说明实际创建、更新、移除或保留了哪些 Agent 配置，给出涉及的路径和配置验证结果。只完成预检时说明尚未写入。出现冲突或影响使用的警告时，说明受影响项及下一步。需要核对或排障时，引用工具返回的 `action`、`transaction`、`delta` 或 `warning`。只有结果使用方需要核对时才提供 `per-file`、`planned` 或 `installed` 哈希。
+- 分别核对运行证据中的发现（`discovery`）、具名传输选择（`named transport selection`）、`spawn`/`join`、实际模型和推理强度、权限状态与工具面。向 Human 说明证据确认了哪些运行行为、哪些缺口会影响使用。宿主没有遥测时，对应项标为未验证。配置、schema 接受和 Agent 自报各只证明自身。
 
 ## 停止与禁止边界
 

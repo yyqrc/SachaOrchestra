@@ -28,7 +28,7 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 | 独立任务结果等待 | `wait_threads` | 仅用于有明确结果消费者的依赖或全新验证；Owner 转移不调用 |
 | Roadmap 后续 Sacha Planner 任务创建 | `create_thread` + 一次有界 `wait_threads` | Human 已确认 Roadmap 明确推荐的 Sacha Planner 任务时创建；不是 Owner 迁移，不继承 Roadmap 授权 |
 | Feedback 目标任务查询 | `list_threads` + 有界 `read_thread` | 只为唯一反馈标识查询；候选需要消歧或存活状态证据时才读对应任务 |
-| Feedback 目标任务创建 | `create_thread` | Human 在另一真实任务显式调用 Feedback 且无唯一匹配时恰好一次；类型为单向用户任务 Owner 转移 |
+| Feedback 目标任务创建 | `create_thread` | Human 在另一真实任务显式调用 Feedback 后，只有按协调合同确认没有匹配目标时才创建一次。候选标识、状态或唯一性不明时先消歧。类型为单向用户任务 Owner 转移 |
 | 用户可见任务迁移 | `create_thread` | 只处理明确迁移批准；类型为用户任务 Owner 转移，Source 交付 reference 后结束 |
 | 目标任务消息交付 | `create_thread(prompt=...)` / `send_message_to_thread` | 新建目标把最小 Handoff 放入初始 `prompt`；复用目标按原生标识发送一次；交付失败时不转移 Owner |
 
@@ -142,11 +142,11 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 | route_id | 判断 | 请求字段 |
 | --- | --- | --- |
 | `human_exact` | 用户或批准范围明确对当前子代理及阶段精确指定，且满足 A 节对象与阶段适用性 | 原样使用当前工具支持的型号与强度；额外参数不支持时停止 |
-| `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-6.1-sol"`, `reasoning_effort="medium"` |
+| `sol_medium` | 无 critical、复杂集成、动态诊断或较大有效上下文需求的普通正式独立复核；或满足同样限制且同类任务有效实测支持 Sol 的完成成本/时延更合适的 broad + standard 单元 | `model="gpt-6.2-sol"`, `reasoning_effort="medium"` |
 | `terra_high` / `terra_xhigh` / `terra_max` | bounded；固定步骤和直接核验用 high，需结合多条已知条件判断用 xhigh，边界已定但须推导并核验多步相互依赖的结论用 max | `model="gpt-6.1-terra"`，按判断传 `reasoning_effort="high"`、`"xhigh"` 或 `"max"` |
-| `sol_max` | broad + critical，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="max"` |
-| `sol_xhigh` | broad + standard，且需要复杂集成、动态诊断或较大有效上下文，包括相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="xhigh"` |
-| `sol_high` | 其余 broad 单元，包括跨模块综合及相应独立复核 | `model="gpt-6.1-sol"`, `reasoning_effort="high"` |
+| `sol_max` | broad + critical，包括相应独立复核 | `model="gpt-6.2-sol"`, `reasoning_effort="max"` |
+| `sol_xhigh` | broad + standard，且需要复杂集成、动态诊断或较大有效上下文，包括相应独立复核 | `model="gpt-6.2-sol"`, `reasoning_effort="xhigh"` |
+| `sol_high` | 其余 broad 单元，包括跨模块综合及相应独立复核 | `model="gpt-6.2-sol"`, `reasoning_effort="high"` |
 
 同一有界单元不因工作量或共享环境的串行使用升级。主任务的型号与强度由宿主和用户控制；用户精确指定子代理时按 A 节判断适用阶段。
 
@@ -181,6 +181,6 @@ yield、running、等待超时和中间输出不等于完成或取消。继续�
 
 ## 4. 进度与证据边界
 
-文件变更收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。当前工具面提供文件变更登记接口时，先核对其对 MCP、外部生成和二进制文件的支持；已知漏项或仓库外改动按交互合同在结果中简要补列。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片重写未改变的文件、把二进制转换成文本补丁，或虚报登记成功。
+文件变更收集与交付沿用 Artifact Protocol 和 Human Interaction Contract。当前工具面提供文件变更登记接口时，先核对其对 MCP、外部生成和二进制文件的支持；已知漏项或仓库外改动按交互合同在结果中补列。普通工具回执、打开文件或写入报告不证明卡片已收录；不得为触发卡片重写未改变的文件、把二进制转换成文本补丁，或虚报登记成功。
 
 Adapter 回传 Codex 原生标识、直接父子关系、协作界面/命名空间、请求的 `agent_type` 与模型路线、决定自动路线中任务形态与负荷的最小直接事实 reference、实际启动、完成、回合中断及相关写入操作状态、工具错误和结果 reference。工具面证据分别保存当前任务或 child 的直接暴露的 schema、当前宿主原生目录的发现结果与实际调用轨迹；客户端 Code Mode 沿用原生调用、参数、结果和来源证据。只返回最终摘要或丢失逐项结果/reference 不构成批量传输证据。`spawn_agent` 被接受只证明参数有效且委派 Agent 已创建；实际模型、推理强度、permission profile、feature/Skill 降权、工具暴露与行为分别需要 Runtime 遥测、子任务配置回读、原生 schema 或工具轨迹，配置文件、schema 接受和委派 Agent 自报都不能互相替代。单层派发由宿主原始调用、父任务/session/depth 元数据与子任务工具轨迹证明，只有当前 Runtime 不提供其中必要记录时才保留精确缺口。源码与结构检查不证明实际派发或模型选择；Tool Search、Code Mode、嵌套调用、v2 能力核对、`spawn_agent`、`create_thread`、等待/取消、模型可用性和 Runtime 行为使用当前会话的真实 Runtime 证据。

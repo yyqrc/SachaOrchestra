@@ -95,7 +95,7 @@ Execution Report 在恢复、证据索引或正式 Review 存在消费者时随�
 ## 3. Spec 完成
 
 - 主任务 → 收到 Workflow Contract 路由的 Spec 完成动作 → 从当前任务、批准 Spec reference 或 Human 明确 path 取得当前 Spec → 不得扫描 Spec storage root 按时间或名称猜测当前任务。
-- 当前 Spec 缺失、存在多个候选、不是可达的单一 `spec.md`、未批准或头部状态行不唯一 → 失败关闭且不写入。
+- 确认当前 Spec 是唯一、可访问且已批准的 `spec.md`，并且头部只有一条状态行后，才继续核对写入条件。任一条件不满足，预检失败，停止本次写入。
 - 当前任务尚未进入 `goal_complete`，或必需验证与适用 Review 尚未满足 → 保持 Spec 原状态并报告未满足条件 → `goal_partial`、`goal_cancelled`、`goal_superseded` 和其他非完成终态不得标记为已完成。
 - 当前上下文可写，且本次 Spec 状态写入由实施批准或显式收口请求覆盖 → 生成精确状态行编辑计划，再用 Runtime 的并发检查局部编辑把该行原位改为“已完成”并回读验证 → path、文件名、其余正文和 Artifact 身份保持不变；不得用整文件替换覆盖并发正文。
 - Spec 已是“已完成” → 返回 `no_op`；状态行变化、只读上下文或局部编辑失败 → 不盲目重试、不移动文件、不创建替代 Artifact，报告原始缺口与恢复条件。

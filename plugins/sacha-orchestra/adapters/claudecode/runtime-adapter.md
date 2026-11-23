@@ -41,7 +41,7 @@ Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机�
 2. 同一上下文的工作在主任务执行；需要独立来源的正式 Role 转换使用可保留标识/终态的 Agent 传输。委派 Agent 只由主任务直接管理并遵守单层派发。
 3. Source 负载由路由意图、Scope/Handoff reference、必要约束、Runtime 标识和协调请求返回条件组成。
 4. 独立 Review 使用新 `Agent` 上下文；同一 Task/Scope 的返修、补证据和重新 Review 保持原 Owner。
-5. 当前传输不可用时先尝试同一 Scope 的安全替代；Owner/Role/返回仍无法唯一确定时才进入 Core 阻塞路线。
+5. 当前传输不可用时，先尝试同一 Scope 内已确认安全、等价且获授权的替代入口。若传输仍不可用，或仍无法唯一确定 Owner、Role 或返回路径，停止对应转换，并按 Workflow 报告具体阻塞、已完成结果和恢复条件。
 
 ### 3.1 完成与等待
 

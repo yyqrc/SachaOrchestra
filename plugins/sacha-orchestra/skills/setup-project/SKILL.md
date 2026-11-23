@@ -32,7 +32,7 @@ description: 显式生成/刷新 Project Integration；评估项目 Skill，通�
 ## 输出
 
 - 向 Human 请求策略/路径决定、确认计划变更或报告结果前读取 [Human Interaction Contract](../../core/human-interaction-contract.md)。
-- 报告 `reconciliation`、写入 `transaction`、冲突、`warning`、验证和 `non-portable` path。
+- 说明本次新增、更新、移除或保留了哪些项目配置，并给出相应的验证结果。只完成预检时说明尚未写入。出现冲突或影响使用的警告时，指出受影响的配置和下一步。给出本次涉及的 `non-portable` 路径，说明换环境时需要核对什么。需要核对具体配置或排障时，引用工具返回的 `reconciliation`、`transaction` 或 `warning`。
 
 ## 停止与禁止边界
 

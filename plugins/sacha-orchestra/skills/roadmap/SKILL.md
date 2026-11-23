@@ -30,7 +30,7 @@ description: Human 显式要求生成、整理或更新跨阶段项目 Roadmap �
 
 ## 输出
 
-- 返回 Roadmap 的目标、实际或计划 path、create/update、阶段摘要、Spec 映射、document-project transaction、验证、冲突、`Unknown` 与未验证边界。
+- 先给出路线图实际或计划路径，说明已创建、已更新或尚未写入，并概括目标、主要阶段和已有的 Spec 安排。把影响阶段安排、使用或恢复的未知项、冲突和验证结果放在对应内容旁。需要核对写入状态或排障时，引用 `document-project` 返回的 `transaction`。
 - 成功写入时提供可直接打开的 Roadmap path；未写入时明确标记 draft 和恢复入口。
 - 推荐独立完整 Spec 任务时，提供明确的 Sacha Planner 任务目标及创建选择；创建成功后提供目标任务 reference，不等待其完成。
 
