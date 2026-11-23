@@ -19,9 +19,8 @@ Companion 只安装在 live Root Agent。当前 DSH 的 continuable activation �
 | `bootstrap` | 会话首个请求 | read/read_image/glob/grep 和记录面板事件的 `sacha_visual_event` |
 | `resident` | 首条已记录的非 `sacha_tools` 工具调用或助手消息，或模型显式切换 | 增加 write/edit、当前平台 shell、todo、web、skill、ask_user_question 与 `sacha_research`/`sacha_worker`/`sacha_review` |
 
-阶段由会话中已保存的事件决定。
+阶段由会话中已保存的事件决定。自动切换取首个符合上表条件的 `tool/call` 或 `assistant/message`。
 
-- DSH 运行时写入的首个符合条件的 `tool/call` 或 `assistant/message` 是自动切换信号。两类事件以先出现的为准，会话由 `bootstrap` 切换到 `resident` 并开放该阶段的工具集。
 - `sacha_tools` 始终可见。查询、解锁或显式切换等控制调用不触发自动切换。
 - 上下文压缩会追加一条遮蔽消息用的 `user/message`。原始事件仍在，压缩前后的阶段和工具集相同。运行和恢复都按同一份事件记录判断。
 - 模型可用 `sacha_tools` 的 `phase` 动作显式选择阶段，以恢复或调整可用工具集。之后由显式选择决定阶段。
@@ -60,13 +59,13 @@ PTC 下 wire schema 只有保留的 `run_code`，其余工具经**生成的 SDK 
 | `unlock` | 让指定工具或工具组在下一次模型请求中可见、可用 |
 | `reset` | 清除临时解锁并恢复当前 phase |
 
-`unlock` 与 `phase` 成功后，等下一次模型请求实际提供新工具再调用。直接模式的执行限制按 `request/header.tools` 拒绝同一回复中尚未声明的工具。PTC 通过工具 SDK 提供工具，程序内调用按当前允许的工具集检查。PTC 的实际放行和拒绝需用该模式的调用证据核对。
+`unlock` 与 `phase` 成功后，等下一次模型请求实际提供目标工具再调用。直接模式用 `request/header.tools` 核对已声明的工具。同一回复中尚未声明的工具会被拒绝。PTC 的请求头只有 `run_code`，用模型本轮收到的工具 SDK 核对工具列表。程序内调用按当前允许的工具集检查。两种模式都用实际调用结果核对工具是否放行。
 
 `catalog` 的检索按词切分并做任意词匹配，因此 `unity editor bridge` 这类自然多词查询能返回它所指的工具；整串匹配会让这类查询恒返回空，使被隐藏的 `sacha_worker`/`sacha_review` 无法被发现。
 
 工具目录保存当前 Root 初始采样和启动期追加的信息，不再按 256 项截断名称；查询返回数量及每项描述、参数大小仍有界限。同名工具更新、删除和上级作用域的动态变化未实现完整同步，执行仍以当前原生工具和 guard 结果为准。
 
-Root policy 不新增自定义 Session event。冷恢复按原生事件顺序重放阶段与成功配对的 `sacha_tools` tool/call+tool/result；显式 `phase` 控制之前的旧控制调用，即使结果晚到也不能重新解锁。失败或未配对的结果不改变恢复状态。每个 `request/header` 是实际工具暴露的审计证据。
+Root policy 沿用原生 Session 事件。冷恢复按事件顺序重放阶段与成功配对的 `sacha_tools` `tool/call` 和 `tool/result`。显式 `phase` 之前的旧调用即使结果晚到，也不能重新解锁。失败或未配对的结果不改变恢复状态。恢复后的工具暴露和执行限制按本节对应模式的证据核对。
 
 ## Continuable child surfaces
 
@@ -153,8 +152,8 @@ dsh --profile web --dump-config
 
 执行前保存 Profile package、锁文件、patch 和进程身份。迁移旧 Profile 时，先核对是否仍安装 `@sacha-orchestra/dsh-visualizer`、`@sacha-orchestra/dsh-subagents`。只有实际存在且用户已授权迁移的旧包，才在添加配套包前用 `dsh plugin --profile <profile> remove <package>` 移除。任何一步拟升级无关依赖或发生部分失败时，保留现场并停止，不手改 Profile manifest 或锁文件绕过。安装后重启目标 DSH Profile，从全新的主会话核对以下结果。
 
-1. 首次模型请求使用 `bootstrap` 工具集。记录首条非 `sacha_tools` 工具调用或助手消息后，下一次请求使用 `resident` 工具集。直接模式查看 `request/header.tools`，PTC 模式查看模型收到的工具 SDK。
-2. 核对 `sacha_tools` 的状态、查询、切换、解锁和重置。直接模式检查同一回复中尚未声明的工具被拒，以及下一次请求能够调用。PTC 核对收到的工具 SDK 和实际调用结果。
+1. 核对首次模型请求的 `bootstrap` 工具集，以及自动切换后下一次请求的 `resident` 工具集。工具列表按 [`sacha_tools` 章节](#sacha_tools)中对应模式的证据核对。
+2. 核对 `sacha_tools` 的状态、查询、切换、解锁和重置。按对应模式核对工具的声明与实际执行结果。直接模式须检查同一回复中未声明的工具被拒绝，以及下一次请求中已经声明的工具可以调用。
 3. DSH restart/cold resume 后 exposure 恢复，且压缩后 phase 不回退；
 4. 三个 Sacha continuable surface、depth、settlement、Reviewer isolation；
 5. state route 与真实 Manager/delegation/child/tool-surface 对齐；
@@ -166,4 +165,4 @@ dsh --profile web --dump-config
 
 `plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md` 是 DSH transport、surface requirement、回退、恢复与证据映射 Owner。Companion 实现 Profile 层工具暴露和观察，不把分类结果升级为 Sacha Role/Gate/授权事实。
 
-源码、package/Profile、Runtime、Human 页面分别只证明自身层；执行者总结、工具颜色、配置存在、`sacha_tools` 成功或 state route 返回都不能替代真实请求 header、工具执行、Session export 与浏览器证据。
+分别核对源码、package/Profile、实际调用和用户页面。工具暴露以对应模式的请求证据为准，工具放行、会话恢复与页面显示分别以调用结果、Session export 和浏览器证据为准。执行者总结、工具颜色、配置存在、`sacha_tools` 成功或 state route 返回均不能替代这些直接证据。

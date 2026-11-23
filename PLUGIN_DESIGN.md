@@ -33,19 +33,17 @@
 | [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
 | [DSH 配套包](integrations/dsh/sacha-companion) | 针对一个 DSH Profile 管理主会话的工具，支持查询、解锁和恢复。提供可接收后续指令的子代理工具，以及服务端状态接口与客户端面板 | Sacha 入口、角色、决策关口、就绪判定、范围、授权、实际模型、任务依赖和调度、评审结果、完成判断及其他运行环境 |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。`integrations/dsh/sacha-companion` 是唯一独立构建和安装的 DSH 配套包。它按目标 Profile 主会话已保存的事件和成功的控制调用决定可见、可执行的工具。首条已记录的非控制工具调用或助手消息触发自动切换。显式切换会清空临时解锁，恢复时按原生事件顺序重放。
-
-配套包提供可接收后续指令的 `sacha_research`、`sacha_worker` 和 `sacha_review`。面板显示主会话的工具、直属子代理和适配器已记录的流程阶段、决策关口、工作依赖、派发、评审及证据。配套包独立于 Agent Plugin 的发布目录，Sacha 的流程、依赖、评审结果和授权仍由各自合同决定。部署与市场清单只保存版本、部署身份和插件入口。
+Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。DSH 配套包独立于 Agent Plugin 构建和安装。它的工具阶段、恢复和面板见[配套包说明](integrations/dsh/sacha-companion/README.md)，Sacha 的运行时调用和取证见 [DSH 适配器](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md)。部署与市场清单只保存版本、部署身份和插件入口。
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口；继续既有任务时先按 Intake Contract 核对适用于当前目标的接受事实，已接受则恢复既有流程，不重复询问。未接受且目标、关键决定、授权与验收明确、可在当前上下文完成时保持 Direct。需求或方案尚不明确，需要澄清、探索或候选比较才能确定目标、范围、验收或实施路线时，主动识别为入口候选，无须 Human 先要求 Spec 或明确提及 Sacha；其他候选按未决方案、实际 Spec 消费者或必要交接识别。跨文件、跨插件或行为变化本身不构成候选，也不因自行提议写 Spec 而制造入口前提。候选成立且选择条件具备时及时提出一次选择；依赖该选择的工作等待决定，已授权且独立的事实调查继续。具体判断、普通查询、局部澄清与语义转折由 Intake Contract 定义。
+- `using-sacha` 是唯一默认入口。按[入口合同](plugins/sacha-orchestra/core/intake-contract.md)判断直接处理、提出 Sacha 选择或恢复已接受的任务。各结果的去向见下一节流程图。
 - Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
-- `roadmap` 是主流程外显式规划入口：按需复用 Explore 补齐事实与 Human 决定，生成脱离 Sacha 仍可独立消费的项目 Roadmap，再复用 `document-project` 按 Project Integration 的 Roadmap root 持久化；不接受 Sacha、不进入生产 Role，也不创建或执行 Spec。完成后若建议另开任务形成完整 Spec，必须把它明确推荐为 Sacha Planner 任务；Human 确认创建后，新任务从既有显式 Planner 入口开始，不继承 Roadmap 的写入或实施授权。
-- `document-project` 接受 Human 显式文档请求，或正常 Workflow 的收尾候选路由；显式发布文档目标的 path 同时构成本次写入授权，可绕过 Project Integration 按模板原子新建或更新；其他请求仍服从 Project Integration。
+- `roadmap` 是主流程外的显式规划入口。按需复用 Explore 补齐事实和用户决定，形成脱离 Sacha 也能使用的项目路线图，再由 `document-project` 按 Project Integration 写入。后续 Planner 任务的推荐和创建见[工作流合同](plugins/sacha-orchestra/core/workflow-contract.md#4-生命周期与-human-路由)。
+- `document-project` 处理用户的[显式文档请求](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)和正常实施后的[文档候选](plugins/sacha-orchestra/core/workflow-contract.md#6-项目文档)。
 - `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求；只拥有预检与动作顺序，Spec 完成和项目文档分别沿用 Artifact Protocol 与 `document-project`。
 - Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
-- Feedback 只由 Human 在另一个真实任务手动调用，可提交流程问题、使用反馈或插件开发想法。调用本身授权来源任务有界只读调查并转移 owner；来源任务交付唯一目标任务 reference 后结束，目标任务作为普通任务重新进入通用流程。
+- Feedback 只由用户在另一个真实任务手动调用。按[入口合同](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)核对授权，按[协调合同](plugins/sacha-orchestra/core/coordination-contract.md#6-完成返回与偏差)把反馈交给唯一的处理任务。
 - setup-project、setup-agents 是主流程外的显式配置能力，不进入主工作流。
 
 ## 3. 流程骨架

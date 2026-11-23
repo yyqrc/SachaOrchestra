@@ -20,7 +20,7 @@
 
 | Core 职责 | Claude Code 映射 |
 | --- | --- |
-| Intake/路由 Owner | 主对话通过正式 Skill 发现机制装载 `using-sacha` |
+| Intake/路由 Owner | 主对话按[第 5 节](#5-发现机制)加载 `using-sacha` |
 | Planner | 主对话内运行，或独立 `Agent` 上下文装载 Planner 指令，成为 Planner 委派 Agent 并返回结果/协调请求 |
 | Executor | 主对话内运行，或独立 `Agent` 上下文成为 Executor 委派 Agent，完成有界单元并返回结果/协调请求 |
 | Reviewer | 未参与方案/实现的独立 `Agent` 上下文成为 Reviewer 委派 Agent |
@@ -29,9 +29,9 @@
 | Human 互斥选择 | 使用已验证的原生选择能力；当前 Runtime 无可用映射时使用普通文本提问 |
 | Human 进度与结果 | 由当前工作流 Owner 在主对话展示 |
 
-Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机制加载；当前动作需要传输、恢复或 Runtime 证据时读取本 Adapter。
+常驻入口只使用技能元数据。当前动作需要传输、恢复或运行证据时，再读取本适配器。
 
-独立性由参与历史/输入来源判断；Agent 名称和 Runtime 标识只用于调度。规范入口/Role/Artifact 不可达时报告真实发现缺口。
+独立性由参与历史和输入来源判断。Agent 名称和宿主标识只用于调度。
 
 ## 3. 转换、返回与恢复
 
@@ -57,11 +57,11 @@ Runtime 常驻面只暴露元数据。入口与 Role 由正式 Skill 发现机�
 
 迁移条件不足时，原主任务仍是唯一负责方，报告原始缺口并暂停进入 Executor。用户任务迁移标识只属于目标任务。
 
-Roadmap 明确推荐独立 Sacha Planner 任务且 Human 已确认创建时，使用能返回用户可见会话引用的宿主入口，将显式 Planner 请求、Roadmap 路径、候选 Spec、已定条件和实施授权边界放入初始输入。缺少等价入口时交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。子代理不能代替独立用户会话。
+按[工作流合同的 Roadmap 后续任务规则](../../core/workflow-contract.md#4-生命周期与-human-路由)，使用能返回用户可见会话引用的宿主入口。初始输入携带 [Roadmap 技能](../../skills/roadmap/SKILL.md)提供的资料、显式 Planner 请求和实施授权边界。缺少等价入口时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。子代理不能代替独立用户会话。
 
 ### 3.3 Feedback Owner 转移
 
-按 Coordination Contract 的反馈标识匹配目标。唯一活跃或可恢复的目标收到本次最小 Handoff 后，来源任务交付引用并结束；没有匹配时，把同一 Handoff 随新建的唯一用户会话交付。只有已结束且精确重复的 `no_op` 可直接返回原引用。匹配不唯一、传递失败或结果未知时保留来源 Owner 和已有目标引用，说明缺口，不重复创建或发送。
+按[协调合同](../../core/coordination-contract.md#6-完成返回与偏差)的匹配结果交付 Feedback。复用时把最小 Handoff 交给已确定的用户会话，新建时把同一 Handoff 放入唯一新会话的初始输入。`no_op` 只返回既有引用。匹配不唯一、传递失败或结果未知时，保留来源 Owner 和已有目标引用，说明缺口，不重复创建或发送。成功交付后按协调合同结束来源会话。
 
 ### 3.4 模型映射
 
@@ -93,6 +93,6 @@ Agent 上下文通过稳定 reference 读取 Scope、Artifact、原始证据和�
 
 ## 5. 发现机制
 
-项目规则、`using-sacha`、规范角色和领域 Skill 由当前宿主正式发现和加载。接受、授权和恢复按[入口合同](../../core/intake-contract.md)及相应工作流处理。工作区外的动作须有具体授权。入口不可达时保留原始错误，报告当前宿主缺少的能力并停止依赖该入口的转换。
+项目规则、`using-sacha`、规范角色和领域 Skill 由当前宿主正式发现和加载。接受、授权和恢复按[入口合同](../../core/intake-contract.md)及相应工作流处理。工作区外的动作须有具体授权。规范入口、角色技能或当前转换所需的 Artifact 不可达时，保留原始错误，说明具体缺口并暂停受影响的转换。
 
 发现证据只证明入口可达。生命周期、并行、恢复与验收使用对应的实际运行证据。

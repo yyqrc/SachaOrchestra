@@ -26,17 +26,17 @@ description: 用户明确要求编写或更新跨阶段项目路线图时使用�
 6. Roadmap 面向项目 Human 与 Agent：移除 Sacha 上下文后仍须理解目标、阶段、依赖、完成信号和 Spec 分组。正文不得写 Sacha Role、Gate、Skill 调用、task/thread ID、Adapter、Handoff、内部路由或“返回某节点”等流程信息。
 7. 读取选中的 Profile 和模板以确定文风、结构和生成规则，保留第 5 步的必需语义。按[路线图文档输入](../document-project/assets/roadmap.json)提供 `template_profile`、完整正文、类型 `roadmap`、目标路径和 `create | update`，更新时提供原文件哈希。把输入交给 [document-project](../document-project/SKILL.md) 处理授权、并发、写入和回读。路线图只通过该技能写入。
 8. document-project 返回后核对实际 path、transaction、验证、冲突和未验证项；写入失败时保留完整自包含正文及恢复条件，不把 draft 宣称为已持久化 Roadmap。
-9. 路线图完成后，候选 Spec 已有明确目标、来源和后续使用方，并且另开任务能实质改善澄清、保存或恢复时，才按工作流合同推荐另开 Sacha Planner 任务。告诉用户新任务会先澄清再形成完整 Spec，以及创建任务的影响和实施另需授权。用户确认创建后，把路线图路径、目标和范围、已确认决定、未决项及明确的“使用 Sacha Planner”请求交给目标宿主的适配器。
+9. 按[工作流合同第 4 节](../../core/workflow-contract.md#4-生命周期与-human-路由)判断是否推荐另开 Sacha Planner 任务，并按交互合同向用户说明。用户确认创建后，把路线图路径、目标和范围、已确认决定、未决项及明确的“使用 Sacha Planner”请求交给对应宿主的适配器。
 
 ## 输出
 
 - 先给出路线图实际或计划路径，说明已创建、已更新或尚未写入，并概括目标、主要阶段和已有的 Spec 安排。把影响阶段安排、使用或恢复的未知项、冲突和验证结果放在对应内容旁。需要核对写入状态或排障时，引用 `document-project` 返回的 `transaction`。
 - 成功写入时提供可直接打开的 Roadmap path；未写入时明确标记 draft 和恢复入口。
-- 推荐独立完整 Spec 任务时，提供明确的 Sacha Planner 任务目标及创建选择；创建成功后提供目标任务 reference，不等待其完成。
+- 另开的 Planner 任务创建成功后，提供目标任务 reference 并结束当前路线图任务，无须等待完整 Spec。
 
 ## 停止与禁止边界
 
 - Roadmap 是项目文档，不是 Artifact、Spec、任务状态、实施授权或完成证据。
-- 不自动创建或执行 Spec、阶段、Issue、Ticket、分支、发布或外部资源；后续实施由 Human 另行发起。Human 确认创建已经明确推荐的 Sacha Planner 任务时，只授权 Runtime Adapter 创建这一个用户任务，不授权目标项目写入或实施。
+- 不自动创建或执行 Spec、阶段、Issue、Ticket、分支、发布或外部资源。后续任务创建和实施的授权沿用[入口合同](../../core/intake-contract.md#4-入口决定)。
 - 不从文件名、目录排序、旧任务记录或 Sacha 输出推断项目当前状态；当前状态只接受项目规则、源码、配置、正式项目文档、运行证据或 Human 决定。
 - Roadmap root、文档 path 与写入授权分别沿用 Project Integration 和 document-project；root 外写入、Git、安装、发布和外部动作需要各自明确授权。

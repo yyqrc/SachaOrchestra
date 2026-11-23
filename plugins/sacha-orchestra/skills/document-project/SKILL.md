@@ -32,7 +32,7 @@ description: 用户明确要求新建或更新项目文档、Roadmap 交来完�
    - Profile 并列或主要意图不清时读取 [Human Interaction Contract](../../core/human-interaction-contract.md)，向 Human 展示候选差异并请求选择。
    - 未绑定模板目录时按文档类型使用插件内 `canonical-change-archive-v1`、`canonical-system-guide-v1` 或 `canonical-roadmap-v1` 内置模板。
 2. `project-context` 使用最终 Spec、真实证据、Review 和现有 `CONTEXT.md` 复核当前任务候选，不使用模板目录。
-3. `roadmap` 使用 [路线图文档输入](assets/roadmap.json)。核对所选 Profile 和模板、标题、九个必需章节、唯一文件名、目标是否位于配置的路线图目录内，以及 `create | update` 和 `expected_target_sha256`。章节标题及旧标题兼容按 [Roadmap 技能](../roadmap/SKILL.md) 处理。Profile 只提供文风和章节组织。
+3. `roadmap` 使用 [路线图文档输入](assets/roadmap.json)。核对所选 Profile 和模板、标题、九个必需章节、唯一文件名、目标是否位于配置的路线图目录内，以及 `create | update` 和 `expected_target_sha256`。章节标题及旧标题兼容按 [Roadmap 技能](../roadmap/SKILL.md) 处理。
 4. 生成输入在试运行前完成语义复核：明确文档主题与长期直接消费者，一个事实只写在其 Owner。正文说明项目当前状态。任务执行过程、评审步骤和 Sacha 内部流转留在相应的任务记录中，是否保存按各自规则判断。每条保留约束须保持项目来源中的主体、条件、动作、顺序、规范强度、例外、失败和影响。Profile 只控制文风与组织，不改变这些事实或省略恢复所需边界。
 5. 运行 `python -B scripts/generate_project_document.py --project-root <root> --input-json <json>` 试运行（`dry-run`）。预览核对策略、`trigger`、目标、写入前的原文件和结构，返回既有目标与摘要。具体写入授权和覆盖已有 Context 定义的确认由 `--write` 检查。显式发布文档目标需要项目相对 `target_path`、`create | update`、更新时的 preimage、可选的项目相对模板目录路径、Profile 和完整正文。
 6. 按写入来源选择参数。

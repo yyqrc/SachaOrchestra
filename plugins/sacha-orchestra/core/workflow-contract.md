@@ -25,12 +25,12 @@ Core 不依赖平台或项目；Runtime 传输归 Adapter，项目知识归 Proj
 - 授权、Reviewer 来源独立性、单写入者、返回标识/去重、安全、Handoff 必要语义与原始证据权威不可降级。
 - 能在当前上下文完成就不持久化；为防压缩丢失可先写最小决定记录，仅批准、破坏性变更或恢复需要才写 Spec Artifact。Plan 无消费者就不建 Artifact。
 - 所有任务沿用同一通用生命周期。处理特殊目标需要调整流程时，先向 Human 说明真实失败模式、现有路由缺口和拟议改动的影响，取得明确批准后调整通用流程。禁止新增隐藏阶段、旁路或第二套生命周期。
-- 显式 Roadmap 不接受 Sacha 或进入生产 Role；事实或 Human 决定不足时只路由 Explore 并把结果返回 Roadmap，自包含正文就绪后只路由 document-project，写入结果返回 Roadmap 并结束当前独立规划。Roadmap 完成后若建议为一个候选 Spec 另开任务，必须先按 Human Interaction Contract 明确说明这是 Sacha Planner 任务及其执行影响；只有 Human 确认创建后，Runtime Adapter 才创建新任务并把显式 Planner 请求写入初始输入。
+- 显式 Roadmap 独立处理。事实或用户决定不足时只路由 Explore，结果返回 Roadmap。自包含正文就绪后只路由 `document-project`，写入结果返回 Roadmap 后结束本次规划。后续独立 Spec 任务见第 4 节。
 - 无需规划、协调或独立评审时，Executor 直接实施并验证。委派、交接或恢复需要时加载 Coordination 与目标 Runtime Adapter；验收分类或记录有实际消费者时加载 Assurance 或 Artifact 的对应内容。
 
 ### 2.1 技能加载
 
-本节沿用[术语合同](terminology-contract.md)的 Project Integration、规范技能和技能加载策略；Project Integration 没有目标 Skill 的已确认条目时不推导项目策略：
+本节沿用[术语合同](terminology-contract.md)对 Project Integration、规范技能和技能加载策略的定义。
 
 - `on-demand`：当前节点的任务语义匹配规范 Skill 的 `description`，且设计、规划、调查或实施需要其约束或领域输入时加载；只读 `change-guard` 不等待项目写入授权。
 - `change-authorized`：目标 Scope 已有 Human 修改授权，且当前节点需要该 Skill 实施项目变化时加载；加载不表示可以执行 Skill 内的写入、构建、Runtime 或外部动作。
@@ -82,9 +82,9 @@ Gate 只决定角色路由或是否进入协调。正常路由消费已有的接
 
 Planner 自行调查、完成局部澄清，并询问只有用户能作出的明确决定。需要持续探索、比较候选方案或处理相互依赖的问题时，交 Explore。必要事实和决定齐备后形成精确 Spec。实施所需设计仍有缺口时，先补齐再交付执行。外部材料按 [交互合同第 3 节](human-interaction-contract.md#3-human-决定与对话同步) 核对和确认。
 
-显式 Roadmap 按第 2 节单独处理。closeout 按第 5 节执行。显式调用 document-project 时直接处理当前文档，既不因此接受 Sacha，也不补走生产角色。正常实施后的文档候选仍按第 6 节检查。Feedback 由用户在另一个真实任务手动调用。所有入口沿用本合同定义的流程，禁止增加隐藏阶段或旁路。
+显式 Roadmap 按[入口授权](intake-contract.md#4-入口决定)和第 2 节单独处理。`closeout` 按第 5 节执行。显式文档请求沿用入口合同，直接交给 `document-project`。正常实施后的文档候选仍按第 6 节检查。Feedback 的入口授权与目标交付分别见[入口合同](intake-contract.md#4-入口决定)和[协调合同](coordination-contract.md#6-完成返回与偏差)。
 
-Roadmap 完成后的独立 Spec 任务重新从入口开始，不把 Roadmap 的状态、授权或上下文当作已接受 Sacha。只有 Roadmap 的当前推荐已经明确说明新任务使用 Sacha Planner，且 Human 随后确认创建时，该确认才同时构成新目标的 Sacha 接受与任务创建授权；目标任务的初始输入必须保留显式 Planner 请求。缺少任一条件时，新任务按普通 Intake 重新判断。
+Roadmap 完成后，候选 Spec 已有明确目标、来源和后续使用方，并且另开任务能实质改善澄清、保存或恢复时，才按[交互合同](human-interaction-contract.md#3-human-决定与对话同步)推荐另开一个 Sacha Planner 任务。用户确认创建后，Runtime Adapter 创建该任务并把显式 Planner 请求写入初始输入。新任务的 Sacha 接受和授权按[入口合同第 4 节](intake-contract.md#4-入口决定)判断。Roadmap 的状态和上下文只供核对，条件不足时，新发起的任务走普通入口判断。
 
 本节沿用术语合同定义的普通批准、明确迁移批准、可靠迁移信号和执行任务迁移前提；本合同只规定这些判断产生的流程路由。
 
@@ -102,8 +102,6 @@ Human → 取消或不再继续 → 主任务结束。
 
 目标任务唯一确定并取得最小 Handoff 后，任务迁移才把工作流 Owner、剩余生命周期与派发权交给目标任务；来源主任务交付目标任务 reference 后结束，不等待返回。目标任务成为主任务并继续同一生命周期，Reviewer Gate 打开时执行独立 Review；迁移不改变 Gate；调度和 Owner 转移由 Coordination 处理。
 
-Human 可因具体流程问题、使用反馈、插件开发建议或能力想法，在另一个真实任务手动调用 Feedback。该调用本身授权来源任务进行有界只读调查，并查询、复用或创建唯一反馈目标任务，不再追加创建确认，也不进入批准 Spec 后的执行任务迁移分支。来源任务交付 reference 后结束且不等待目标任务终态；目标任务按 Intake Contract 作为普通任务重新判断，并使用通用的 Direct、Planner、Explore、Executor、Reviewer、Manager、迁移和收尾规则。Feedback 调用不授权目标任务写入或执行外部动作。
-
 有 Spec 时，执行自主权与问题交回条件遵循 [Artifact Protocol 的 Spec 标准](artifact-protocol.md#21-spec-artifact)：主任务收到设计问题后分析事实，按 Planner 路由补齐或修订规格；只有需要 Human 的实质决定或新增授权时才提问。没有 Spec 时，Executor 继续在明确目标与授权内自主实施，不为此强制生成 Spec。
 
 环境或工具不可用时，只尝试已知可用、授权内且能满足同一目标的现有替代；继续尝试须有新证据或不同且可检验的假设。没有符合条件的下一步时，报告具体阻塞、已完成结果与恢复条件，停止受影响部分；独立工作继续。Adapter 对特定传输的限制仍须满足，不为穷尽可能性新增恢复机制。
@@ -114,9 +112,11 @@ Human 可因具体流程问题、使用反馈、插件开发建议或能力想�
 
 closeout 当前动作为项目文档请求时，主任务将其作为 `human-request` 交给 `document-project`；不检查或修改 Spec，也不替代本合同第 6 节的正常文档候选。
 
-closeout 当前动作为 Spec 完成时，主任务只在当前任务已是 `goal_complete`、必需验证与适用 Review 已满足后，按 Artifact Protocol 原位完成当前唯一已批准 Spec；任何条件不足都失败关闭，且不把 Human 请求当作完成证据。
+请求完成 Spec 时，主任务将本次显式收口作为状态写入授权，按[工作记录协议的 Spec 完成规则](artifact-protocol.md#3-spec-完成)预检并原位更新当前唯一已批准的 Spec。完成条件和失败处理由该协议判断，用户请求只提供状态写入授权。
 
-closeout 当前动作为组合动作时，主任务先核对两个动作的目标与授权。Spec 状态写入沿用实施批准或显式收口授权；项目文档仍服从 Project Integration。`per-write-confirmation` 核对本次具体目标、正文与写入范围是否已获确认；已明确覆盖的同一次请求直接消费，缺少具体写入确认时才提问。两个动作预检完成前不写；通过后先完成 Spec，再以 `human-request` 进入 `document-project`。文档动作后续失败时保留合法的 Spec 完成结果，并报告部分完成与文档恢复入口。
+同时请求收口和存档时，主任务分别预检两项动作。按工作记录协议核对 Spec 的目标与完成条件，状态写入沿用实施批准或显式收口授权。按 Project Integration 核对项目文档的目标和写入授权。`per-write-confirmation` 核对本次具体文档目标、正文与写入范围的确认。已有确认直接沿用，缺少具体写入确认时才提问。
+
+两项预检都通过后才写入。先按协议完成 Spec，再把文档作为 `human-request` 交给 `document-project`。文档后续失败时，保留已经合法完成的 Spec，并报告部分完成、失败证据和文档恢复入口。
 
 正常实施的项目文档候选处理结束，且本次全部阻塞验收、必需验证与适用 Review 已满足并进入 `goal_complete` 后，主任务消费实施批准中的状态收口授权，按 Artifact Protocol 原位完成本次唯一已批准 Spec；无 Spec 或用户要求保留状态时跳过状态写入。阻塞性文档尚未完成时不提前收口；非阻塞文档失败不阻止已满足条件的状态收口。状态编辑失败保留实现完成证据并报告恢复条件，不把文档生成当作补偿。
 

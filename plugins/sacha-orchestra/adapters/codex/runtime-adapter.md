@@ -25,12 +25,10 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 | Human 提问 | 当前宿主允许的提问工具或普通文本 | 先按 Human Interaction 区分必要信息、可选偏好与动作批准，再核对当前工具用途。`request_user_input` 仅在当前宿主允许该类问题时使用；宿主限制其只用于可选澄清时，不用于必要输入或批准，改用宿主允许的方式；不得把无答复时的默认继续用于必需答案或批准 |
 | Human 进度 | `commentary` | 只映射 Core 已判定需要展示的新事实、风险、阻塞或计划变化 |
 | 用户最终答复 | `final` | 按 [交互合同](../../core/human-interaction-contract.md#2-信息顺序与可见性) 交付当前任务结果 |
-| 独立任务结果等待 | `wait_threads` | 仅用于有明确结果消费者的依赖或全新验证；Owner 转移不调用 |
-| Roadmap 后续 Sacha Planner 任务创建 | `create_thread` + 一次有界 `wait_threads` | Human 已确认 Roadmap 明确推荐的 Sacha Planner 任务时创建；不是 Owner 迁移，不继承 Roadmap 授权 |
-| Feedback 目标任务查询 | `list_threads` + 有界 `read_thread` | 只为唯一反馈标识查询；候选需要消歧或存活状态证据时才读对应任务 |
-| Feedback 目标任务创建 | `create_thread` | Human 在另一真实任务显式调用 Feedback 后，只有按协调合同确认没有匹配目标时才创建一次。候选标识、状态或唯一性不明时先消歧。类型为单向用户任务 Owner 转移 |
-| 用户可见任务迁移 | `create_thread` | 只处理明确迁移批准；类型为用户任务 Owner 转移，Source 交付 reference 后结束 |
-| 目标任务消息交付 | `create_thread(prompt=...)` / `send_message_to_thread` | 新建目标把最小 Handoff 放入初始 `prompt`；复用目标按原生标识发送一次；交付失败时不转移 Owner |
+| 独立任务结果等待 | `wait_threads` | [等待条件与游标](#26-依赖等待) |
+| Roadmap 后续 Sacha Planner 任务 | `create_thread`、`wait_threads` | [创建与启动核对](#231-roadmap-后续-sacha-planner-任务) |
+| Feedback 目标查询与交付 | `list_threads`、`read_thread`、`create_thread`、`send_message_to_thread` | [反馈转移](#24-human-手动调用的-feedback-转移) |
+| 用户可见任务迁移 | `create_thread`、`send_message_to_thread` | [用户任务迁移](#25-用户可见任务迁移) |
 
 ### 2.1 v2 能力核对
 
@@ -63,20 +61,18 @@ Human 交互和独立任务传输不随子代理协作界面改变：
 
 #### 2.3.1 Roadmap 后续 Sacha Planner 任务
 
-Roadmap 已完成、其当前推荐明确说明另开 Sacha Planner 任务形成完整 Spec，且 Human 随后确认创建时，Adapter 创建一个用户可见 Codex 任务：
+按[工作流合同的 Roadmap 后续任务规则](../../core/workflow-contract.md#4-生命周期与-human-路由)创建一个用户可见的 Codex Planner 任务。此调用只创建后续任务，不转移当前任务的 Owner。
 
 1. 使用当前项目对应的已保存 Codex Project；无法唯一确定时先让 Human 消歧，不创建 projectless 替代任务。
 2. `create_thread(prompt=...)` 的初始输入必须显式写明“使用 Sacha Planner”，并携带唯一 Roadmap path、候选 Spec 目标/Scope、已确认决定、阻塞性未决项、当前只读边界与未授予的实施动作。不得把“冻结完整 Spec”弱化为普通调查或聊天草案，也不得复制整份 Roadmap。
 3. 取得正式 `threadId` 后用一次有界 `wait_threads` 核对 Planner 已开始；仅收到排队用的 `clientThreadId` 时保留该引用，待取得正式标识再等待。超时只说明启动尚未核实。初始输入丢失、再次询问是否使用 Sacha 或按 Direct 展开时，报告交接偏差；以上情况均不得重复创建。
-4. 目标任务独立读取项目规则、Workflow 和 Planner Skill；Roadmap 的写入授权、任务状态与未落盘上下文不随创建传递。来源任务交付目标 reference 后结束，不等待完整 Spec 终态。
-
-Roadmap 只推荐普通任务、推荐没有明确 Sacha Planner，或 Human 没有确认创建时，不进入本节；新任务按普通 Intake 重新判断。
+4. 目标任务独立读取项目规则、Workflow 和 Planner Skill。创建调用不携带 Roadmap 的任务状态或未落盘的上下文。来源任务交付目标 reference 后结束，不等待完整 Spec 的结果。
 
 ### 2.4 Human 手动调用的 Feedback 转移
 
-Adapter 消费 Coordination Contract 返回的反馈标识、匹配和 Owner 转移判断，不核对执行任务迁移前提。查询使用 `list_threads`；候选标识或存活状态需要确认时有界调用 `read_thread`。唯一活跃/可恢复目标按原生标识调用一次 `send_message_to_thread`；需要新目标时把同一最小 Handoff 放入初始 `prompt`，恰好调用一次 `create_thread` 并保留原生目标任务标识；`no_op` 只返回既有 reference；无法消歧时保留候选和原始缺口。
+按[协调合同](../../core/coordination-contract.md#6-完成返回与偏差)提供的反馈标识，用 `list_threads` 查询目标。候选标识或存活状态需要确认时，有界调用 `read_thread`。复用时按原生标识调用一次 `send_message_to_thread`。新建时把同一最小 Handoff 放入初始 `prompt`，调用一次 `create_thread` 并保留原生标识。`no_op` 只返回既有 reference，无法消歧时保留候选和原始缺口。
 
-目标任务消息成功交付反馈目标、必要规则/证据 reference 和 Owner 转移说明后，来源任务展示原生目标任务 reference 并结束；消息或创建失败时来源任务保持 Owner。该 Owner 转移不等待目标终态。
+目标收到反馈、必要的规则与证据引用及责任移交说明后，来源任务[给出目标任务引用并结束](#26-依赖等待)。消息或创建失败时，来源任务继续负责。
 
 ### 2.5 用户可见任务迁移
 
@@ -84,12 +80,14 @@ Adapter 消费 Workflow/Coordination 已确认的迁移标识与转移动作。�
 
 1. 唯一现有目标只有在按原生标识调用一次 `send_message_to_thread`，成功交付最小 Handoff 与 Owner 转移说明后才复用；不唯一或 Spec/Entry Condition/Owner 不可证明时暂停。
 2. 无匹配且已有明确迁移批准时，把最小 Handoff 放入初始 `prompt` 并调用恰好一次 `create_thread`；查询、消息交付或创建失败且未完成 Owner 转移时，来源主任务保持唯一 Owner 并报告恢复条件，不进入 Executor。
-3. 唯一目标取得最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）后才完成 Owner 转移。Source 展示目标 reference 后结束，不调用`wait_agent`、`wait_threads` 或其他终态等待；后续 Execute、委派 Agent、Review、返修和收尾由目标任务负责。
+3. 唯一目标取得最小 Handoff（规则入口、批准 Spec、必要 Artifact/证据 reference 和未携带的标识）后才完成 Owner 转移。来源任务随后[给出目标任务引用并结束](#26-依赖等待)。
 4. 重复批准、重试或恢复只复用同一目标 reference；成功创建后 Source 不恢复写入者。`spawn_agent`、完整历史分叉和委派 Agent 都不取得迁移标识。
 
 ### 2.6 依赖等待
 
-Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
+任务责任移交成功后，来源任务给出目标任务的链接或原生标识，随后结束。不得调用 `wait_agent`、`wait_threads` 或其他入口等待目标任务的最终结果。
+
+Adapter 按 Coordination 确定的依赖和结果消费者等待。独立任务只在有明确结果消费者的依赖或全新验证中使用结果等待。Roadmap 创建后的启动核对见第 2.3.1 节。
 
 - 子代理依赖使用 `collaboration.wait_agent`。独立用户任务使用 `wait_threads`；首次传对应 `threadId` 和已取得的 `hostId`，续等时把各目标上次返回的游标分别传给 `targets[].afterCursor`。
 - 调用等待前推进其他不依赖结果且不冲突的就绪工作。
@@ -99,7 +97,6 @@ Adapter 消费 Coordination 的依赖屏障与结果消费者结论：
 - 回合已结束但缺结果时，先读取可达的宿主结果。仍缺失时，只请求一次必要的结果或阻塞摘要。
 - 状态不明或无进展时，先核对能观察到的工具和进程活动，再决定是否补问、恢复或取消。同一未知状态只延长等待间隔或按截止条件处理。禁止反复催报或因超时创建替代代理。取消和写入接管按第 2.2 节执行。
 - Human 进度使用已知的新事实；需要沟通不自动触发代理状态查询，不为生成进度消息重读相同记录。
-- Owner 转移在交付目标 reference 后结束。
 
 ### 2.7 客户端原生工具
 

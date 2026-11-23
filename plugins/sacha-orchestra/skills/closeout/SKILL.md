@@ -7,27 +7,15 @@ description: 用户明确要求“收口”“存档”或“收口并存档”�
 
 ## 功能
 
-接收“收口”“存档”或“收口并存档”请求，先核对条件，再按顺序执行并汇报本次请求涉及的结果。Spec 的完成规则见[工作记录协议](../../core/artifact-protocol.md)，项目文档由 `document-project` 处理。
+处理用户明确提出的“收口”“存档”或“收口并存档”。按工作流核对相应动作，并汇报实际结果。
 
 ## 输入与首查
 
-1. 当前请求明确要求“收口”“存档”或“收口并存档”时继续；只讨论或引用这些词语时不执行动作。
-2. 仅有“存档”时直接调用 `$sacha-orchestra:document-project`，映射为 `human-request`；不读取或修改 Spec，也不改变 [Workflow Contract](../../core/workflow-contract.md) 的正常 `goal-closeout` 候选。
-3. 包含“收口”时，读取 [Artifact Protocol](../../core/artifact-protocol.md) 的 Spec 完成规则，并把当前任务、批准 Spec reference 或 Human 明确提供的 `path` 交给该 Owner；本 Skill 不扫描或自行判定替代 Spec。
-4. 将当前根终态、验证与 Review 消费状态、写入授权和可写上下文交给 Artifact Protocol 预检；只消费其结果，不在本 Skill 重建 Spec 完成条件。
+收到明确的动作请求后，读取[工作流合同第 5 节](../../core/workflow-contract.md#5-closeout-流转)，按对应动作预检并执行。只讨论或引用这些词时不执行。
 
-## 动作顺序
-
-1. “收口”本身构成本次 Spec 状态写入授权；已有实施批准覆盖正常完成后的同一状态写入时，不要求再调用本 Skill；按 Artifact Protocol 执行 Spec 完成，并聚合其实际编辑、`no_op` 或失败结果。本 Skill 不另行实现状态行匹配、并发编辑、回读或恢复算法。
-2. “收口并存档”先预检两个动作：Spec 满足收口条件，且 `document-project` 的 Project Integration、目标和本次文档写入授权可确定。`per-write-confirmation` 按 Workflow Contract 核对本次具体文档写入是否已获确认，已有确认直接消费；未满足前两个动作都不写。
-3. 预检通过后先原位完成 Spec，再把“存档”以 `human-request` 路由给 `$sacha-orchestra:document-project`。文档写入失败不回滚已合法完成的 Spec；报告部分完成、失败证据和文档恢复入口。
+- 请求含收口时，读取[工作记录协议的 Spec 完成规则](../../core/artifact-protocol.md#3-spec-完成)。把当前任务、已批准的 Spec reference 或用户明确提供的 `path`，以及当前根终态、必需验证与适用 Review 的完成和消费状态、写入授权及可写上下文交给协议预检。按工作流消费实际编辑、`no_op` 或失败结果。预检失败时按协议停止，不自行选替代 Spec、直改状态行或补建 Artifact。
+- 请求含存档时，按工作流以 `human-request` 调用 [`document-project`](../document-project/SKILL.md)。组合动作的两项预检与写入顺序沿用工作流合同。
 
 ## 输出
 
-- 先说明本次涉及的 Spec 是否已完成、项目文档是否已存档，并给出实际路径。Spec 状态有变化时，说明原状态和新状态。有失败或验证缺口时，说明受影响的动作和恢复方式。组合动作只完成一项时，分别交代两项结果。需要核对命令对应的动作时，说明命令映射。
-- 组合动作分别核对 Spec 写入授权与项目文档写入授权，每项只使用覆盖该动作的授权。授权影响结果或需要用户决定时，在相应结果旁说明受影响的动作和原因。
-
-## 停止与禁止边界
-
-- Artifact Protocol 拒绝 Spec 完成时失败关闭；本 Skill 不自行选择替代 Spec、绕过完成条件、直接编辑状态行或创建补偿 Artifact。
-- 项目文档由 `document-project` 独占；Spec 完成不自动生成项目文档，项目文档也不能替代 Spec 完成。
+说明本次请求涉及的 Spec 状态和项目文档存档结果，给出实际路径。Spec 状态有变化时说明原状态和新状态。某项失败、仍缺验证或需要用户授权时，把原因、影响和恢复方式放在该项结果旁。组合动作只完成一项时，分别交代两项结果。需要核对命令含义时，说明命令对应的动作。

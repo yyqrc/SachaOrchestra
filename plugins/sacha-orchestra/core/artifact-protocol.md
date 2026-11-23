@@ -79,16 +79,16 @@ Spec 必须确定本次必要的算法、接口、数据结构、调用链、结
 
 ### 2.2 生成与消费
 
-Artifact 只在存在消费者时创建。探索决定记录优先使用项目既有载体；无约定且存在规划或恢复消费者时使用任务目录中的 `decisions.md`。它只保存已确认决定、未决项、必要 reference 和压缩后必须重建的最小恢复边界，旧项确认或失效后原位压缩。
+Artifact 只在存在消费者时创建。探索决定记录优先使用项目既有载体。无约定且有规划或恢复使用方时，使用任务目录中的 `decisions.md`。记录内容限于第 2 节总表所列事项。旧项确认或失效后在原记录中压缩。
 
 Explore 或 Planner 为任务恢复或 Spec 写决定记录时，项目概念和拟议实现名称沿用第 2.1 节的来源和命名要求。内部讨论用语只用于协作。禁止把这些临时说法当作项目概念或实现名称。
 
 Planner 读取决定记录形成 Spec 并沿用已确认术语。项目上下文候选在收尾时基于最终实现/Review 证据复核，并在文档授权覆盖后进入项目 `CONTEXT.md`。
 
-一个事实只写一次。Spec 保存第 2.1 节定义的项目内容。工作流中的目标、范围、验收与交接信息引用 Spec 对应位置。Execution Report 的 `delta` 专指表中的实际变更。Review Artifact 保存问题、裁决结果（Outcome）、证据缺口和下一步，引用 Baseline、Execution Report 与原始证据，禁止另行定义 `delta`。按交互合同向用户直接交付审阅重点和本轮最终建议。
+一个事实只写一次。Spec 按第 2.1 节保存项目内容。工作流中的目标、范围、验收与交接信息引用 Spec 对应位置。Review Artifact 引用 Baseline、Execution Report 与原始证据，不得另行定义 `delta`。按[交互合同](human-interaction-contract.md#2-信息顺序与可见性)向用户直接交付审阅重点和本轮最终建议。
 长度按风险和恢复需要自适应，不为格式拆文件。各 Artifact 的失败、未验证、授权、风险、证据与进入条件只由其直接消费者和本协议的内容边界决定，不得因压缩丢失，也不得为形式完整复制到无消费者的 Artifact。
 
-Execution Report 在恢复、证据索引或正式 Review 存在消费者时随任务形成，并保存到 Spec/任务约定的 Artifact 位置。Project Documentation 的候选与授权由 Workflow 收尾和 `document-project` 决定，目标位置由 Project Integration 决定；Execution Report 继续留在任务 Artifact 位置。
+Execution Report 保存在 Spec 或任务约定的 Artifact 位置。收尾时的项目文档由[工作流合同](workflow-contract.md#6-项目文档)与 [`document-project`](../skills/document-project/SKILL.md)处理候选和授权，目标位置由 Project Integration 决定。
 
 ## 3. Spec 完成
 

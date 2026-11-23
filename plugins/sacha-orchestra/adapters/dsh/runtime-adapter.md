@@ -14,7 +14,7 @@
 - [Coordination Contract](../../core/coordination-contract.md)
 - [Artifact Protocol](../../core/artifact-protocol.md)
 
-提炼术语、入口、Role、Gate、readiness、授权、Review、Artifact 与完成判断仍由对应 Core/Skill 拥有。本 Adapter 只负责 DSH 传输、能力降级、恢复、观测记录与证据映射；只有 Root Session 所在主任务拥有派发、集成和根终态责任。可视化只投影已经提交的转换、Manager 图和 DSH 原生 subagent 状态，不参与判断，也不能作为实现、验证或 Human 验收证据。
+术语沿用术语合同，入口、流程、授权、任务记录和验收由相应合同与技能规定。适配器负责 DSH 调用、处理能力缺口、恢复、观测记录和取证。派发和集成由 Root Session 所在的主任务独占，整项任务是否结束也由它判断。
 
 ## 2. 能力发现与选择
 
@@ -25,13 +25,15 @@
 - child settlement 能以 Runtime notice 回到直接 parent；
 - 需要 child 主动回报时可选 `report` child capability。
 
-具名 Sacha surface 的调用必须省略 `run_in_background` 或显式传 `true`，并从创建结果取得 durable continuable child id。显式 `false` 进入 foreground one-shot，不满足 Sacha 的 direct-child、settlement 和恢复路径，不得作为正式 Planner/Explore、Executor 或 Reviewer transport。
+派发时按第 5 节核对调用参数和 `continuable` 创建结果。
 
-只有当前工具 schema、child `request/header` 与 Runtime 结果能证明上述能力；磁盘源码、Profile 配置、安装记录和其他会话先例只能说明预期。工具同名也不证明语义相同：例如 `list_agents` 必须实际暴露 `scope=children|descendants` 才是 continuable subagent control；被 Agent Teams 等 Profile 组件覆盖成其他 schema 时记录为恢复能力缺口。若具名 Sacha delegation tool 不可达，但当前 Runtime 存在等价 continuable tool，Adapter 可在完整核对其 `backgroundMode`、fresh/fork 语义、child route、depth 与 capability 限制后使用；具名 surface 已调用失败时，不得把 standard `subagent`、Agent Teams teammate 或另一个 Role surface 当作自动重试。无法证明等价时停止该派发单元并报告 Runtime 能力缺口。
+以当前工具声明、子代理 `request/header` 和实际调用结果核对上述能力。磁盘源码、Profile 配置、安装记录和其他会话先例只说明预期。同名 `list_agents` 只有实际暴露 `scope=children|descendants` 才能控制 continuable 子代理。若被 Agent Teams 等 Profile 组件覆盖成其他 schema，记录为恢复能力缺口。
+
+具名派发入口不可达时，可在完整核对 `backgroundMode`、fresh/fork 语义、child route、depth 与 capability 限制后使用等价的 continuable 工具。无法证明等价时停止该单元的派发并报告能力缺口。已调用具名入口但失败时按第 5 节处理。
 
 `subagent` one-shot、ACP/远程 Provider、Codex/Claude Code provider 或其他 transport 不能在未核对 continuable、恢复和 child route 语义时替代本主路径。
 
-`sacha_visual_event` 是可选观测能力。它存在时，主任务按第 7 节记录已经提交的 Sacha 转换；缺失、失败或不可达只形成观测缺口，不打开或关闭 Gate，不撤销已提交动作，也不阻塞能够独立验证的工作流。
+可选观测工具 `sacha_visual_event` 按第 7 节使用。
 
 目标 Profile 安装独立配套包 `@sacha-orchestra/dsh-companion` 时，运行中的主会话有 `bootstrap`、`resident` 两阶段工具集。模型可用 `sacha_tools` 查询、切换阶段和临时解锁工具。
 
@@ -48,14 +50,14 @@
 | --- | --- | --- |
 | 主任务 | 当前 Root Session | 独占工作流 Owner、Manager、派发、集成和根终态 |
 | Manager | Root Session 内运行的协调控制面 | 不创建名为 Manager 的 child，不把 DAG 或调度权交给 child |
-| Planner/Explore 研究单元 | `sacha_research` 或核对等价的 fresh continuable child | 默认只读；返回事实、决定缺口、证据 reference 或协调请求 |
-| Executor 工作单元 | `sacha_worker` 或核对等价的 fresh continuable child | Scope/写入边界明确；共享 checkout 继续服从单一写入者 |
-| Reviewer | `sacha_review` 或核对等价的 fresh continuable child | 必须未参与方案和实现；独立性按真实参与历史与输入来源核对 |
+| Planner/Explore 的 `research-ready` 单元 | `sacha_research` 或经核对的等价 fresh continuable child | 默认只读，工具限于调查所需。返回事实、决定缺口、证据 reference 或协调请求 |
+| Executor 的 `execution-ready` 单元 | `sacha_worker` 或经核对的等价 fresh continuable child | 按明确的 Scope 提供实施和验证所需工具。共享工作区沿用单一写入者规则 |
+| 独立 Reviewer | `sacha_review` 或经核对的等价 fresh continuable child | 未参与方案和实现。允许读取、diff 和必要测试。写入能力和 sandbox 限制按第 4.1 节核对并记录，独立性按参与历史和输入来源判断 |
 | 普通委派 Agent | Root Session 直接创建的 continuable child | 单层派发；child 不创建下级 Agent，需继续拆分时只返回协调请求 |
 
 首次创建必须使用 fresh/self-contained 语义；fork/继承父对话只在 Human 明确要求且 Core/Role 独立性与上下文边界仍成立时使用，自动路线不得用 fork 代替最小自包含输入。
 
-Coordination 已判定一个工作单元适合隔离高噪声中间过程时，Root Session 可在 Manager Gate 关闭的情况下直接创建一个对应子任务：只读研究使用 `sacha_research`，需要写入的 `execution-ready` 单元使用 `sacha_worker`。该映射只消费 Core 结论，不根据上下文用量、日志长度或模型判断自行打开 Gate。
+Coordination 已确认一个工作单元适合隔离高噪声的中间过程时，Root Session 可在 Manager Gate 关闭的情况下直接创建一个对应子任务。只读研究和需要写入的 `execution-ready` 单元分别按上表映射。上下文用量、日志长度或模型判断本身不能打开 Gate。
 
 child prompt 必须包含：目标、Scope、输入 reference、允许写入范围或只读边界、完成检查、停止条件，以及发现需拆分/新增授权/Scope 变化时返回协调请求的要求。不得复制完整父对话。
 
@@ -64,12 +66,6 @@ child prompt 必须包含：目标、Scope、输入 reference、允许写入范�
 Core 只产生 readiness、Role、Scope、授权与路由要求；本 Adapter 再映射 DSH child capability 和模型，不把具体工具名写回 Core。
 
 ### 4.1 Capability profile
-
-| Work unit | 推荐 DSH delegation surface | 目标 |
-| --- | --- | --- |
-| `research-ready` | `sacha_research` | 缩小到调查/读取所需能力，避免实现工具和嵌套派发进入 child attention surface |
-| `execution-ready` | `sacha_worker` | 保留实施/验证需要的工具，但禁止 child 再拥有 Sacha 派发权 |
-| 正式独立 Reviewer | `sacha_review` | 允许读取、diff、必要测试；写能力与 sandbox enforcement 按当前 Runtime 真实配置记录 |
 
 具名 surface 的 `toolFilter`、persona、`maxDepth` 属部署/Adapter 传输约束，不拥有 Role 或授权语义。`maxDepth=1` 或当前 Runtime 可证明的等价限制用于落实 Sacha 单层派发；缺失时必须把“嵌套派发未由 Runtime 强制限制”保留为能力缺口。
 
@@ -100,7 +96,7 @@ Manager 仍按 Coordination Contract 形成工作单元、依赖波次、readine
 每个 ready work unit 的派发流程：
 
 1. 主任务核对同一 Task/Scope revision、授权、单写入者和该单元的 capability/model route。
-2. 调用一次对应 delegation tool，省略 `run_in_background` 或显式传 `true`；只接受 `{kind: continuable, subagentId}` 或等价的 durable child id 结果。foreground/one-shot 结果、surface 错误或没有 durable id 都使当前单元进入能力缺口；不得换用 standard `subagent`、Agent Teams teammate 或另一个 Role surface 重试。
+2. 调用一次对应派发工具，省略 `run_in_background` 或显式传 `true`。只接受 `{kind: continuable, subagentId}` 或等价的持久子代理标识。显式传 `false` 走前台单次执行，无法满足正式角色对直属子代理、完成通知和恢复的要求。返回单次执行结果、调用失败或没有持久标识时，记录本单元的能力缺口。不得换用 standard `subagent`、Agent Teams teammate 或另一个角色的派发工具重试。
 3. 创建被拒且没有 child 发布时，只有输入或已装配 surface 发生可证实变化才可重新评估；已返回 child id 后不得重复创建同一 work unit。
 4. 若 `sacha_visual_event` 可用，在 child id 已真实返回后记录一次 `delegation`，把当前 Sacha `unit_id` 映射到该 `child_id`；只有 Runtime 已证明的 route 才写 `effective_route`。记录失败只形成观测缺口，不撤销 child。
 5. 派发后立即重算剩余 ready work。只要存在不依赖未完成结果且不冲突的工作，主任务继续执行或继续派发；不得因为已有 child 在跑就立刻阻塞。
@@ -118,13 +114,13 @@ Sacha 单层派发必须由当前 Runtime 的 direct-parent/depth 记录和 chil
 
 普通批准由当前 Root Session 继续。continuable child 不是新的用户可见 task，不能代替 Workflow 的任务迁移或 Feedback Owner 转移。当前 DSH 工具面没有可查询、创建并返回唯一用户任务 reference 的等价能力时，明确迁移批准与需要新目标的 Feedback 停止在能力缺口；来源主任务保持唯一 Owner，不用 child、后台 turn 或 fork 冒充目标任务。
 
-Roadmap 明确推荐独立 Sacha Planner 任务且 Human 已确认创建时，通过能创建并返回唯一用户任务引用的宿主入口，在初始输入中交付显式 Planner 请求、Roadmap 路径、候选 Spec、已定条件和实施授权边界。没有该能力时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建；不使用 continuable child 代替。
+按[工作流合同的 Roadmap 后续任务规则](../../core/workflow-contract.md#4-生命周期与-human-路由)，通过能创建任务并返回唯一用户任务引用的宿主入口提交初始输入。输入携带 [Roadmap 技能](../../skills/roadmap/SKILL.md)提供的资料、显式 Planner 请求和实施授权边界。缺少该能力时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。continuable 子代理不能代替用户任务。
 
 Human 进度与最终结果由当前 Root Session 按 Human Interaction Contract 展示。互斥选择使用当前 DSH 会话真实提供的选择能力；不可用或需要自由输入时使用普通文本，只询问一个关键差异。
 
 ## 7. Sacha 可视化记录
 
-当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill/Adapter 事实已经提交后调用一次。记录失败时，主任务把失败证据留在任务记录中，并按已提交的流程状态继续。只有面板信息会影响用户对当前进度、结果或下一步的判断时，才在相关汇报中说明哪项状态未同步。
+当前工具面存在 `sacha_visual_event` 时，主任务只在对应 Core/Skill/Adapter 事实已经提交后调用一次。记录只展示已提交的事实和原生子代理状态，不能用作实现、验证或用户验收证据。工具缺失、不可达或记录失败只形成观测缺口，不改变 Gate、不撤销已提交动作，也不阻塞能独立验证的工作。把失败证据留在任务记录中。只有面板信息影响用户对进度、结果或下一步的判断时，才说明哪项状态未同步。
 
 | `event_type` | 记录时机 | 必填映射 |
 | --- | --- | --- |
