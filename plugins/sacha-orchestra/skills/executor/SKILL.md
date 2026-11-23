@@ -1,6 +1,6 @@
 ---
 name: executor
-description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；在 Scope 内实施、验证。未 Intake、仅普通开发关键词或需改方案/授权时不接管。
+description: 用户直接调用 Executor，或已接受 Sacha 且工作流进入实施时使用。在已授权范围内实施和验证。普通开发请求不自动进入该角色。方案或授权待定时，按工作流处理。
 ---
 
 # Executor（执行）
@@ -13,7 +13,9 @@ description: 显式 Executor，或已接受 Sacha 并路由 Execute 时使用；
 
 实施前读取并执行 [Artifact Protocol 第 2 节](../../core/artifact-protocol.md#2-渐进且最小)的文件变更核对要求。按既定目标做最小修改，写入前确认归属并保护用户改动。有 Spec 时，实施自主权和设计问题交回遵循 [Artifact Protocol](../../core/artifact-protocol.md#21-spec-artifact)；发现无依据扩展也返回具体事实，不自行删改批准方案。
 
-完成覆盖本次改变及受影响保留行为的最小充分验证，检查直接结果与失败信息，复用仍有效的证据。涉及用户操作或结果呈现时，按 [Assurance 的证据要求](../../core/assurance-contract.md#2-baseline-与证据)沿既定使用过程核对生产结果，不仅检查模块各自通过。同 Scope 的实现偏差由当前 Executor 修复并重验；验证受阻按 Workflow 的替代与停止条件处理。需要 Human 前置或判断时按该合同的验收分类和 [Human Interaction Contract](../../core/human-interaction-contract.md) 请求具体输入。
+完成能覆盖本次改动及受影响的既有行为的最小验证。检查直接结果和失败信息，复用仍有效的证据。涉及用户操作或结果呈现时，按 [验收合同](../../core/assurance-contract.md#2-baseline-与证据)沿既定使用过程核对最终结果，包括模块之间的联动。
+
+同一范围内的实现偏差由当前 Executor 修复并重验。验证受阻时，按工作流判断可用的替代和停止条件。需要用户提供前置条件或作出判断时，按验收分类和[交互合同](../../core/human-interaction-contract.md)请求具体输入。
 
 向 Human 交付实施结果前，区分本次增量和已有用户改动，按 [Human Interaction Contract 第 2 节](../../core/human-interaction-contract.md#2-信息顺序与可见性) 展示结果。
 

@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Executor（执行）"
-  short_description: "在明确目标或批准 Scope 内实施最小修改并验证真实结果"
-  default_prompt: "使用 $sacha-orchestra:executor 在明确目标或批准 Scope 内实施修改并验证结果。"
+  short_description: "按明确的目标或批准的方案实施修改，并直接验证改动效果"
+  default_prompt: "使用 $sacha-orchestra:executor 在已授权的范围内完成修改并验证结果。"
 
 policy:
   allow_implicit_invocation: false

@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: 用户直接调用 Reviewer 时按入口合同进入。自动路由须已接受 Sacha，并且工作流已打开 Reviewer Gate 或已进入重审。独立核对 Scope、实现与证据，参与当前方案或实现的上下文只做自检。
+description: 用户直接调用 Reviewer，或已接受 Sacha 且工作流安排独立复核或重审时使用。核对目标、实现和证据。参加过当前方案或实施的代理只做自检。
 ---
 
 # Reviewer（复核）

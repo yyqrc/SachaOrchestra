@@ -2,11 +2,13 @@
 
 > 文档身份：插件发布使用；位于发布 `root` 内。
 
-跨运行环境的项目工作流插件。本文只保留安装后可用的入口、最小使用方式和 Runtime owner 导航。
+Sacha Orchestra 是一套跨宿主的项目工作流插件。这里列出安装后可用的入口，以及各项运行规则的位置。
 
 ## 默认入口
 
-Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配候选或 Human 显式使用 Sacha 时才加载 Skill；DeepSeek Harness 通过自然语言明确使用 Sacha，或显式请求 `using-sacha` Skill。目标、范围、授权与验收清晰时保持当前任务直接执行；关键 Human 决定、供后续实施或验收使用的完整 Spec、跨上下文恢复、正式协调或独立复核会改变执行方式时才建议进入 Sacha。入口提问与等待期间的独立调查按 [Intake Contract](core/intake-contract.md) 第 4 节处理，同一入口候选只询问一次。
+Codex 先根据 `$sacha-orchestra:using-sacha` 的简短说明判断任务是否适合 Sacha。任务符合条件、你明确要求使用，或有线索表明这项任务之前选用了 Sacha 时，才加载完整技能说明。在 DeepSeek Harness 中，可以直接说要用 Sacha，也可以调用 `using-sacha`。
+
+继续已有任务时，先核对之前是否选择过 Sacha。原决定仍适用于本次请求时，按原流程继续。其他任务的目标、范围、授权和验收条件都清楚时，直接在当前任务处理。当关键决定、完整实施规格、让另一个对话接着做、正式协调或独立复核会改变做法时，才建议使用 Sacha。同一项建议只问一次。如何提问及等待时可以继续做哪些调查，见 [入口合同第 4 节](core/intake-contract.md#4-入口决定)。
 
 ## 显式入口
 
@@ -20,15 +22,15 @@ Codex 先用 `$sacha-orchestra:using-sacha` 元数据筛选入口候选，匹配
 
 入口不会扩大写入、安装、Git、发布、远程资源或高影响动作授权。
 
-## Runtime owner
+## 运行规则
 
 - [Intake Contract](core/intake-contract.md)：入口接受/拒绝与重复抑制。
 - [术语合同](core/terminology-contract.md)：流程与 Artifact 的提炼术语、定义与边界。
-- [Workflow Contract](core/workflow-contract.md)：唯一 Runtime 路由、Role/Gate 与 Human 路由。
-- [Human Interaction Contract](core/human-interaction-contract.md)：Human 可见提问、进度、结果顺序与必须披露的信息。
-- [Assurance Contract](core/assurance-contract.md)：Review、Baseline 与 Outcome。
-- [Coordination Contract](core/coordination-contract.md)：Manager、readiness、dispatch/wait/return 与 owner transfer。
-- [Artifact Protocol](core/artifact-protocol.md)：Artifact 生成条件、最小内容、权威关系与恢复规则。
+- [工作流合同](core/workflow-contract.md)规定任务何时进入规划、实施、评审和收尾。
+- [交互合同](core/human-interaction-contract.md)规定怎样提问、报告进度和交付结果。
+- [验收合同](core/assurance-contract.md)规定按哪个版本核对、怎样执行验收和作出裁决。
+- [协调合同](core/coordination-contract.md)规定怎样安排依赖、派发、等待、接收结果和移交责任。
+- [工作记录协议](core/artifact-protocol.md)规定何时保存记录、以什么为准，以及怎样接手和恢复任务。
 - [Codex Adapter](adapters/codex/runtime-adapter.md)、[Claude Code Adapter](adapters/claudecode/runtime-adapter.md)与 [DeepSeek Harness Adapter](adapters/dsh/runtime-adapter.md)：各自 Runtime transport；DSH Adapter 另映射可选的 Sacha 可视化记录面。
 
-静态源码与说明不证明安装、fresh discovery、dispatch 或真实 Runtime 行为；这些必须用对应 Runtime scenario 单独验证。
+源码和文档用于核对规则与实现。需要确认插件是否已安装、新会话能否发现它、子代理能否派发或实际运行行为时，分别用对应场景的直接证据判断。

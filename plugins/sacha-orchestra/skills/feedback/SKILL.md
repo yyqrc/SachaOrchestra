@@ -1,6 +1,6 @@
 ---
 name: feedback
-description: 当 Human 在另一个真实任务中显式提交流程问题、使用反馈或插件开发想法时使用；有界只读调查并单向移交唯一反馈目标任务。
+description: 用户在另一个真实任务中明确提交流程问题、使用反馈或插件开发想法时使用。只读核实相关事实，再把反馈交给唯一的处理任务。
 ---
 
 # Feedback（插件反馈）
@@ -23,7 +23,7 @@ description: 当 Human 在另一个真实任务中显式提交流程问题、使
 
 ## 输出
 
-- 向 Human 交付目标任务 reference、已核实事实和未验证边界；格式遵循 [Human Interaction Contract](../../core/human-interaction-contract.md)。
+- 向用户给出目标任务的链接或原生标识，说明已核实的事实和仍影响判断的缺口。按[交互合同](../../core/human-interaction-contract.md)组织答复。
 - 来源任务在交付 reference 后结束，不等待或转述目标任务终态。
 
 ## 停止与禁止边界

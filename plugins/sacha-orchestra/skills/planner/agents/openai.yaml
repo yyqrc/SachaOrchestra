@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Planner（规划）"
-  short_description: "基于已验证事实冻结可执行 Scope、决策与验收标准"
-  default_prompt: "使用 $sacha-orchestra:planner 基于已验证事实冻结这个目标的 Scope、决策与验收标准。"
+  short_description: "根据项目事实和已确认决定，制定可直接实施和验收的方案"
+  default_prompt: "使用 $sacha-orchestra:planner 为这个目标制定可直接实施和验收的方案。"
 
 policy:
   allow_implicit_invocation: false

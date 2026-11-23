@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "后续实施或验收用 Spec 主动评估 Sacha，普通查询保持 Direct"
-  default_prompt: "使用 $sacha-orchestra:using-sacha 评估当前已出现的入口候选，并说明是否建议进入 Sacha。"
+  short_description: "评估当前目标是否需要 Sacha，明确且能直接完成的任务继续处理"
+  default_prompt: "使用 $sacha-orchestra:using-sacha 判断这个目标是否适合用 Sacha，并说明对交付的影响。"

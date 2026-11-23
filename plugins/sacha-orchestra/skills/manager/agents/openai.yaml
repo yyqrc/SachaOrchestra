@@ -1,7 +1,7 @@
 interface:
   display_name: "Sacha Orchestra Manager（内部协调）"
-  short_description: "仅供主任务在 Manager Gate 开启后协调并返回调用节点"
-  default_prompt: "当主任务已打开 Manager Gate 时，使用 $sacha-orchestra:manager 协调就绪单元并返回调用节点。"
+  short_description: "由主任务协调有依赖、需要并行或需明确分工的工作，并把结果交回原步骤"
+  default_prompt: "主任务在工作流要求协调依赖、并行或分工时，使用 $sacha-orchestra:manager 安排工作并交回结果。"
 
 policy:
   allow_implicit_invocation: false
