@@ -35,9 +35,9 @@ python -B scripts/release.py publish --version <version> --review reused|accepte
 
 - `--candidate-path` 必须精确匹配暂存文件；冲突、范围不一致或这些文件暂存后又变化时停止受影响发布。review 参数显式记录 reused（复用已有评审）、accepted（本次评审通过）或 not-required（按现行规则无需正式评审）；不能把无需评审写成已通过，也不能用参数替代实际证据。
 - 执行前核对版本与发布信息，按已确定版本更新 EVOLUTION.md 并暂存；tag 成功前不宣称版本已经发布。脚本执行 candidate 机器身份检查、commit、annotated tag、release 身份检查、原子 push 和远端核对，不运行回归测试或独立 Review。
-- publish 返回 status=pass，并给出 commit、tree、branch、tag、remote 和 remote_verified=true 后直接交付。只再用一次 cprobe 检查范围外工作区边界；不例行重查 manifest、HEAD/tag、远端或插件列表。
-- 失败时根据原始错误与已完成阶段恢复，不盲目重跑产生 commit、tag 或 push 的动作。脚本不可用时只对缺少的机械步骤使用原生 Git 与现有身份校验入口，不重新执行全流程。
-- 报告实际发布版本、提交和远端结果，以及明确失败、风险和未满足的必需条件。没有触发的安装或运行检查不形成欠账；耗时使用现有脚本输出，不凭感觉承诺固定总时长。
+- publish 返回 `status=pass`，给出 `commit`、`tree`、`branch`、`tag`、`remote`，且 `remote_verified=true` 时，发布结果已经核实。只再用一次 cprobe 检查范围外的工作区内容。已有且仍有效的清单、HEAD、标签、远端和插件列表证据直接使用。
+- 失败时，从原始错误和已完成阶段判断接下来做什么。确需继续时只补缺少的步骤。脚本不可用时，用原生 Git 和现有身份校验入口完成相应步骤。产生过的提交、标签和推送都要先核对状态。
+- 向用户报告实际发布版本、提交和远端结果。把明确失败、风险和未满足的必需条件放在相关结果旁。例行检查通过的明细留在任务记录中。安装和运行检查只有本次实际需要时才计入交付。需要说明耗时时，使用脚本的实际输出。
 
 ## 安装与缓存核对
 
@@ -45,5 +45,5 @@ python -B scripts/release.py publish --version <version> --review reused|accepte
 
 1. 需要安装证据时核对当前插件 PATH、版本和目标；PATH 指向仓库发布 root 表示源码直连，不等于新安装或运行通过。市场名称使用当前 read_marketplace_name.py 读取，不根据目录名猜测。
 2. 目标、版本与授权明确后，按适配器或现有 `release.py install --version <version>` 执行。相同决定不重复询问，不改安装缓存、系统 PATH 或应用权限，不添加 cachebuster。
-3. 安装前关闭本次发布创建且已经终态、可关闭的辅助代理。拒绝访问或缓存已创建但登记未完成时保留状态与错误；解除占用后用同一 CLI 恢复，不手工删除或覆盖缓存。
+3. 安装遇到拒绝访问时，先核对实际权限或进程占用。缓存已创建但登记未完成时保留状态和原始错误。处理实际阻塞后用同一 CLI 恢复，保留缓存现状。
 4. 安装结果只证明对应安装、发现和来源/缓存一致性；实际行为需要相应运行证据。发布成功不能代替安装后的发现和运行结果。

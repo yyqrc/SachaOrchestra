@@ -518,7 +518,10 @@ def install(version: str) -> None:
         result = run(codex, "plugin", "add", f"sacha-orchestra@{marketplace}", "--json")
     except ReleaseError as exc:
         if "拒绝访问" in str(exc) or "os error 5" in str(exc):
-            raise ReleaseError("安装被拒绝访问；关闭本次发布中已终态的辅助 Agent 后，不修改 cache，重新运行 install") from exc
+            raise ReleaseError(
+                "安装被拒绝访问。确认并处理实际的权限或进程占用后，再运行 install。保留缓存现状。\n"
+                f"{exc}"
+            ) from exc
         raise
     payload = json.loads(result.stdout)
     installed_path = Path(payload.get("installedPath", ""))
