@@ -8,7 +8,7 @@
 2. 提供可接收后续指令的子代理工具 `sacha_research`、`sacha_worker` 和 `sacha_review`。
 3. 在面板上显示已记录的工作依赖、派发、评审和证据，以及直属子代理与主会话工具的状态。
 
-它不接受 Sacha、不决定 Role/Gate/readiness/Scope/授权/调度/Outcome/完成，也不维护第二份 Workflow 或 DAG。安装 package 只改变目标 DSH Profile 的 Runtime 工具组合与观察面。
+它提供已有工具和状态的记录与显示。工作方式、角色、启动条件、范围、授权、调度、评审和完成仍按主插件规则决定。安装配套包只改变目标 DSH 配置的工具组合和显示能力。
 
 ## Root 最小充分工具面
 

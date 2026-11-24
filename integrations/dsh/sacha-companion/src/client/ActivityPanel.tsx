@@ -36,8 +36,8 @@ const GATE_NOTICE: Record<SachaGate, string> = {
   planner: '需要确认目标和做法', manager: '多项工作需要协调', reviewer: '结果正在确认',
 }
 const REVIEW_LABEL: Record<NonNullable<VisualState['review']>['outcome'], string> = {
-  accepted: '结果已确认',
-  accepted_with_follow_up: '结果已确认，仍有后续事项',
+  accepted: '通过',
+  accepted_with_follow_up: '通过',
   needs_fix: '发现问题，正在调整',
   needs_replan: '需要重新确定做法',
   needs_evidence: '还缺一次实际验证',
@@ -92,20 +92,26 @@ function hasActivity(snapshot: SachaActivitySnapshot | undefined): boolean {
 function StateBadges({ state }: { readonly state: VisualState }): JSX.Element | null {
   const gates = (Object.entries(state.gates) as [SachaGate, VisualState['gates'][SachaGate]][])
     .filter((entry): entry is [SachaGate, NonNullable<VisualState['gates'][SachaGate]>] => entry[1]?.decision === 'open')
-  if (gates.length === 0 && state.review === undefined) return null
+  const review = state.review
+  if (gates.length === 0 && review === undefined) return null
   return (
-    <div className={css.badges}>
-      {gates.map(([gate]) => (
-        <span key={gate} className={css.stateBadge} data-tone="warning">
-          {GATE_NOTICE[gate]}
-        </span>
-      ))}
-      {state.review !== undefined ? (
-        <span className={css.stateBadge} data-tone="review">
-          {REVIEW_LABEL[state.review.outcome]}
-        </span>
+    <>
+      <div className={css.badges}>
+        {gates.map(([gate]) => (
+          <span key={gate} className={css.stateBadge} data-tone="warning">
+            {GATE_NOTICE[gate]}
+          </span>
+        ))}
+        {review !== undefined ? (
+          <span className={css.stateBadge} data-tone="review">
+            {REVIEW_LABEL[review.outcome]}
+          </span>
+        ) : null}
+      </div>
+      {review?.outcome === 'accepted_with_follow_up' ? (
+        <small className={css.meta}>待跟进 · {review.summary}</small>
       ) : null}
-    </div>
+    </>
   )
 }
 
