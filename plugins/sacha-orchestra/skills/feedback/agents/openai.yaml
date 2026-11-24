@@ -1,6 +1,6 @@
 interface:
   display_name: "Sacha Orchestra Feedback（独立反馈任务）"
   short_description: "在已有任务中提交具体的插件问题或建议，并查明由哪个任务处理"
-  default_prompt: "使用 $sacha-orchestra:feedback 核实这项反馈，并告诉我它交给了哪个任务。"
+  default_prompt: "使用 $sacha-orchestra:feedback 核实并移交这项反馈。确认没有匹配的处理任务时，请新建一个。告诉我反馈交给了哪个任务。"
 policy:
   allow_implicit_invocation: false

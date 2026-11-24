@@ -4,7 +4,7 @@
 
 ## 消息 1
 
-使用 Sacha Executor，按当前 root 的 current/spec.md 完成 value() 返回 2 的改动。该 Spec 已获批准。实施与本地验证授权仅限本 root；项目文档策略为 disabled。运行 verify.py，交付实际结果。
+继续已批准的任务。按当前目录的 current/spec.md 完成 value() 返回 2 的改动。实施与本地验证授权仅限当前目录，项目文档策略为 disabled。运行 verify.py，交付实际结果。
 
 ## 消息 2
 

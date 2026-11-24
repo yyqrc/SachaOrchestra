@@ -6,15 +6,15 @@
 
 本文映射 Claude Code 原生能力。Owner 依据：
 
-- [Intake Contract](../../core/intake-contract.md)
-- [术语合同](../../core/terminology-contract.md)
-- [Workflow Contract](../../core/workflow-contract.md)
-- [Human Interaction Contract](../../core/human-interaction-contract.md)
-- [Assurance Contract](../../core/assurance-contract.md)
-- [Coordination Contract](../../core/coordination-contract.md)
-- [Artifact Protocol](../../core/artifact-protocol.md)
+- [入口规则](../../core/intake-contract.md)
+- [术语定义](../../core/terminology-contract.md)
+- [工作流规则](../../core/workflow-contract.md)
+- [交互规则](../../core/human-interaction-contract.md)
+- [验收规则](../../core/assurance-contract.md)
+- [协调规则](../../core/coordination-contract.md)
+- [工作记录规则](../../core/artifact-protocol.md)
 
-入口、Role、Gate、Artifact、项目知识和发布状态由对应 Core、Skill、Project Integration 与 Evolution 拥有。本 Adapter 消费已确定的动作；只有主任务映射 Claude Code Agent 传输。
+入口、角色、各步骤的启动条件、工作记录、项目知识和发布状态由对应 Core、Skill、Project Integration 与 Evolution 拥有。本 Adapter 消费已确定的动作；只有主任务映射 Claude Code Agent 传输。
 
 ## 2. Intake、Role 与上下文
 
@@ -25,7 +25,7 @@
 | Executor | 主对话内运行，或独立 `Agent` 上下文成为 Executor 委派 Agent，完成有界单元并返回结果/协调请求 |
 | Reviewer | 未参与方案/实现的独立 `Agent` 上下文成为 Reviewer 委派 Agent |
 | Manager | 只在主任务内协调，不创建控制面 `Agent` |
-| 工作流 Owner | 默认是 Human 接受后的主对话；明确会话迁移后转为唯一目标 |
+| 工作流负责人 | 默认是当前主对话。用户明确批准迁移且移交完成后，由唯一目标接管 |
 | Human 互斥选择 | 使用已验证的原生选择能力；当前 Runtime 无可用映射时使用普通文本提问 |
 | Human 进度与结果 | 由当前工作流 Owner 在主对话展示 |
 
@@ -37,11 +37,11 @@
 
 每次转换先核对 Runtime 可用能力：
 
-1. 核对 Task/Scope、Role、Artifact 可达性、来源、Owner 和返回路径。
+1. 核对 任务或范围、Role、Artifact 可达性、来源、Owner 和返回路径。
 2. 同一上下文的工作在主任务执行；需要独立来源的正式 Role 转换使用可保留标识/终态的 Agent 传输。委派 Agent 只由主任务直接管理并遵守单层派发。
-3. Source 负载由路由意图、Scope/Handoff reference、必要约束、Runtime 标识和协调请求返回条件组成。
-4. 独立 Review 使用新 `Agent` 上下文；同一 Task/Scope 的返修、补证据和重新 Review 保持原 Owner。
-5. 当前传输不可用时，先尝试同一 Scope 内已确认安全、等价且获授权的替代入口。若传输仍不可用，或仍无法唯一确定 Owner、Role 或返回路径，停止对应转换，并按 Workflow 报告具体阻塞、已完成结果和恢复条件。
+3. Source 负载由路由意图、工作范围或交接信息的引用、必要约束、Runtime 标识和协调请求返回条件组成。
+4. 独立 Review 使用新 `Agent` 上下文；同一任务和范围内的返修、补证据和重新 Review 保持原 Owner。
+5. 当前传输不可用时，先尝试同一范围内已确认安全、等价且获授权的替代入口。若传输仍不可用，或仍无法唯一确定 Owner、Role 或返回路径，停止对应转换，并按 Workflow 报告具体阻塞、已完成结果和恢复条件。
 
 ### 3.1 完成与等待
 
@@ -51,48 +51,48 @@
 
 ### 3.2 Human 决定与任务迁移
 
-适配器按工作流、协调合同已确认的批准方式处理。用户批准在原会话实施时，由主对话继续。
+适配器按工作流、协调规则已确认的批准方式处理。用户批准在原会话实施时，由主对话继续。
 
 用户明确批准迁移时，原主任务停止实施和写入派发。用可验证的等价用户会话入口查询、复用或创建唯一目标。目标收到必要交接信息后才接管。原主任务给出目标任务引用后结束。
 
 迁移条件不足时，原主任务仍是唯一负责方，报告原始缺口并暂停进入 Executor。用户任务迁移标识只属于目标任务。
 
-按[工作流合同的 Roadmap 后续任务规则](../../core/workflow-contract.md#4-生命周期与-human-路由)，使用能返回用户可见会话引用的宿主入口。初始输入携带 [Roadmap 技能](../../skills/roadmap/SKILL.md)提供的资料、显式 Planner 请求和实施授权边界。缺少等价入口时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。子代理不能代替独立用户会话。
+按[工作流规则的 Roadmap 后续任务规则](../../core/workflow-contract.md#4-生命周期与-human-路由)，使用能返回用户可见会话引用的宿主入口。初始输入携带 [Roadmap 技能](../../skills/roadmap/SKILL.md)提供的资料、显式 Planner 请求和实施授权边界。缺少等价入口时，交付已完成的 Roadmap 和可直接使用的 Planner 请求，说明新任务尚未创建。子代理不能代替独立用户会话。
 
 ### 3.3 Feedback Owner 转移
 
-按[协调合同](../../core/coordination-contract.md#6-完成返回与偏差)的匹配结果交付 Feedback。复用时把最小 Handoff 交给已确定的用户会话，新建时把同一 Handoff 放入唯一新会话的初始输入。`no_op` 只返回既有引用。匹配不唯一、传递失败或结果未知时，保留来源 Owner 和已有目标引用，说明缺口，不重复创建或发送。成功交付后按协调合同结束来源会话。
+按[协调规则](../../core/coordination-contract.md#6-完成返回与偏差)的匹配结果交付 Feedback。复用时把最小 Handoff 交给已确定的用户会话，新建时把同一 Handoff 放入唯一新会话的初始输入。`no_op` 只返回既有引用。匹配不唯一、传递失败或结果未知时，保留来源 Owner 和已有目标引用，说明缺口，不重复创建或发送。成功交付后按协调规则结束来源会话。
 
 ### 3.4 模型映射
 
-正式跨上下文派发先应用 Human 本次或批准 Scope 的精确配置，否则按 Role/风险选择：
+正式跨上下文派发先应用 Human 本次或已批准范围的精确配置，否则按 Role/风险选择：
 
 | 目标 | 模型 | 条件 |
 | --- | --- | --- |
 | Planner | `opus` | 需要冻结实质方案 |
 | Executor | `opus` | 安全、权限、持久数据、破坏性变更、不可逆外部动作或广泛兼容/发布风险 |
-| Executor | `sonnet` | Scope/验收已冻结、实现与验证明确且属于普通风险 |
+| Executor | `sonnet` | 范围和验收已冻结、实现与验证明确且属于普通风险 |
 | Reviewer | `opus` | 独立验收 |
 | 有界只读委派 Agent | `haiku` | 自包含调查，只返回事实、协调请求与 reference |
 
-Planner/Reviewer/Manager Gate 结果来自 Core。普通 Executor 只有输入自包含时使用 `sonnet`。Human/Scope 精确配置不受支持时暂停；自动配置不可用时使用 Runtime 默认值。Owner 核对并记录请求/实际模型与宿主覆盖原因；旧写入者进入 `terminal/cancelled` 前不得以其他模型启动同一 Scope 写入。Direct/当前上下文保持当前模型和路由状态。
+是否启动 Planner、Reviewer 或 Manager，由核心规则决定。普通 Executor 只有输入自包含时使用 `sonnet`。用户或已批准范围中的精确配置不受支持时暂停；自动配置不可用时使用 Runtime 默认值。Owner 核对并记录请求/实际模型与宿主覆盖原因；旧写入者进入 `terminal/cancelled` 前不得以其他模型启动同一范围写入。Direct/当前上下文保持当前模型和路由状态。
 
-传输/标识/进度失败按 Coordination Contract 生成偏差；本 Adapter 补充原生结果未携带且恢复必需的 Agent/任务、前后台模式、通知/返回、工具错误和恢复入口。
+传输/标识/进度失败按协调规则生成偏差；本 Adapter 补充原生结果未携带且恢复必需的 Agent/任务、前后台模式、通知/返回、工具错误和恢复入口。
 
-Human 输出按 Human Interaction Contract 展示。存活状态证据来自当前前台调用或后台完成/取消状态；超时只报告当前状态。
+Human 输出按交互规则展示。存活状态证据来自当前前台调用或后台完成/取消状态；超时只报告当前状态。
 
-搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文已有消费者时写入任务局部文件或既有 Artifact，否则保留工具 reference；截断结果保留 Human Interaction Contract 规定的必须披露信息。
+搜索、diff、日志和列表默认返回短摘要，缺少决策信息时定向展开。大原文已有消费者时写入任务局部文件或既有 Artifact，否则保留工具 reference；截断结果保留交互规则规定的必须披露信息。
 
 ## 4. Agent 协调与 Artifact 映射
 
-主任务按协调合同已确定的本地执行、复用或新建决定采取行动。新建用 `Agent`，复用用当前宿主的继续入口。已安排并行且条件满足时，先启动相应实例，再等待或消费完成结果。单个有界委派仍按第 3.4 节选择路线。委派 Agent 需要调整依赖或派发时返回协调请求。共享工作树的同一文件或输出由集成负责方串行处理。隔离的补丁或候选实现可并行。
+主任务按协调规则已确定的本地执行、复用或新建决定采取行动。新建用 `Agent`，复用用当前宿主的继续入口。已安排并行且条件满足时，先启动相应实例，再等待或消费完成结果。单个有界委派仍按第 3.4 节选择路线。委派 Agent 需要调整依赖或派发时返回协调请求。共享工作树的同一文件或输出由集成负责方串行处理。隔离的补丁或候选实现可并行。
 
 完成结果按传输需要核对修订和去重。结果保留接收方和风险判断所需的实际变更。有后续使用方时才保存工作记录。并行未启动时，记录实际的宿主、槽位、依赖、范围或授权阻塞，或记录条件已满足但漏派的事实。单层派发由首次等待前的实时 Agent 树和直接父子标识证明。
 
-Agent 上下文通过稳定 reference 读取 Scope、Artifact、原始证据和当前消费者所需 Handoff 语义。恢复以可用路由标识、Scope、revision 与 Entry Condition 为依据；reference 不可达时停止转换并记录唯一入口。
+Agent 上下文通过稳定 reference 读取范围、Artifact、原始证据和当前消费者所需 Handoff 语义。恢复时根据可用的流转标识、范围、修订号和进入条件判断；reference 不可达时停止转换并记录唯一入口。
 
 ## 5. 发现机制
 
-项目规则、`using-sacha`、规范角色和领域 Skill 由当前宿主正式发现和加载。接受、授权和恢复按[入口合同](../../core/intake-contract.md)及相应工作流处理。工作区外的动作须有具体授权。规范入口、角色技能或当前转换所需的 Artifact 不可达时，保留原始错误，说明具体缺口并暂停受影响的转换。
+项目规则、`using-sacha`、规范角色和领域 Skill 由当前宿主正式发现和加载。工作方式、授权和恢复按[入口规则](../../core/intake-contract.md)及相应工作流处理。工作区外的动作须有具体授权。规范入口、角色技能或当前转换所需的 Artifact 不可达时，保留原始错误，说明具体缺口并暂停受影响的转换。
 
 发现证据只证明入口可达。生命周期、并行、恢复与验收使用对应的实际运行证据。

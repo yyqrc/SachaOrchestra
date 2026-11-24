@@ -83,7 +83,7 @@ Provider query 只展开公开 Skill 候选；不得选择 Spec base、Roadmap r
 
 ## Role 消费
 
-Human 接受 Sacha 且任务需要项目 Skill 时，Role：
+当前工作需要项目技能时，负责该步骤的角色：
 
 1. 用当前 Runtime Skill catalog 的 canonical `name`、`description` 与 `path` 找到唯一匹配，并从 Project Integration 读取该 Skill 的 load policy。
 2. 按 policy 判断是否加载；条目本身不授权。`on-demand` 可在设计和规划阶段加载只读约束，`change-authorized` 只用于已经授权修改后才需要的实施 Skill。

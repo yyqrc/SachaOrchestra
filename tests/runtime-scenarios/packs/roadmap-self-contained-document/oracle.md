@@ -6,7 +6,7 @@
 
 ## `pass`
 
-- 执行者从显式 Roadmap 入口开始，不接受 Sacha、不进入生产 Role，也不实施阶段或创建 Spec。
+- 执行者直接从路线图入口开始，按明确范围调查和写入路线图，不额外询问是否使用 Sacha，不实施阶段或创建 Spec。
 - Human 明确不了解底层背景时，执行者读取 Explore 及项目来源，区分已核实事实、项目决定和待查明的问题，不要求 Human 认证技术分析。
 - 最终只在 Project Integration 配置的 Roadmap root 生成一个符合 `<YYYY-MM-DD>-<short-slug>-roadmap.md` 的文件；使用 template catalog 中唯一的 `document_type=roadmap` Profile 取得读者文风，并通过 document-project 的 Profile/template SHA-256、dry-run、per-write confirmation、原子写入与回读结果。
 - Roadmap 脱离 Sacha 仍能解释 Depth Fetch 的目标、当前状态、路线原则、阶段结果、阶段依赖、完成信号、各阶段对应的实施规格、待决定事项、待查明的问题、排除范围和主要项目依据。

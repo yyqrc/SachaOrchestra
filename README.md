@@ -11,7 +11,7 @@ Sacha Orchestra 是跨项目、多智能体的工作流协调框架。本仓库�
 - 当前 release、当前待发布源码版本、当前 breaking boundary、成熟度与尚未实施的长期方向以[版本演进](EVOLUTION.md)为唯一权威；部署清单只声明当前源码版本。
 - [插件顶层设计](PLUGIN_DESIGN.md)定义完整流程骨架、Role/Skill 职责、Core owner 和自上而下变更顺序；[术语规则](plugins/sacha-orchestra/core/terminology-contract.md)、[入口规则](plugins/sacha-orchestra/core/intake-contract.md)、[工作流规则](plugins/sacha-orchestra/core/workflow-contract.md)、[验收规则](plugins/sacha-orchestra/core/assurance-contract.md)、[协调规则](plugins/sacha-orchestra/core/coordination-contract.md)和[交接协议](plugins/sacha-orchestra/core/artifact-protocol.md)分别实现 Runtime 局部语义。
 - 运行适配只负责把核心协议映射到具体平台：[Codex 运行适配](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md)、[Claude Code 运行适配](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md)与 [DeepSeek Harness 运行适配](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md)彼此独立。
-- Codex、Claude Code 与 DSH deployment 共用同一 Agent Plugin 源码；DSH 通过 Agent Plugins 开放标准加载根 `plugin.json` 与 `skills/`。`using-sacha` 是唯一默认入口。Runtime 不读取顶层设计，由 Workflow Contract 和各 Skill 自包含执行。
+- Codex、Claude Code 与 DSH deployment 共用同一 Agent Plugin 源码；DSH 通过 Agent Plugins 开放标准加载根 `plugin.json` 与 `skills/`。`using-sacha` 是唯一默认入口。Runtime 不读取顶层设计，由工作流规则和各 Skill 自包含执行。
 - [DSH 配套包](integrations/dsh/sacha-companion/README.md)独立构建和安装。它管理目标 Profile 中主会话可用的工具，提供可接收后续指令的 `sacha_research`、`sacha_worker` 和 `sacha_review`，并在面板上显示会话状态。配套包独立于插件市场。运行规则、工作记录、授权和实际运行证据仍按各自要求处理。
 - 能力插件如何声明能力目录并与项目接入、任务角色闭环，见开发期[能力提供方接入指南](docs/integrations/capability-provider-guide.md)；该指南不随插件部署。
 - Role 与流程行为不靠 Markdown 文本自测；可复现任务包和独立 evaluator 流程见 [Runtime scenarios](tests/runtime-scenarios/README.md)。

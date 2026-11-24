@@ -335,21 +335,56 @@ class DocumentProjectTests(ProjectTestCase):
             policy="required-at-closeout",
             authorization="bounded-closeout",
         )
-        not_persistent = document_generator.generate_project_document(
+        guide_without_delta = document_generator.generate_project_document(
             project_root=required,
             workflow_rule_path="docs/workflow-rule.md",
             document_input=self.document_input(
+                document_type="system-guide",
                 trigger="goal-closeout",
                 persistent_product_delta=False,
             ),
+            write=True,
         )
-        self.assertEqual("refused", not_persistent["status"])
+        self.assertEqual(("refused", "no_write"), (guide_without_delta["status"], guide_without_delta["transaction"]))
         bounded = document_generator.generate_project_document(
             project_root=required,
             workflow_rule_path="docs/workflow-rule.md",
             document_input=self.document_input(trigger="goal-closeout"),
         )
         self.assertEqual(("ready", "dry_run"), (bounded["status"], bounded["transaction"]))
+
+        handover = self.document_input(
+            title="接手说明",
+            trigger="goal-closeout",
+            persistent_product_delta=False,
+            output_path="changes/handover.md",
+        )
+        handover["sections"]["ai_handoff"] = "后续核对时，从项目构建配置和验证入口开始。"
+        saved = document_generator.generate_project_document(
+            project_root=required,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=handover,
+            write=True,
+        )
+        self.assertEqual(("ok", "committed"), (saved["status"], saved["transaction"]))
+        self.assertIn(handover["sections"]["ai_handoff"], Path(saved["target"]).read_text(encoding="utf-8"))
+
+        confirmation_required, archive_root = self.configured_document_project(
+            "documents-required-confirmation",
+            policy="required-at-closeout",
+            authorization="per-write-confirmation",
+        )
+        unconfirmed_handover = document_generator.generate_project_document(
+            project_root=confirmation_required,
+            workflow_rule_path="docs/workflow-rule.md",
+            document_input=handover,
+            write=True,
+        )
+        self.assertEqual(
+            ("refused", "no_write"),
+            (unconfirmed_handover["status"], unconfirmed_handover["transaction"]),
+        )
+        self.assertFalse((archive_root / handover["output_path"]).exists())
 
         explicit_without_confirmation = document_generator.generate_project_document(
             project_root=required,

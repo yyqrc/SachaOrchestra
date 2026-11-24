@@ -2,191 +2,114 @@
 
 > 文档身份：插件开发使用；不进入发布插件。
 
-本文与仓库根 `AGENTS.md` 并列，是供插件开发与评审阶段的 AI 和 Human 共同读取的顶层设计权威，保存产品入口、流程骨架、Role/Skill 职责和 Core owner。它不复制 Runtime 细节，不随插件发布，也不是任务执行依赖。
+本文供插件开发者、评审者和代理查阅，与仓库根 `AGENTS.md` 并列。本文说明插件入口、工作流程、角色和技能的职责，以及各项规则由哪个文件负责。工具调用细节见各运行环境的适配器。
 
-开发文档使用的术语见[项目上下文](docs/CONTEXT.md)。多个发布插件使用的共享术语由[术语合同](plugins/sacha-orchestra/core/terminology-contract.md)完整定义。项目上下文保存定义链接、使用方和核验方法，也可以定义仅供开发、维护和评审使用的术语。此类术语留在开发文档。
+开发文档的术语见[项目上下文](docs/CONTEXT.md)。多个发布组件共用的术语由[术语定义](plugins/sacha-orchestra/core/terminology-contract.md)集中维护。项目上下文记录定义链接、使用方和核验方法，也收录仅供开发、维护和评审使用的术语。
 
 ## 根本准则
 
 以下准则约束本设计及其细化规则，用于开发和评审时判断规则是否必要、职责是否一致。运行时判断仍由第 1 节的负责文件定义；发现不一致时修正对应规则，不由执行者据此另造流程或跳过既有条件。
 
-编排负责角色路由、工作依赖、派发与结果接收。Gate 只决定是否进入规划、协调或独立评审；角色在职责内直接推进，检查随派发、写入和交付等实际动作发生。已确认的接受、范围、授权和方案沿流程消费，只有相关事实变化或恢复材料不足时才补查，不逐层重审。
+工作流决定谁负责、工作有何依赖、何时派发及谁接收结果。只有需要时才进入规划、协调或独立评审。各项检查随派发、写入或交付完成，已确认的选择、范围、授权和方案直接沿用。相关事实变化或恢复资料不足时，只补查受影响的部分。
 
 1. **授权与责任明确。** 任务沿已确认的目标、范围和授权推进；每项工作及其交接必须有明确负责方。角色调用、工具可用或上下文转移不扩大授权。
-2. **探索充分，方案精确，执行按方案。** 以代表性输入下的主要使用过程贯穿澄清、设计和验收，先对齐必要行为与取舍，再落实技术设计；讨论和候选不等于采纳。形成 Spec 时，Planner 必须完成实施所需的设计，明确修改位置及行号与稳定锚点、新增或修改的函数与接口、数据和调用关系、实施步骤及可观察验收；具体完整性标准由 Artifact Protocol 定义。执行者凭持久化 Spec 及其明确引用即可实施，无需自行补充设计或重新作方案选择；允许机械适配，遇到设计缺口或事实冲突则将受影响工作交回主任务思考、调整。精度服务于已确认范围，不扩张范围。
-3. **每项判断只有一个负责位置。** Core 定义共同判断，Skill 实现职责内做法，Adapter 映射宿主能力与参数。使用方引用权威定义并保留自身必要映射；角色自包含所需的职责、局部流程和边界可以保留，不重复建立另一套判断。
-4. **复杂度必须有当前依据。** 优先通过现有实现的局部修改满足目标；新增抽象、防御、兼容、回退或流程机制，必须说明当前需求或真实失败为何无法由现有做法满足。必要设计足以落实目标后停止扩展，不为假想边界补机制。Gate 按规定条件判断，委派按独立性和实际收益选择；成本判断不替代 Gate，也不为派发人为拆分工作。
-5. **读取与记录服务于实际消费者。** 按当前节点及其必要依赖加载规则，只持久化后续决定、实施、验收或恢复实际需要的内容；同一事实完整定义一次，使用处引用。必要节点入口和真实消费者依赖的格式必须保留，不能仅以精简为由省略。
-6. **结论有证据，阻塞有边界。** 结论只覆盖直接证据能够证明的范围，复用仍有效的验证。缺少条件时停止受影响部分，并继续独立且已授权的工作；同时保持独立评审、单一写入者以及取消或接管前的停止要求。
+2. **方案写到能实施。** 用代表性输入和主要使用过程说明需求、设计和验收。需要实施规格（Spec）时，规划者写清修改位置、会影响实施的接口和数据关系、实施步骤及可观察的验收结果。执行者按[工作记录规则](plugins/sacha-orchestra/core/artifact-protocol.md#21-spec-artifact)自行处理并验证局部出入。发现必要设计缺失，或需要改变已批准的约束时，交回主任务。
+3. **每项判断由一个文件负责。** 核心规则规定各运行环境共用的判断。技能说明各自职责内的做法。适配器说明怎样调用运行环境的工具。其他地方保留引用与本处必要的说明。
+4. **复杂度必须有当前依据。** 优先通过现有实现的局部修改满足目标；新增抽象、防御、兼容、回退或流程机制，必须说明当前需求或真实失败为何无法由现有做法满足。必要设计足以落实目标后停止扩展，不为假想边界补机制。按已有条件判断是否启动各步骤，委派按独立性和实际收益选择；不能用成本判断代替启动条件，也不为派发人为拆分工作。
+5. **只读当前工作所需的规则，只保存后续用得上的信息。** 根据下一步要判断、实施、验收或恢复的内容决定读什么、记什么。使用方依赖的格式和入口继续保留。
+6. **结论有证据，阻塞有边界。** 结论只覆盖直接证据能够证明的范围，复用仍有效的验证。缺少条件时停止受影响部分，并继续独立且已授权的工作。保持独立评审和单一写入者，按协调规则执行中断、核实停写和接管。
 
-## 1. Core 与 Runtime Owner
+## 1. 各项规则与负责文件
 
-| Owner | 负责 | 不负责 |
+| 文件或组件 | 负责内容 | 由其他文件规定的内容 |
 | --- | --- | --- |
-| [Intake Contract](plugins/sacha-orchestra/core/intake-contract.md) | 入口分类、接受/拒绝、重复抑制与入口授权 | 接受后的流程、Review、协调、Runtime transport |
-| [术语合同](plugins/sacha-orchestra/core/terminology-contract.md) | 多个发布插件直接消费者共同使用且不属于单一 Runtime 的提炼术语、定义与边界 | 开发控制面专用术语、流程路由、Human 交互形式、协调动作、Artifact 生成/权威/恢复规则、Runtime 传输 |
-| [Workflow Contract](plugins/sacha-orchestra/core/workflow-contract.md) | 唯一 Runtime 生命周期；Role/Gate、节点进入/退出、Human 路由与收尾 | 就绪判定/派发、Review 证据、Artifact、模型参数 |
-| [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) | Human 可见提问、进度、结果顺序与必须披露的信息 | 流程路由、授权结果、Role procedure、Runtime 工具参数 |
-| [Assurance Contract](plugins/sacha-orchestra/core/assurance-contract.md) | Baseline、A/B/C 验收、Outcome 与 re-review | Reviewer Gate、实现 procedure、transport |
-| [Coordination Contract](plugins/sacha-orchestra/core/coordination-contract.md) | 评估、拆分、依赖/就绪判定、派发/wait/返回、单一写入者、身份/去重与 owner 转移 | Manager Gate、Role 职责、具体模型/工具参数 |
-| [Artifact Protocol](plugins/sacha-orchestra/core/artifact-protocol.md) | Artifact 生成条件、最小内容、Spec 完成、权威关系与恢复规则 | 流程路由、保存路径、原始事实、提炼术语定义 |
-| [Codex Adapter](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code Adapter](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [DeepSeek Harness Adapter](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 单 Runtime 传输、参数、回退、恢复、可选观测与证据映射 | Gate、就绪判定、Role、通用流程和可视化裁决 |
-| [DSH 配套包](integrations/dsh/sacha-companion) | 针对一个 DSH Profile 管理主会话的工具，支持查询、解锁和恢复。提供可接收后续指令的子代理工具，以及服务端状态接口与客户端面板 | Sacha 入口、角色、决策关口、就绪判定、范围、授权、实际模型、任务依赖和调度、评审结果、完成判断及其他运行环境 |
+| [入口规则](plugins/sacha-orchestra/core/intake-contract.md) | 判断当前请求的工作方式、已有授权和确实需要补齐的决定 | 工作流、评审、协调、工具调用 |
+| [术语定义](plugins/sacha-orchestra/core/terminology-contract.md) | 多个发布组件共用、且不限于某一运行环境的术语及其适用范围 | 开发专用术语、流程、用户交互、协调、工作记录和工具调用 |
+| [工作流规则](plugins/sacha-orchestra/core/workflow-contract.md) | 插件工作流程、角色职责、步骤何时开始或结束、如何根据用户决定继续 | 派发条件、评审证据、工作记录、模型参数 |
+| [交互规则](plugins/sacha-orchestra/core/human-interaction-contract.md) | 向用户提问、报告进度和交付结果的方式 | 流程、授权判断、角色做法、工具参数 |
+| [验收规则](plugins/sacha-orchestra/core/assurance-contract.md) | 验收基线、由谁执行验收或提供条件、评审结论与复评 | 何时启动独立评审、实施方法、工具调用 |
+| [协调规则](plugins/sacha-orchestra/core/coordination-contract.md) | 怎样拆分和安排工作、判断何时派发和等待、只保留一个写入者、移交责任和避免重复处理 | 何时启动协调、角色职责、模型和工具参数 |
+| [工作记录规则](plugins/sacha-orchestra/core/artifact-protocol.md) | 何时记、最少记什么、如何标记 Spec 完成、采用什么依据及如何恢复 | 流程、保存路径、项目原始事实和共享术语的定义 |
+| [Codex 适配器](plugins/sacha-orchestra/adapters/codex/runtime-adapter.md) / [Claude Code 适配器](plugins/sacha-orchestra/adapters/claudecode/runtime-adapter.md) / [DeepSeek Harness 适配器](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md) | 各运行环境的工具调用、参数、回退、恢复、按需记录和取证方法 | 启动条件、工作能否开始、角色职责、通用流程和评审裁决 |
+| [DSH 配套包](integrations/dsh/sacha-companion) | 为一个 DSH 配置管理主会话的工具，支持查询、解锁和恢复。提供可接收后续指令的子代理工具、服务端状态接口和客户端面板 | Sacha 入口、角色、启动条件、就绪判定、范围、授权、实际模型、任务依赖和调度、评审结果、完成判断及其他运行环境 |
 
-Skill 内的 `scripts/assets/references` 只实现该 Skill 已声明的能力。DSH 配套包独立于 Agent Plugin 构建和安装。它的工具阶段、恢复和面板见[配套包说明](integrations/dsh/sacha-companion/README.md)，Sacha 的运行时调用和取证见 [DSH 适配器](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md)。部署与市场清单只保存版本、部署身份和插件入口。
+技能内的 `scripts`、`assets`、`references` 只实现该技能已声明的能力。DSH 配套包独立于主插件构建和安装。工具阶段、恢复和面板见[配套包说明](integrations/dsh/sacha-companion/README.md)，调用和取证见 [DSH 适配器](plugins/sacha-orchestra/adapters/dsh/runtime-adapter.md)。部署与市场清单只保存版本、部署身份和插件入口。
 
 ## 2. 产品入口
 
-- `using-sacha` 是唯一默认入口。按[入口合同](plugins/sacha-orchestra/core/intake-contract.md)判断直接处理、提出 Sacha 选择或恢复已接受的任务。各结果的去向见下一节流程图。
-- Planner、Executor、Reviewer 是三个生产 Role，也是高级直接入口；Explore（探索）接受显式窄授权。
-- `roadmap` 是主流程外的显式规划入口。按需复用 Explore 补齐事实和用户决定，形成脱离 Sacha 也能使用的项目路线图，再由 `document-project` 按 Project Integration 写入。后续 Planner 任务的推荐和创建见[工作流合同](plugins/sacha-orchestra/core/workflow-contract.md#4-生命周期与-human-路由)。
-- `document-project` 处理用户的[显式文档请求](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)和正常实施后的[文档候选](plugins/sacha-orchestra/core/workflow-contract.md#6-项目文档)。
-- `closeout` 接受 Human 明确提出的“收口”“存档”“收口并存档”请求；只拥有预检与动作顺序，Spec 完成和项目文档分别沿用 Artifact Protocol 与 `document-project`。
-- Manager 只能由主任务在 Manager Gate 打开后调用，不是用户入口。
-- Feedback 只由用户在另一个真实任务手动调用。按[入口合同](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)核对授权，按[协调合同](plugins/sacha-orchestra/core/coordination-contract.md#6-完成返回与偏差)把反馈交给唯一的处理任务。
-- setup-project、setup-agents 是主流程外的显式配置能力，不进入主工作流。
+- `using-sacha` 是默认入口，按[入口规则](plugins/sacha-orchestra/core/intake-contract.md)判断直接处理、按需探索或规划、恢复已有工作。只问实际缺少的决定或授权。
+- 可明确调用规划 `planner`、实施 `executor`、评审 `reviewer` 和只读探索 `explore`。各入口按本次请求的范围工作。
+- `roadmap` 是独立的路线图入口。按需探索并补齐事实和决定，再由 `document-project` 写入项目配置指定的位置。何时推荐另开规划任务见[工作流规则](plugins/sacha-orchestra/core/workflow-contract.md#4-生命周期与-human-路由)。
+- `document-project` 处理用户的[显式文档请求](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)和符合项目配置的[自动存档](plugins/sacha-orchestra/core/workflow-contract.md#6-项目文档)。
+- `closeout` 处理把 Spec 标为已完成、存档或同时执行两项的明确请求。组合请求先标记完成，再存档。
+- `manager` 只由主任务按协调启动条件调用。
+- `feedback` 只由用户在另一个真实任务手动调用。按[入口规则](plugins/sacha-orchestra/core/intake-contract.md#4-入口决定)核对授权，按[协调规则](plugins/sacha-orchestra/core/coordination-contract.md#6-完成返回与偏差)把反馈交给唯一的处理任务。
+- `setup-project` 和 `setup-agents` 只在用户明确要求时配置项目接入和代理。
 
-## 3. 流程骨架
+## 3. 日常工作流程
+
+日常按两种方式处理。**只读探索**查清事实、比较方案和解释结果。**按已确认范围实施**在已有授权内修改、验证、修复局部偏差并按本次验收要求交付。
 
 ```mermaid
 flowchart TD
-    USER["用户目标"] --> ENTRY{"入口"}
-    ENTRY -->|"默认评估或显式 using-sacha"| INTAKE{"using-sacha Intake"}
-    INTAKE -->|"无入口候选，或 Human 拒绝同一入口候选"| DIRECT["当前任务直接完成"]
-    DIRECT -->|"出现改变执行方式的新事实"| INTAKE
-    DIRECT --> CLOSE["按任务终态结束<br/>正常实施满足全部阻塞验收后，自动完成本次 Spec"]
-
-    INTAKE -->|"明确接受 / 核实既有接受事实：已接受"| PLANNER_GATE{"Planner Gate？"}
-    INTAKE -->|"入口候选：只提议一次"| INTAKE_HUMAN["Human 决定是否接受 Sacha"]
-    INTAKE_HUMAN -->|"接受"| PLANNER_GATE
-    INTAKE_HUMAN -->|"拒绝"| DIRECT
-    PLANNER_GATE -->|"否"| EXECUTOR["Executor：实施并验证"]
-    PLANNER_GATE -->|"是"| PLANNER["Planner：调查、局部澄清、设计并确认精确 Spec"]
-    PLANNER -->|"需要持续探索、候选比较或处理相互依赖的问题"| EXPLORE["Explore：只读探索 + 必要 Human 决策"]
-    EXPLORE -->|"仅询问不可自行推出的关键决定"| EXPLORE_HUMAN["Human 澄清决定"]
-    EXPLORE_HUMAN --> EXPLORE
-    EXPLORE --> EXPLORE_RETURN{"Explore 调用来源"}
-    EXPLORE_RETURN -->|"活跃 Planner"| PLANNER
-    EXPLORE_RETURN -->|"活跃 Roadmap"| ROADMAP
-    EXPLORE_RETURN -->|"显式窄 Scope 已完成"| CLOSE
-    EXPLORE_RETURN -->|"出现新的开发目标或写入需求"| INTAKE
-    PLANNER -->|"必要设计完成，Spec 达到 Artifact 标准"| NEED_APPROVAL{"存在未确认的实质方案？"}
-    NEED_APPROVAL -->|"否"| EXECUTOR
-    NEED_APPROVAL -->|"是"| HUMAN_APPROVAL["Human 审阅 Spec<br/>有可靠迁移信号时推荐迁移，否则推荐当前任务继续"]
-    HUMAN_APPROVAL -->|"要求调整"| PLANNER
-    HUMAN_APPROVAL -->|"取消或不再继续"| CLOSE
-    HUMAN_APPROVAL -->|"批准在当前任务执行"| EXECUTOR
-    HUMAN_APPROVAL -->|"明确批准转到新任务，暂停实施及写入派发"| MIGRATION{"满足任务迁移条件？"}
-    MIGRATION -->|"否"| MIGRATION_BLOCKED["报告缺口与恢复条件；主任务不变"]
-    MIGRATION_BLOCKED -->|"条件恢复"| MIGRATION
-    MIGRATION_BLOCKED -->|"Human 改为普通批准"| EXECUTOR
-    MIGRATION_BLOCKED -->|"取消"| CLOSE
-    MIGRATION -->|"是"| TRANSFER["唯一目标取得最小 Handoff；Adapter 使其成为主任务；来源主任务结束"]
-    TRANSFER -->|"新任务继续实施"| EXECUTOR
-
-    ENTRY -->|"显式 Planner"| PLANNER
-    ENTRY -->|"显式 Executor"| EXECUTOR
-    ENTRY -->|"显式 Reviewer"| REVIEWER
-    ENTRY -->|"显式 Explore：仅窄授权"| EXPLORE
-    ENTRY -->|"显式 Roadmap：独立规划"| ROADMAP["Roadmap：组织长期阶段、依赖及各阶段对应的实施规格"]
-    ROADMAP -->|"事实或决定不足：只读探索"| EXPLORE
-    ROADMAP -->|"自包含 Roadmap 就绪"| DOCUMENT
-    ENTRY -->|"显式 document-project：当前文档目标"| DOCUMENT
-    ENTRY -->|"收口 / 存档 / 收口并存档"| CLOSEOUT{"closeout：预检动作"}
-
-    CLOSEOUT -->|"存档：human-request"| DOCUMENT
-    CLOSEOUT -->|"收口：条件不足"| CLOSEOUT_BLOCKED["失败关闭；Spec 不变"]
-    CLOSEOUT -->|"收口：goal_complete + 必需证据满足"| SPEC_COMPLETE["Artifact Protocol：原位完成当前唯一 Spec"]
-    CLOSEOUT -->|"收口并存档：任一动作未完成预检"| CLOSEOUT_BLOCKED
-    CLOSEOUT -->|"收口并存档：两个动作预检通过"| SPEC_COMPLETE
-    CLOSEOUT_BLOCKED --> CLOSE
-    SPEC_COMPLETE -->|"仅收口"| CLOSE
-    SPEC_COMPLETE -->|"组合动作：继续 human-request"| DOCUMENT
-
-    EXECUTOR -->|"Planner Gate 新开：Scope、方案或验收实质变化"| PLANNER
-    EXECUTOR -->|"只缺新增高影响授权"| EXEC_AUTH["Human 决定新增高影响授权"]
-    EXEC_AUTH -->|"批准，或继续已授权安全子集"| EXECUTOR
-    EXEC_AUTH -->|"要求调整 Scope / 方案 / 验收"| PLANNER
-    EXEC_AUTH -->|"取消或无法继续"| CLOSE
-    EXECUTOR -->|"先完成可完成的必需验证；证据冲突等仍按 Gate 判断"| REVIEW_GATE{"Reviewer Gate？"}
-    REVIEW_GATE -->|"否"| DOC_CANDIDATE{"项目文档候选成立？"}
-    REVIEW_GATE -->|"是"| REVIEWER["独立 Reviewer：核对来源独立性 / Baseline / Evidence"]
-    REVIEWER -->|"Accepted / Accepted with follow-up"| DOC_CANDIDATE
-    REVIEWER -->|"Needs Fix"| EXECUTOR
-    REVIEWER -->|"Needs Replan"| PLANNER
-    REVIEWER -->|"来源独立性不足，不能裁决"| EVIDENCE_OWNER
-    REVIEWER -->|"Needs Evidence / Blocked"| EVIDENCE_OWNER["唯一证据 / 恢复 owner"]
-    EVIDENCE_OWNER -->|"补证或恢复后重新 Review"| REVIEWER
-
-    DOC_CANDIDATE -->|"否"| CLOSE
-    DOC_CANDIDATE -->|"是"| DOCUMENT["document-project：当前请求或收尾候选"]
-    DOCUMENT --> DOC_TARGET{"显式发布文档目标？"}
-    DOC_TARGET -->|"是：path 即本次写入授权"| DOC_WRITE
-    DOC_TARGET -->|"否"| DOC_POLICY{"已确认的 Project Integration / 策略"}
-    DOC_POLICY -->|"disabled、无配置或策略跳过"| CLOSE
-    DOC_POLICY -->|"已有本次写入授权"| DOC_WRITE["按项目策略生成 / 维护文档"]
-    DOC_POLICY -->|"需要本次 Human 确认"| DOC_HUMAN["Human 确认项目文档写入"]
-    DOC_HUMAN -->|"确认"| DOC_WRITE
-    DOC_HUMAN -->|"拒绝"| CLOSE
-    DOC_WRITE --> CLOSE
-
-    subgraph COORDINATION["Manager 是主任务内的协调闭环，不是第四个生产 Role"]
-        INVOKER["主任务中的 Planner / Explore / Executor / 当前任务"] --> MANAGER_GATE{"Manager Gate？"}
-        MANAGER_GATE -->|"否"| RETURN["返回调用节点，并恢复其原流向"]
-        MANAGER_GATE -->|"是"| MANAGER["Manager：安排实际工作并消费结果<br/>本地执行或单层派发；闭环见协调细图"]
-        MANAGER -->|"工作完成或返回具体阻塞"| RETURN
-    end
-
-    PLANNER -->|"实际工作单元需要统一安排或协调归属"| INVOKER
-    EXPLORE -->|"实际研究单元需要统一安排或协调归属"| INVOKER
-    EXECUTOR -->|"实际实施单元需要统一安排或协调归属"| INVOKER
-
-    subgraph FEEDBACK_FLOW["Feedback：独立 Human 手动入口"]
-        FEEDBACK_HUMAN["Human 在另一真实任务显式调用 Feedback<br/>流程问题 / 使用反馈 / 插件开发想法"] --> FEEDBACK["Feedback 来源任务：有界只读调查"]
-        FEEDBACK --> FEEDBACK_RESOLVE{"唯一反馈目标任务能否确定？"}
-        FEEDBACK_RESOLVE -->|"唯一可继续的目标任务"| FEEDBACK_TARGET["目标任务接管反馈目标；来源任务交付 reference 后结束"]
-        FEEDBACK_RESOLVE -->|"没有可复用目标；本次调用已授权"| FEEDBACK_CREATE["Adapter 创建唯一目标任务"]
-        FEEDBACK_CREATE --> FEEDBACK_TARGET
-        FEEDBACK_RESOLVE -->|"同一反馈目标的已结束精确重复"| FEEDBACK_NOOP["no_op：返回既有 reference；来源任务结束"]
-        FEEDBACK_RESOLVE -->|"无法消歧或没有安全转移路径"| FEEDBACK_RECOVERY["Human 消歧 / 恢复条件"]
-        FEEDBACK_RECOVERY -->|"条件恢复"| FEEDBACK
-        FEEDBACK_RECOVERY -->|"取消或无法继续"| FEEDBACK_END["Feedback 来源任务结束"]
-    end
-
-    FEEDBACK_TARGET -->|"按普通任务重新判断"| ENTRY
+    REQUEST["接到请求"] --> CHECK{"目标、范围和验收清楚吗？<br/>已有授权覆盖哪些动作？"}
+    CHECK -->|"只要求调查，或做法还需查清"| EXPLORE["只读探索<br/>需要时准备方案或 Spec"]
+    CHECK -->|"做法已明确且已授权实施"| IMPLEMENT["按已确认范围实施"]
+    CHECK -->|"明确要求独立评审"| REVIEW["独立评审"]
+    CHECK -->|"确需用户决定，或本次要求实施但授权未覆盖"| ASK["说明方案、范围和验收<br/>只问仍缺的决定或授权"]
+    EXPLORE -->|"调查或方案已达到本次目标"| RESULT["交付结果，说明未完成事项"]
+    EXPLORE -->|"确需用户决定或补授权"| ASK
+    EXPLORE -->|"本次要求实施且现有授权覆盖"| IMPLEMENT
+    ASK -->|"补充信息或要求调整"| EXPLORE
+    ASK -->|"方案已明确并获实施授权"| IMPLEMENT
+    ASK -->|"取消或本轮只交付已有结果"| RESULT
+    IMPLEMENT --> VERIFY["完成本次必要的验证"]
+    VERIFY -->|"按规则需要独立评审"| REVIEW
+    VERIFY -->|"无需独立评审，或受阻需交付当前结果"| RESULT
+    REVIEW -->|"通过，附上需要跟进的事项"| RESULT
+    REVIEW -->|"需要修复且已有实施授权"| IMPLEMENT
+    REVIEW -->|"需要调整方案且本次允许继续规划"| EXPLORE
+    REVIEW -->|"证据不足或受阻，按授权继续处理"| PROOF["由负责方补证或恢复"]
+    REVIEW -->|"只要求评审，或后续动作仍未获授权"| RESULT
+    PROOF -->|"证据或条件已补齐"| REVIEW
+    PROOF -->|"当前无法继续"| RESULT
 ```
+
+- 采用哪种工作方法由主任务按需要判断。已有决定和授权直接沿用。实际需要另开任务、向指定任务发消息、安装、发布或其他单独受控动作时，核对对应授权。
+- 路线图、文档、标记 Spec 完成、反馈和配置按第 2 节的入口办理。协调按下文处理。执行迁移只在用户明确批准后走迁移图。
+- 交付前按工作流处理本次验收要求的文档。达到完成条件后，才按已有授权标记 Spec 已完成。自动存档仍按项目配置、内容价值和写入授权判断，可选存档存在歧义时直接跳过。
 
 ### 图的判读规则
 
-- 节点和有向边穷尽顶层产品流转；边文字与节点进入条件定义流转性质。没有边就不能跨节点接管。
-- Manager 是可重入的调用—返回函数：进入和退出保留调用节点，生命周期 owner 不变。Handoff 只在迁移、owner transfer 或有恢复消费者时按需携带，不是节点或终态。
-- 只有主任务拥有派发权，并执行 Coordination Contract 定义的单层派发；委派 Agent 可按该合同交换有界事实，需要改变依赖约定、拆分或调度时返回协调请求，不驱动其他代理。迁移完成后，目标任务成为主任务并取得派发权。
-- 主任务以方案、跨单元协调、授权与冲突裁决、结果验收为主；可独立交付的实施、机械集成和验证由合适的委派 Agent 承担。主任务保留集成责任，直接处理委派成本更高的短小局部动作；工作块、复用与剩余成本由 Coordination 判断，模型映射由 Adapter 决定。
-- 当前工作已有需要统一安排依赖、并发写入或负责归属的工作单元时，打开 Manager Gate；多个想法、普通顺序步骤或理论上可以拆分不构成协调需要，不要求每次实施或探索前尝试拆分。单个有界委派由主任务直接管理。Manager 可按实际需要串行、本地执行或派发，具体就绪、复用与派发条件由 Coordination Contract 定义。
-- Feedback 的 Human 显式调用直接授权来源任务执行有界只读调查与单向 Owner 转移；该转移不使用可靠迁移信号、普通批准、明确迁移批准或执行任务迁移前提。目标任务接管反馈目标后，按普通任务从入口重新判断。
-- Roadmap 完成后的独立 Spec 任务是 Human 发起的新目标，不把 Roadmap 节点延长为生产流程。Roadmap 先明确推荐 Sacha Planner 任务及其影响，Human 确认创建后由 Runtime Adapter 建立新任务；目标任务以显式 Planner 输入从既有入口开始。推荐没有明确 Sacha Planner，或 Human 只泛指新任务时，不得推断接受。
-- 所有任务优先复用通用入口、Gate、Role、协调和收尾。加速靠关闭无事实 Gate、跳过不成立候选和不加载无消费者 owner，不靠增加特殊流程。
-- 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向 Human 说明真实失败、通用流程为何不足和影响，并取得明确批准。
+- 总图展示日常主线。各项动作的完整条件以负责规则、协调图和迁移图为准。只有满足下一步所需的事实和授权才继续。
+- 主任务协调后回到发起协调的步骤，任务负责人不变。迁移、变更负责人或确需恢复时才交付接手者需要的信息。交接信息本身不改变任务状态。
+- 只有主任务能派发工作，且只派给直接子代理。子代理可交换与各自任务有关的事实。需要改变依赖、拆分或调度时，交回主任务。任务迁移完成后，接手任务负责派发。
+- 主任务负责方案、跨项协调、核对授权、处理冲突、集成和最后验收。可以委派独立的实施、集成和验证，也可以直接做委派成本更高的短小改动。怎样拆分和复用见协调规则，模型选择见适配器。
+- 只有实际需要统一安排依赖、并发写入或工作归属时才启动协调。单个独立任务由主任务直接管理。普通顺序步骤、多个想法和理论上可以拆分的工作，都无须先试着拆分。
+- 用户显式调用反馈时，来源任务可在限定范围内调查。查找目标、复用授权和移交按协调规则及适配器处理，无须套用执行迁移前提。目标接管后按普通任务从入口重新判断。
+- 路线图完成后，如果建议另开任务编写 Spec，先说清新任务的规划目标和创建影响。已有明确创建授权时直接沿用，否则只确认创建。新任务收到明确的规划请求后按该范围开始。
+- 所有任务沿用通用流程。省略不满足启动条件的步骤，以及当前工作用不到的资料。
+- 新增特殊节点、旁路、专属目标任务限制或例外流转前，必须向用户说明真实失败、通用流程为何不足和影响，并取得明确批准。
 
-### 协调闭环细化
+### 怎样协调多项工作
 
-下图展开总图中的协调过程，也适用于主任务直接管理的单个委派单元。本地执行、派发和结果消费按实际工作衔接，不要求先完成一套独立预检；就绪、复用、消息与返回条件由 [Coordination Contract 第 1–3、6 节](plugins/sacha-orchestra/core/coordination-contract.md) 定义，活性查询与停止证明由当前 Adapter 映射。
+下图也适用于主任务直接管理一个委派单元。执行、派发和接收结果所需的检查随动作完成。依赖、复用及结果返回见[协调规则](plugins/sacha-orchestra/core/coordination-contract.md)，查询进度和核实停写见当前适配器。
 
 ```mermaid
 flowchart TD
     C_START["当前目标、授权与完成条件"] --> C_ARRANGE["安排当前工作：按依赖、归属与实际收益选择执行方式"]
     C_ARRANGE -->|适合本地完成| C_LOCAL["主任务执行"]
-    C_ARRANGE -->|委派有实际收益| C_DISPATCH["派发：确认自足输入、授权、归属及完成条件<br/>按连续任务收益复用或新建；经 Adapter 单层派发"]
-    C_ARRANGE -->|缺少必要前提| C_CONVERGE["补齐事实、收敛接口或合并耦合部分"]
+    C_ARRANGE -->|委派有实际收益| C_DISPATCH["派发：核对输入、授权、负责人和完成条件<br/>按协调规则复用或新建直接子代理"]
+    C_ARRANGE -->|缺少必要前提| C_CONVERGE["补齐事实、明确接口或合并相互依赖的工作"]
     C_DISPATCH -->|输入或依赖不足，暂不启动| C_CONVERGE
     C_CONVERGE -->|可补齐| C_ARRANGE
     C_CONVERGE -->|当前无法推进| C_BLOCKED["返回具体阻塞与恢复条件"]
-    C_DISPATCH -->|条件满足并启动| C_WORK["代理执行；主任务推进其他不冲突工作"]
-    C_WORK --> C_EVENT{"当前可行动事实？"}
+    C_DISPATCH -->|条件满足并启动| C_WORK["子代理执行，主任务继续其他不冲突的工作"]
+    C_WORK --> C_EVENT{"已有新结果或变化？"}
     C_EVENT -->|结果已返回| C_CONSUME["核对结果和原始证据，确认改动、失败和待验证项"]
-    C_EVENT -->|依赖、冲突或失败改变下一步| C_COORD["协调接口、归属与工作包"]
+    C_EVENT -->|依赖、冲突或失败改变下一步| C_COORD["调整接口、负责人或工作安排"]
     C_COORD --> C_ARRANGE
-    C_EVENT -->|依赖结果且无其他就绪工作| C_WAIT["等待完成回传；到活性核对点仍缺结果时有界查询"]
+    C_EVENT -->|依赖结果且无其他就绪工作| C_WAIT["等待结果，到约定时点仍无结果时核实进度"]
     C_WAIT -->|收到新事实| C_EVENT
     C_WAIT -->|仍有有效进展| C_WAIT
     C_WAIT -->|状态不明或无进展| C_RECOVER["核对活动，按证据与停止条件补问、恢复或取消"]
@@ -196,69 +119,69 @@ flowchart TD
     C_CONSUME --> C_VERIFY["按需安排共享验证：固定并确认相关输入稳定"]
     C_VERIFY --> C_REMAIN{"剩余依赖或返修？"}
     C_REMAIN -->|有| C_ARRANGE
-    C_REMAIN -->|无| C_RETURN["返回调用节点；根任务按整体完成条件继续流转"]
+    C_REMAIN -->|无| C_RETURN["回到发起协调的步骤，主任务按完成条件继续"]
 ```
 
-全程保持单写入者、有效证据复用和结果去重；取消或接管前取得旧写入者停止证明。状态问答沿 [Human Interaction Contract](plugins/sacha-orchestra/core/human-interaction-contract.md) 回答并继续原目标，不退出本闭环。
+全程保持单一写入者，复用有效证据并避免重复处理结果。需要取消时先中断，再核实实际写入已停止。接管前须确认原写入者已停写。状态问答沿 [交互规则](plugins/sacha-orchestra/core/human-interaction-contract.md) 回答并继续原目标，不退出本闭环。
 
 ### 任务转移细化
 
-下图展开总图中的执行迁移和 Feedback 单向转移；两者保留各自的授权与目标匹配条件，详见 [Coordination Contract 第 5–6 节](plugins/sacha-orchestra/core/coordination-contract.md)。
+下图说明执行迁移和反馈移交如何查找、交付和恢复。各自的授权与目标匹配条件见[协调规则第 5–6 节](plugins/sacha-orchestra/core/coordination-contract.md)。
 
 ```mermaid
 flowchart TD
     T_EXEC["明确执行迁移批准"] --> T_PRE{"执行任务迁移前提满足？"}
-    T_PRE -->|否| T_HOLD["来源保留 Owner，停止实施及写入派发；报告恢复条件"]
+    T_PRE -->|否| T_HOLD["来源任务仍负责，暂停实施和写入派发<br/>报告恢复条件"]
     T_PRE -->|是| T_STOP["来源停止实施及写入派发"]
-    T_STOP --> T_RESOLVE["按对应标识查询唯一目标"]
-    T_FEEDBACK["Human 在另一真实任务显式调用 Feedback"] --> T_RESEARCH["有界只读调查并确定反馈标识"]
+    T_STOP --> T_RESOLVE["优先核对已有任务标识，按需查找候选"]
+    T_FEEDBACK["用户在另一真实任务显式调用反馈"] --> T_RESEARCH["在限定范围内只读调查并确定反馈标识"]
     T_RESEARCH --> T_RESOLVE
     T_RESOLVE -->|标识或唯一性不明| T_HOLD
-    T_RESOLVE -->|匹配可继续目标| T_DELIVER["复用目标，交付规则、输入、证据与最小 Handoff"]
-    T_RESOLVE -->|符合对应创建条件| T_CREATE["创建唯一目标"]
-    T_CREATE -->|成功| T_DELIVER
-    T_CREATE -->|失败| T_HOLD
-    T_RESOLVE -->|已转移的重复输入或已终止反馈精确重复| T_NOOP["返回既有 reference；不重复转移"]
-    T_DELIVER --> T_OK{"交付并完成 Owner 转移？"}
+    T_RESOLVE -->|匹配可继续目标| T_DELIVER["使用已有任务，交付必要规则、输入和证据"]
+    T_RESOLVE -->|确定没有匹配且已有创建授权| T_CREATE["创建唯一目标，初始输入携带交接内容"]
+    T_CREATE -->|创建后核对初始交付| T_OK
+    T_CREATE -->|失败或状态不明| T_HOLD
+    T_RESOLVE -->|已转移的重复输入或已终止反馈精确重复| T_NOOP["返回已有任务引用"]
+    T_DELIVER --> T_OK{"交接成功，目标已接管？"}
     T_OK -->|否| T_HOLD
-    T_OK -->|是| T_TARGET["目标接管；来源交付原生 reference 后结束，不等待最终结果"]
-    T_TARGET -->|执行迁移| T_CONTINUE["目标继续 Execute、Review / 返修与收尾"]
-    T_TARGET -->|Feedback| T_INTAKE["目标重新进入 Intake，另行核对写入及外部动作授权"]
+    T_OK -->|是| T_TARGET["目标接管，来源交付任务链接或标识后结束"]
+    T_TARGET -->|执行迁移| T_CONTINUE["目标按原要求继续实施、评审、返修和交付"]
+    T_TARGET -->|反馈| T_INTAKE["目标按普通请求判断入口，另行核对写入和外部动作授权"]
     T_HOLD -->|恢复对应前提或完成消歧| T_RESOLVE
-    T_HOLD -->|执行迁移改为普通批准| T_ORDINARY["来源恢复普通执行"]
+    T_HOLD -->|"执行迁移改为普通批准<br/>且确认本次未成功创建目标任务、目标未接管<br/>同一范围也没有其他写入者"| T_ORDINARY["来源恢复普通执行"]
     T_HOLD -->|取消或无法继续| T_END["交付未完成范围与恢复条件后结束"]
 ```
 
-## 4. Role 职责设计
+## 4. 规划、实施和评审
 
-| Role | 稳定职责 | 局部流程 | 明确不拥有 |
+| 角色 | 职责 | 工作步骤 | 职责边界 |
 | --- | --- | --- | --- |
-| Planner | 把已核实事实和 Human 决定冻结成符合根本准则与 Artifact Protocol 的精确 Spec | 消费入口决定 → 直接调查与局部澄清；需持续探索、候选比较或处理相互依赖的问题时 Explore → 冻结 Spec/验收 → 必要 Human 批准 → 返回 owner | 生产实施、协调算法、独立裁决、授权替代 |
-| Executor | 在明确目标或批准 Scope 内实施、验证并交付真实变更/证据 | 核对 Scope/授权 → 主任务做必要 Manager 协调，或委派 Agent 返回协调请求 → 实施/集成 → 风险对应验证 → Review/收尾 | 冻结新方案、跨单元协调、独立 Review、项目文档 owner |
-| Reviewer | 以独立来源对照 Scope、Baseline、实现和原始证据裁决 | 消费入口决定并核对来源独立性 → 建立 Baseline → 复用有效证据，仅重跑能改变裁决的验证 → Outcome → 必要时重新 Review | 参与方案/实现、默认修复、创造新 Outcome/旁路 |
+| 规划 `planner` | 把已核实的事实和用户决定写成可执行的 Spec | 自行调查和澄清，按需复用探索结果。写清方案和验收，交付仍需用户决定的事项 | 产品实施、协调安排、独立评审和实施授权 |
+| 实施 `executor` | 在已有授权内实施、验证并交付改动和证据 | 沿用范围与授权，按需协调，实施或集成后做与风险相称的验证，再交评审或交付 | 改定方案、跨项协调、独立评审和项目文档写入 |
+| 评审 `reviewer` | 独立对照范围、验收基线、实现和原始证据给出结论 | 核对独立性及验收基线，复用有效证据，只补会改变结论的验证。需要时复评 | 参与方案或实施、默认动手修复、另立评审结论种类或流程 |
 
-角色技能保留本表的职责、必要输入、交付与边界；表中局部流程表示工作衔接，不要求把调查、思考或通用工程方法逐项执行。共同路由由 Workflow 决定，派发条件由 Coordination 决定，交付内容由 Artifact 与 Assurance 决定，角色只保留直接使用的引用。维护时按[项目开发规则](AGENTS.md#开发改动与决定)区分职责内调整与高层设计变化。
+角色技能只保留各自所需的输入、做法、交付和边界。工作流负责步骤衔接，协调规则负责派发条件，工作记录和验收规则负责材料及证据。职责调整按[项目开发规则](AGENTS.md#开发改动与决定)处理。
 
-## 5. 支持、控制与工具 Skill 能力设计
+## 5. 其他技能
 
-当前 `skills/*` 共 12 个 Skill：三个生产 Role 已在第 4 节穷尽，其他九个 Skill 在下表穷尽。新增 Skill 必须先在对应表中声明类型、能力和边界，不能先落目录再反推顶层设计。
+第 4 节列出三个主要角色，下表列出其余九项技能。新增技能前，先在对应表中明确用途和职责。
 
-| 类型 | Skill | 功能/能力 | 局部流程 | 入口/副作用边界 |
+| 用途 | 技能标识 | 职责 | 工作步骤 | 使用条件和影响 |
 | --- | --- | --- | --- | --- |
-| 默认入口 | using-sacha | 判断 Direct 或进入 Sacha | 核对 Intake → Direct，或提出一次入口候选选择并继续独立事实调查 → Human 接受后交给 Workflow | 不拆分、派发、实施、验收或扩大授权 |
-| 支持节点 | explore | 探索并补齐会改变方案的事实与用户决定 | 先查可得事实，只问需要用户决定的问题。按工作记录协议保存必要决定，按需制作和预览独立界面草稿，再将结果交回调用方 | 接受显式调用，也可由活跃 Planner 或 Roadmap 调用。目标项目源码、配置、资源和外部状态保持只读。规划材料按工作记录协议处理，不定稿实施范围 |
-| 主流程外显式规划 | roadmap | 生成或原位更新自包含项目 Roadmap，组织目标、当前状态、阶段、依赖、完成信号、各阶段对应的实施规格、待决定事项、待查明的问题与排除范围 | 显式目标 → 读取项目事实/现有 Roadmap → 按需调用 Explore → 形成正文与唯一 path → 调用 document-project 写入/验证 → 按需明确推荐独立 Sacha Planner 任务 | 不接受 Sacha、不进入生产 Role、不替代或创建 Spec、不实施阶段；只写 Project Integration 配置的 Roadmap root；新任务须由 Human 确认创建 |
-| 内部协调 | manager | 在主任务内安排工作，并把结果交回调用方 | 评估和拆分工作，核对依赖与可否开始。按需要串行执行或单层派发，等待必需结果，再汇总交回 | 仅由主任务按工作流调用，不作为委派代理、生产角色或用户入口 |
-| 独立支持入口 | feedback | 把具体的流程问题、使用反馈或插件开发想法单向移交给唯一反馈目标任务 | Human 在另一真实任务手动调用 → 有界只读调查 → 查询、复用或创建唯一目标任务 → 交付 reference 后结束 | 调用只授权来源任务调查和转移，不授权目标任务写入或外部动作；目标任务回普通 Intake |
-| 显式收口 | closeout | 把“收口”“存档”“收口并存档”请求映射到既有 Spec 完成与项目文档 Owner | 分别预检目标/授权 → 原位完成 Spec → 按需路由 document-project → 聚合结果 | 只拥有顺序和结果聚合；不移动 Spec、不创建 `docs/done`，不接管 Artifact 或项目文档内容 |
-| 显式支持/内部收尾 | document-project | 复用项目或内置模板生成 Human 当前请求或 Workflow 收尾候选对应的项目文档，安全新建/更新发布文档和 Roadmap，并可维护 Context | 显式发布文档目标 → path 即本次授权；其他请求 → Project Integration 的 root/策略/授权；随后按文档类型生成或验证正文 → 原子写入 → 验证/报告 | 显式发布文档目标以 preimage 防并发；Roadmap/Context 不绕过 Project Integration；不生成 Roadmap 路线语义，不接受 Sacha、不补走生产 Role，也不替代 Artifact、正常候选检查或 Review |
-| 工具/配置 | setup-project | 生成或刷新 Project Integration、Skill loading、Spec/Roadmap/项目文档存储 | 显式 project root/policy/path → 解析 provider/Skill → dry-run delta → 无未决变化时以当前 delta 写入 → 原子验证/回滚 | 主流程外；只写批准项目配置，不创建 Roadmap 或执行项目任务，不配置用户 Agent |
-| 工具/配置 | setup-agents | 创建、更新或核对 Sacha-owned Codex Agent definitions | 显式目标 → 解析 creator/runtime → dry-run → namespaced 原子写入/补偿验证 | 主流程外；只管理 Sacha-owned 用户配置，不派发 Agent，也不证明 Runtime discovery |
+| 默认入口 | `using-sacha` | 判断直接处理、按需探索或规划、恢复现有工作 | 先核对当前请求和已有授权。只问确实缺少的决定或授权，再按工作流继续 | 不拆分、派发、实施、验收或扩大授权 |
+| 只读探索 | `explore` | 明确会改变方案的事实与取舍 | 查事实，按需记录决定或提供界面草稿，再把结果交回 | 用户可直接调用，规划和路线图也可按需调用。项目产品和外部状态保持只读 |
+| 项目路线图 | `roadmap` | 编写可独立使用的路线图，说明目标、现状、阶段、依赖、完成信号、对应 Spec、范围和未决事项 | 沿用项目事实，必要时探索。正文由 `document-project` 写入并回读 | 只写配置的路线图目录。路线图本身不授权实施、创建 Spec 或另开任务 |
+| 内部协调 | `manager` | 为主任务安排依赖、执行方式和结果接收 | 按协调规则本地处理、串行执行或派发，收到必需结果后交回原步骤 | 仅由主任务按工作流调用 |
+| 插件反馈 | `feedback` | 在另一个任务查明反馈，并交给唯一的处理任务 | 按适配器查找和移交，先用已有授权和任务引用 | 目标任务按自身请求核对写入和外部动作授权 |
+| 标记完成和存档 | `closeout` | 处理把 Spec 标为完成或存档的明确请求 | 组合请求先标记完成，再交 `document-project` 写入存档，分别报告结果 | 改动限于当前 Spec 的状态或本次存档，不移动 Spec 或创建 `docs/done` |
+| 项目文档 | `document-project` | 处理明确的文档请求和符合条件的自动存档 | 按已有授权选择目标及模板，写入后回读 | 写入范围随文档类型确定。不代写路线内容或 Spec，也不启动主要角色 |
+| 项目接入 | `setup-project` | 配置项目规则、技能加载和文档位置 | 沿用已有设置。试运行得到改动摘要，再按已有授权写入和核验 | 只写获准的项目配置 |
+| Codex 代理配置 | `setup-agents` | 创建、更新或核对 Sacha 管理的 Codex 代理配置 | 已有授权且目标明确时直接写入并回读，按需试运行 | 只管理 Sacha 的用户配置。实际发现或派发以运行环境的记录为准 |
 
-支持与控制技能只实现本表声明的功能；新增功能、入口、外部副作用或跨节点接管按[项目开发规则](AGENTS.md#开发改动与决定)处理。
+技能只实现本表声明的职责。新增功能、入口、外部副作用或跨步骤接管按[项目开发规则](AGENTS.md#开发改动与决定)处理。
 
 ## 6. 开发维护入口
 
-变更批准和修改顺序按[开发改动与决定](AGENTS.md#开发改动与决定)处理，验证选择按[工具与验证](AGENTS.md#工具与验证)处理。开发与评审先按根本准则核对必要性和一致性，再按第 1 节定位负责文件、第 2～5 节核对产品范围和流程；细化规则存在重复、冲突或冗余时，在其负责位置消除，不以新增同义或反义解释维持副本。只有准则、负责位置、产品范围或流程变化时才修改相应设计。
+改动与批准按[开发改动与决定](AGENTS.md#开发改动与决定)处理，验证按[工具与验证](AGENTS.md#工具与验证)选择。核对职责时先查第 1 节，再对照第 2 至 5 节的入口、流程和角色。冲突和重复在负责文件处理。
 
 真实场景的执行者不读取本文；独立评估者可用本文核对产品范围和流程偏差。场景输入与证据隔离以[场景说明](tests/runtime-scenarios/README.md)为准。

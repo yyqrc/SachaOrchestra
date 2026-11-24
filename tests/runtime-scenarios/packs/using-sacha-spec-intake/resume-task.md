@@ -4,4 +4,4 @@
 
 本次决定：只处理材质导出器实际使用的 `MeshRenderer`，复用现有 `MaterialExportSettings` 和 `ResolveExportSize`；取消旧方案中的通用适配器表。用户只批准了相同输入得到相同导出尺寸，没有要求保留旧方案的结构。这个小功能没有运行中关闭需求，不增加开关、失败恢复或重试；保留原有导出尺寸解析和错误上报行为即可。不要再次请求本次方案批准。
 
-项目定义在 `project-source.md`，前序接受事实在 `handoff.md`。完成后给出 Spec 路径和本次修改。
+项目定义在 `project-source.md`，已有决定及负责范围在 `handoff.md`。完成后给出 Spec 路径和本次修改。

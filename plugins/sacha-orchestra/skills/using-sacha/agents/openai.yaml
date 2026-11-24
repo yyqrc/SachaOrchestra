@@ -1,4 +1,4 @@
 interface:
   display_name: "Sacha Orchestra 智能入口"
-  short_description: "评估当前目标是否需要 Sacha，明确且能直接完成的任务继续处理"
-  default_prompt: "使用 $sacha-orchestra:using-sacha 判断这个目标是否适合用 Sacha，并说明对交付的影响。"
+  short_description: "按任务需要直接推进，必要时安排规划、协调或独立评审"
+  default_prompt: "使用 $sacha-orchestra:using-sacha 按当前请求和已有授权推进，只问仍需我决定或授权的部分。"

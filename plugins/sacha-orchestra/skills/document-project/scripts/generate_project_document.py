@@ -965,18 +965,15 @@ def _authorize(
     if policy == "on-request" and trigger != "human-request":
         raise DocumentError("on-request policy requires a Human request")
     if trigger == "goal-closeout" and (
-        policy != "required-at-closeout" or not document["persistent_product_delta"]
+        policy != "required-at-closeout"
+        or (document["document_type"] != "change-archive" and not document["persistent_product_delta"])
     ):
         raise DocumentError(
-            "goal-closeout requires required-at-closeout policy and persistent product delta"
+            "goal-closeout requires required-at-closeout policy and either a change archive "
+            "or a persistent product delta"
         )
     authorization = documentation["write_authorization"]
-    bounded_closeout = (
-        authorization == "bounded-closeout"
-        and policy == "required-at-closeout"
-        and trigger == "goal-closeout"
-        and document["persistent_product_delta"]
-    )
+    bounded_closeout = authorization == "bounded-closeout" and trigger == "goal-closeout"
     if write and not bounded_closeout and not per_write_confirmed:
         raise DocumentError("this document requires explicit per-write confirmation")
 

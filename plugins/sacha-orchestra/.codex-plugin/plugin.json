@@ -1,6 +1,6 @@
 {
   "name": "sacha-orchestra",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "Codex deployment package for the cross-project Sacha Orchestra Multi-Agent Workflow Orchestration Framework.",
   "author": {
     "name": "Sacha Orchestra"
@@ -14,7 +14,7 @@
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
     "defaultPrompt": [
-      "Use $sacha-orchestra:using-sacha to execute a clear task directly or recommend Sacha only when orchestration materially changes execution."
+      "使用 $sacha-orchestra:using-sacha 按当前请求和已有授权推进，只问仍需我决定或授权的部分。"
     ]
   }
 }

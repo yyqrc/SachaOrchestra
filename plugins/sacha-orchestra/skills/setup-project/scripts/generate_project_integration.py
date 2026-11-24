@@ -1908,8 +1908,8 @@ def render_agents_block(workflow_rule_path: str, project_rules: Mapping[str, byt
     text = f"""{AGENTS_BEGIN}
 ## Sacha Orchestra 接入
 
-- 可能适合 Sacha 的任务由 `sacha-orchestra:using-sacha` 判断入口。直接在当前任务处理时，遵守适用的项目规则，按需使用领域技能并完成必要验证。
-- 用户接受 Sacha 后，再读取 `{workflow_rule_path}` 获取项目接入配置。入口、决策关口和角色流转按插件内合同处理。
+- 现状或可行性若能直接核实，按当前问题回答。用户转而要求准备方案或实施改动时，区分已查明的现状与这次新增或改动的操作。新操作的作用对象、结果或验收仍有实质取舍，或确需正式规划、协调、独立评审或恢复时，使用 `sacha-orchestra:using-sacha`。首次使用时，从技能正文所在目录先读 `../../core/human-interaction-contract.md` 的进度部分，再读技能正文。可以直接处理的任务按项目规则继续，按需使用领域技能并完成必要验证。
+- 工作需要项目接入配置时，读取 `{workflow_rule_path}`。沿用已有授权，只询问缺少的决定或授权。入口和角色流转按插件内规则处理。
 {AGENTS_END}"""
     body = text.encode("utf-8")
     if project_rules:

@@ -1,25 +1,23 @@
-# Assurance Contract（验收合同）
-
-> 状态：规范性 Core 验收合同
+# 验收规则
 
 ## 1. 范围
 
-本文定义验收执行分类，以及正式 Review 的 Baseline、验收矩阵、Outcome 与重新 Review。Executor 需要分配 Agent/Human 验证责任时读取第 2 节的 A/B/C 定义，不因此建立正式 Review 矩阵或作独立裁决。Reviewer 按正式路由读取本文；Role/Gate 由 [Workflow Contract](workflow-contract.md) 定义。
-Review Artifact 与 Handoff 的定义见[术语合同](terminology-contract.md)，生成与恢复规则见 [Artifact Protocol](artifact-protocol.md)。
+本文规定如何分配验收工作，以及正式评审如何选定实现基线、记录验收、作出结论和重新评审。Executor 需要安排由代理还是用户负责某项检查时，读取第 2 节的 A/B/C 定义。这个分类本身不要求建立正式评审矩阵，也不授权 Executor 作独立裁决。Reviewer 按正式流程读取本文。角色职责和何时开始独立评审，由[工作流规则](workflow-contract.md)规定。
+评审记录（Review Artifact）和交接信息（Handoff）的定义见[术语定义](terminology-contract.md)，生成和恢复规则见[工作记录规则](artifact-protocol.md)。
 
-## 2. Baseline 与证据
+## 2. 实现基线与证据
 
-正式 Review 维护一个实现 Baseline。Git 使用可解析的 commit/range/diff/文件集；其他状态才补 manifest/hash。
-Baseline/`acceptance_revision` 变化后需对当前交付形成裁决；复核新增差异、直接影响及因此失效的证据，仍有效的检查可复用。如果变化仅涉及证据，复核范围限于 `changed_check_ids` 对应的检查。评审记录保留既有条目，并追加本轮结果。
+正式评审维护一个明确的实现基线。Git 使用可解析的提交、提交范围、差异或文件集。其他状态才用清单或哈希补充。
+实现基线或 `acceptance_revision` 变化后，要对当前交付作出裁决。复核新增差异、直接影响和因此失效的证据，沿用仍有效的检查结果。若本次变化只涉及证据，仅复核 `changed_check_ids` 对应的检查。在原有评审记录中保留既有条目，并追加本轮结果。
 
-验收矩阵使用稳定的 `check_id`。摘要保留 Scope/修订号、必需/已尝试状态、结果、reference、风险、恢复入口、人工状态与计数。
-人工状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。未知、冲突、过期、不可达或计数不一致时保持未验证；Provider、报告和自报不拥有裁决权。
+验收矩阵使用稳定的 `check_id`。摘要保留范围及修订号、检查是否必需和是否已尝试、检查结果、引用、风险、恢复入口、人工检查状态和计数。
+人工检查状态为 `pending | completed_passed | completed_failed | completed_inconclusive`。结果未知、冲突、过期、无法取得或计数不一致时，仍记为未验证。工具提供方（Provider）的结果、报告和代理自报均需由 Reviewer 核对后裁决。
 
-Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。证据按目标结果与具体风险判定；Reviewer 必须核对每块改动的必要性，无依据且扩大维护或回退成本的扩展必须返回修正，纯表达偏好不阻塞交付。自动化无法证明的检查给出具体 Human/外部路线，并按证据状态选择 Outcome。
+Reviewer 核对实际状态，只重跑会影响裁决的高风险检查。按预期结果与具体风险判断证据，并逐项核对改动是否必要。缺少依据且增加维护或回退成本的扩展必须交回修正，纯表达偏好不阻塞交付。自动化无法证明结果时，说明用户或外部系统如何完成该项检查，并按已有证据选择裁决。
 
 涉及用户操作或结果呈现的交付，沿 Spec 或已确认目标中的同一主要使用过程核对生产入口、明确要求及关键联动；各模块单独通过不能替代跨区域、跨阶段的结果一致性。验收证据须能支持对应操作及可观察结果，不能只报总通过数；源码能确认的缺陷先查明，真实交互、裁剪、缩放或宿主显示行为则使用适用的生产环境证据。界面草稿只能支持设计对齐，不能替代生产算法、性能或宿主行为验证；仍有效的原始证据可复用。
 
-实现不符合既定行为属于 Needs Fix；完成原目标所必需但 Spec 缺失、矛盾或失效的设计属于 Needs Replan；实测后提出的新用途或偏好按新的 Human 决定处理，不能倒推为旧实现违约，也不能把原先明确要求的遗漏降为后续优化。结果路由沿第 3 节，不因上述核对新增验收范围或强制 Human 试用。
+实现偏离既定行为时，使用 `Needs Fix`。完成原目标所必需的设计在 Spec 中缺失、矛盾或失效时，使用 `Needs Replan`。测试后提出的新用途或偏好按新的用户决定处理，不能据此认定原实现有缺陷。原先明确要求但未实现的行为仍须处理。按第 3 节交付裁决，不因上述核对扩大验收范围或强制用户试用。
 
 有批准的 Spec 时，按其中的项目验收标准建立验收矩阵。没有 Spec 时，按明确的目标、范围、用户决定和项目验收输入建立。
 
@@ -29,15 +27,17 @@ Reviewer 检查真实状态并只重跑能改变裁决的高风险验证。证�
 
 A/B/C 只用来安排验收工作，不写入面向项目的 Spec。会阻塞本次交付的 B/C 类检查未完成时，使用 `Needs Evidence` 或 `Blocked`。仅剩非阻塞检查时，使用 `Accepted with follow-up`。
 
-## 3. Outcome 与路由
+## 3. 评审结论与后续处理
 
-| Outcome | 使用边界 |
+| 评审结论 | 何时使用 |
 | --- | --- |
-| `Accepted` | Scope 与全部本次交付阻塞检查满足 |
-| `Accepted with follow-up` | 仅剩非阻塞人工、环境或证据后续 |
-| `Needs Evidence` | 必需证据不足 |
-| `Needs Fix` | 已知缺陷、真实失败或不可接受风险 |
-| `Needs Replan` | 批准合同缺失、错误或失效 |
-| `Blocked` | 安全替代耗尽，依赖 Human/外部状态 |
+| 通过（`Accepted`） | 满足工作范围的要求，所有影响本次交付的检查均通过 |
+| 通过（`Accepted with follow-up`） | 仅剩不阻塞交付的人工、环境或证据相关事项 |
+| 需要补证（`Needs Evidence`） | 必需证据不足 |
+| 需要修复（`Needs Fix`） | 已知缺陷、真实失败或不可接受风险 |
+| 需要调整方案（`Needs Replan`） | 实施所依据的已批准要求或方案缺失、有误或已失效 |
+| 受阻（`Blocked`） | 已无安全替代办法，继续取决于用户决定、用户操作或外部状态 |
 
-`Needs Fix` 返回原 Executor；`Needs Replan` 返回 Planner；`Needs Evidence` 返回唯一证据 Owner。局部阻塞项只暂停冲突范围；其他安全且已授权分支继续。Reviewer 保持独立，只依据真实状态和原始证据裁决；合同修订与实现修复分别由 Planner 和 Executor 完成。
+向用户展示时，两种通过都显示为“通过”。有跟进项时，在结论下说明实际还要跟进的事项。内部结论仍用各自的值。
+
+将 `Needs Fix` 交回原 Executor，`Needs Replan` 交回 Planner，`Needs Evidence` 交给唯一负责该项证据的人或任务。局部阻塞只暂停受影响的工作，其他安全且已授权的工作继续。Reviewer 保持独立，只依据实际状态和原始证据裁决。Planner 修订批准依据，Executor 修复实现。
