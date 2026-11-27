@@ -4,12 +4,12 @@
 
 ## 当前版本线
 
-- 当前发布版本：`1.0.28`。发布身份以 annotated tag `v1.0.28` 及远端核对结果为准。
-- 当前源码版本：`1.0.28`。继续维护 Codex、Claude Code 与 DSH，保留共用的 Agent Plugins 开放标准清单。
-- 本版范围：Codex 接入官方 Antigravity CLI 的 ACP 会话，支持 Gemini 只读探索和独立评审。`setup-agents` 保存本机连接和认证选择，Codex 原生 V2 路线继续可用。Explore 补齐脑暴的发散与试用、方案质询的逐轮追问和调查比较的证据要求。
-- 当前 breaking boundary：Cursor 专属适配与市场入口已移除，不再声明 Cursor 支持。Codex 不再提供 v1 或接口/模型自动回退，使用方须满足现行 v2 能力组合；Pi 入口、CLI 参数与配置兼容已移除，原 Pi 使用方须改用当前支持的运行环境。旧项目文件只在后续正常获授权的 setup 事务中更新，本次发布不自动迁移项目或部署 Profile。
+- 当前发布版本：`1.0.29`。发布身份以 annotated tag `v1.0.29` 及远端核对结果为准。
+- 当前源码版本：`1.0.29`。继续维护 Codex、Claude Code 与 DSH，保留共用的 Agent Plugins 开放标准清单。
+- 本版范围：Codex 可通过 CodeBuddy Code 的 ACP 会话派发只读探索和独立评审。自动选型优先 Gemini，CBC 为次选。CBC 新会话默认 Claude Opus 5.5，续接沿用已确认型号。两个服务共用选路、续接和恢复规则。
+- 当前 breaking boundary：Cursor 专属适配与市场入口已移除，不再声明 Cursor 支持。Codex 原生子代理不再提供 v1 或接口/模型自动回退，使用方须满足现行 v2 能力组合；Pi 入口、CLI 参数与配置兼容已移除，原 Pi 使用方须改用当前支持的运行环境。旧项目文件只在后续正常获授权的 setup 事务中更新，本次发布不自动迁移项目或部署 Profile。
 - 状态与文档兼容：新 Spec 统一使用「待批准」「已批准」「已完成」，历史文件沿用原状态。按已有授权，在必需验收通过后更新当前唯一 Spec 的状态行。自动存档还须符合项目配置与写入授权，并有值得长期保存的变更或接手信息。生成器保留过期原像拒绝、临近写入复查、失败补偿及旧 SOURCE SHA-256 解析。
-- `1.0.28` 的定向测试、Codex 跨模型场景和 Explore 复评证据见[本版验收记录](docs/plan/2026-11-27-codex-agy-cross-model/execution-report.md)。
+- `1.0.28` 的定向测试、Codex 跨模型场景和 Explore 复评证据见[该版验收记录](docs/plan/2026-11-27-codex-agy-cross-model/execution-report.md)。
 - 当前成熟度：Astra 基线的源码、定向测试、结构及隔离包证据见[实施记录](docs/plan/2026-09-05-astra-full-audit/execution-report.md)，独立复核 Accepted with follow-up。阶段二的 32 项发布测试及独立复核 Accepted 见[开发与发版整理](docs/plan/2026-09-05-rule-simplification-stages/stage-2/execution-report.md)；阶段三的 44 项生成器测试、独立源码复核 Accepted，以及同一 Astra/medium 上下文五条输入的隔离 source-scenario 独立评估 pass 见[运行流程整理](docs/plan/2026-09-05-rule-simplification-stages/stage-3/execution-report.md)。这些证据分别证明其范围，不证明安装后全新发现或其他宿主行为；Astra 旧规格案例初稿 drift、修订内容 pass，但因缺工具轨迹，完整原生流程仍未证实。DSH 构建保留一条 CommonJS/ESM 建议警告，部署应采用已验证的干净隔离产物。
 
 - 此前规则独立语义复核 Accepted；隔离入口场景按明确要求直接修改，未多余询问或创建 Spec，但可见回复暴露内部流程词，完整场景为 drift。已知表达偏差保留，不声明安装后行为、Editor 合并测试或新模型路线的实际节省比例已验证。此前入口场景的派发控制消息不可读及代理数量限制仍只按其原始证据范围说明。

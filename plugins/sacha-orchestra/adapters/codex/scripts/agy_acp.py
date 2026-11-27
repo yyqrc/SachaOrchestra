@@ -197,7 +197,7 @@ class AcpClient:
             and not self.cancel_reason else "incomplete"
         )
 
-    def close(self):
+    def close(self, *, accept_termination=False):
         self.outbox.put(None)
         try:
             self.process.wait(timeout=CANCEL_GRACE)
@@ -210,7 +210,10 @@ class AcpClient:
         finally:
             exit_code = self.process.poll()
             self.report["process_exit_code"] = exit_code
-            if exit_code != 0 and self.report["status"] in {"initialized", "session_ready", "completed"}:
+            terminated_after_close = accept_termination and self.report.get("forced_shutdown") and exit_code is not None
+            if exit_code != 0 and not terminated_after_close and self.report["status"] in {
+                "initialized", "session_ready", "completed"
+            }:
                 self.report.update(status="incomplete", error="ACP process did not exit cleanly")
             if exit_code != 0 or self.report["status"] == "error":
                 self.stderr_reader.join(timeout=0.2)
@@ -254,23 +257,31 @@ def configure(client: AcpClient, requested: list[str]):
         raise AcpError("Dependent ACP options changed an explicit selection")
 
 
-def open_session(client: AcpClient, args, identity: dict, capabilities: dict):
+def load_resume_session(path: Path | None, identity: dict, *, accept_termination=False):
+    if path is None:
+        return None
+    previous = json.loads(path.read_text(encoding="utf-8-sig"))
+    session = previous.get("session", {})
+    forced = previous.get("forced_shutdown")
+    exit_code = previous.get("process_exit_code")
+    exited = isinstance(exit_code, int) and (accept_termination if forced else exit_code == 0)
+    if (
+        previous.get("status") not in {"session_ready", "completed"}
+        or not exited
+        or any(session.get(key) != value for key, value in identity.items())
+        or not isinstance(session.get("sessionId"), str)
+        or not session["sessionId"]
+    ):
+        raise AcpError("Continuation requires a matching settled session result")
+    return session
+
+
+def open_session(client: AcpClient, identity: dict, capabilities: dict, *, previous_session=None, new_meta=None):
     params = {"cwd": identity["cwd"], "mcpServers": []}
     method = "session/new"
-    if args.resume_result:
-        previous = json.loads(args.resume_result.read_text(encoding="utf-8-sig"))
-        session = previous.get("session", {})
-        if (
-            previous.get("status") not in {"session_ready", "completed"}
-            or previous.get("process_exit_code") != 0
-            or previous.get("forced_shutdown")
-            or any(session.get(key) != value for key, value in identity.items())
-            or not isinstance(session.get("sessionId"), str)
-            or not session["sessionId"]
-        ):
-            raise AcpError("Continuation requires a matching settled session result")
-        client.session_id = session["sessionId"]
-        client.report["session"] = session
+    if previous_session is not None:
+        client.session_id = previous_session["sessionId"]
+        client.report["session"] = previous_session
         params["sessionId"] = client.session_id
         if (capabilities.get("sessionCapabilities") or {}).get("resume") is not None:
             method = "session/resume"
@@ -278,6 +289,8 @@ def open_session(client: AcpClient, args, identity: dict, capabilities: dict):
             method = "session/load"
         else:
             raise AcpError("ACP server did not negotiate session resume or load")
+    elif new_meta:
+        params["_meta"] = new_meta
     client.report["session_method"] = method
     opened = client.request(method, **params)
     if method == "session/new":
@@ -288,6 +301,7 @@ def open_session(client: AcpClient, args, identity: dict, capabilities: dict):
         raise AcpError("ACP did not return a session ID")
     client.report["session"] = {**identity, "sessionId": client.session_id}
     client.report["config_options"] = opened.get("configOptions") or []
+    return opened
 
 
 def connection_path() -> Path:
@@ -340,6 +354,7 @@ def run(args, report: dict, env: dict[str, str]):
         raise AcpError("Unsupported saved Antigravity authentication method")
 
     identity = {"runtime": RUNTIME, "cwd": str(cwd), "agent": args.agent, "auth": auth_method}
+    previous = load_resume_session(args.resume_result, identity)
     report["invocation"] = {**identity, "executable": str(path)}
     argv = [str(path), "acp", "--disable-telemetry"]
     if not args.probe:
@@ -359,7 +374,7 @@ def run(args, report: dict, env: dict[str, str]):
                        for method in (hello.get("authMethods") or ())):
                 raise AcpError("ACP server did not advertise the approved API key method")
             client.request("authenticate", methodId=API_KEY_AUTH)
-        open_session(client, args, identity, capabilities)
+        open_session(client, identity, capabilities, previous_session=previous)
         configure(client, args.set_config)
         if prompt is None:
             report["status"] = "session_ready"
