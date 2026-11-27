@@ -1,4 +1,4 @@
-"""Safely plan and install Sacha-owned Codex custom Agents."""
+"""Safely plan and install Sacha-owned custom Agents."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import argparse
 import difflib
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import tomllib
 from dataclasses import dataclass
@@ -28,6 +30,8 @@ EXECUTER_TARGET_RELATIVE = Path("agents") / "sacha-executer.toml"
 EXECUTER_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "sacha-executer.toml"
 CORE_REQUIRED_FIELDS = ("name", "description", "developer_instructions")
 MODEL_FIELDS = ("model", "model_reasoning_effort")
+AGY_AUTH_METHODS = ("cached-login", "gemini-api-key")
+AGY_OWNER = "sacha-orchestra/setup-agents"
 
 
 class SetupAgentsError(RuntimeError):
@@ -38,7 +42,7 @@ class SetupAgentsError(RuntimeError):
 class AgentDefinition:
     name: str
     target_relative: Path
-    template_path: Path
+    template_path: Path | None
     model: str | None = None
     reasoning_effort: str | None = None
     disabled_features: tuple[str, ...] = ()
@@ -71,10 +75,21 @@ AGENT_DEFINITIONS = (
     AgentDefinition("sacha_deepseek_pro_worker", DEEPSEEK_PRO_TARGET_RELATIVE, DEEPSEEK_PRO_TEMPLATE, "TT/deepseek-v4-pro-ioa", "max"),
 )
 
+AGY_DEFINITIONS = tuple(
+    AgentDefinition(
+        name,
+        Path("agents") / name / "agent.md",
+        RESEARCHER_TEMPLATE.parent / "agy" / name / "agent.md",
+    )
+    for name in ("sacha-explorer", "sacha-reviewer")
+)
+AGY_CONNECTION = AgentDefinition("sacha-acp", Path("sacha-acp.json"), None)
+
 
 @dataclass(frozen=True)
 class AgentPlan:
     definition: AgentDefinition
+    home: Path
     target: Path
     template: bytes
     current: bytes | None
@@ -95,7 +110,7 @@ class RetiredAgentPlan:
 
 @dataclass(frozen=True)
 class Plan:
-    codex_home: Path
+    codex_home: Path | None
     agents: tuple[AgentPlan, ...]
     retired_agents: tuple[RetiredAgentPlan, ...]
 
@@ -123,6 +138,54 @@ def resolve_target(codex_home: Path, target_relative: Path = EXECUTER_TARGET_REL
     except ValueError as exc:
         raise SetupAgentsError("Agent target escapes Codex home") from exc
     return target
+
+
+def resolve_agent_target(home: Path, definition: AgentDefinition) -> Path:
+    target = resolve_target(home, definition.target_relative)
+    if definition in (*AGY_DEFINITIONS, AGY_CONNECTION):
+        if target != home / definition.target_relative:
+            raise SetupAgentsError(f"Antigravity Agent target must not redirect: {definition.name}")
+    if definition in AGY_DEFINITIONS:
+        # Antigravity also discovers flat files of the same name.
+        flat = home / "agents" / f"{definition.name}.md"
+        if flat.exists() or flat.is_symlink():
+            raise SetupAgentsError(f"conflicting Antigravity Agent: {flat}")
+    return target
+
+
+def agy_frontmatter(data: bytes) -> list[str]:
+    try:
+        lines = data.decode("utf-8").splitlines()
+        if lines[:2] == ["---", OWNER_MARKER]:
+            end = lines.index("---", 2)
+            if any(line.strip() for line in lines[end + 1:]):
+                return lines[2:end]
+    except (UnicodeDecodeError, ValueError):
+        pass
+    raise SetupAgentsError("missing managed Antigravity frontmatter or instructions")
+
+
+def validate_agy_definition(data: bytes, definition: AgentDefinition) -> None:
+    # The shipped templates use flat keys and YAML flow lists. Only these
+    # controlled fields participate in ownership and verification.
+    lines = agy_frontmatter(data)
+    fields = dict(line.split(": ", 1) for line in lines if ": " in line)
+    expected = {
+        "name": definition.name,
+        "mainAgent": "true",
+        "subagent": "false",
+        "tools": "[view_file, grep_search]",
+        "commandExecutionPolicy": "off",
+        "mcpServers": "[]",
+        "skills": "[]",
+        "plugins": "[]",
+    }
+    if (
+        len(lines) != len(fields)
+        or not fields.pop("description", "").strip()
+        or fields != expected
+    ):
+        raise SetupAgentsError(f"unexpected Antigravity Agent configuration: {definition.name}")
 
 
 def parse_toml(data: bytes) -> dict[str, object]:
@@ -161,6 +224,20 @@ def expected_identity(definition: AgentDefinition) -> dict[str, object]:
 
 
 def validate_definition(data: bytes, definition: AgentDefinition) -> dict[str, object]:
+    if definition == AGY_CONNECTION:
+        try:
+            saved = json.loads(data)
+            if (isinstance(saved, dict) and set(saved) == {"managed_by", "executable", "auth"}
+                    and saved["managed_by"] == AGY_OWNER
+                    and Path(saved["executable"]).is_absolute()
+                    and saved["auth"] in (None, *AGY_AUTH_METHODS)):
+                return saved
+        except (ValueError, TypeError):
+            pass
+        raise SetupAgentsError("Invalid managed Antigravity connection")
+    if definition in AGY_DEFINITIONS:
+        validate_agy_definition(data, definition)
+        return {"name": definition.name}
     parsed = validate_agent(data, expected_identity(definition))
     if definition.model is None:
         fixed_model_fields = [field for field in MODEL_FIELDS if field in parsed]
@@ -229,11 +306,13 @@ def build_agent_plan(
     definition: AgentDefinition,
     *,
     _template_path: Path | None = None,
+    generated: bytes | None = None,
 ) -> AgentPlan:
-    target = resolve_target(home, definition.target_relative)
-    template_path = (_template_path or definition.template_path).resolve(strict=True)
-    template = template_path.read_bytes()
-    if not has_owner_marker(template):
+    target = resolve_agent_target(home, definition)
+    template = (generated if generated is not None else
+                (_template_path or definition.template_path).read_bytes())
+    agy = definition in (*AGY_DEFINITIONS, AGY_CONNECTION)
+    if not agy and not has_owner_marker(template):
         raise SetupAgentsError("template owner marker is missing")
     validate_definition(template, definition)
 
@@ -243,24 +322,27 @@ def build_agent_plan(
         action = "create"
     else:
         try:
-            current_semantics = parse_toml(current)
+            if definition == AGY_CONNECTION:
+                owned = bool(validate_definition(current, definition))
+            elif agy:
+                names = [line for line in agy_frontmatter(current) if line.startswith("name:")]
+                owned = names == [f"name: {definition.name}"]
+            else:
+                owned = parse_toml(current).get("name") == definition.name and has_owner_marker(current)
         except SetupAgentsError as exc:
-            current_semantics = None
+            owned = False
             current_parse_error = str(exc)
         if current == template:
             action = "no-op"
-        elif (
-            has_owner_marker(current)
-            and current_semantics is not None
-            and current_semantics.get("name") == definition.name
-        ):
+        elif owned:
             action = "update"
         else:
             action = "conflict"
 
-    delta = "" if action == "no-op" else render_delta(target, current, template)
+    delta = "" if action == "no-op" or (agy and action == "conflict") else render_delta(target, current, template)
     return AgentPlan(
         definition,
+        home,
         target,
         template,
         current,
@@ -304,20 +386,75 @@ def build_retired_agent_plan(home: Path) -> RetiredAgentPlan:
 def build_plan(
     codex_home: str | Path | None = None,
     *,
+    target: str = "codex",
+    agy_config: str | Path | None = None,
+    agy_executable: str | Path | None = None,
+    agy_auth: str | None = None,
     environ: Mapping[str, str] | None = None,
     user_home: Path | None = None,
     _template_paths: Mapping[str, Path] | None = None,
 ) -> Plan:
-    home = resolve_codex_home(codex_home, environ=environ, user_home=user_home)
-    if not home.is_dir():
-        raise SetupAgentsError("Codex home must already exist and be a directory")
     overrides = dict(_template_paths or {})
-    agents = tuple(
-        build_agent_plan(home, definition, _template_path=overrides.get(definition.name))
-        for definition in AGENT_DEFINITIONS
-    )
-    retired_agents = (build_retired_agent_plan(home),)
-    return Plan(home, agents, retired_agents)
+    home = None
+    agents: list[AgentPlan] = []
+    retired_agents = ()
+    if target in {"codex", "both"}:
+        home = resolve_codex_home(codex_home, environ=environ, user_home=user_home)
+        if not home.is_dir():
+            raise SetupAgentsError("Codex home must already exist and be a directory")
+        agents.extend(
+            build_agent_plan(home, definition, _template_path=overrides.get(definition.name))
+            for definition in AGENT_DEFINITIONS
+        )
+        retired_agents = (build_retired_agent_plan(home),)
+    if target in {"agy", "both"}:
+        if agy_config is not None and (agy_executable is not None or agy_auth is not None):
+            raise SetupAgentsError("An isolated --agy-config only prepares templates")
+        config = (Path(agy_config).expanduser() if agy_config else
+                  (user_home or Path.home()) / ".gemini" / "config").resolve()
+        if config == Path(config.anchor):
+            raise SetupAgentsError("Antigravity config cannot be a filesystem root")
+        agents.extend(
+            build_agent_plan(config, definition, _template_path=overrides.get(definition.name))
+            for definition in AGY_DEFINITIONS
+        )
+        if agy_config is None:
+            connection_path = resolve_agent_target(config, AGY_CONNECTION)
+            current = {}
+            if connection_path.is_file():
+                saved_bytes = connection_path.read_bytes()
+                try:
+                    current = validate_definition(saved_bytes, AGY_CONNECTION)
+                except SetupAgentsError as exc:
+                    agents.append(AgentPlan(
+                        AGY_CONNECTION, config, connection_path, b"", saved_bytes, "conflict", "", str(exc),
+                    ))
+                    return Plan(home, tuple(agents), retired_agents)
+            env = os.environ if environ is None else environ
+            if agy_executable is not None:
+                executable = Path(agy_executable).expanduser()
+            elif "executable" in current:
+                executable = Path(current["executable"])
+            elif os.name == "nt" and env.get("LOCALAPPDATA"):
+                executable = Path(env["LOCALAPPDATA"]) / "agy" / "bin" / "agy.exe"
+            elif os.name != "nt":
+                executable = (user_home or Path.home()) / ".local" / "bin" / "agy"
+            else:
+                raise SetupAgentsError("Specify the official Antigravity CLI with --agy-executable")
+            if not executable.is_absolute():
+                raise SetupAgentsError("The official Antigravity CLI path must be absolute")
+            executable = executable.resolve(strict=True)
+            if not executable.is_file() or (os.name == "nt" and executable.suffix.lower() != ".exe"):
+                raise SetupAgentsError("Specify the official Antigravity CLI executable")
+            if agy_auth is None:
+                agy_auth = current.get("auth")
+            saved = {"managed_by": AGY_OWNER, "executable": str(executable), "auth": agy_auth}
+            agents.append(build_agent_plan(
+                config, AGY_CONNECTION, generated=(json.dumps(saved, indent=2) + "\n").encode("utf-8"),
+            ))
+    if not agents:
+        raise SetupAgentsError(f"unknown setup target: {target}")
+    return Plan(home, tuple(agents), retired_agents)
 
 
 def plan_result(plan: Plan) -> dict[str, object]:
@@ -402,9 +539,62 @@ def verify_installed(target: Path, expected: bytes, definition: AgentDefinition)
         raise SetupAgentsError("installed content mismatch")
 
 
+def verify_agy_setup(connection: AgentPlan) -> dict[str, object]:
+    saved = validate_definition(connection.template, AGY_CONNECTION)
+    executable = saved["executable"]
+    env = dict(os.environ)
+    env.pop("GEMINI_API_KEY", None)
+    launch = {
+        "cwd": connection.home, "env": env, "capture_output": True,
+        "encoding": "utf-8", "errors": "replace", "timeout": 40,
+    }
+    discovered = subprocess.run([executable, "agents"], **launch)
+    if discovered.returncode:
+        details = discovered.stderr.strip()[-2048:]
+        message = f"agy agents exited with code {discovered.returncode}"
+        raise SetupAgentsError(f"{message}: {details}" if details else message)
+    names = {line.strip() for line in discovered.stdout.splitlines()}
+    missing = [definition.name for definition in AGY_DEFINITIONS if definition.name not in names]
+    if missing:
+        raise SetupAgentsError(f"agy agents did not discover the managed roles: {', '.join(missing)}")
+    client = Path(__file__).resolve().parents[3] / "adapters" / "codex" / "scripts" / "agy_acp.py"
+    handshake = subprocess.run(
+        [sys.executable, "-B", str(client), "--agy", executable, "--cwd", str(connection.home), "--probe"],
+        **launch,
+    )
+    if handshake.returncode:
+        details = handshake.stderr.strip()
+        try:
+            receipt = json.loads(handshake.stdout)
+        except json.JSONDecodeError:
+            receipt = None
+        if isinstance(receipt, dict):
+            details = "\n".join(part for part in (receipt.get("error"), receipt.get("stderr"), details) if part)
+        message = f"Antigravity ACP initialization failed during setup (exit {handshake.returncode})"
+        raise SetupAgentsError(f"{message}: {details[-4096:]}" if details else message)
+    hello = json.loads(handshake.stdout)["initialize"]
+    offered = {
+        method["id"] for method in (hello.get("authMethods") or ())
+        if method.get("type", "agent") == "agent"
+    }
+    expected_auth = "oauth-personal" if saved["auth"] == "cached-login" else saved["auth"]
+    if expected_auth is not None and expected_auth not in offered:
+        raise SetupAgentsError("Antigravity ACP does not offer the selected authentication method")
+    return {
+        "executable": executable, "auth": saved["auth"],
+        "agents": [definition.name for definition in AGY_DEFINITIONS],
+        "protocol_version": hello["protocolVersion"],
+        "cli_version": hello.get("agentInfo", {}).get("version"),
+    }
+
+
 def run_setup(
     *,
     codex_home: str | Path | None = None,
+    target: str = "codex",
+    agy_config: str | Path | None = None,
+    agy_executable: str | Path | None = None,
+    agy_auth: str | None = None,
     write: bool = False,
     environ: Mapping[str, str] | None = None,
     user_home: Path | None = None,
@@ -414,6 +604,10 @@ def run_setup(
     try:
         plan = build_plan(
             codex_home,
+            target=target,
+            agy_config=agy_config,
+            agy_executable=agy_executable,
+            agy_auth=agy_auth,
             environ=environ,
             user_home=user_home,
             _template_paths=_template_paths,
@@ -443,26 +637,25 @@ def run_setup(
     retired_agents = [
         agent for agent in plan.retired_agents if agent.action == "remove"
     ]
+    connection = next((agent for agent in plan.agents if agent.definition == AGY_CONNECTION), None)
+    if connection is not None:
+        result["agy_connection"] = str(connection.target)
     if not changed_agents and not retired_agents:
         result.update(status="ok", transaction="no_changes")
         return result
 
-    parent = plan.codex_home / "agents"
-    parent_created = False
+    created_directories: list[Path] = []
     temp_paths: dict[Path, Path] = {}
     replaced_agents: list[AgentPlan] = []
     removed_retired_agents: list[RetiredAgentPlan] = []
     hooks = dict(_test_hooks or {})
     try:
         for agent in plan.agents:
-            if resolve_target(plan.codex_home, agent.definition.target_relative) != agent.target:
+            if resolve_agent_target(agent.home, agent.definition) != agent.target:
                 raise SetupAgentsError(f"Agent target resolution changed before write: {agent.definition.name}")
         for agent in plan.retired_agents:
             if resolve_target(plan.codex_home, LEGACY_RESEARCHER_TARGET_RELATIVE) != agent.target:
                 raise SetupAgentsError(f"retired Agent target resolution changed before write: {agent.name}")
-        if not parent.exists():
-            parent.mkdir()
-            parent_created = True
         if hook := hooks.get("before_preimage_check"):
             hook()
         for agent in plan.agents:
@@ -474,14 +667,27 @@ def run_setup(
             if current_now != agent.current:
                 raise SetupAgentsError(f"target changed after planning: {agent.name}")
         for agent in changed_agents:
+            missing_parents = []
+            parent = agent.target.parent
+            while not parent.is_dir():
+                if parent == parent.parent:
+                    raise SetupAgentsError(f"Agent target has no accessible parent directory: {agent.target}")
+                missing_parents.append(parent)
+                parent = parent.parent
+            for parent in reversed(missing_parents):
+                parent.mkdir()
+                created_directories.append(parent)
             temp_paths[agent.target] = prepare_temp(
                 agent.target,
                 agent.template,
+                validate=agent.definition not in (*AGY_DEFINITIONS, AGY_CONNECTION),
                 expected_identity=expected_identity(agent.definition),
             )
         for agent in changed_agents:
+            if agent.definition == AGY_CONNECTION:
+                result["agy_setup"] = verify_agy_setup(agent)
             # 临近替换复查仍存在时间窗口；跨进程原子比较交换需要文件系统支持。
-            if resolve_target(plan.codex_home, agent.definition.target_relative) != agent.target:
+            if resolve_agent_target(agent.home, agent.definition) != agent.target:
                 raise SetupAgentsError(f"Agent target resolution changed before write: {agent.definition.name}")
             current_now = agent.target.read_bytes() if agent.target.is_file() else None
             if current_now != agent.current:
@@ -493,6 +699,9 @@ def run_setup(
                 hook(agent.target)
         for agent in changed_agents:
             verify_installed(agent.target, agent.template, agent.definition)
+        if (connection is not None and connection.action == "no-op"
+                and any(agent.definition in AGY_DEFINITIONS for agent in changed_agents)):
+            result["agy_setup"] = verify_agy_setup(connection)
         for agent in retired_agents:
             current_now = agent.target.read_bytes() if agent.target.is_file() else None
             if current_now != agent.current:
@@ -503,11 +712,11 @@ def run_setup(
                 hook(agent.target)
             if agent.target.exists():
                 raise SetupAgentsError(f"retired Agent still exists after removal: {agent.name}")
-    except Exception as exc:
+    except (Exception, KeyboardInterrupt) as exc:
         for temp_path in temp_paths.values():
             temp_path.unlink(missing_ok=True)
         if not replaced_agents and not removed_retired_agents:
-            if parent_created:
+            for parent in reversed(created_directories):
                 try:
                     parent.rmdir()
                 except OSError:
@@ -543,8 +752,11 @@ def run_setup(
                 restored = agent.target.read_bytes() if agent.target.is_file() else None
                 if restored != agent.current:
                     raise SetupAgentsError(f"rollback verification failed: {agent.definition.name}")
-            if parent_created:
-                parent.rmdir()
+            for parent in reversed(created_directories):
+                try:
+                    parent.rmdir()
+                except OSError as cleanup_error:
+                    result["warnings"].append(f"Could not remove directory after rollback: {cleanup_error}")
             result.update(status="refused", transaction="rolled_back", errors=[f"post-write verification failed: {type(exc).__name__}: {exc}"])
         except Exception as restore_exc:
             result.update(status="error", transaction="rollback_failed", errors=[str(exc), str(restore_exc)])
@@ -562,12 +774,20 @@ def run_setup(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--codex-home")
+    parser.add_argument("--target", choices=("codex", "agy", "both"), default="codex")
+    parser.add_argument("--agy-config")
+    parser.add_argument("--agy-executable")
+    parser.add_argument("--agy-auth", choices=AGY_AUTH_METHODS)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true")
     mode.add_argument("--write", action="store_true")
     args = parser.parse_args()
     result = run_setup(
         codex_home=args.codex_home,
+        target=args.target,
+        agy_config=args.agy_config,
+        agy_executable=args.agy_executable,
+        agy_auth=args.agy_auth,
         write=args.write,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))

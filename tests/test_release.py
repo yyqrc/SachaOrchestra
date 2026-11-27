@@ -296,6 +296,12 @@ class ReleaseScriptTests(unittest.TestCase):
 
     def test_additional_production_assets_select_direct_tests(self) -> None:
         cases = {
+            "plugins/sacha-orchestra/skills/setup-agents/assets/agy/sacha-explorer/agent.md": {
+                "tests.test_setup_agents"
+            },
+            "plugins/sacha-orchestra/skills/setup-agents/assets/agy/sacha-reviewer/agent.md": {
+                "tests.test_setup_agents"
+            },
             "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md": {
                 "tests.test_document_project"
             },
@@ -314,7 +320,7 @@ class ReleaseScriptTests(unittest.TestCase):
                 )
                 self.assertEqual(unittest_modules(commands), expected)
 
-    def test_codex_transport_needs_no_packaged_executable_helper(self) -> None:
+    def test_codex_native_transport_needs_no_packaged_executable_helper(self) -> None:
         adapter = SCRIPT.parents[1] / "plugins" / "sacha-orchestra" / "adapters" / "codex"
         self.assertTrue((adapter / "runtime-adapter.md").is_file())
         executable_helpers = [
@@ -322,7 +328,9 @@ class ReleaseScriptTests(unittest.TestCase):
             for path in adapter.rglob("*")
             if path.is_file() and path.suffix in {".js", ".mjs", ".cjs", ".py", ".ps1"}
         ]
-        self.assertEqual(executable_helpers, [])
+        self.assertEqual(executable_helpers, ["scripts/agy_acp.py"])
+        helper = "plugins/sacha-orchestra/adapters/codex/scripts/agy_acp.py"
+        self.assertEqual(release.narrow_test_modules([helper], set()), ["tests.test_agy_acp"])
         path = "plugins/sacha-orchestra/adapters/codex/runtime-adapter.md"
         commands = release.validation_commands(
             "0.1.0", [path], deltas={path: ("before\n", "after\n")}

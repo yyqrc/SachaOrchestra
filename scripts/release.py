@@ -36,6 +36,8 @@ PRODUCTION_TESTED_MARKDOWN = {
     "plugins/sacha-orchestra/skills/document-project/assets/change-archive.md",
     "plugins/sacha-orchestra/skills/document-project/assets/roadmap.md",
     "plugins/sacha-orchestra/skills/document-project/assets/system-guide.md",
+    "plugins/sacha-orchestra/skills/setup-agents/assets/agy/sacha-explorer/agent.md",
+    "plugins/sacha-orchestra/skills/setup-agents/assets/agy/sacha-reviewer/agent.md",
 }
 DSH_COMPANION_ROOT = "integrations/dsh/sacha-companion/"
 DSH_COMPANION_VALIDATOR = "tests/validate_dsh_companion.py"
@@ -251,6 +253,7 @@ def narrow_test_modules(staged: list[str], deleted_paths: set[str]) -> list[str]
         (("plugins/sacha-orchestra/scripts/template_catalog.py",), "tests.test_document_project"),
         (("plugins/sacha-orchestra/skills/setup-agents/scripts/", "tests/test_setup_agents.py"), "tests.test_setup_agents"),
         (("plugins/sacha-orchestra/skills/setup-agents/assets/",), "tests.test_setup_agents"),
+        (("plugins/sacha-orchestra/adapters/codex/scripts/agy_acp.py", "tests/test_agy_acp.py"), "tests.test_agy_acp"),
         (("plugins/sacha-orchestra/skills/setup-project/scripts/resolve_provider_queries.py", "tests/test_skill_loading.py"), "tests.test_skill_loading"),
         ((DSH_COMPANION_VALIDATOR,), "tests.test_release"),
         ((DSH_COMPANION_ROOT, "tests/test_dsh_companion.py", *DSH_RETIRED_TEST_PATHS), "tests.test_dsh_companion"),
@@ -274,6 +277,7 @@ def narrow_test_modules(staged: list[str], deleted_paths: set[str]) -> list[str]
             ("tests/test_setup_project.py", "tests.test_setup_project"),
             ("tests/test_document_project.py", "tests.test_document_project"),
             ("tests/test_setup_agents.py", "tests.test_setup_agents"),
+            ("tests/test_agy_acp.py", "tests.test_agy_acp"),
             ("tests/test_skill_loading.py", "tests.test_skill_loading"),
             ("tests/test_dsh_companion.py", "tests.test_dsh_companion"),
             ("tests/test_runtime_scenario_verifiers.py", "tests.test_runtime_scenario_verifiers"),

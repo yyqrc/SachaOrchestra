@@ -52,6 +52,157 @@ class SetupAgentsTests(unittest.TestCase):
     def apply(self, **kwargs):
         return setup_agents.run_setup(codex_home=self.codex_home, write=True, **kwargs)
 
+    def test_agy_targets_and_both_via_cli(self):
+        config = self.root / "user" / ".gemini" / "config"
+        args = [sys.executable, "-B", str(SCRIPT), "--codex-home", str(self.codex_home),
+                "--agy-config", str(config)]
+
+        def invoke(target, mode):
+            process = subprocess.run([*args, "--target", target, mode], capture_output=True,
+                                     check=True, encoding="utf-8")
+            return json.loads(process.stdout)
+
+        preview = invoke("both", "--dry-run")
+        self.assertEqual(7, len(preview["target_paths"]))
+        self.assertFalse(config.exists())
+        self.assertEqual([], list(self.codex_home.iterdir()))
+        unrelated = config / "agents" / "personal" / "agent.md"
+        unrelated.parent.mkdir(parents=True)
+        unrelated.write_bytes(b"personal")
+        agy = invoke("agy", "--write")
+        self.assertEqual("written", agy["transaction"])
+        self.assertEqual(2, len(agy["written_paths"]))
+        self.assertEqual([], list(self.codex_home.iterdir()))
+        self.assertEqual(b"personal", unrelated.read_bytes())
+        for definition in setup_agents.AGY_DEFINITIONS:
+            self.assertEqual(definition.template_path.read_bytes(),
+                             (config / definition.target_relative).read_bytes())
+        self.assertEqual("no_changes", invoke("agy", "--write")["transaction"])
+        both = invoke("both", "--write")
+        self.assertEqual(5, len(both["written_paths"]))
+        self.assertEqual("no_changes", invoke("both", "--write")["transaction"])
+
+    def test_agy_setup_verifies_once_before_saving_the_connection(self):
+        path = self.root.resolve() / ".gemini" / "config" / "sacha-acp.json"
+        options = {"target": "agy", "user_home": self.root, "agy_executable": sys.executable}
+        roles = setup_agents.AGY_DEFINITIONS
+        helper = ROOT / "plugins" / "sacha-orchestra" / "adapters" / "codex" / "scripts" / "agy_acp.py"
+        saved_on_probe = []
+
+        def launch(command, **kwargs):
+            self.assertEqual(path.parent, kwargs["cwd"])
+            self.assertNotIn("GEMINI_API_KEY", kwargs["env"])
+            for definition in roles:
+                self.assertEqual(definition.template_path.read_bytes(),
+                                 (path.parent / definition.target_relative).read_bytes())
+            if command == [str(Path(sys.executable).resolve()), "agents"]:
+                return subprocess.CompletedProcess(command, 0, "\n".join(role.name for role in roles), "")
+            self.assertEqual([sys.executable, "-B", str(helper), "--agy", str(Path(sys.executable).resolve()),
+                              "--cwd", str(path.parent), "--probe"], command)
+            saved_on_probe.append(path.exists())
+            hello = {"protocolVersion": 1, "agentInfo": {"version": "test"},
+                     "authMethods": [{"id": "oauth-personal"}]}
+            return subprocess.CompletedProcess(command, 0, json.dumps({"initialize": hello}), "")
+
+        with mock.patch.object(setup_agents.subprocess, "run", side_effect=launch) as check:
+            preview = setup_agents.run_setup(**options, agy_auth="cached-login")
+            self.assertEqual("dry_run", preview["transaction"])
+            self.assertFalse(path.exists())
+            check.assert_not_called()
+            written = self.apply(**options, agy_auth="cached-login")
+            self.assertEqual("written", written["transaction"], written.get("errors"))
+            self.assertEqual((1, "test", "cached-login"), (written["agy_setup"]["protocol_version"],
+                                                            written["agy_setup"]["cli_version"],
+                                                            written["agy_setup"]["auth"]))
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual("cached-login", saved["auth"])
+            self.assertEqual(Path(sys.executable).resolve(), Path(saved["executable"]))
+            repeated = self.apply(target="agy", user_home=self.root)
+            self.assertEqual("no_changes", repeated["transaction"])
+            self.assertEqual(saved, json.loads(path.read_text(encoding="utf-8")))
+            self.assertEqual(2, check.call_count)
+            role_path = path.parent / roles[0].target_relative
+            role_path.write_bytes(role_path.read_bytes() + b"\nOld managed instructions.\n")
+            refreshed = self.apply(target="agy", user_home=self.root)
+            self.assertEqual([str(role_path)], refreshed["written_paths"])
+            self.assertEqual(saved, json.loads(path.read_text(encoding="utf-8")))
+            self.assertEqual([False, True], saved_on_probe)
+
+    def test_unmanaged_agy_connection_is_visible_in_dry_run(self):
+        path = self.root / ".gemini" / "config" / "sacha-acp.json"
+        path.parent.mkdir(parents=True)
+        content = b'{"unmanaged": "do not disclose in the preview"}'
+        path.write_bytes(content)
+        options = {"target": "both", "user_home": self.root, "agy_executable": self.root / "missing"}
+        preview = setup_agents.run_setup(codex_home=self.codex_home, **options)
+        self.assertEqual("dry_run", preview["transaction"])
+        self.assertEqual(8, len(preview["agents"]))
+        self.assertEqual("conflict", self.agent(preview, "sacha-acp")["action"])
+        self.assertNotIn(content.decode(), json.dumps(preview))
+        written = self.apply(**options)
+        self.assertEqual(("refused", "no_write"), (written["status"], written["transaction"]))
+        self.assertEqual(content, path.read_bytes())
+        self.assertEqual([], list(self.codex_home.iterdir()))
+
+    def test_agy_probe_failure_preserves_diagnostics_and_restores_managed_files(self):
+        config = self.root / ".gemini" / "config"
+        unrelated = config / "agy-runtime.txt"
+
+        def launch(command, **kwargs):
+            if command[1:] == ["agents"]:
+                names = "\n".join(role.name for role in setup_agents.AGY_DEFINITIONS)
+                return subprocess.CompletedProcess(command, 0, names, "")
+            unrelated.write_bytes(b"agy side effect")
+            return subprocess.CompletedProcess(command, 2, json.dumps({"error": "init failed",
+                                                                         "stderr": "native diagnosis"}), "")
+
+        with mock.patch.object(setup_agents.subprocess, "run", side_effect=launch):
+            result = self.apply(target="agy", user_home=self.root, agy_executable=sys.executable)
+        self.assertEqual(("refused", "rolled_back"), (result["status"], result["transaction"]))
+        self.assertIn("exit 2", result["errors"][0])
+        self.assertIn("init failed", result["errors"][0])
+        self.assertIn("native diagnosis", result["errors"][0])
+        self.assertEqual(b"agy side effect", unrelated.read_bytes())
+        self.assertFalse((config / "sacha-acp.json").exists())
+        self.assertFalse((config / "agents").exists())
+
+    def test_failed_agy_discovery_leaves_no_connection_or_new_roles(self):
+        for error in (setup_agents.SetupAgentsError("agent missing"), KeyboardInterrupt()):
+            with self.subTest(error=type(error).__name__), mock.patch.object(
+                    setup_agents, "verify_agy_setup", side_effect=error):
+                result = self.apply(target="agy", user_home=self.root, agy_executable=sys.executable)
+                self.assertEqual("rolled_back", result["transaction"])
+                self.assertFalse((self.root / ".gemini").exists())
+
+    def test_agy_unmanaged_file_blocks_both_and_flat_collision_is_refused(self):
+        config = self.root / "gemini"
+        profile = config / "agents" / "sacha-reviewer" / "agent.md"
+        profile.parent.mkdir(parents=True)
+        content = b"---\nname: sacha-reviewer\n---\nUser configuration"
+        profile.write_bytes(content)
+        conflict = self.apply(target="both", agy_config=config)
+        self.assertEqual(("refused", "no_write"), (conflict["status"], conflict["transaction"]))
+        self.assertEqual(content, profile.read_bytes())
+        self.assertEqual([], list(self.codex_home.iterdir()))
+        flat = config / "agents" / "sacha-explorer.md"
+        flat.write_bytes(content)
+        conflict = self.apply(target="agy", agy_config=config)
+        self.assertIn(str(flat.resolve()), conflict["errors"][0])
+        self.assertEqual(content, flat.read_bytes())
+
+    def test_rollback_from_agy_write_restores_codex_and_own_directories(self):
+        config = (self.root / "user" / ".gemini" / "config").resolve()
+
+        def fail_after_agy_replace(path):
+            if path.is_relative_to(config):
+                raise OSError("test write interruption")
+
+        failed = self.apply(target="both", agy_config=config,
+                            _test_hooks={"after_replace": fail_after_agy_replace})
+        self.assertEqual("rolled_back", failed["transaction"])
+        self.assertFalse(config.exists())
+        self.assertEqual([], list(self.codex_home.iterdir()))
+
     @staticmethod
     def agent(plan, name):
         return next(agent for agent in plan["agents"] if agent["name"] == name)
