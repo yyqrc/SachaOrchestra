@@ -90,7 +90,10 @@ def run(args, report):
         report["session"]["confirmed_agent"] = opened.get("currentAgentName")
         if report["session"]["confirmed_agent"] != args.agent:
             raise AcpError(f"CodeBuddy did not confirm the selected role: {args.agent}")
-        configure(client, [f"model={model}"])
+        selections = [f"model={model}"]
+        if previous is None and args.model is None:
+            selections.append("thought_level=high")
+        configure(client, selections)
         report["session"]["confirmed_model"] = model
         if prompt is None:
             report["status"] = "session_ready"

@@ -224,7 +224,7 @@ Gemini 评审默认用 Neon Mid，传 `--set-config model=gemini-4-neon --set-co
 
 #### CodeBuddy Code ACP
 
-使用已登录的本机 CodeBuddy CLI。每个角色会话在仓库外使用一个目录，只放获准材料，并按目录内的路径整理输入。[客户端](scripts/cbc_acp.py) 在目录中生成对应角色配置，确认角色和模型后再发送。新会话默认 `claude-opus-5.5`，续接默认沿用回执中的型号。用户指定型号时传 `--model <CBC 模型 ID>`。
+使用已登录的本机 CodeBuddy CLI。每个角色会话在仓库外使用一个目录，只放获准材料，并按目录内的路径整理输入。[客户端](scripts/cbc_acp.py) 在目录中生成对应角色配置，确认角色和模型后再发送。新会话默认 `claude-opus-5.5`，推理强度为 `high`。续接默认沿用回执中的型号。用户指定型号时传 `--model <CBC 模型 ID>`。
 
 ```text
 python -B <cbc_acp.py> --cwd <专用目录> --agent <角色名> --prompt-file <UTF-8 输入路径>

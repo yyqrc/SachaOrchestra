@@ -17,7 +17,7 @@ with patch.object(sys, "path", [str(SCRIPT.parent), *sys.path]):
 
 
 class CodeBuddyDispatchTests(unittest.TestCase):
-    def test_role_and_model_must_match_before_sending_prompt(self):
+    def test_role_model_and_default_effort_must_match_before_sending_prompt(self):
         with tempfile.TemporaryDirectory() as temp:
             cwd = Path(temp)
             role = "sacha-reviewer"
@@ -34,10 +34,13 @@ class CodeBuddyDispatchTests(unittest.TestCase):
                     client = Mock()
                     model = {"id": "model", "type": "select", "currentValue": offered_model,
                              "options": [{"value": offered_model}]}
+                    effort = {"id": "thought_level", "type": "select", "currentValue": "low",
+                              "options": [{"value": "low"}, {"value": "high"}]}
                     client.request.side_effect = [
                         {"protocolVersion": 1, "agentCapabilities": {"mainAgentSupport": True}},
                         {"agents": [{"name": role}]},
-                        {"sessionId": "test-session", "currentAgentName": current_role, "configOptions": [model]},
+                        {"sessionId": "test-session", "currentAgentName": current_role, "configOptions": [model, effort]},
+                        {"configOptions": [model, {**effort, "currentValue": "high"}]},
                     ]
                     report = {"status": "error", "turn_state": "not_sent"}
                     client.report = report
@@ -49,6 +52,8 @@ class CodeBuddyDispatchTests(unittest.TestCase):
                             client.prompt.assert_not_called()
                         else:
                             cbc.run(args, report)
+                            client.request.assert_called_with("session/set_config_option", sessionId="test-session",
+                                                              configId="thought_level", value="high")
                             client.prompt.assert_called_once_with("Synthetic review input", 30)
                             self.assertEqual(report["session"]["confirmed_model"], "claude-opus-5.5")
                     client.close.assert_called_once_with(accept_termination=True)
